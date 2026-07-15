@@ -433,6 +433,22 @@ export async function updateChore(choreId: string, formData: FormData) {
   revalidatePath("/", "layout");
 }
 
+export async function deleteChore(choreId: string) {
+  const household = await requireHousehold();
+  const id = z.string().uuid().parse(choreId);
+  const deleted = await db
+    .delete(chores)
+    .where(
+      and(
+        eq(chores.id, id),
+        eq(chores.householdId, household.id),
+      ),
+    )
+    .returning({ id: chores.id });
+  if (!deleted[0]) throw new Error("Chore not found.");
+  revalidatePath("/", "layout");
+}
+
 export async function toggleChore(
   choreId: string,
   periodKey: string,

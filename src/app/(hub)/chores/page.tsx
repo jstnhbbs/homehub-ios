@@ -1,6 +1,11 @@
 import { asc, eq } from "drizzle-orm";
-import { Pencil, Plus, Sparkles } from "lucide-react";
-import { addChore, toggleChore, updateChore } from "@/app/actions";
+import { Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
+import {
+  addChore,
+  deleteChore,
+  toggleChore,
+  updateChore,
+} from "@/app/actions";
 import { CheckItem } from "@/components/check-item";
 import { ProfileAvatar } from "@/components/profile-avatar";
 import { db } from "@/db/client";
@@ -148,6 +153,13 @@ export default async function ChoresPage() {
                               </select>
                               <button className="hub-button w-full">
                                 Save chore
+                              </button>
+                              <button
+                                formAction={deleteChore.bind(null, chore.id)}
+                                formNoValidate
+                                className="flex w-full items-center justify-center gap-1 rounded-xl px-3 py-2 text-sm font-bold text-[var(--coral)]"
+                              >
+                                <Trash2 size={14} /> Delete chore
                               </button>
                             </form>
                           </details>

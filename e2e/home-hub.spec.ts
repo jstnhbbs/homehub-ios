@@ -50,6 +50,16 @@ test("a parent can create a household and use the hub", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: /Clear the table/ }),
   ).toBeVisible();
+  const deleteChoreButton = page.getByRole("button", {
+    name: "Delete chore",
+  });
+  if (!(await deleteChoreButton.isVisible())) {
+    await page.getByText("Edit Clear the table", { exact: true }).click();
+  }
+  await deleteChoreButton.click();
+  await expect(
+    page.getByRole("button", { name: /Clear the table/ }),
+  ).toHaveCount(0);
 
   await page.getByRole("link", { name: "Routines", exact: true }).click();
   await page.getByPlaceholder("Bedtime routine").fill("Morning launch");
