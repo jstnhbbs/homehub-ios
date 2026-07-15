@@ -1,4 +1,4 @@
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, asc, eq, gte, lte } from "drizzle-orm";
 import { format } from "date-fns";
 import { Copy, Trash2 } from "lucide-react";
 import {
@@ -7,7 +7,7 @@ import {
 } from "@/app/actions";
 import { MealInput } from "@/components/meal-input";
 import { db } from "@/db/client";
-import { meals } from "@/db/schema";
+import { meals, recipes } from "@/db/schema";
 import { weekDates } from "@/lib/dates";
 import { requireHousehold } from "@/lib/household";
 
@@ -17,16 +17,23 @@ export default async function MealsPage() {
   const household = await requireHousehold();
   const days = weekDates();
   const dateStrings = days.map((day) => format(day, "yyyy-MM-dd"));
-  const weekMeals = await db
-    .select()
-    .from(meals)
-    .where(
-      and(
-        eq(meals.householdId, household.id),
-        gte(meals.localDate, dateStrings[0]),
-        lte(meals.localDate, dateStrings[6]),
+  const [weekMeals, householdRecipes] = await Promise.all([
+    db
+      .select()
+      .from(meals)
+      .where(
+        and(
+          eq(meals.householdId, household.id),
+          gte(meals.localDate, dateStrings[0]),
+          lte(meals.localDate, dateStrings[6]),
+        ),
       ),
-    );
+    db
+      .select({ id: recipes.id, title: recipes.title })
+      .from(recipes)
+      .where(eq(recipes.householdId, household.id))
+      .orderBy(asc(recipes.title)),
+  ]);
   const weekStart = dateStrings[0];
 
   return (
@@ -81,9 +88,12 @@ export default async function MealsPage() {
                         {slot}
                       </p>
                       <MealInput
+                        key={`${localDate}-${slot}-${meal?.recipeId ?? ""}-${meal?.title ?? ""}`}
                         localDate={localDate}
                         slot={slot}
                         initialValue={meal?.title ?? ""}
+                        initialRecipeId={meal?.recipeId}
+                        recipes={householdRecipes}
                       />
                     </div>
                   );
@@ -126,9 +136,12 @@ export default async function MealsPage() {
                     className="min-h-20 border-b border-r border-[var(--line)] p-2 last:border-r-0"
                   >
                     <MealInput
+                      key={`${localDate}-${slot}-${meal?.recipeId ?? ""}-${meal?.title ?? ""}`}
                       localDate={localDate}
                       slot={slot}
                       initialValue={meal?.title ?? ""}
+                      initialRecipeId={meal?.recipeId}
+                      recipes={householdRecipes}
                     />
                   </div>
                 );
@@ -138,7 +151,7 @@ export default async function MealsPage() {
         </div>
       </section>
       <p className="mt-4 text-center text-sm text-[var(--muted)]">
-        Tap any meal to edit it. Leave it blank to clear that slot.
+        Pick a saved recipe or type a meal name. Leave it blank to clear that slot.
       </p>
     </div>
   );

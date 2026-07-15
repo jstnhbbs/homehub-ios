@@ -14,6 +14,7 @@ import {
   households,
   meals,
   profiles,
+  recipes,
   routineCompletions,
   routines,
   routineSteps,
@@ -481,16 +482,19 @@ export async function toggleChore(
 
 export async function saveMeal(formData: FormData) {
   const household = await requireHousehold();
+  const recipeIdValue = text(formData, "recipeId");
   const input = z
     .object({
       localDate: z.string().date(),
       slot: z.enum(["breakfast", "lunch", "dinner", "snack"]),
       title: z.string().trim().max(120),
+      recipeId: z.string().uuid().optional(),
     })
     .parse({
       localDate: text(formData, "localDate"),
       slot: text(formData, "slot"),
       title: text(formData, "title"),
+      recipeId: recipeIdValue || undefined,
     });
 
   if (!input.title) {
@@ -504,12 +508,39 @@ export async function saveMeal(formData: FormData) {
         ),
       );
   } else {
+    let recipeId = input.recipeId ?? null;
+    let title = input.title;
+    if (recipeId) {
+      const recipe = await db
+        .select({ id: recipes.id, title: recipes.title })
+        .from(recipes)
+        .where(
+          and(
+            eq(recipes.id, recipeId),
+            eq(recipes.householdId, household.id),
+          ),
+        )
+        .limit(1);
+      if (!recipe[0]) {
+        recipeId = null;
+      } else {
+        title = recipe[0].title;
+      }
+    }
+
     await db
       .insert(meals)
-      .values({ id: randomUUID(), householdId: household.id, ...input })
+      .values({
+        id: randomUUID(),
+        householdId: household.id,
+        localDate: input.localDate,
+        slot: input.slot,
+        title,
+        recipeId,
+      })
       .onConflictDoUpdate({
         target: [meals.householdId, meals.localDate, meals.slot],
-        set: { title: input.title, updatedAt: new Date() },
+        set: { title, recipeId, updatedAt: new Date() },
       });
   }
   revalidatePath("/", "layout");
@@ -559,11 +590,17 @@ export async function copyPreviousMealWeek(formData: FormData) {
         localDate: targetDate,
         slot: meal.slot,
         title: meal.title,
+        recipeId: meal.recipeId,
         notes: meal.notes,
       })
       .onConflictDoUpdate({
         target: [meals.householdId, meals.localDate, meals.slot],
-        set: { title: meal.title, notes: meal.notes, updatedAt: new Date() },
+        set: {
+          title: meal.title,
+          recipeId: meal.recipeId,
+          notes: meal.notes,
+          updatedAt: new Date(),
+        },
       });
   }
   revalidatePath("/", "layout");

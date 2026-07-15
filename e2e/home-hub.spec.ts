@@ -100,7 +100,33 @@ test("a parent can create a household and use the hub", async ({ page }) => {
   await expect(page.getByText(`Birthday: ${birthdayLabel}`)).toBeVisible();
 
   await page.getByRole("link", { name: "Calendar", exact: true }).click();
-  await expect(page.getByText("Avery’s birthday")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Avery’s birthday" }),
+  ).toBeVisible();
+  await expect(page.getByText("Agenda", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Week", exact: true }).click();
+  await expect(page).toHaveURL(/view=week/);
+  await expect(page.getByText("Agenda", { exact: true })).toBeVisible();
+
+  await page.getByRole("link", { name: "Recipes", exact: true }).click();
+  await page.getByPlaceholder("Recipe title").fill("Pancakes");
+  await page.getByPlaceholder("1 cup flour").fill("1 cup flour\n2 eggs");
+  await page.getByPlaceholder("Preheat the oven.").fill("Mix batter\nCook on griddle");
+  await page.getByRole("button", { name: "Save recipe" }).click();
+  await expect(page.getByRole("heading", { name: "Pancakes" })).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: "1 cup flour" })).toBeVisible();
+
+  await page.getByRole("link", { name: "Meals", exact: true }).click();
+  const dinnerMealForm = page.locator("form").filter({
+    has: page.locator('select[aria-label="Choose a saved recipe for dinner"]:visible'),
+  }).first();
+  await dinnerMealForm
+    .locator('select[aria-label="Choose a saved recipe for dinner"]')
+    .selectOption({ label: "Pancakes" });
+  await dinnerMealForm.getByRole("button", { name: "Save meal" }).click();
+  await expect(
+    page.getByRole("link", { name: "View recipe" }).first(),
+  ).toBeVisible();
 });
 
 test("the sign-in screen fits the active viewport", async ({ page }) => {

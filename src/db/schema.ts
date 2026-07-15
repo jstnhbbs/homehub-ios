@@ -231,6 +231,30 @@ export const choreCompletions = sqliteTable(
   ],
 );
 
+export const recipes = sqliteTable(
+  "recipes",
+  {
+    id: text("id").primaryKey(),
+    householdId: text("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description"),
+    servings: text("servings"),
+    prepTime: text("prep_time"),
+    cookTime: text("cook_time"),
+    totalTime: text("total_time"),
+    ingredients: text("ingredients").notNull().default("[]"),
+    directions: text("directions").notNull().default("[]"),
+    nutrition: text("nutrition"),
+    sourceUrl: text("source_url"),
+    imageUrl: text("image_url"),
+    notes: text("notes"),
+    ...timestamps,
+  },
+  (table) => [index("recipes_household_idx").on(table.householdId)],
+);
+
 export const meals = sqliteTable(
   "meals",
   {
@@ -243,6 +267,9 @@ export const meals = sqliteTable(
       enum: ["breakfast", "lunch", "dinner", "snack"],
     }).notNull(),
     title: text("title").notNull(),
+    recipeId: text("recipe_id").references(() => recipes.id, {
+      onDelete: "set null",
+    }),
     notes: text("notes"),
     ...timestamps,
   },

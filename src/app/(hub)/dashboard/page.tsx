@@ -261,7 +261,16 @@ export default async function DashboardPage() {
                     {slot}
                   </p>
                   <p className="mt-0.5 truncate font-bold">
-                    {meal?.title || "Not planned"}
+                    {meal?.recipeId ? (
+                      <Link
+                        href={`/recipes/${meal.recipeId}`}
+                        className="hover:text-[var(--sage)]"
+                      >
+                        {meal.title}
+                      </Link>
+                    ) : (
+                      meal?.title || "Not planned"
+                    )}
                   </p>
                 </div>
               );
