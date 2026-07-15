@@ -46,6 +46,15 @@ export default async function SignInPage() {
             Sign in with a parent account to open your household hub.
           </p>
           <AuthForm />
+          <p className="mt-8 text-center text-xs leading-5 text-[var(--muted)]">
+            <a href="/privacy" className="font-bold text-[var(--sage)]">
+              Privacy Policy
+            </a>
+            {" · "}
+            <a href="/terms" className="font-bold text-[var(--sage)]">
+              Terms of Service
+            </a>
+          </p>
         </div>
       </section>
     </main>

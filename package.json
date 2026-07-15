@@ -13,7 +13,8 @@
     "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "icons:generate": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.23",
@@ -44,6 +45,7 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"

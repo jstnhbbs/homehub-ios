@@ -48,8 +48,12 @@ The app-specific password is encrypted with AES-256-GCM before it is stored. Nev
 
 1. Create a Google Cloud project and enable the Google Calendar API.
 2. Configure an OAuth client (Web application) with redirect URI `https://your-domain/api/calendar/google/callback` (or `http://localhost:3000/api/calendar/google/callback` locally).
-3. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to your environment.
-4. In Home Hub, open **Settings → Calendars** and click **Connect Google Calendar**.
+3. On the OAuth consent screen, set:
+   - **Application home page:** `https://your-domain`
+   - **Privacy policy:** `https://your-domain/privacy`
+   - **Terms of service:** `https://your-domain/terms`
+4. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to your environment.
+5. In Home Hub, open **Settings → Calendars** and click **Connect Google Calendar**.
 
 Refresh tokens are encrypted with the same `CALENDAR_ENCRYPTION_KEY` used for Apple credentials. A household can connect both Apple and Google at the same time.
 
