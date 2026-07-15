@@ -1,0 +1,139 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f3e9;
+  --surface: #fffdf8;
+  --surface-strong: #ffffff;
+  --foreground: #21342f;
+  --muted: #71807a;
+  --line: #dedfd5;
+  --sage: #4f7c6d;
+  --sage-soft: #dce9df;
+  --sun: #e3a94a;
+  --sun-soft: #f8e8bf;
+  --coral: #d87861;
+  --coral-soft: #f5d9d0;
+  --blue: #6689a3;
+  --blue-soft: #dce7ed;
+  --shadow: 0 14px 40px rgb(61 75 66 / 8%);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-dm-sans);
+  --font-display: var(--font-fraunces);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-dm-sans), sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  overscroll-behavior: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button,
+a {
+  touch-action: manipulation;
+}
+
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--sage) 55%, transparent);
+  outline-offset: 3px;
+}
+
+.font-display {
+  font-family: var(--font-fraunces), serif;
+}
+
+.hub-card {
+  border: 1px solid color-mix(in srgb, var(--line) 85%, white);
+  border-radius: 1.5rem;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  box-shadow: var(--shadow);
+}
+
+.hub-input {
+  min-height: 3rem;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  background: var(--surface-strong);
+  padding: 0.7rem 0.9rem;
+  color: var(--foreground);
+}
+
+.hub-button {
+  display: inline-flex;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--sage);
+  padding: 0.65rem 1.15rem;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 150ms ease, filter 150ms ease;
+}
+
+.hub-button:active {
+  transform: scale(0.97);
+}
+
+.hub-button:hover {
+  filter: brightness(0.96);
+}
+
+.hub-button.secondary {
+  border: 1px solid var(--line);
+  background: var(--surface-strong);
+  color: var(--foreground);
+}
+
+.hub-button.danger {
+  background: var(--coral);
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+@media (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+  }
+}
+
+@media (max-width: 800px) {
+  body {
+    overscroll-behavior: auto;
+  }
+}

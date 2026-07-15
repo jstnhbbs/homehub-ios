@@ -1,0 +1,146 @@
+import { asc, eq } from "drizzle-orm";
+import { Plus, Sparkles } from "lucide-react";
+import { addChore, toggleChore } from "@/app/actions";
+import { CheckItem } from "@/components/check-item";
+import { db } from "@/db/client";
+import { choreCompletions, chores, profiles } from "@/db/schema";
+import { localDateIn, weekKey } from "@/lib/dates";
+import { requireHousehold } from "@/lib/household";
+
+export default async function ChoresPage() {
+  const household = await requireHousehold();
+  const localDate = localDateIn(household.timezone);
+  const [familyProfiles, choreRows, completions] = await Promise.all([
+    db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.householdId, household.id))
+      .orderBy(asc(profiles.sortOrder)),
+    db
+      .select()
+      .from(chores)
+      .where(eq(chores.householdId, household.id))
+      .orderBy(asc(chores.sortOrder)),
+    db
+      .select({
+        choreId: choreCompletions.choreId,
+        periodKey: choreCompletions.periodKey,
+      })
+      .from(choreCompletions)
+      .innerJoin(chores, eq(choreCompletions.choreId, chores.id))
+      .where(eq(chores.householdId, household.id)),
+  ]);
+  const groups = [
+    ...familyProfiles.map((profile) => ({
+      id: profile.id,
+      name: profile.name,
+      color: profile.color,
+    })),
+    { id: null, name: "Family", color: "#4f7c6d" },
+  ];
+
+  return (
+    <div className="mx-auto max-w-[1400px]">
+      <div className="flex items-end justify-between">
+        <div>
+          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--sage)]">
+            Pitch in together
+          </p>
+          <h1 className="font-display mt-1 text-4xl font-semibold">Chore chart</h1>
+        </div>
+        <div className="flex items-center gap-2 rounded-full bg-[var(--sun-soft)] px-4 py-2 text-sm font-bold">
+          <Sparkles size={17} /> Every check helps
+        </div>
+      </div>
+      <div className="mt-6 grid grid-cols-[1fr_330px] gap-6">
+        <div className="grid auto-rows-min grid-cols-2 gap-5">
+          {groups.map((group) => {
+            const assigned = choreRows.filter(
+              (chore) => chore.profileId === group.id,
+            );
+            if (!assigned.length && group.id !== null) return null;
+            return (
+              <section key={group.id ?? "family"} className="hub-card p-5">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-white"
+                    style={{ background: group.color }}
+                  >
+                    {group.name[0]}
+                  </div>
+                  <div>
+                    <h2 className="font-display text-2xl font-semibold">
+                      {group.name}
+                    </h2>
+                    <p className="text-xs font-bold text-[var(--muted)]">
+                      {assigned.length} {assigned.length === 1 ? "chore" : "chores"}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 space-y-2">
+                  {assigned.length ? (
+                    assigned.map((chore) => {
+                      const periodKey =
+                        chore.cadence === "weekly"
+                          ? weekKey(new Date())
+                          : localDate;
+                      return (
+                        <CheckItem
+                          key={chore.id}
+                          label={chore.title}
+                          detail={chore.cadence}
+                          color={group.color}
+                          initialChecked={completions.some(
+                            (item) =>
+                              item.choreId === chore.id &&
+                              item.periodKey === periodKey,
+                          )}
+                          onToggle={toggleChore.bind(
+                            null,
+                            chore.id,
+                            periodKey,
+                          )}
+                        />
+                      );
+                    })
+                  ) : (
+                    <p className="rounded-2xl border border-dashed border-[var(--line)] p-5 text-center text-sm text-[var(--muted)]">
+                      Assign shared chores here.
+                    </p>
+                  )}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+        <aside className="hub-card h-fit p-5">
+          <div className="flex items-center gap-2">
+            <Plus size={20} className="text-[var(--sage)]" />
+            <h2 className="font-display text-2xl font-semibold">Add a chore</h2>
+          </div>
+          <form action={addChore} className="mt-5 space-y-3">
+            <input
+              name="title"
+              className="hub-input"
+              placeholder="Feed the dog"
+              required
+            />
+            <select name="profileId" className="hub-input">
+              <option value="">Whole family</option>
+              {familyProfiles.map((profile) => (
+                <option value={profile.id} key={profile.id}>
+                  {profile.name}
+                </option>
+              ))}
+            </select>
+            <select name="cadence" className="hub-input" defaultValue="daily">
+              <option value="daily">Every day</option>
+              <option value="weekly">Once a week</option>
+            </select>
+            <button className="hub-button w-full">Add chore</button>
+          </form>
+        </aside>
+      </div>
+    </div>
+  );
+}
