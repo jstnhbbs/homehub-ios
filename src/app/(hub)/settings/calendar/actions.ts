@@ -1,8 +1,15 @@
 "use server";
 
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { connectICloud, disconnectICloud } from "@/lib/caldav/client";
+import { db } from "@/db/client";
+import { calendarConnections, calendars } from "@/db/schema";
+import {
+  connectICloud,
+  disconnectICloud,
+  syncHouseholdCalendars,
+} from "@/lib/caldav/client";
 import { requireHousehold } from "@/lib/household";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -33,5 +40,30 @@ export async function connectCalendar(formData: FormData) {
 export async function disconnectCalendar() {
   const household = await requireHousehold();
   await disconnectICloud(household.id);
+  revalidatePath("/", "layout");
+}
+
+export async function updateCalendarSelection(formData: FormData) {
+  const household = await requireHousehold();
+  const selectedIds = new Set(
+    z.array(z.string().uuid()).parse(formData.getAll("calendarId")),
+  );
+  const householdCalendars = await db
+    .select({ id: calendars.id })
+    .from(calendars)
+    .innerJoin(
+      calendarConnections,
+      eq(calendars.connectionId, calendarConnections.id),
+    )
+    .where(eq(calendarConnections.householdId, household.id));
+
+  for (const calendar of householdCalendars) {
+    await db
+      .update(calendars)
+      .set({ enabled: selectedIds.has(calendar.id) })
+      .where(eq(calendars.id, calendar.id));
+  }
+
+  await syncHouseholdCalendars(household.id, true);
   revalidatePath("/", "layout");
 }

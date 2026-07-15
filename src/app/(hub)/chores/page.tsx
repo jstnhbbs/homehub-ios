@@ -41,26 +41,31 @@ export default async function ChoresPage() {
 
   return (
     <div className="mx-auto max-w-[1400px]">
-      <div className="flex items-end justify-between">
+      <div className="flex items-end justify-between gap-4 max-md:flex-col max-md:items-start">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--sage)]">
             Pitch in together
           </p>
-          <h1 className="font-display mt-1 text-4xl font-semibold">Chore chart</h1>
+          <h1 className="font-display mt-1 text-4xl font-semibold max-md:text-3xl">
+            Chore chart
+          </h1>
         </div>
         <div className="flex items-center gap-2 rounded-full bg-[var(--sun-soft)] px-4 py-2 text-sm font-bold">
           <Sparkles size={17} /> Every check helps
         </div>
       </div>
-      <div className="mt-6 grid grid-cols-[1fr_330px] gap-6">
-        <div className="grid auto-rows-min grid-cols-2 gap-5">
+      <div className="mt-6 grid grid-cols-[1fr_330px] gap-6 max-md:mt-4 max-md:grid-cols-1 max-md:gap-4">
+        <div className="grid auto-rows-min grid-cols-2 gap-5 max-md:grid-cols-1 max-md:gap-3">
           {groups.map((group) => {
             const assigned = choreRows.filter(
               (chore) => chore.profileId === group.id,
             );
             if (!assigned.length && group.id !== null) return null;
             return (
-              <section key={group.id ?? "family"} className="hub-card p-5">
+              <section
+                key={group.id ?? "family"}
+                className="hub-card p-5 max-md:p-4"
+              >
                 <div className="flex items-center gap-3">
                   <div
                     className="flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-white"
@@ -113,7 +118,7 @@ export default async function ChoresPage() {
             );
           })}
         </div>
-        <aside className="hub-card h-fit p-5">
+        <aside className="hub-card h-fit p-5 max-md:p-4">
           <div className="flex items-center gap-2">
             <Plus size={20} className="text-[var(--sage)]" />
             <h2 className="font-display text-2xl font-semibold">Add a chore</h2>

@@ -1,10 +1,11 @@
+import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
 test("a parent can create a household and use the hub", async ({ page }) => {
   await page.goto("/sign-in");
   await page.getByRole("button", { name: /create an account/i }).click();
   await page.getByLabel("Your name").fill("Jamie");
-  await page.getByLabel("Email").fill(`jamie-${Date.now()}@example.com`);
+  await page.getByLabel("Email").fill(`jamie-${randomUUID()}@example.com`);
   await page.getByLabel("Password").fill("family-test-password");
   await page.getByRole("button", { name: "Create parent account" }).click();
 
@@ -18,6 +19,13 @@ test("a parent can create a household and use the hub", async ({ page }) => {
   await expect(page).toHaveURL(/dashboard/);
   await expect(page.getByText("Here’s what’s happening today.")).toBeVisible();
   await expect(page.getByText("The Test Family")).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
 
   await page.getByRole("link", { name: "Chores", exact: true }).click();
   await page.getByPlaceholder("Feed the dog").fill("Set the table");
@@ -25,8 +33,14 @@ test("a parent can create a household and use the hub", async ({ page }) => {
   await expect(page.getByText("Set the table")).toBeVisible();
 });
 
-test("the sign-in screen fits an iPad landscape viewport", async ({ page }) => {
+test("the sign-in screen fits the active viewport", async ({ page }) => {
   await page.goto("/sign-in");
   await expect(page.getByRole("heading", { name: "Your week, together." })).toBeVisible();
-  expect((await page.locator("body").evaluate((body) => body.scrollWidth))).toBeLessThanOrEqual(1366);
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
 });

@@ -25,7 +25,7 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24,
   },
   rateLimit: {
-    enabled: true,
+    enabled: process.env.DISABLE_AUTH_RATE_LIMIT !== "true",
     storage: "database",
     window: 60,
     max: 100,

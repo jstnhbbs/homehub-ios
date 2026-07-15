@@ -52,9 +52,16 @@ export function CheckItem({
       >
         {checked && <Check size={18} strokeWidth={3} />}
       </span>
-      <span className={cn("font-bold", checked && "line-through")}>{label}</span>
+      <span
+        className={cn(
+          "min-w-0 flex-1 truncate font-bold",
+          checked && "line-through",
+        )}
+      >
+        {label}
+      </span>
       {detail && (
-        <span className="ml-auto text-xs font-semibold text-[var(--muted)]">
+        <span className="max-w-[35%] shrink-0 truncate text-xs font-semibold text-[var(--muted)]">
           {detail}
         </span>
       )}

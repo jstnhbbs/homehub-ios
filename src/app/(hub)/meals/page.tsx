@@ -31,16 +31,16 @@ export default async function MealsPage() {
 
   return (
     <div className="mx-auto max-w-[1500px]">
-      <div className="flex items-end justify-between">
+      <div className="flex items-end justify-between gap-4 max-md:flex-col max-md:items-start">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--sage)]">
             What’s cooking?
           </p>
-          <h1 className="font-display mt-1 text-4xl font-semibold">
+          <h1 className="font-display mt-1 text-4xl font-semibold max-md:text-3xl">
             Weekly meals
           </h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <form action={copyPreviousMealWeek}>
             <input type="hidden" name="weekStart" value={weekStart} />
             <button className="hub-button secondary">
@@ -56,7 +56,45 @@ export default async function MealsPage() {
         </div>
       </div>
 
-      <section className="hub-card mt-6 overflow-hidden">
+      <div className="mt-4 space-y-3 md:hidden">
+        {days.map((day, dayIndex) => {
+          const localDate = dateStrings[dayIndex];
+          return (
+            <section key={localDate} className="hub-card p-4">
+              <div className="mb-3 flex items-baseline justify-between">
+                <h2 className="font-display text-2xl font-semibold">
+                  {format(day, "EEEE")}
+                </h2>
+                <span className="text-sm font-bold text-[var(--muted)]">
+                  {format(day, "MMM d")}
+                </span>
+              </div>
+              <div className="space-y-3">
+                {slots.map((slot) => {
+                  const meal = weekMeals.find(
+                    (item) =>
+                      item.localDate === localDate && item.slot === slot,
+                  );
+                  return (
+                    <div key={slot}>
+                      <p className="mb-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[var(--muted)]">
+                        {slot}
+                      </p>
+                      <MealInput
+                        localDate={localDate}
+                        slot={slot}
+                        initialValue={meal?.title ?? ""}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+
+      <section className="hub-card mt-6 overflow-hidden max-md:hidden">
         <div className="grid grid-cols-[100px_repeat(7,minmax(120px,1fr))]">
           <div className="border-b border-r border-[var(--line)] p-3" />
           {days.map((day) => (

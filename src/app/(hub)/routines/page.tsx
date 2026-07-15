@@ -62,10 +62,12 @@ export default async function RoutinesPage() {
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--sage)]">
           Small steps, smoother days
         </p>
-        <h1 className="font-display mt-1 text-4xl font-semibold">Routines</h1>
+        <h1 className="font-display mt-1 text-4xl font-semibold max-md:text-3xl">
+          Routines
+        </h1>
       </div>
-      <div className="mt-6 grid grid-cols-[1fr_330px] gap-6">
-        <div className="grid auto-rows-min grid-cols-2 gap-5">
+      <div className="mt-6 grid grid-cols-[1fr_330px] gap-6 max-md:mt-4 max-md:grid-cols-1 max-md:gap-4">
+        <div className="grid auto-rows-min grid-cols-2 gap-5 max-md:grid-cols-1 max-md:gap-3">
           {[...grouped.values()].map((rows) => {
             const routine = rows[0];
             const meta = periodMeta[routine.period];
@@ -74,7 +76,10 @@ export default async function RoutinesPage() {
               ? profileMap.get(routine.profileId)
               : undefined;
             return (
-              <section key={routine.routineId} className="hub-card p-5">
+              <section
+                key={routine.routineId}
+                className="hub-card p-5 max-md:p-4"
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
@@ -113,12 +118,12 @@ export default async function RoutinesPage() {
             );
           })}
           {!routineRows.length && (
-            <div className="hub-card col-span-2 flex min-h-64 items-center justify-center p-8 text-center text-[var(--muted)]">
+            <div className="hub-card col-span-2 flex min-h-64 items-center justify-center p-8 text-center text-[var(--muted)] max-md:col-span-1">
               Your first routine will appear here.
             </div>
           )}
         </div>
-        <aside className="hub-card h-fit p-5">
+        <aside className="hub-card h-fit p-5 max-md:p-4">
           <div className="flex items-center gap-2">
             <Plus size={20} className="text-[var(--sage)]" />
             <h2 className="font-display text-2xl font-semibold">New routine</h2>

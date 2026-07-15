@@ -108,7 +108,12 @@ export default async function DashboardPage() {
         calendarConnections,
         eq(calendars.connectionId, calendarConnections.id),
       )
-      .where(eq(calendarConnections.householdId, household.id)),
+      .where(
+        and(
+          eq(calendarConnections.householdId, household.id),
+          eq(calendars.enabled, true),
+        ),
+      ),
     db
       .select()
       .from(calendarConnections)
@@ -133,12 +138,12 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-[1500px]">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
+      <div className="mb-5 flex items-center justify-between gap-4 max-md:flex-col max-md:items-start">
+        <div className="min-w-0">
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--sage)]">
             Good day, family
           </p>
-          <h1 className="font-display text-4xl font-semibold">
+          <h1 className="font-display text-4xl font-semibold max-md:text-3xl">
             Here’s what’s happening today.
           </h1>
         </div>
@@ -148,8 +153,8 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-12 gap-5">
-        <section className="hub-card col-span-5 min-h-[310px] p-5">
+      <div className="grid grid-cols-12 gap-5 max-md:gap-3">
+        <section className="hub-card col-span-5 min-h-[310px] p-5 max-md:col-span-12 max-md:min-h-0 max-md:p-4">
           <CardTitle
             icon={CalendarDays}
             title="Today’s schedule"
@@ -195,7 +200,7 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        <section className="hub-card col-span-4 min-h-[310px] p-5">
+        <section className="hub-card col-span-4 min-h-[310px] p-5 max-md:col-span-12 max-md:min-h-0 max-md:p-4">
           <CardTitle
             icon={ClipboardCheck}
             title="Today’s routines"
@@ -228,7 +233,7 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        <section className="hub-card col-span-3 min-h-[310px] bg-[var(--sun-soft)]/50 p-5">
+        <section className="hub-card col-span-3 min-h-[310px] bg-[var(--sun-soft)]/50 p-5 max-md:col-span-12 max-md:min-h-0 max-md:p-4">
           <CardTitle icon={Soup} title="Today’s meals" href="/meals" />
           <div className="mt-5 space-y-3">
             {mealSlots.map((slot) => {
@@ -247,9 +252,9 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        <section className="hub-card col-span-7 min-h-[245px] p-5">
+        <section className="hub-card col-span-7 min-h-[245px] p-5 max-md:col-span-12 max-md:min-h-0 max-md:p-4">
           <CardTitle icon={CheckSquare2} title="Chores" href="/chores" />
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="mt-4 grid grid-cols-2 gap-2 max-sm:grid-cols-1">
             {choreRows.length ? (
               choreRows.slice(0, 4).map((chore) => {
                 const profile = chore.profileId
@@ -280,9 +285,9 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        <section className="hub-card col-span-5 min-h-[245px] overflow-hidden p-5">
+        <section className="hub-card col-span-5 min-h-[245px] overflow-hidden p-5 max-md:col-span-12 max-md:min-h-0 max-md:p-4">
           <h2 className="font-display text-2xl font-semibold">Family</h2>
-          <div className="mt-5 flex items-center gap-4">
+          <div className="mt-5 flex flex-wrap items-center gap-4">
             {familyProfiles.map((profile) => (
               <div key={profile.id} className="text-center">
                 <div
@@ -317,7 +322,9 @@ function CardTitle({
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
         <Icon size={20} className="text-[var(--sage)]" />
-        <h2 className="font-display text-2xl font-semibold">{title}</h2>
+        <h2 className="font-display text-2xl font-semibold max-md:text-xl">
+          {title}
+        </h2>
       </div>
       <Link
         href={href}

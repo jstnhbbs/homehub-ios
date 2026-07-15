@@ -27,11 +27,11 @@ export function HubNav() {
   return (
     <nav
       aria-label="Main navigation"
-      className="flex w-[104px] shrink-0 flex-col items-center gap-2 border-r border-[var(--line)] bg-[var(--surface)] px-3 py-5"
+      className="flex w-[104px] shrink-0 flex-col items-center gap-2 border-r border-[var(--line)] bg-[var(--surface)] px-3 py-5 max-md:order-2 max-md:h-[72px] max-md:w-full max-md:flex-row max-md:justify-around max-md:gap-0 max-md:border-r-0 max-md:border-t max-md:px-1 max-md:py-1"
     >
       <Link
         href="/dashboard"
-        className="font-display mb-5 flex h-14 w-14 items-center justify-center rounded-[1.2rem] bg-[var(--sage)] text-2xl font-bold text-white shadow-lg"
+        className="font-display mb-5 flex h-14 w-14 items-center justify-center rounded-[1.2rem] bg-[var(--sage)] text-2xl font-bold text-white shadow-lg max-md:hidden"
         aria-label="Home Hub"
       >
         H
@@ -43,7 +43,7 @@ export function HubNav() {
             key={href}
             href={href}
             className={cn(
-              "flex min-h-[68px] w-full flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-bold transition",
+              "flex min-h-[68px] w-full flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-bold transition max-md:min-h-[58px] max-md:min-w-0 max-md:flex-1 max-md:rounded-xl max-md:text-[9px]",
               active
                 ? "bg-[var(--sage-soft)] text-[var(--sage)]"
                 : "text-[var(--muted)] hover:bg-black/[0.03]",

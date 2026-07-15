@@ -19,17 +19,19 @@ export default async function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-5xl pb-10">
-      <div className="flex items-end justify-between">
+      <div className="flex items-end justify-between gap-4 max-md:flex-col max-md:items-start">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--sage)]">
             Make it yours
           </p>
-          <h1 className="font-display mt-1 text-4xl font-semibold">Settings</h1>
+          <h1 className="font-display mt-1 text-4xl font-semibold max-md:text-3xl">
+            Settings
+          </h1>
         </div>
         <SignOutButton />
       </div>
-      <div className="mt-6 grid grid-cols-2 gap-5">
-        <section className="hub-card p-6">
+      <div className="mt-6 grid grid-cols-2 gap-5 max-md:mt-4 max-md:grid-cols-1 max-md:gap-3">
+        <section className="hub-card p-6 max-md:p-4">
           <h2 className="font-display text-2xl font-semibold">Family profiles</h2>
           <div className="mt-5 flex flex-wrap gap-4">
             {familyProfiles.map((profile) => (
@@ -47,7 +49,10 @@ export default async function SettingsPage() {
               </div>
             ))}
           </div>
-          <form action={addProfile} className="mt-6 flex items-end gap-2">
+          <form
+            action={addProfile}
+            className="mt-6 flex items-end gap-2 max-sm:flex-wrap"
+          >
             <label className="min-w-0 flex-1">
               <span className="mb-1 block text-xs font-bold">Add a child</span>
               <input name="name" className="hub-input" placeholder="Name" required />
@@ -65,7 +70,7 @@ export default async function SettingsPage() {
           </form>
         </section>
 
-        <section className="hub-card p-6">
+        <section className="hub-card p-6 max-md:p-4">
           <CalendarDays className="text-[var(--sage)]" size={28} />
           <h2 className="font-display mt-4 text-2xl font-semibold">
             Apple Calendar
@@ -78,7 +83,7 @@ export default async function SettingsPage() {
           </Link>
         </section>
 
-        <section className="hub-card p-6">
+        <section className="hub-card p-6 max-md:p-4">
           <Copy className="text-[var(--blue)]" size={28} />
           <h2 className="font-display mt-4 text-2xl font-semibold">
             Invite another parent
@@ -86,12 +91,12 @@ export default async function SettingsPage() {
           <p className="mt-2 text-sm text-[var(--muted)]">
             Share this code. They can enter it after creating their parent account.
           </p>
-          <div className="mt-5 rounded-2xl bg-[var(--blue-soft)] p-4 text-center font-mono text-2xl font-extrabold tracking-[0.2em]">
+          <div className="mt-5 overflow-hidden rounded-2xl bg-[var(--blue-soft)] p-4 text-center font-mono text-2xl font-extrabold tracking-[0.2em] max-sm:text-xl max-sm:tracking-[0.12em]">
             {household.inviteCode}
           </div>
         </section>
 
-        <section className="hub-card p-6">
+        <section className="hub-card p-6 max-md:p-4">
           <ShieldCheck className="text-[var(--sage)]" size={28} />
           <h2 className="font-display mt-4 text-2xl font-semibold">
             Household privacy
@@ -100,9 +105,9 @@ export default async function SettingsPage() {
             Parents manage the hub. Child profiles never need accounts, and Apple
             credentials stay encrypted on the server.
           </p>
-          <div className="mt-5 rounded-2xl border border-[var(--line)] p-4 text-sm">
+          <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-[var(--line)] p-4 text-sm">
             <span className="font-bold">Timezone</span>
-            <span className="float-right text-[var(--muted)]">
+            <span className="truncate text-[var(--muted)]">
               {household.timezone}
             </span>
           </div>

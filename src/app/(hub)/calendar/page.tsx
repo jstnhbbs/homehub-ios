@@ -65,7 +65,12 @@ export default async function CalendarPage() {
         calendarConnections,
         eq(calendars.connectionId, calendarConnections.id),
       )
-      .where(eq(calendarConnections.householdId, household.id)),
+      .where(
+        and(
+          eq(calendarConnections.householdId, household.id),
+          eq(calendars.enabled, true),
+        ),
+      ),
   ]);
   const connection = connections[0];
   const occurrences = cachedEvents.flatMap((event) =>
@@ -81,12 +86,12 @@ export default async function CalendarPage() {
 
   return (
     <div className="mx-auto max-w-[1500px]">
-      <div className="flex items-end justify-between">
-        <div>
+      <div className="flex items-end justify-between gap-4 max-md:flex-col max-md:items-start">
+        <div className="min-w-0">
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--sage)]">
             Everyone, all in one place
           </p>
-          <h1 className="font-display mt-1 text-4xl font-semibold">
+          <h1 className="font-display mt-1 text-4xl font-semibold max-md:text-3xl">
             Family calendar
           </h1>
         </div>
@@ -110,9 +115,9 @@ export default async function CalendarPage() {
           </Link>
         </section>
       ) : (
-        <div className="mt-6 grid grid-cols-[1fr_300px] gap-5">
+        <div className="mt-6 grid grid-cols-[1fr_300px] gap-5 max-md:mt-4 max-md:grid-cols-1 max-md:gap-3">
           <section className="hub-card overflow-hidden">
-            <div className="grid grid-cols-7">
+            <div className="grid grid-cols-7 max-md:grid-cols-1">
               {days.map((day) => {
                 const localDate = format(day, "yyyy-MM-dd");
                 const dayEvents = occurrences
@@ -130,7 +135,7 @@ export default async function CalendarPage() {
                 return (
                   <div
                     key={localDate}
-                    className="min-h-[510px] border-r border-[var(--line)] last:border-r-0"
+                    className="min-h-[510px] border-r border-[var(--line)] last:border-r-0 max-md:min-h-0 max-md:border-b max-md:border-r-0 max-md:last:border-b-0"
                   >
                     <div className="border-b border-[var(--line)] p-3 text-center">
                       <p className="text-xs font-extrabold uppercase tracking-wider text-[var(--muted)]">
@@ -197,7 +202,7 @@ export default async function CalendarPage() {
               })}
             </div>
           </section>
-          <aside className="hub-card h-fit p-5">
+          <aside className="hub-card h-fit p-5 max-md:p-4">
             <div className="flex items-center gap-2">
               <CalendarPlus size={20} className="text-[var(--sage)]" />
               <h2 className="font-display text-2xl font-semibold">New event</h2>
