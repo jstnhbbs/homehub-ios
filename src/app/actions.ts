@@ -1,7 +1,7 @@
 "use server";
 
 import { randomBytes, randomUUID } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { addDays, format, parseISO, subWeeks } from "date-fns";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -239,6 +239,91 @@ export async function addRoutine(formData: FormData) {
   revalidatePath("/", "layout");
 }
 
+export async function updateRoutine(routineId: string, formData: FormData) {
+  const household = await requireHousehold();
+  const id = z.string().uuid().parse(routineId);
+  const input = z
+    .object({
+      name: shortText,
+      profileId: z.string().uuid().optional(),
+      period: z.enum(["morning", "afternoon", "evening"]),
+      steps: z.array(shortText).min(1).max(20),
+    })
+    .parse({
+      name: text(formData, "name"),
+      profileId: text(formData, "profileId") || undefined,
+      period: text(formData, "period"),
+      steps: text(formData, "steps")
+        .split("\n")
+        .map((step) => step.trim())
+        .filter(Boolean),
+    });
+  const routine = await db
+    .select({ id: routines.id })
+    .from(routines)
+    .where(
+      and(
+        eq(routines.id, id),
+        eq(routines.householdId, household.id),
+      ),
+    )
+    .limit(1);
+  if (!routine[0]) throw new Error("Routine not found.");
+  if (input.profileId) {
+    const profile = await db
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(
+        and(
+          eq(profiles.id, input.profileId),
+          eq(profiles.householdId, household.id),
+        ),
+      )
+      .limit(1);
+    if (!profile[0]) throw new Error("Invalid family profile.");
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(routines)
+      .set({
+        name: input.name,
+        profileId: input.profileId ?? null,
+        period: input.period,
+        updatedAt: new Date(),
+      })
+      .where(eq(routines.id, id));
+    const existingSteps = await tx
+      .select({ id: routineSteps.id })
+      .from(routineSteps)
+      .where(eq(routineSteps.routineId, id))
+      .orderBy(asc(routineSteps.sortOrder));
+
+    for (const [index, label] of input.steps.entries()) {
+      const existingStep = existingSteps[index];
+      if (existingStep) {
+        await tx
+          .update(routineSteps)
+          .set({ label, sortOrder: index })
+          .where(eq(routineSteps.id, existingStep.id));
+      } else {
+        await tx.insert(routineSteps).values({
+          id: randomUUID(),
+          routineId: id,
+          label,
+          sortOrder: index,
+        });
+      }
+    }
+    for (const removedStep of existingSteps.slice(input.steps.length)) {
+      await tx
+        .delete(routineSteps)
+        .where(eq(routineSteps.id, removedStep.id));
+    }
+  });
+  revalidatePath("/", "layout");
+}
+
 export async function toggleRoutineStep(
   stepId: string,
   localDate: string,
@@ -294,6 +379,57 @@ export async function addChore(formData: FormData) {
     householdId: household.id,
     ...input,
   });
+  revalidatePath("/", "layout");
+}
+
+export async function updateChore(choreId: string, formData: FormData) {
+  const household = await requireHousehold();
+  const id = z.string().uuid().parse(choreId);
+  const input = z
+    .object({
+      title: shortText,
+      profileId: z.string().uuid().optional(),
+      cadence: z.enum(["daily", "weekly"]),
+    })
+    .parse({
+      title: text(formData, "title"),
+      profileId: text(formData, "profileId") || undefined,
+      cadence: text(formData, "cadence"),
+    });
+  const chore = await db
+    .select({ id: chores.id })
+    .from(chores)
+    .where(
+      and(
+        eq(chores.id, id),
+        eq(chores.householdId, household.id),
+      ),
+    )
+    .limit(1);
+  if (!chore[0]) throw new Error("Chore not found.");
+  if (input.profileId) {
+    const profile = await db
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(
+        and(
+          eq(profiles.id, input.profileId),
+          eq(profiles.householdId, household.id),
+        ),
+      )
+      .limit(1);
+    if (!profile[0]) throw new Error("Invalid family profile.");
+  }
+
+  await db
+    .update(chores)
+    .set({
+      title: input.title,
+      profileId: input.profileId ?? null,
+      cadence: input.cadence,
+      updatedAt: new Date(),
+    })
+    .where(eq(chores.id, id));
   revalidatePath("/", "layout");
 }
 

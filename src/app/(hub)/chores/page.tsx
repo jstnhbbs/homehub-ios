@@ -1,6 +1,6 @@
 import { asc, eq } from "drizzle-orm";
-import { Plus, Sparkles } from "lucide-react";
-import { addChore, toggleChore } from "@/app/actions";
+import { Pencil, Plus, Sparkles } from "lucide-react";
+import { addChore, toggleChore, updateChore } from "@/app/actions";
 import { CheckItem } from "@/components/check-item";
 import { ProfileAvatar } from "@/components/profile-avatar";
 import { db } from "@/db/client";
@@ -93,22 +93,65 @@ export default async function ChoresPage() {
                           ? weekKey(new Date())
                           : localDate;
                       return (
-                        <CheckItem
-                          key={chore.id}
-                          label={chore.title}
-                          detail={chore.cadence}
-                          color={group.color}
-                          initialChecked={completions.some(
-                            (item) =>
-                              item.choreId === chore.id &&
-                              item.periodKey === periodKey,
-                          )}
-                          onToggle={toggleChore.bind(
-                            null,
-                            chore.id,
-                            periodKey,
-                          )}
-                        />
+                        <div key={chore.id}>
+                          <CheckItem
+                            label={chore.title}
+                            detail={chore.cadence}
+                            color={group.color}
+                            initialChecked={completions.some(
+                              (item) =>
+                                item.choreId === chore.id &&
+                                item.periodKey === periodKey,
+                            )}
+                            onToggle={toggleChore.bind(
+                              null,
+                              chore.id,
+                              periodKey,
+                            )}
+                          />
+                          <details className="group mx-2 mt-1">
+                            <summary className="flex cursor-pointer list-none items-center gap-1 text-xs font-bold text-[var(--muted)]">
+                              <Pencil size={12} /> Edit {chore.title}
+                            </summary>
+                            <form
+                              action={updateChore.bind(null, chore.id)}
+                              className="mt-2 space-y-2 rounded-xl border border-[var(--line)] bg-white/50 p-3"
+                            >
+                              <input
+                                name="title"
+                                className="hub-input"
+                                defaultValue={chore.title}
+                                aria-label="Chore title"
+                                required
+                              />
+                              <select
+                                name="profileId"
+                                className="hub-input"
+                                defaultValue={chore.profileId ?? ""}
+                                aria-label="Assign chore to"
+                              >
+                                <option value="">Whole family</option>
+                                {familyProfiles.map((profile) => (
+                                  <option value={profile.id} key={profile.id}>
+                                    {profile.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <select
+                                name="cadence"
+                                className="hub-input"
+                                defaultValue={chore.cadence}
+                                aria-label="Chore frequency"
+                              >
+                                <option value="daily">Every day</option>
+                                <option value="weekly">Once a week</option>
+                              </select>
+                              <button className="hub-button w-full">
+                                Save chore
+                              </button>
+                            </form>
+                          </details>
+                        </div>
                       );
                     })
                   ) : (

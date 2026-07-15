@@ -44,7 +44,29 @@ test("a parent can create a household and use the hub", async ({ page }) => {
   await page.getByRole("link", { name: "Chores", exact: true }).click();
   await page.getByPlaceholder("Feed the dog").fill("Set the table");
   await page.getByRole("button", { name: "Add chore" }).click();
-  await expect(page.getByText("Set the table")).toBeVisible();
+  await page.getByText("Edit Set the table", { exact: true }).click();
+  await page.getByLabel("Chore title").fill("Clear the table");
+  await page.getByRole("button", { name: "Save chore" }).click();
+  await expect(
+    page.getByRole("button", { name: /Clear the table/ }),
+  ).toBeVisible();
+
+  await page.getByRole("link", { name: "Routines", exact: true }).click();
+  await page.getByPlaceholder("Bedtime routine").fill("Morning launch");
+  await page
+    .getByPlaceholder("Brush teeth\nPack backpack\nPut shoes by the door")
+    .fill("Brush teeth\nPack backpack");
+  await page.getByRole("button", { name: "Add routine" }).click();
+  await page.getByText("Edit Morning launch", { exact: true }).click();
+  await page.getByLabel("Routine name").fill("School morning");
+  await page.getByLabel("Routine steps").fill("Brush teeth\nGrab lunch");
+  await page.getByRole("button", { name: "Save routine" }).click();
+  await expect(
+    page.getByRole("heading", { name: "School morning" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Grab lunch/ }),
+  ).toBeVisible();
 
   await page.getByRole("link", { name: "Settings", exact: true }).click();
   await expect(

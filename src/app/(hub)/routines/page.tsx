@@ -1,6 +1,10 @@
 import { and, asc, eq } from "drizzle-orm";
-import { Moon, Plus, Sun, Sunset } from "lucide-react";
-import { addRoutine, toggleRoutineStep } from "@/app/actions";
+import { Moon, Pencil, Plus, Sun, Sunset } from "lucide-react";
+import {
+  addRoutine,
+  toggleRoutineStep,
+  updateRoutine,
+} from "@/app/actions";
 import { CheckItem } from "@/components/check-item";
 import { db } from "@/db/client";
 import {
@@ -114,6 +118,63 @@ export default async function RoutinesPage() {
                       ),
                   )}
                 </div>
+                <details className="group mt-4 border-t border-[var(--line)] pt-3">
+                  <summary className="flex cursor-pointer list-none items-center gap-1 text-xs font-bold text-[var(--muted)]">
+                    <Pencil size={12} /> Edit {routine.routineName}
+                  </summary>
+                  <form
+                    action={updateRoutine.bind(null, routine.routineId)}
+                    className="mt-3 space-y-2 rounded-xl bg-white/50 p-3"
+                  >
+                    <input
+                      name="name"
+                      className="hub-input"
+                      defaultValue={routine.routineName}
+                      aria-label="Routine name"
+                      required
+                    />
+                    <select
+                      name="profileId"
+                      className="hub-input"
+                      defaultValue={routine.profileId ?? ""}
+                      aria-label="Assign routine to"
+                    >
+                      <option value="">Everyone</option>
+                      {familyProfiles.map((familyProfile) => (
+                        <option
+                          value={familyProfile.id}
+                          key={familyProfile.id}
+                        >
+                          {familyProfile.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      name="period"
+                      className="hub-input"
+                      defaultValue={routine.period}
+                      aria-label="Routine period"
+                    >
+                      <option value="morning">Morning</option>
+                      <option value="afternoon">After school</option>
+                      <option value="evening">Bedtime</option>
+                    </select>
+                    <textarea
+                      name="steps"
+                      className="hub-input min-h-36 resize-none"
+                      defaultValue={rows
+                        .flatMap((row) =>
+                          row.stepLabel ? [row.stepLabel] : [],
+                        )
+                        .join("\n")}
+                      aria-label="Routine steps"
+                      required
+                    />
+                    <button className="hub-button w-full">
+                      Save routine
+                    </button>
+                  </form>
+                </details>
               </section>
             );
           })}
