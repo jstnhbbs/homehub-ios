@@ -6,19 +6,20 @@ const SCOPES = [
   "https://www.googleapis.com/auth/userinfo.email",
 ];
 
-export function appBaseUrl() {
+function canonicalAppUrl() {
   if (process.env.BETTER_AUTH_URL) {
     return process.env.BETTER_AUTH_URL.replace(/\/$/, "");
-  }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
   }
   if (process.env.NODE_ENV === "development") {
     return "http://localhost:3000";
   }
   throw new Error(
-    "BETTER_AUTH_URL is required for Google Calendar OAuth in production.",
+    "BETTER_AUTH_URL must be set to your public app URL (for example https://hobbshomehub.vercel.app).",
   );
+}
+
+export function appBaseUrl() {
+  return canonicalAppUrl();
 }
 
 export function googleOAuthConfig() {
@@ -26,7 +27,7 @@ export function googleOAuthConfig() {
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const redirectUri =
     process.env.GOOGLE_REDIRECT_URI ??
-    `${appBaseUrl()}/api/calendar/google/callback`;
+    `${canonicalAppUrl()}/api/calendar/google/callback`;
   if (!clientId || !clientSecret) {
     throw new Error("Google Calendar OAuth is not configured.");
   }
