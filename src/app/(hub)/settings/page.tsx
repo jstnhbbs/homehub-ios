@@ -74,21 +74,40 @@ export default async function SettingsPage() {
           </div>
           <form
             action={addProfile}
-            className="mt-6 flex items-end gap-2 max-sm:flex-wrap"
+            className="mt-6 grid gap-3"
           >
-            <label className="min-w-0 flex-1">
+            <label className="min-w-0">
               <span className="mb-1 block text-xs font-bold">Add a child</span>
               <input name="name" className="hub-input" placeholder="Name" required />
             </label>
-            <select name="color" className="hub-input !w-24" aria-label="Profile color">
-              {colors.map((color) => (
-                <option key={color.value} value={color.value}>
-                  {color.label}
-                </option>
-              ))}
-            </select>
-            <button className="hub-button !h-12 !w-12 !p-0" aria-label="Add profile">
-              <Plus size={20} />
+            <fieldset>
+              <legend className="mb-2 text-xs font-bold">Profile color</legend>
+              <div className="flex flex-wrap gap-2.5">
+                {colors.map((color, index) => (
+                  <label
+                    key={color.value}
+                    className="cursor-pointer"
+                    title={color.label}
+                  >
+                    <input
+                      type="radio"
+                      name="color"
+                      value={color.value}
+                      defaultChecked={index === 0}
+                      className="peer sr-only"
+                    />
+                    <span
+                      className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white ring-1 ring-[var(--line)] transition peer-checked:ring-4 peer-checked:ring-[var(--foreground)]/30"
+                      style={{ background: color.value }}
+                    >
+                      <span className="sr-only">{color.label}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <button className="hub-button w-fit px-5">
+              <Plus size={18} /> Add child
             </button>
           </form>
         </section>
