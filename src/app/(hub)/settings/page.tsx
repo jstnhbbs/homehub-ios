@@ -12,7 +12,17 @@ import { db } from "@/db/client";
 import { profiles } from "@/db/schema";
 import { requireHousehold } from "@/lib/household";
 
-const colors = ["#d87861", "#6689a3", "#4f7c6d", "#b07aa1", "#d19b45"];
+const colors = [
+  { value: "#d87861", label: "Coral" },
+  { value: "#6689a3", label: "Blue" },
+  { value: "#4f7c6d", label: "Sage" },
+  { value: "#b07aa1", label: "Plum" },
+  { value: "#d19b45", label: "Gold" },
+  { value: "#5f8f8b", label: "Teal" },
+  { value: "#8c7ca8", label: "Lavender" },
+  { value: "#b86f4d", label: "Terracotta" },
+  { value: "#7f8757", label: "Olive" },
+];
 
 export default async function SettingsPage() {
   const household = await requireHousehold();
@@ -72,8 +82,8 @@ export default async function SettingsPage() {
             </label>
             <select name="color" className="hub-input !w-24" aria-label="Profile color">
               {colors.map((color) => (
-                <option key={color} value={color}>
-                  {color}
+                <option key={color.value} value={color.value}>
+                  {color.label}
                 </option>
               ))}
             </select>

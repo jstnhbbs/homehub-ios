@@ -126,7 +126,12 @@ export default async function DashboardPage() {
   const profileMap = new Map(familyProfiles.map((profile) => [profile.id, profile]));
   const schedule = eventRows
     .flatMap((event) =>
-      expandIcalEvent(event.rawIcal, dayStart, dayEnd).map((occurrence) => ({
+      expandIcalEvent(
+        event.rawIcal,
+        dayStart,
+        dayEnd,
+        household.timezone,
+      ).map((occurrence) => ({
         ...occurrence,
         eventId: event.id,
         color: event.color,

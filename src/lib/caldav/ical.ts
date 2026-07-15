@@ -1,4 +1,5 @@
 import ICAL from "ical.js";
+import { fromZonedTime } from "date-fns-tz";
 
 export type ParsedCalendarEvent = {
   uid: string;
@@ -11,12 +12,30 @@ export type ParsedCalendarEvent = {
   recurrenceRule: string | null;
 };
 
-function fromIcalTime(value: ICAL.Time) {
+function registerEmbeddedTimezones(root: ICAL.Component) {
+  for (const timezone of root.getAllSubcomponents("vtimezone")) {
+    ICAL.TimezoneService.register(timezone);
+  }
+}
+
+function floatingDateTime(value: ICAL.Time) {
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${value.year}-${pad(value.month)}-${pad(value.day)}T${pad(value.hour)}:${pad(value.minute)}:${pad(value.second)}`;
+}
+
+function fromIcalTime(value: ICAL.Time, fallbackTimezone: string) {
+  if (value.isDate || value.zone?.tzid === "floating") {
+    return fromZonedTime(floatingDateTime(value), fallbackTimezone);
+  }
   return value.toJSDate();
 }
 
-export function parseIcalEvent(rawIcal: string): ParsedCalendarEvent {
+export function parseIcalEvent(
+  rawIcal: string,
+  fallbackTimezone = "UTC",
+): ParsedCalendarEvent {
   const root = new ICAL.Component(ICAL.parse(rawIcal));
+  registerEmbeddedTimezones(root);
   const vevent = root.getFirstSubcomponent("vevent");
   if (!vevent) throw new Error("Calendar object does not contain an event.");
   const event = new ICAL.Event(vevent);
@@ -26,8 +45,8 @@ export function parseIcalEvent(rawIcal: string): ParsedCalendarEvent {
     title: event.summary || "Untitled event",
     description: event.description || null,
     location: event.location || null,
-    startsAt: fromIcalTime(event.startDate),
-    endsAt: fromIcalTime(event.endDate),
+    startsAt: fromIcalTime(event.startDate, fallbackTimezone),
+    endsAt: fromIcalTime(event.endDate, fallbackTimezone),
     allDay: event.startDate.isDate,
     recurrenceRule: recurrence ? String(recurrence) : null,
   };
@@ -37,8 +56,10 @@ export function expandIcalEvent(
   rawIcal: string,
   rangeStart: Date,
   rangeEnd: Date,
+  fallbackTimezone = "UTC",
 ) {
   const root = new ICAL.Component(ICAL.parse(rawIcal));
+  registerEmbeddedTimezones(root);
   const vevent = root.getFirstSubcomponent("vevent");
   if (!vevent) return [];
   const event = new ICAL.Event(vevent);
@@ -46,7 +67,7 @@ export function expandIcalEvent(
   const recurrence = vevent.getFirstPropertyValue("rrule");
 
   if (!event.isRecurring()) {
-    const parsed = parseIcalEvent(rawIcal);
+    const parsed = parseIcalEvent(rawIcal, fallbackTimezone);
     return parsed.endsAt >= rangeStart && parsed.startsAt <= rangeEnd
       ? [parsed]
       : [];
@@ -57,18 +78,19 @@ export function expandIcalEvent(
   for (let index = 0; index < 500; index += 1) {
     const next = iterator.next();
     if (!next) break;
-    const startsAt = next.toJSDate();
+    const startsAt = fromIcalTime(next, fallbackTimezone);
     if (startsAt > rangeEnd) break;
     const endsAt = next.clone();
     endsAt.addDuration(duration);
-    if (endsAt.toJSDate() < rangeStart) continue;
+    const occurrenceEndsAt = fromIcalTime(endsAt, fallbackTimezone);
+    if (occurrenceEndsAt < rangeStart) continue;
     occurrences.push({
       uid: event.uid,
       title: event.summary || "Untitled event",
       description: event.description || null,
       location: event.location || null,
       startsAt,
-      endsAt: endsAt.toJSDate(),
+      endsAt: occurrenceEndsAt,
       allDay: next.isDate,
       recurrenceRule: recurrence ? String(recurrence) : "recurring",
     });

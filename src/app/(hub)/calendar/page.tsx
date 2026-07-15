@@ -74,7 +74,12 @@ export default async function CalendarPage() {
   ]);
   const connection = connections[0];
   const occurrences = cachedEvents.flatMap((event) =>
-    expandIcalEvent(event.rawIcal, rangeStart, rangeEnd).map((occurrence) => ({
+    expandIcalEvent(
+      event.rawIcal,
+      rangeStart,
+      rangeEnd,
+      household.timezone,
+    ).map((occurrence) => ({
       ...occurrence,
       eventId: event.id,
       calendarId: event.calendarId,

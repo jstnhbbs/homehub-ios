@@ -37,4 +37,22 @@ describe("iCalendar normalization", () => {
     expect(events).toHaveLength(3);
     expect(events.every((event) => event.title === "Morning check-in")).toBe(true);
   });
+
+  it("interprets floating iCloud times in the household timezone", () => {
+    const raw = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "BEGIN:VEVENT",
+      "UID:floating@homehub",
+      "DTSTART:20260715T180000",
+      "DTEND:20260715T193000",
+      "SUMMARY:Evening event",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+
+    const event = parseIcalEvent(raw, "America/Chicago");
+    expect(event.startsAt.toISOString()).toBe("2026-07-15T23:00:00.000Z");
+    expect(event.endsAt.toISOString()).toBe("2026-07-16T00:30:00.000Z");
+  });
 });

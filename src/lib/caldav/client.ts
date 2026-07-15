@@ -6,6 +6,7 @@ import {
   calendarConnections,
   calendarEvents,
   calendars,
+  households,
 } from "@/db/schema";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { parseIcalEvent } from "./ical";
@@ -111,6 +112,12 @@ export async function syncHouseholdCalendars(
     .limit(1);
   const current = connection[0];
   if (!current) return { status: "not-connected" as const };
+  const household = await db
+    .select({ timezone: households.timezone })
+    .from(households)
+    .where(eq(households.id, householdId))
+    .limit(1);
+  if (!household[0]) return { status: "not-connected" as const };
   const now = Date.now();
   if (
     !force &&
@@ -179,7 +186,10 @@ export async function syncHouseholdCalendars(
       for (const object of objects) {
         if (!object.data || !object.url) continue;
         try {
-          const parsed = parseIcalEvent(object.data);
+          const parsed = parseIcalEvent(
+            object.data,
+            household[0].timezone,
+          );
           await db
             .insert(calendarEvents)
             .values({
