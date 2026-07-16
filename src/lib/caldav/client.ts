@@ -9,6 +9,7 @@ import {
   households,
 } from "@/db/schema";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
+import { upsertDiscoveredCalendars } from "@/lib/calendar/discovery";
 import { parseIcalEvent, makeIcalEvent } from "./ical";
 import { staleCalendarEventIds } from "./reconcile";
 
@@ -56,6 +57,7 @@ export async function connectICloud(input: {
   if (!discovered.length) throw new Error("No iCloud calendars were found.");
 
   const connectionId = randomUUID();
+  let activeConnectionId: string = connectionId;
   await db.transaction(async (tx) => {
     await tx
       .insert(calendarConnections)
@@ -93,21 +95,10 @@ export async function connectICloud(input: {
         ),
       )
       .limit(1);
-    const id = activeConnection[0]?.id ?? connectionId;
-    for (const calendar of discovered) {
-      await tx
-        .insert(calendars)
-        .values({ id: randomUUID(), connectionId: id, ...calendar })
-        .onConflictDoUpdate({
-          target: [calendars.connectionId, calendars.url],
-          set: {
-            displayName: calendar.displayName,
-            color: calendar.color,
-            syncToken: calendar.syncToken,
-            ctag: calendar.ctag,
-          },
-        });
-    }
+    activeConnectionId = activeConnection[0]?.id ?? connectionId;
+  });
+  await upsertDiscoveredCalendars(activeConnectionId, discovered, {
+    enableNewCalendars: true,
   });
   await syncICloudCalendars(input.householdId, true);
   return discovered.length;
@@ -172,6 +163,21 @@ export async function syncICloudCalendars(
       decryptSecret(current.encryptedPassword!),
     );
     await client.login();
+    const discovered = await client.fetchCalendars();
+    await upsertDiscoveredCalendars(
+      current.id,
+      discovered.map((calendar) => ({
+        url: calendar.url,
+        displayName:
+          typeof calendar.displayName === "string"
+            ? calendar.displayName
+            : "iCloud Calendar",
+        color: calendar.calendarColor || "#6689a3",
+        syncToken: calendar.syncToken,
+        ctag: calendar.ctag,
+      })),
+      { enableNewCalendars: false },
+    );
     const selected = await db
       .select()
       .from(calendars)

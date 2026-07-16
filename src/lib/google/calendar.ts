@@ -9,6 +9,7 @@ import {
   households,
 } from "@/db/schema";
 import { staleCalendarEventIds } from "@/lib/caldav/reconcile";
+import { upsertDiscoveredCalendars } from "@/lib/calendar/discovery";
 import {
   decryptGoogleAccessToken,
   decryptGoogleRefreshToken,
@@ -87,6 +88,7 @@ export async function connectGoogleCalendar(input: {
   });
 
   const connectionId = randomUUID();
+  let activeConnectionId: string = connectionId;
   await db.transaction(async (tx) => {
     await tx
       .insert(calendarConnections)
@@ -123,30 +125,27 @@ export async function connectGoogleCalendar(input: {
         ),
       )
       .limit(1);
-    const id = activeConnection[0]?.id ?? connectionId;
-    const auth = new google.auth.OAuth2();
-    auth.setCredentials({ access_token: tokens.access_token });
-    const calendarClient = google.calendar({ version: "v3", auth });
-    const list = await calendarClient.calendarList.list({ maxResults: 250 });
-    const discovered =
-      list.data.items?.map((calendar) => ({
-        url: calendar.id ?? "",
-        displayName: calendar.summary ?? "Google Calendar",
-        color: calendar.backgroundColor ?? "#4285f4",
-      })) ?? [];
-    for (const calendar of discovered) {
-      if (!calendar.url) continue;
-      await tx
-        .insert(calendars)
-        .values({ id: randomUUID(), connectionId: id, ...calendar })
-        .onConflictDoUpdate({
-          target: [calendars.connectionId, calendars.url],
-          set: {
-            displayName: calendar.displayName,
-            color: calendar.color,
-          },
-        });
-    }
+    activeConnectionId = activeConnection[0]?.id ?? connectionId;
+  });
+
+  const auth = new google.auth.OAuth2();
+  auth.setCredentials({ access_token: tokens.access_token });
+  const calendarClient = google.calendar({ version: "v3", auth });
+  const list = await calendarClient.calendarList.list({ maxResults: 250 });
+  const discovered =
+    list.data.items?.flatMap((calendar) =>
+      calendar.id
+        ? [
+            {
+              url: calendar.id,
+              displayName: calendar.summary ?? "Google Calendar",
+              color: calendar.backgroundColor ?? "#4285f4",
+            },
+          ]
+        : [],
+    ) ?? [];
+  await upsertDiscoveredCalendars(activeConnectionId, discovered, {
+    enableNewCalendars: true,
   });
 
   await syncGoogleCalendars(input.householdId, true);
@@ -209,6 +208,22 @@ export async function syncGoogleCalendars(
 
   try {
     const client = await getGoogleClient(current);
+    const list = await client.calendarList.list({ maxResults: 250 });
+    const discovered =
+      list.data.items?.flatMap((calendar) =>
+        calendar.id
+          ? [
+              {
+                url: calendar.id,
+                displayName: calendar.summary ?? "Google Calendar",
+                color: calendar.backgroundColor ?? "#4285f4",
+              },
+            ]
+          : [],
+      ) ?? [];
+    await upsertDiscoveredCalendars(current.id, discovered, {
+      enableNewCalendars: false,
+    });
     const selected = await db
       .select()
       .from(calendars)

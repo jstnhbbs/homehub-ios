@@ -153,6 +153,10 @@ function ProviderSection({
               <legend className="text-sm font-bold">
                 Calendars shown on the hub
               </legend>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                New calendars appear here after sync. Enable them to display and
+                sync events. Unselected calendars stay private.
+              </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {calendarList.map((calendar) => (
                   <label
