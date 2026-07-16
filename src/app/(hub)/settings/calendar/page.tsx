@@ -15,7 +15,11 @@ import {
   connectCalendar,
   disconnectCalendar,
   updateCalendarSelection,
+  updateCalendarSyncInterval,
 } from "./actions";
+import {
+  CALENDAR_SYNC_INTERVAL_OPTIONS,
+} from "@/lib/calendar/sync-interval";
 
 function providerLabel(provider: "icloud" | "google") {
   return provider === "google" ? "Google Calendar" : "Apple Calendar";
@@ -83,6 +87,7 @@ export default async function CalendarSettingsPage({
           connected={syncStatus.connected}
           updatedLabel={syncStatus.updatedLabel}
           lastSyncedAt={syncStatus.lastSyncedAt}
+          syncIntervalMinutes={household.calendarSyncIntervalMinutes}
         />
       </div>
 
@@ -96,6 +101,32 @@ export default async function CalendarSettingsPage({
           {successMessage}
         </p>
       )}
+
+      <section className="hub-card mt-7 p-6">
+        <h2 className="font-display text-2xl font-semibold">Auto-sync</h2>
+        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+          Choose how often Home Hub checks connected calendars while someone has
+          the hub open. Manual sync is always available from the sync button.
+        </p>
+        <form action={updateCalendarSyncInterval} className="mt-5 flex flex-wrap items-end gap-3">
+          <label className="block min-w-56 flex-1">
+            <span className="mb-1.5 block text-sm font-bold">Sync frequency</span>
+            <select
+              name="intervalMinutes"
+              defaultValue={household.calendarSyncIntervalMinutes}
+              className="hub-input"
+              aria-label="Calendar auto-sync frequency"
+            >
+              {CALENDAR_SYNC_INTERVAL_OPTIONS.map((option) => (
+                <option key={option.minutes} value={option.minutes}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button className="hub-button">Save frequency</button>
+        </form>
+      </section>
 
       <div className="mt-7 space-y-5">
         <ProviderSection

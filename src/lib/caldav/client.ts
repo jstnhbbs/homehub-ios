@@ -10,11 +10,11 @@ import {
 } from "@/db/schema";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { upsertDiscoveredCalendars } from "@/lib/calendar/discovery";
+import { calendarSyncIntervalMs } from "@/lib/calendar/sync-interval";
 import { parseIcalEvent, makeIcalEvent } from "./ical";
 import { staleCalendarEventIds } from "./reconcile";
 
 const ICLOUD_URL = "https://caldav.icloud.com";
-const FRESH_FOR_MS = 5 * 60 * 1000;
 const LOCK_FOR_MS = 2 * 60 * 1000;
 
 function makeClient(username: string, password: string) {
@@ -121,16 +121,25 @@ export async function syncICloudCalendars(
   const current = connection[0];
   if (!current) return { status: "not-connected" as const };
   const household = await db
-    .select({ timezone: households.timezone })
+    .select({
+      timezone: households.timezone,
+      calendarSyncIntervalMinutes: households.calendarSyncIntervalMinutes,
+    })
     .from(households)
     .where(eq(households.id, householdId))
     .limit(1);
   if (!household[0]) return { status: "not-connected" as const };
+  const freshForMs = calendarSyncIntervalMs(
+    household[0].calendarSyncIntervalMinutes,
+  );
   const now = Date.now();
+  if (!force && freshForMs <= 0) {
+    return { status: "fresh" as const };
+  }
   if (
     !force &&
     current.lastSyncedAt &&
-    now - current.lastSyncedAt.getTime() < FRESH_FOR_MS
+    now - current.lastSyncedAt.getTime() < freshForMs
   ) {
     return { status: "fresh" as const };
   }

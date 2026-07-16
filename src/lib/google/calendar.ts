@@ -10,6 +10,7 @@ import {
 } from "@/db/schema";
 import { staleCalendarEventIds } from "@/lib/caldav/reconcile";
 import { upsertDiscoveredCalendars } from "@/lib/calendar/discovery";
+import { calendarSyncIntervalMs } from "@/lib/calendar/sync-interval";
 import {
   decryptGoogleAccessToken,
   decryptGoogleRefreshToken,
@@ -24,7 +25,6 @@ import {
   parsedEventToGoogleBody,
 } from "./events";
 
-const FRESH_FOR_MS = 5 * 60 * 1000;
 const LOCK_FOR_MS = 2 * 60 * 1000;
 
 type GoogleConnection = typeof calendarConnections.$inferSelect;
@@ -169,17 +169,26 @@ export async function syncGoogleCalendars(
   if (!current) return { status: "not-connected" as const };
 
   const household = await db
-    .select({ timezone: households.timezone })
+    .select({
+      timezone: households.timezone,
+      calendarSyncIntervalMinutes: households.calendarSyncIntervalMinutes,
+    })
     .from(households)
     .where(eq(households.id, householdId))
     .limit(1);
   if (!household[0]) return { status: "not-connected" as const };
 
+  const freshForMs = calendarSyncIntervalMs(
+    household[0].calendarSyncIntervalMinutes,
+  );
   const now = Date.now();
+  if (!force && freshForMs <= 0) {
+    return { status: "fresh" as const };
+  }
   if (
     !force &&
     current.lastSyncedAt &&
-    now - current.lastSyncedAt.getTime() < FRESH_FOR_MS
+    now - current.lastSyncedAt.getTime() < freshForMs
   ) {
     return { status: "fresh" as const };
   }

@@ -30,6 +30,7 @@ export async function getCurrentHousehold() {
       id: households.id,
       name: households.name,
       timezone: households.timezone,
+      calendarSyncIntervalMinutes: households.calendarSyncIntervalMinutes,
       inviteCode: households.inviteCode,
       role: householdMembers.role,
     })

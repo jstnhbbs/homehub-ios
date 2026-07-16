@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     );
   const results = [];
   for (const item of connected) {
-    results.push(await syncHouseholdCalendars(item.householdId, true));
+    results.push(await syncHouseholdCalendars(item.householdId, false));
   }
   return NextResponse.json({ households: results.length, results });
 }

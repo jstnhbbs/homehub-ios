@@ -4,13 +4,14 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db/client";
-import { calendarConnections, calendars } from "@/db/schema";
+import { calendarConnections, calendars, households } from "@/db/schema";
 import {
   connectICloud,
   disconnectICloud,
 } from "@/lib/caldav/client";
 import { disconnectGoogleCalendar } from "@/lib/google/calendar";
 import { syncHouseholdCalendars } from "@/lib/calendar/sync";
+import { parseCalendarSyncIntervalMinutes } from "@/lib/calendar/sync-interval";
 import { requireHousehold } from "@/lib/household";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -71,5 +72,17 @@ export async function updateCalendarSelection(formData: FormData) {
   }
 
   await syncHouseholdCalendars(household.id, true);
+  revalidatePath("/", "layout");
+}
+
+export async function updateCalendarSyncInterval(formData: FormData) {
+  const household = await requireHousehold();
+  const intervalMinutes = parseCalendarSyncIntervalMinutes(
+    formData.get("intervalMinutes"),
+  );
+  await db
+    .update(households)
+    .set({ calendarSyncIntervalMinutes: intervalMinutes })
+    .where(eq(households.id, household.id));
   revalidatePath("/", "layout");
 }

@@ -57,6 +57,13 @@
       "when": 1784141190089,
       "tag": "0007_tranquil_ultimatum",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1784145000000,
+      "tag": "0008_calendar_sync_interval",
+      "breakpoints": true
     }
   ]
 }

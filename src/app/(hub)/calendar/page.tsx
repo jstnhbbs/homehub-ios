@@ -238,6 +238,7 @@ export default async function CalendarPage({
           connected={calendarStatus.connected}
           updatedLabel={calendarStatus.updatedLabel}
           lastSyncedAt={calendarStatus.lastSyncedAt}
+          syncIntervalMinutes={household.calendarSyncIntervalMinutes}
         />
       </div>
 

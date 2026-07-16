@@ -178,6 +178,7 @@ export default async function DashboardPage() {
           connected={calendarStatus.connected}
           updatedLabel={calendarStatus.updatedLabel}
           lastSyncedAt={calendarStatus.lastSyncedAt}
+          syncIntervalMinutes={household.calendarSyncIntervalMinutes}
         />
       </div>
 
