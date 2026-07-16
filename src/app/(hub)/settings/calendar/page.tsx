@@ -82,6 +82,7 @@ export default async function CalendarSettingsPage({
         <CalendarSync
           connected={syncStatus.connected}
           updatedLabel={syncStatus.updatedLabel}
+          lastSyncedAt={syncStatus.lastSyncedAt}
         />
       </div>
 

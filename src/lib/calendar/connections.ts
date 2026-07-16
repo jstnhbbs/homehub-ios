@@ -12,6 +12,7 @@ export function calendarSyncStatus(
     return {
       connected: false,
       updatedLabel: undefined as string | undefined,
+      lastSyncedAt: undefined as string | undefined,
     };
   }
   const latest = connections.reduce((current, connection) => {
@@ -26,5 +27,6 @@ export function calendarSyncStatus(
     updatedLabel: latest
       ? `Updated ${formatInTimeZone(latest, timezone, "h:mm a")}`
       : undefined,
+    lastSyncedAt: latest?.toISOString(),
   };
 }

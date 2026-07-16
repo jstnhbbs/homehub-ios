@@ -177,6 +177,7 @@ export default async function DashboardPage() {
         <CalendarSync
           connected={calendarStatus.connected}
           updatedLabel={calendarStatus.updatedLabel}
+          lastSyncedAt={calendarStatus.lastSyncedAt}
         />
       </div>
 

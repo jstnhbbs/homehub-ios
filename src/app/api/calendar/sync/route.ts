@@ -8,21 +8,21 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const allowed = await checkRateLimit("calendar-sync", session.user.id, {
-    limit: 20,
-    windowMs: 5 * 60 * 1000,
-  });
-  if (!allowed) {
-    return NextResponse.json({ error: "Too many sync requests" }, { status: 429 });
+  const url = new URL(request.url);
+  const force = url.searchParams.get("force") === "true";
+  if (force) {
+    const allowed = await checkRateLimit("calendar-sync", session.user.id, {
+      limit: 10,
+      windowMs: 5 * 60 * 1000,
+    });
+    if (!allowed) {
+      return NextResponse.json({ error: "Too many sync requests" }, { status: 429 });
+    }
   }
   const household = await getCurrentHousehold();
   if (!household) {
     return NextResponse.json({ error: "No household" }, { status: 403 });
   }
-  const url = new URL(request.url);
-  const result = await syncHouseholdCalendars(
-    household.id,
-    url.searchParams.get("force") === "true",
-  );
+  const result = await syncHouseholdCalendars(household.id, force);
   return NextResponse.json(result);
 }
