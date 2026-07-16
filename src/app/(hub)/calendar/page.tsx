@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import {
+  addDays,
   addMonths,
   addWeeks,
   eachDayOfInterval,
@@ -11,6 +12,7 @@ import {
   parseISO,
   startOfMonth,
   startOfWeek,
+  subDays,
   subMonths,
   subWeeks,
 } from "date-fns";
@@ -28,6 +30,7 @@ import { calendarSyncStatus } from "@/lib/calendar/connections";
 import { defaultEventFieldValues } from "@/lib/calendar/event-input";
 import { CalendarSync } from "@/components/calendar-sync";
 import { CalendarEventForm } from "@/components/calendar-event-form";
+import { CalendarDayView } from "@/components/calendar-day-view";
 import { db } from "@/db/client";
 import {
   calendarConnections,
@@ -45,7 +48,19 @@ import {
   updateCalendarEvent,
 } from "./actions";
 
-type CalendarView = "month" | "week";
+type CalendarView = "month" | "week" | "day";
+
+function parseView(value?: string): CalendarView {
+  if (value === "week") return "week";
+  if (value === "day") return "day";
+  return "month";
+}
+
+function viewLabel(view: CalendarView) {
+  if (view === "week") return "Week";
+  if (view === "day") return "Day";
+  return "Month";
+}
 
 export default async function CalendarPage({
   searchParams,
@@ -61,21 +76,28 @@ export default async function CalendarPage({
   const household = await requireHousehold();
   const params = await searchParams;
   const today = localDateIn(household.timezone);
-  const view: CalendarView = params.view === "week" ? "week" : "month";
+  const view = parseView(params.view);
   const anchorDate = validDate(params.date) ?? today;
   const anchor = parseISO(anchorDate);
-  const selectedDate = validDate(params.selected) ?? anchorDate;
+  const selectedDate =
+    view === "day"
+      ? anchorDate
+      : validDate(params.selected) ?? anchorDate;
   const query = params.q?.trim() ?? "";
   const editEventId = params.edit?.trim() ?? "";
 
   const firstDay =
     view === "month"
       ? startOfWeek(startOfMonth(anchor), { weekStartsOn: 1 })
-      : startOfWeek(anchor, { weekStartsOn: 1 });
+      : view === "week"
+        ? startOfWeek(anchor, { weekStartsOn: 1 })
+        : anchor;
   const lastDay =
     view === "month"
       ? endOfWeek(endOfMonth(anchor), { weekStartsOn: 1 })
-      : endOfWeek(anchor, { weekStartsOn: 1 });
+      : view === "week"
+        ? endOfWeek(anchor, { weekStartsOn: 1 })
+        : anchor;
   const days = eachDayOfInterval({ start: firstDay, end: lastDay });
   const firstDate = format(firstDay, "yyyy-MM-dd");
   const lastDate = format(lastDay, "yyyy-MM-dd");
@@ -180,12 +202,25 @@ export default async function CalendarPage({
     household.timezone,
   );
   const previousDate = format(
-    view === "month" ? subMonths(anchor, 1) : subWeeks(anchor, 1),
+    view === "month"
+      ? subMonths(anchor, 1)
+      : view === "week"
+        ? subWeeks(anchor, 1)
+        : subDays(anchor, 1),
     "yyyy-MM-dd",
   );
   const nextDate = format(
-    view === "month" ? addMonths(anchor, 1) : addWeeks(anchor, 1),
+    view === "month"
+      ? addMonths(anchor, 1)
+      : view === "week"
+        ? addWeeks(anchor, 1)
+        : addDays(anchor, 1),
     "yyyy-MM-dd",
+  );
+  const dayViewEvents = eventsForDate(
+    occurrences,
+    selectedDate,
+    household.timezone,
   );
 
   return (
@@ -207,22 +242,22 @@ export default async function CalendarPage({
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex rounded-xl border border-[var(--line)] bg-white/55 p-1">
-          {(["month", "week"] as const).map((option) => (
+          {(["month", "week", "day"] as const).map((option) => (
             <Link
               key={option}
               href={calendarHref({
                 view: option,
-                date: anchorDate,
-                selected: selectedDate,
+                date: option === "day" ? selectedDate : anchorDate,
+                selected: option === "day" ? selectedDate : selectedDate,
                 q: query,
               })}
-              className={`rounded-lg px-4 py-2 text-sm font-bold capitalize ${
+              className={`rounded-lg px-4 py-2 text-sm font-bold ${
                 view === option
                   ? "bg-white shadow-sm"
                   : "text-[var(--muted)]"
               }`}
             >
-              {option === "month" ? "Month" : "Week"}
+              {viewLabel(option)}
             </Link>
           ))}
         </div>
@@ -285,6 +320,24 @@ export default async function CalendarPage({
 
       <div className="mt-4 grid grid-cols-[minmax(0,1fr)_320px] gap-5 max-lg:grid-cols-1">
         <section className="hub-card min-w-0 overflow-hidden">
+          {view === "day" ? (
+            <CalendarDayView
+              events={dayViewEvents}
+              selectedDate={selectedDate}
+              timezone={household.timezone}
+              today={today}
+              hrefForEvent={(event) =>
+                calendarHref({
+                  view: "day",
+                  date: selectedDate,
+                  selected: selectedDate,
+                  q: query,
+                  edit: event.eventId,
+                })
+              }
+            />
+          ) : (
+            <>
           <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-4">
             <h2 className="font-display text-2xl font-semibold">
               {view === "month"
@@ -384,6 +437,8 @@ export default async function CalendarPage({
               </div>
             </div>
           </div>
+            </>
+          )}
         </section>
 
         <aside className="hub-card h-fit min-h-[600px] p-5 max-lg:min-h-0 max-md:p-4">
@@ -554,14 +609,21 @@ function calendarHref({
   date,
   selected,
   q,
+  edit,
 }: {
   view: CalendarView;
   date: string;
   selected: string;
   q?: string;
+  edit?: string;
 }) {
-  const params = new URLSearchParams({ view, date, selected });
+  const params = new URLSearchParams({
+    view,
+    date,
+    selected: view === "day" ? date : selected,
+  });
   if (q) params.set("q", q);
+  if (edit) params.set("edit", edit);
   return `/calendar?${params.toString()}`;
 }
 

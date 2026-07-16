@@ -108,6 +108,13 @@ test("a parent can create a household and use the hub", async ({ page }) => {
   await expect(page).toHaveURL(/view=week/);
   await expect(page.getByText("Agenda", { exact: true })).toBeVisible();
 
+  await page.getByRole("link", { name: "Day", exact: true }).click();
+  await expect(page).toHaveURL(/view=day/);
+  await expect(page.getByText("All day", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Avery’s birthday" }),
+  ).toBeVisible();
+
   await page.getByRole("link", { name: "Recipes", exact: true }).click();
   await page.getByPlaceholder("Recipe title").fill("Pancakes");
   await page.getByPlaceholder("1 cup flour").fill("1 cup flour\n2 eggs");
