@@ -2,7 +2,6 @@
 
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import { fromZonedTime } from "date-fns-tz";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db/client";
@@ -12,30 +11,19 @@ import {
   calendars,
 } from "@/db/schema";
 import {
+  eventTimesFromForm,
+  parseCalendarEventForm,
+} from "@/lib/calendar/event-input";
+import {
   createRemoteCalendarEvent,
   deleteRemoteCalendarEvent,
+  moveRemoteCalendarEvent,
   syncHouseholdCalendars,
   updateRemoteCalendarEvent,
 } from "@/lib/calendar/sync";
 import { requireHousehold } from "@/lib/household";
 
-const eventInput = z.object({
-  calendarId: z.string().uuid(),
-  title: z.string().trim().min(1).max(150),
-  startsAt: z.string().min(1),
-  endsAt: z.string().min(1),
-  location: z.string().trim().max(200).optional(),
-});
-
-export async function createCalendarEvent(formData: FormData) {
-  const household = await requireHousehold();
-  const input = eventInput.parse({
-    calendarId: formData.get("calendarId"),
-    title: formData.get("title"),
-    startsAt: formData.get("startsAt"),
-    endsAt: formData.get("endsAt"),
-    location: formData.get("location") || undefined,
-  });
+async function loadCalendar(calendarId: string, householdId: string) {
   const selected = await db
     .select({
       id: calendars.id,
@@ -51,27 +39,37 @@ export async function createCalendarEvent(formData: FormData) {
     )
     .where(
       and(
-        eq(calendars.id, input.calendarId),
-        eq(calendarConnections.householdId, household.id),
+        eq(calendars.id, calendarId),
+        eq(calendarConnections.householdId, householdId),
       ),
     )
     .limit(1);
   if (!selected[0]) throw new Error("Calendar not found.");
-  const startsAt = fromZonedTime(input.startsAt, household.timezone);
-  const endsAt = fromZonedTime(input.endsAt, household.timezone);
-  if (endsAt <= startsAt) throw new Error("Event end must be after its start.");
+  return selected[0];
+}
+
+export async function createCalendarEvent(formData: FormData) {
+  const household = await requireHousehold();
+  const input = parseCalendarEventForm(formData);
+  const calendar = await loadCalendar(input.calendarId, household.id);
+  const { startsAt, endsAt, allDay } = eventTimesFromForm(
+    input,
+    household.timezone,
+  );
 
   const uid = `${randomUUID()}@homehub`;
   await createRemoteCalendarEvent({
-    provider: selected[0].provider,
+    provider: calendar.provider,
     householdId: household.id,
-    calendarUrl: selected[0].url,
-    calendarDisplayName: selected[0].displayName,
-    calendarColor: selected[0].color,
+    calendarUrl: calendar.url,
+    calendarDisplayName: calendar.displayName,
+    calendarColor: calendar.color,
     title: input.title,
+    description: input.description,
     location: input.location,
     startsAt,
     endsAt,
+    allDay,
     uid,
   });
   await syncHouseholdCalendars(household.id, true);
@@ -81,13 +79,13 @@ export async function createCalendarEvent(formData: FormData) {
 export async function updateCalendarEvent(formData: FormData) {
   const household = await requireHousehold();
   const eventId = z.string().uuid().parse(formData.get("eventId"));
-  const input = eventInput.parse({
-    calendarId: formData.get("calendarId"),
-    title: formData.get("title"),
-    startsAt: formData.get("startsAt"),
-    endsAt: formData.get("endsAt"),
-    location: formData.get("location") || undefined,
-  });
+  const input = parseCalendarEventForm(formData);
+  const targetCalendar = await loadCalendar(input.calendarId, household.id);
+  const { startsAt, endsAt, allDay } = eventTimesFromForm(
+    input,
+    household.timezone,
+  );
+
   const event = await db
     .select({
       id: calendarEvents.id,
@@ -95,7 +93,10 @@ export async function updateCalendarEvent(formData: FormData) {
       href: calendarEvents.href,
       etag: calendarEvents.etag,
       rawIcal: calendarEvents.rawIcal,
+      calendarId: calendarEvents.calendarId,
       calendarUrl: calendars.url,
+      calendarDisplayName: calendars.displayName,
+      calendarColor: calendars.color,
       provider: calendarConnections.provider,
     })
     .from(calendarEvents)
@@ -112,19 +113,46 @@ export async function updateCalendarEvent(formData: FormData) {
     )
     .limit(1);
   if (!event[0]) throw new Error("Event not found.");
-  await updateRemoteCalendarEvent({
-    provider: event[0].provider,
-    householdId: household.id,
-    calendarUrl: event[0].calendarUrl,
-    eventHref: event[0].href,
-    eventEtag: event[0].etag,
-    rawIcal: event[0].rawIcal,
+  if (event[0].provider !== targetCalendar.provider) {
+    throw new Error("Events can only move between calendars on the same provider.");
+  }
+
+  const payload = {
     title: input.title,
+    description: input.description,
     location: input.location,
-    startsAt: fromZonedTime(input.startsAt, household.timezone),
-    endsAt: fromZonedTime(input.endsAt, household.timezone),
+    startsAt,
+    endsAt,
+    allDay,
     uid: event[0].uid,
-  });
+  };
+
+  if (input.calendarId !== event[0].calendarId) {
+    await moveRemoteCalendarEvent({
+      provider: event[0].provider,
+      householdId: household.id,
+      fromCalendarUrl: event[0].calendarUrl,
+      toCalendarUrl: targetCalendar.url,
+      toCalendarDisplayName: targetCalendar.displayName,
+      toCalendarColor: targetCalendar.color,
+      eventHref: event[0].href,
+      eventEtag: event[0].etag,
+      rawIcal: event[0].rawIcal,
+      ...payload,
+    });
+    await db.delete(calendarEvents).where(eq(calendarEvents.id, eventId));
+  } else {
+    await updateRemoteCalendarEvent({
+      provider: event[0].provider,
+      householdId: household.id,
+      calendarUrl: event[0].calendarUrl,
+      eventHref: event[0].href,
+      eventEtag: event[0].etag,
+      rawIcal: event[0].rawIcal,
+      ...payload,
+    });
+  }
+
   await syncHouseholdCalendars(household.id, true);
   revalidatePath("/", "layout");
 }

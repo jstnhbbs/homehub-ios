@@ -343,17 +343,21 @@ export async function createICloudEvent(input: {
   calendarDisplayName: string;
   calendarColor: string;
   title: string;
+  description?: string;
   location?: string;
   startsAt: Date;
   endsAt: Date;
+  allDay: boolean;
   uid: string;
 }) {
   const rawIcal = makeIcalEvent({
     uid: input.uid,
     title: input.title,
+    description: input.description,
     location: input.location,
     startsAt: input.startsAt,
     endsAt: input.endsAt,
+    allDay: input.allDay,
   });
   const { client } = await getICloudClientForHousehold(input.householdId);
   const response = await client.createCalendarObject({
@@ -374,17 +378,21 @@ export async function updateICloudEvent(input: {
   eventEtag: string | null;
   rawIcal: string;
   title: string;
+  description?: string;
   location?: string;
   startsAt: Date;
   endsAt: Date;
+  allDay: boolean;
   uid: string;
 }) {
   const rawIcal = makeIcalEvent({
     uid: input.uid,
     title: input.title,
+    description: input.description,
     location: input.location,
     startsAt: input.startsAt,
     endsAt: input.endsAt,
+    allDay: input.allDay,
   });
   const { client } = await getICloudClientForHousehold(input.householdId);
   const response = await client.updateCalendarObject({
@@ -412,4 +420,42 @@ export async function deleteICloudEvent(input: {
     },
   });
   if (!response.ok) throw new Error("iCloud could not delete that event.");
+}
+
+export async function moveICloudEvent(input: {
+  householdId: string;
+  fromCalendarUrl: string;
+  toCalendarUrl: string;
+  toCalendarDisplayName: string;
+  toCalendarColor: string;
+  eventHref: string;
+  eventEtag: string | null;
+  rawIcal: string;
+  title: string;
+  description?: string;
+  location?: string;
+  startsAt: Date;
+  endsAt: Date;
+  allDay: boolean;
+  uid: string;
+}) {
+  await createICloudEvent({
+    householdId: input.householdId,
+    calendarUrl: input.toCalendarUrl,
+    calendarDisplayName: input.toCalendarDisplayName,
+    calendarColor: input.toCalendarColor,
+    title: input.title,
+    description: input.description,
+    location: input.location,
+    startsAt: input.startsAt,
+    endsAt: input.endsAt,
+    allDay: input.allDay,
+    uid: input.uid,
+  });
+  await deleteICloudEvent({
+    householdId: input.householdId,
+    eventHref: input.eventHref,
+    eventEtag: input.eventEtag,
+    rawIcal: input.rawIcal,
+  });
 }

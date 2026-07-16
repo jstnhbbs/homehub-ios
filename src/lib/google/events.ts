@@ -59,6 +59,7 @@ export function googleEventToRawIcal(
 
 export function parsedEventToGoogleBody(input: {
   title: string;
+  description?: string;
   location?: string;
   startsAt: Date;
   endsAt: Date;
@@ -66,11 +67,11 @@ export function parsedEventToGoogleBody(input: {
   uid?: string;
 }): calendar_v3.Schema$Event {
   const allDay = input.allDay ?? false;
-  const formatDate = (date: Date) =>
-    date.toISOString().slice(0, 10);
+  const formatDate = (date: Date) => date.toISOString().slice(0, 10);
   if (allDay) {
     return {
       summary: input.title,
+      description: input.description,
       location: input.location,
       iCalUID: input.uid,
       start: { date: formatDate(input.startsAt) },
@@ -79,6 +80,7 @@ export function parsedEventToGoogleBody(input: {
   }
   return {
     summary: input.title,
+    description: input.description,
     location: input.location,
     iCalUID: input.uid,
     start: { dateTime: input.startsAt.toISOString() },

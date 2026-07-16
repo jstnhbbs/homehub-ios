@@ -25,7 +25,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { calendarSyncStatus } from "@/lib/calendar/connections";
+import { defaultEventFieldValues } from "@/lib/calendar/event-input";
 import { CalendarSync } from "@/components/calendar-sync";
+import { CalendarEventForm } from "@/components/calendar-event-form";
 import { db } from "@/db/client";
 import {
   calendarConnections,
@@ -53,6 +55,7 @@ export default async function CalendarPage({
     date?: string;
     selected?: string;
     q?: string;
+    edit?: string;
   }>;
 }) {
   const household = await requireHousehold();
@@ -63,6 +66,7 @@ export default async function CalendarPage({
   const anchor = parseISO(anchorDate);
   const selectedDate = validDate(params.selected) ?? anchorDate;
   const query = params.q?.trim() ?? "";
+  const editEventId = params.edit?.trim() ?? "";
 
   const firstDay =
     view === "month"
@@ -89,6 +93,7 @@ export default async function CalendarPage({
           id: calendars.id,
           displayName: calendars.displayName,
           color: calendars.color,
+          provider: calendarConnections.provider,
         })
         .from(calendars)
         .innerJoin(
@@ -106,8 +111,10 @@ export default async function CalendarPage({
           id: calendarEvents.id,
           calendarId: calendarEvents.calendarId,
           rawIcal: calendarEvents.rawIcal,
+          description: calendarEvents.description,
           color: calendars.color,
           calendarName: calendars.displayName,
+          provider: calendarConnections.provider,
           location: calendarEvents.location,
         })
         .from(calendarEvents)
@@ -148,6 +155,8 @@ export default async function CalendarPage({
         color: event.color,
         calendarName: event.calendarName,
         location: occurrence.location || event.location,
+        description: occurrence.description || event.description,
+        provider: event.provider,
         isBirthday: false as const,
         profileId: null,
       })),
@@ -396,11 +405,27 @@ export default async function CalendarPage({
 
           <div className="mt-5 space-y-2">
             {selectedEvents.length ? (
-              selectedEvents.map((event, index) => (
+              selectedEvents.map((event, index) => {
+                const fieldValues = defaultEventFieldValues(
+                  household.timezone,
+                  event.startsAt,
+                  event.endsAt,
+                  event.allDay,
+                );
+                const editableCalendars = calendarList.filter(
+                  (calendar) =>
+                    !event.isBirthday && calendar.provider === event.provider,
+                );
+
+                return (
                 <details
                   key={`${event.eventId}-${event.startsAt.toISOString()}-${index}`}
                   className="rounded-2xl bg-white/70 p-3 text-sm"
                   style={{ borderLeft: `4px solid ${event.color}` }}
+                  open={
+                    editEventId === event.eventId ||
+                    (editEventId === "" && index === 0 && selectedEvents.length === 1)
+                  }
                 >
                   <summary className="cursor-pointer list-none">
                     <p className="font-extrabold">{event.title}</p>
@@ -421,6 +446,11 @@ export default async function CalendarPage({
                       <MapPin size={12} /> {event.location}
                     </p>
                   )}
+                  {event.description && (
+                    <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+                      {event.description}
+                    </p>
+                  )}
                   {event.isBirthday ? (
                     <Link
                       href={`/settings/profiles/${event.profileId}`}
@@ -430,55 +460,24 @@ export default async function CalendarPage({
                     </Link>
                   ) : (
                     <>
-                      <form
-                        action={updateCalendarEvent}
-                        className="mt-3 space-y-2"
-                      >
-                        <input
-                          type="hidden"
-                          name="eventId"
-                          value={event.eventId}
+                      <div className="mt-3">
+                        <CalendarEventForm
+                          action={updateCalendarEvent}
+                          calendars={editableCalendars}
+                          timezone={household.timezone}
+                          submitLabel="Save changes"
+                          eventId={event.eventId}
+                          defaultValues={{
+                            title: event.title,
+                            calendarId: event.calendarId,
+                            startsAt: fieldValues.startsAt,
+                            endsAt: fieldValues.endsAt,
+                            allDay: event.allDay,
+                            location: event.location ?? "",
+                            description: event.description ?? "",
+                          }}
                         />
-                        <input
-                          type="hidden"
-                          name="calendarId"
-                          value={event.calendarId}
-                        />
-                        <input
-                          className="hub-input !min-h-9 !rounded-lg !p-2 text-xs"
-                          name="title"
-                          defaultValue={event.title}
-                        />
-                        <input
-                          className="hub-input !min-h-9 !rounded-lg !p-2 text-xs"
-                          name="startsAt"
-                          type="datetime-local"
-                          defaultValue={formatInTimeZone(
-                            event.startsAt,
-                            household.timezone,
-                            "yyyy-MM-dd'T'HH:mm",
-                          )}
-                        />
-                        <input
-                          className="hub-input !min-h-9 !rounded-lg !p-2 text-xs"
-                          name="endsAt"
-                          type="datetime-local"
-                          defaultValue={formatInTimeZone(
-                            event.endsAt,
-                            household.timezone,
-                            "yyyy-MM-dd'T'HH:mm",
-                          )}
-                        />
-                        <input
-                          className="hub-input !min-h-9 !rounded-lg !p-2 text-xs"
-                          name="location"
-                          defaultValue={event.location ?? ""}
-                          placeholder="Location"
-                        />
-                        <button className="hub-button !min-h-9 w-full !py-1 text-xs">
-                          Save changes
-                        </button>
-                      </form>
+                      </div>
                       <form action={deleteCalendarEvent} className="mt-2">
                         <input
                           type="hidden"
@@ -486,13 +485,14 @@ export default async function CalendarPage({
                           value={event.eventId}
                         />
                         <button className="flex w-full items-center justify-center gap-1 py-1 text-xs font-bold text-[var(--coral)]">
-                          <Trash2 size={12} /> Delete
+                          <Trash2 size={12} /> Delete event
                         </button>
                       </form>
                     </>
                   )}
                 </details>
-              ))
+              );
+              })
             ) : (
               <div className="flex min-h-44 flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--line)] p-5 text-center">
                 <CalendarPlus size={28} className="text-[var(--sun)]" />
@@ -506,61 +506,35 @@ export default async function CalendarPage({
             )}
           </div>
 
-          {calendarStatus.connected ? (
+          {calendarStatus.connected && calendarList.length > 0 ? (
             <details className="mt-5 border-t border-[var(--line)] pt-4">
               <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-bold">
                 <CalendarPlus size={17} className="text-[var(--sage)]" />
                 Add an event
               </summary>
-              <form action={createCalendarEvent} className="mt-4 space-y-3">
-                <input
-                  name="title"
-                  className="hub-input"
-                  placeholder="Event title"
-                  required
-                />
-                <select name="calendarId" className="hub-input" required>
-                  {calendarList.map((calendar) => (
-                    <option key={calendar.id} value={calendar.id}>
-                      {calendar.displayName}
-                    </option>
-                  ))}
-                </select>
-                <label className="block">
-                  <span className="mb-1 block text-xs font-bold">Starts</span>
-                  <input
-                    name="startsAt"
-                    type="datetime-local"
-                    className="hub-input"
-                    defaultValue={`${selectedDate}T09:00`}
-                    required
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-xs font-bold">Ends</span>
-                  <input
-                    name="endsAt"
-                    type="datetime-local"
-                    className="hub-input"
-                    defaultValue={`${selectedDate}T10:00`}
-                    required
-                  />
-                </label>
-                <input
-                  name="location"
-                  className="hub-input"
-                  placeholder="Location (optional)"
-                />
-                <button className="hub-button w-full">Add to iCloud</button>
-              </form>
+              <CalendarEventForm
+                action={createCalendarEvent}
+                calendars={calendarList}
+                timezone={household.timezone}
+                submitLabel="Add event"
+                defaultValues={{
+                  title: "",
+                  calendarId: calendarList[0]?.id ?? "",
+                  startsAt: `${selectedDate}T09:00`,
+                  endsAt: `${selectedDate}T10:00`,
+                  allDay: false,
+                  location: "",
+                  description: "",
+                }}
+              />
             </details>
           ) : (
             <div className="mt-5 border-t border-[var(--line)] pt-4 text-center">
               <p className="text-sm text-[var(--muted)]">
-                Connect iCloud to add the rest of your family schedule.
+                Connect a calendar to add and edit events on the hub.
               </p>
               <Link href="/settings/calendar" className="hub-button mt-4">
-                Connect Apple Calendar
+                Calendar settings
               </Link>
             </div>
           )}

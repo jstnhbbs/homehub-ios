@@ -358,9 +358,11 @@ export async function createGoogleEvent(input: {
   householdId: string;
   calendarUrl: string;
   title: string;
+  description?: string;
   location?: string;
   startsAt: Date;
   endsAt: Date;
+  allDay: boolean;
   uid: string;
 }) {
   const connection = await db
@@ -379,9 +381,11 @@ export async function createGoogleEvent(input: {
     calendarId: input.calendarUrl,
     requestBody: parsedEventToGoogleBody({
       title: input.title,
+      description: input.description,
       location: input.location,
       startsAt: input.startsAt,
       endsAt: input.endsAt,
+      allDay: input.allDay,
       uid: input.uid,
     }),
   });
@@ -393,9 +397,11 @@ export async function updateGoogleEvent(input: {
   calendarUrl: string;
   eventId: string;
   title: string;
+  description?: string;
   location?: string;
   startsAt: Date;
   endsAt: Date;
+  allDay: boolean;
   uid: string;
 }) {
   const connection = await db
@@ -415,9 +421,57 @@ export async function updateGoogleEvent(input: {
     eventId: input.eventId,
     requestBody: parsedEventToGoogleBody({
       title: input.title,
+      description: input.description,
       location: input.location,
       startsAt: input.startsAt,
       endsAt: input.endsAt,
+      allDay: input.allDay,
+      uid: input.uid,
+    }),
+  });
+}
+
+export async function moveGoogleEvent(input: {
+  householdId: string;
+  fromCalendarUrl: string;
+  toCalendarUrl: string;
+  eventId: string;
+  title: string;
+  description?: string;
+  location?: string;
+  startsAt: Date;
+  endsAt: Date;
+  allDay: boolean;
+  uid: string;
+}) {
+  const connection = await db
+    .select()
+    .from(calendarConnections)
+    .where(
+      and(
+        eq(calendarConnections.householdId, input.householdId),
+        eq(calendarConnections.provider, "google"),
+      ),
+    )
+    .limit(1);
+  if (!connection[0]) throw new Error("Google Calendar is not connected.");
+  const client = await getGoogleClient(connection[0]);
+  const moved = await client.events.move({
+    calendarId: input.fromCalendarUrl,
+    eventId: input.eventId,
+    destination: input.toCalendarUrl,
+  });
+  const eventId = moved.data.id ?? input.eventId;
+  await client.events.update({
+    calendarId: input.toCalendarUrl,
+    eventId,
+    requestBody: parsedEventToGoogleBody({
+      title: input.title,
+      description: input.description,
+      location: input.location,
+      startsAt: input.startsAt,
+      endsAt: input.endsAt,
+      allDay: input.allDay,
       uid: input.uid,
     }),
   });
