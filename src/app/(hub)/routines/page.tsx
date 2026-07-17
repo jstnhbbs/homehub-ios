@@ -16,6 +16,7 @@ import {
 import { groupBy } from "@/lib/group-by";
 import { localDateIn } from "@/lib/dates";
 import { requireHousehold } from "@/lib/household";
+import { canManageHousehold } from "@/lib/household-roles";
 
 const periodMeta = {
   morning: { label: "Morning", icon: Sun, color: "var(--sun-soft)" },
@@ -60,6 +61,7 @@ export default async function RoutinesPage() {
   const done = new Set(doneRows.map((row) => row.stepId));
   const profileMap = new Map(familyProfiles.map((profile) => [profile.id, profile]));
   const grouped = groupBy(routineRows, (row) => row.routineId);
+  const canManage = canManageHousehold(household.role);
 
   return (
     <div className="mx-auto max-w-[1400px]">
@@ -119,6 +121,7 @@ export default async function RoutinesPage() {
                       ),
                   )}
                 </div>
+                {canManage && (
                 <details className="group mt-4 border-t border-[var(--line)] pt-3">
                   <summary className="flex cursor-pointer list-none items-center gap-1 text-xs font-bold text-[var(--muted)]">
                     <Pencil size={12} /> Edit {routine.routineName}
@@ -176,6 +179,7 @@ export default async function RoutinesPage() {
                     </button>
                   </form>
                 </details>
+                )}
               </section>
             );
           })}
@@ -185,6 +189,7 @@ export default async function RoutinesPage() {
             </div>
           )}
         </div>
+        {canManage && (
         <aside className="hub-card h-fit p-5 max-md:p-4">
           <div className="flex items-center gap-2">
             <Plus size={20} className="text-[var(--sage)]" />
@@ -222,6 +227,7 @@ export default async function RoutinesPage() {
             <button className="hub-button w-full">Add routine</button>
           </form>
         </aside>
+        )}
       </div>
     </div>
   );

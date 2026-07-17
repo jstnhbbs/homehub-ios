@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { syncHouseholdCalendars } from "@/lib/calendar/sync";
 import { getCurrentHousehold, getSession } from "@/lib/household";
+import { canManageHousehold } from "@/lib/household-roles";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -22,6 +23,9 @@ export async function POST(request: Request) {
   const household = await getCurrentHousehold();
   if (!household) {
     return NextResponse.json({ error: "No household" }, { status: 403 });
+  }
+  if (force && !canManageHousehold(household.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const result = await syncHouseholdCalendars(household.id, force);
   return NextResponse.json(result);

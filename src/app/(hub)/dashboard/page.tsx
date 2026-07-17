@@ -34,6 +34,7 @@ import {
 import { expandIcalEvent } from "@/lib/caldav/ical";
 import { localDateIn, weekKey } from "@/lib/dates";
 import { requireHousehold } from "@/lib/household";
+import { canManageHousehold } from "@/lib/household-roles";
 
 export default async function DashboardPage() {
   const household = await requireHousehold();
@@ -161,6 +162,7 @@ export default async function DashboardPage() {
   }));
   const birthdayReminders = upcomingBirthdays(familyProfiles, localDate);
   const calendarStatus = calendarSyncStatus(connectionRows, household.timezone);
+  const canManage = canManageHousehold(household.role);
   const mealSlots = ["breakfast", "lunch", "dinner", "snack"] as const;
 
   return (
@@ -174,12 +176,14 @@ export default async function DashboardPage() {
             Here’s what’s happening today.
           </h1>
         </div>
-        <CalendarSync
-          connected={calendarStatus.connected}
-          updatedLabel={calendarStatus.updatedLabel}
-          lastSyncedAt={calendarStatus.lastSyncedAt}
-          syncIntervalMinutes={household.calendarSyncIntervalMinutes}
-        />
+        {canManage && (
+          <CalendarSync
+            connected={calendarStatus.connected}
+            updatedLabel={calendarStatus.updatedLabel}
+            lastSyncedAt={calendarStatus.lastSyncedAt}
+            syncIntervalMinutes={household.calendarSyncIntervalMinutes}
+          />
+        )}
       </div>
 
       <div className="grid grid-cols-12 gap-5 max-md:gap-3">

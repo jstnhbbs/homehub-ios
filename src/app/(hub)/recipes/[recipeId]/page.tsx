@@ -7,6 +7,7 @@ import { deleteRecipe, updateRecipe } from "../actions";
 import { db } from "@/db/client";
 import { recipes } from "@/db/schema";
 import { requireHousehold } from "@/lib/household";
+import { canManageHousehold } from "@/lib/household-roles";
 import { recipeFromRow, recipeInputFromParsed } from "@/lib/recipes/store";
 
 export default async function RecipeDetailPage({
@@ -26,6 +27,7 @@ export default async function RecipeDetailPage({
   if (!row[0]) notFound();
 
   const recipe = recipeFromRow(row[0]);
+  const canManage = canManageHousehold(household.role);
 
   return (
     <div className="mx-auto max-w-4xl pb-10">
@@ -152,6 +154,7 @@ export default async function RecipeDetailPage({
         </div>
       </article>
 
+      {canManage && (
       <section className="hub-card mt-5 p-6 max-md:p-4">
         <h2 className="font-display text-2xl font-semibold">Edit recipe</h2>
         <form
@@ -169,6 +172,7 @@ export default async function RecipeDetailPage({
           </button>
         </form>
       </section>
+      )}
     </div>
   );
 }

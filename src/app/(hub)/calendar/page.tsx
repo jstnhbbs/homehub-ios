@@ -42,6 +42,7 @@ import { birthdayEventsInRange } from "@/lib/birthdays";
 import { expandIcalEvent } from "@/lib/caldav/ical";
 import { localDateIn, formatLocalDate } from "@/lib/dates";
 import { requireHousehold } from "@/lib/household";
+import { canManageHousehold } from "@/lib/household-roles";
 import {
   createCalendarEvent,
   deleteCalendarEvent,
@@ -222,6 +223,7 @@ export default async function CalendarPage({
     selectedDate,
     household.timezone,
   );
+  const canManage = canManageHousehold(household.role);
 
   return (
     <div className="mx-auto max-w-[1600px]">
@@ -234,12 +236,14 @@ export default async function CalendarPage({
             Family calendar
           </h1>
         </div>
-        <CalendarSync
-          connected={calendarStatus.connected}
-          updatedLabel={calendarStatus.updatedLabel}
-          lastSyncedAt={calendarStatus.lastSyncedAt}
-          syncIntervalMinutes={household.calendarSyncIntervalMinutes}
-        />
+        {canManage && (
+          <CalendarSync
+            connected={calendarStatus.connected}
+            updatedLabel={calendarStatus.updatedLabel}
+            lastSyncedAt={calendarStatus.lastSyncedAt}
+            syncIntervalMinutes={household.calendarSyncIntervalMinutes}
+          />
+        )}
       </div>
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
@@ -509,13 +513,15 @@ export default async function CalendarPage({
                     </p>
                   )}
                   {event.isBirthday ? (
-                    <Link
-                      href={`/settings/profiles/${event.profileId}`}
-                      className="mt-3 block rounded-xl bg-white px-3 py-2 text-center text-xs font-bold"
-                    >
-                      Edit family profile
-                    </Link>
-                  ) : (
+                    canManage ? (
+                      <Link
+                        href={`/settings/profiles/${event.profileId}`}
+                        className="mt-3 block rounded-xl bg-white px-3 py-2 text-center text-xs font-bold"
+                      >
+                        Edit family profile
+                      </Link>
+                    ) : null
+                  ) : canManage ? (
                     <>
                       <div className="mt-3">
                         <CalendarEventForm
@@ -546,7 +552,7 @@ export default async function CalendarPage({
                         </button>
                       </form>
                     </>
-                  )}
+                  ) : null}
                 </details>
               );
               })
@@ -563,7 +569,7 @@ export default async function CalendarPage({
             )}
           </div>
 
-          {calendarStatus.connected && calendarList.length > 0 ? (
+          {canManage && calendarStatus.connected && calendarList.length > 0 ? (
             <details className="mt-5 border-t border-[var(--line)] pt-4">
               <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-bold">
                 <CalendarPlus size={17} className="text-[var(--sage)]" />
@@ -585,7 +591,7 @@ export default async function CalendarPage({
                 }}
               />
             </details>
-          ) : (
+          ) : canManage ? (
             <div className="mt-5 border-t border-[var(--line)] pt-4 text-center">
               <p className="text-sm text-[var(--muted)]">
                 Connect a calendar to add and edit events on the hub.
@@ -594,7 +600,7 @@ export default async function CalendarPage({
                 Calendar settings
               </Link>
             </div>
-          )}
+          ) : null}
         </aside>
       </div>
     </div>

@@ -20,7 +20,12 @@ import {
   routineSteps,
 } from "@/db/schema";
 import { localDateIn } from "@/lib/dates";
-import { requireHousehold, requireUser } from "@/lib/household";
+import { isGuest } from "@/lib/household-roles";
+import {
+  requireHousehold,
+  requireParentHousehold,
+  requireUser,
+} from "@/lib/household";
 import { isProfileColor } from "@/lib/profile-colors";
 import {
   removeProfilePhotoForHousehold,
@@ -32,6 +37,10 @@ function text(formData: FormData, key: string) {
 }
 
 const shortText = z.string().trim().min(1).max(120);
+
+function generateInviteCode() {
+  return randomBytes(4).toString("hex").toUpperCase();
+}
 
 export async function createHousehold(formData: FormData) {
   const user = await requireUser();
@@ -48,12 +57,18 @@ export async function createHousehold(formData: FormData) {
     });
 
   const id = randomUUID();
+  const inviteCode = generateInviteCode();
+  let guestInviteCode = generateInviteCode();
+  while (guestInviteCode === inviteCode) {
+    guestInviteCode = generateInviteCode();
+  }
   await db.transaction(async (tx) => {
     await tx.insert(households).values({
       id,
       name: input.name,
       timezone: input.timezone,
-      inviteCode: randomBytes(4).toString("hex").toUpperCase(),
+      inviteCode,
+      guestInviteCode,
     });
     await tx.insert(householdMembers).values({
       householdId: id,
@@ -92,8 +107,55 @@ export async function joinHousehold(formData: FormData) {
   redirect("/dashboard");
 }
 
+export async function joinHouseholdAsGuest(formData: FormData) {
+  const user = await requireUser();
+  const inviteCode = text(formData, "guestInviteCode").toUpperCase();
+  const household = await db
+    .select({ id: households.id })
+    .from(households)
+    .where(eq(households.guestInviteCode, inviteCode))
+    .limit(1);
+  if (!household[0]) throw new Error("That guest invite code was not found.");
+  await db
+    .insert(householdMembers)
+    .values({
+      householdId: household[0].id,
+      userId: user.id,
+      role: "guest",
+    })
+    .onConflictDoNothing();
+  redirect("/dashboard");
+}
+
+export async function removeGuestMember(formData: FormData) {
+  const household = await requireParentHousehold();
+  const userId = z.string().parse(formData.get("userId"));
+  const member = await db
+    .select({ role: householdMembers.role })
+    .from(householdMembers)
+    .where(
+      and(
+        eq(householdMembers.householdId, household.id),
+        eq(householdMembers.userId, userId),
+      ),
+    )
+    .limit(1);
+  if (!member[0] || !isGuest(member[0].role)) {
+    throw new Error("Only guest members can be removed here.");
+  }
+  await db
+    .delete(householdMembers)
+    .where(
+      and(
+        eq(householdMembers.householdId, household.id),
+        eq(householdMembers.userId, userId),
+      ),
+    );
+  revalidatePath("/", "layout");
+}
+
 export async function addProfile(formData: FormData) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const name = shortText.parse(text(formData, "name"));
   const color = z
     .string()
@@ -113,7 +175,7 @@ export async function addProfile(formData: FormData) {
 }
 
 export async function updateProfile(profileId: string, formData: FormData) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const id = z.string().uuid().parse(profileId);
   const birthdayValue = text(formData, "birthday");
   const input = z
@@ -170,7 +232,7 @@ export async function updateProfile(profileId: string, formData: FormData) {
 }
 
 export async function setProfilePhoto(profileId: string, url: string) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   await saveProfilePhotoForHousehold({
     householdId: household.id,
     profileId: z.string().uuid().parse(profileId),
@@ -180,7 +242,7 @@ export async function setProfilePhoto(profileId: string, url: string) {
 }
 
 export async function removeProfilePhoto(profileId: string) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   await removeProfilePhotoForHousehold({
     householdId: household.id,
     profileId: z.string().uuid().parse(profileId),
@@ -189,7 +251,7 @@ export async function removeProfilePhoto(profileId: string) {
 }
 
 export async function addRoutine(formData: FormData) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const input = z
     .object({
       name: shortText,
@@ -241,7 +303,7 @@ export async function addRoutine(formData: FormData) {
 }
 
 export async function updateRoutine(routineId: string, formData: FormData) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const id = z.string().uuid().parse(routineId);
   const input = z
     .object({
@@ -363,7 +425,7 @@ export async function toggleRoutineStep(
 }
 
 export async function addChore(formData: FormData) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const input = z
     .object({
       title: shortText,
@@ -384,7 +446,7 @@ export async function addChore(formData: FormData) {
 }
 
 export async function updateChore(choreId: string, formData: FormData) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const id = z.string().uuid().parse(choreId);
   const input = z
     .object({
@@ -435,7 +497,7 @@ export async function updateChore(choreId: string, formData: FormData) {
 }
 
 export async function deleteChore(choreId: string) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const id = z.string().uuid().parse(choreId);
   const deleted = await db
     .delete(chores)
@@ -481,7 +543,7 @@ export async function toggleChore(
 }
 
 export async function saveMeal(formData: FormData) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const recipeIdValue = text(formData, "recipeId");
   const input = z
     .object({
@@ -547,7 +609,7 @@ export async function saveMeal(formData: FormData) {
 }
 
 export async function clearMealWeek(formData: FormData) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const start = parseISO(z.string().date().parse(text(formData, "weekStart")));
   const dates = Array.from({ length: 7 }, (_, index) =>
     format(addDays(start, index), "yyyy-MM-dd"),
@@ -566,7 +628,7 @@ export async function clearMealWeek(formData: FormData) {
 }
 
 export async function copyPreviousMealWeek(formData: FormData) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const start = parseISO(z.string().date().parse(text(formData, "weekStart")));
   const priorStart = subWeeks(start, 1);
   const priorMeals = await db

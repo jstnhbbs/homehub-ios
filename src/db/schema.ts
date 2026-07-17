@@ -91,6 +91,7 @@ export const households = sqliteTable("households", {
     .notNull()
     .default(15),
   inviteCode: text("invite_code").notNull().unique(),
+  guestInviteCode: text("guest_invite_code").notNull().unique(),
   ...timestamps,
 });
 
@@ -103,7 +104,7 @@ export const householdMembers = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    role: text("role", { enum: ["owner", "parent"] })
+    role: text("role", { enum: ["owner", "parent", "guest"] })
       .notNull()
       .default("parent"),
     joinedAt: integer("joined_at", { mode: "timestamp" })

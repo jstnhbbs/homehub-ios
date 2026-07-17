@@ -21,7 +21,7 @@ import {
   syncHouseholdCalendars,
   updateRemoteCalendarEvent,
 } from "@/lib/calendar/sync";
-import { requireHousehold } from "@/lib/household";
+import { requireParentHousehold } from "@/lib/household";
 
 async function loadCalendar(calendarId: string, householdId: string) {
   const selected = await db
@@ -49,7 +49,7 @@ async function loadCalendar(calendarId: string, householdId: string) {
 }
 
 export async function createCalendarEvent(formData: FormData) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const input = parseCalendarEventForm(formData);
   const calendar = await loadCalendar(input.calendarId, household.id);
   const { startsAt, endsAt, allDay } = eventTimesFromForm(
@@ -77,7 +77,7 @@ export async function createCalendarEvent(formData: FormData) {
 }
 
 export async function updateCalendarEvent(formData: FormData) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const eventId = z.string().uuid().parse(formData.get("eventId"));
   const input = parseCalendarEventForm(formData);
   const targetCalendar = await loadCalendar(input.calendarId, household.id);
@@ -158,7 +158,7 @@ export async function updateCalendarEvent(formData: FormData) {
 }
 
 export async function deleteCalendarEvent(formData: FormData) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const eventId = z.string().uuid().parse(formData.get("eventId"));
   const event = await db
     .select({

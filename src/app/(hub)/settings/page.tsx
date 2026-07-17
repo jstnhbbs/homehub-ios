@@ -1,7 +1,7 @@
 import { asc, eq } from "drizzle-orm";
-import { CalendarDays, Copy, Pencil, Plus, ShieldCheck } from "lucide-react";
+import { CalendarDays, Copy, Pencil, Plus, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
-import { addProfile } from "@/app/actions";
+import { addProfile, removeGuestMember } from "@/app/actions";
 import { ProfileColorPicker } from "@/components/profile-color-picker";
 import {
   hasProfilePhoto,
@@ -10,16 +10,31 @@ import {
 import { ProfilePhotoUpload } from "@/components/profile-photo-upload";
 import { SignOutButton } from "@/components/sign-out-button";
 import { db } from "@/db/client";
-import { profiles } from "@/db/schema";
+import { householdMembers, profiles, users } from "@/db/schema";
+import { roleLabel } from "@/lib/household-roles";
 import { requireHousehold } from "@/lib/household";
 
 export default async function SettingsPage() {
   const household = await requireHousehold();
-  const familyProfiles = await db
-    .select()
-    .from(profiles)
-    .where(eq(profiles.householdId, household.id))
-    .orderBy(asc(profiles.sortOrder));
+  const [familyProfiles, members] = await Promise.all([
+    db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.householdId, household.id))
+      .orderBy(asc(profiles.sortOrder)),
+    db
+      .select({
+        userId: householdMembers.userId,
+        role: householdMembers.role,
+        joinedAt: householdMembers.joinedAt,
+        name: users.name,
+        email: users.email,
+      })
+      .from(householdMembers)
+      .innerJoin(users, eq(householdMembers.userId, users.id))
+      .where(eq(householdMembers.householdId, household.id))
+      .orderBy(asc(householdMembers.joinedAt)),
+  ]);
   const adultProfiles = familyProfiles.filter(
     (profile) => profile.profileType === "adult",
   );
@@ -101,10 +116,59 @@ export default async function SettingsPage() {
             Invite another parent
           </h2>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            Share this code. They can enter it after creating their parent account.
+            Share this code. They can enter it after creating their account.
           </p>
           <div className="mt-5 overflow-hidden rounded-2xl bg-[var(--blue-soft)] p-4 text-center font-mono text-2xl font-extrabold tracking-[0.2em] max-sm:text-xl max-sm:tracking-[0.12em]">
             {household.inviteCode}
+          </div>
+        </section>
+
+        <section className="hub-card p-6 max-md:p-4">
+          <Users className="text-[var(--sun)]" size={28} />
+          <h2 className="font-display mt-4 text-2xl font-semibold">
+            Invite a guest
+          </h2>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            For grandparents, nannies, and other helpers. Guests can view the
+            hub and check off routines and chores.
+          </p>
+          <div className="mt-5 overflow-hidden rounded-2xl bg-[var(--sun-soft)] p-4 text-center font-mono text-2xl font-extrabold tracking-[0.2em] max-sm:text-xl max-sm:tracking-[0.12em]">
+            {household.guestInviteCode}
+          </div>
+        </section>
+
+        <section className="hub-card col-span-2 p-6 max-md:col-span-1 max-md:p-4">
+          <h2 className="font-display text-2xl font-semibold">Household members</h2>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            Parents manage the hub. Guests can be removed at any time.
+          </p>
+          <div className="mt-5 space-y-3">
+            {members.map((member) => (
+              <div
+                key={member.userId}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-white/60 p-4"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-bold">{member.name}</p>
+                  <p className="truncate text-sm text-[var(--muted)]">
+                    {member.email}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="rounded-full bg-[var(--sage-soft)] px-3 py-1 text-xs font-bold text-[var(--sage)]">
+                    {roleLabel(member.role)}
+                  </span>
+                  {member.role === "guest" && (
+                    <form action={removeGuestMember}>
+                      <input type="hidden" name="userId" value={member.userId} />
+                      <button className="text-sm font-bold text-[var(--coral)]">
+                        Remove
+                      </button>
+                    </form>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 

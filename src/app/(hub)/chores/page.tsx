@@ -12,6 +12,7 @@ import { db } from "@/db/client";
 import { choreCompletions, chores, profiles } from "@/db/schema";
 import { localDateIn, weekKey } from "@/lib/dates";
 import { requireHousehold } from "@/lib/household";
+import { canManageHousehold } from "@/lib/household-roles";
 
 export default async function ChoresPage() {
   const household = await requireHousehold();
@@ -45,6 +46,7 @@ export default async function ChoresPage() {
     })),
     { id: null, name: "Family", color: "#4f7c6d", avatar: "sparkles" },
   ];
+  const canManage = canManageHousehold(household.role);
 
   return (
     <div className="mx-auto max-w-[1400px]">
@@ -114,6 +116,7 @@ export default async function ChoresPage() {
                               periodKey,
                             )}
                           />
+                          {canManage && (
                           <details className="group mx-2 mt-1">
                             <summary className="flex cursor-pointer list-none items-center gap-1 text-xs font-bold text-[var(--muted)]">
                               <Pencil size={12} /> Edit {chore.title}
@@ -163,6 +166,7 @@ export default async function ChoresPage() {
                               </button>
                             </form>
                           </details>
+                          )}
                         </div>
                       );
                     })
@@ -176,6 +180,7 @@ export default async function ChoresPage() {
             );
           })}
         </div>
+        {canManage && (
         <aside className="hub-card h-fit p-5 max-md:p-4">
           <div className="flex items-center gap-2">
             <Plus size={20} className="text-[var(--sage)]" />
@@ -203,6 +208,7 @@ export default async function ChoresPage() {
             <button className="hub-button w-full">Add chore</button>
           </form>
         </aside>
+        )}
       </div>
     </div>
   );

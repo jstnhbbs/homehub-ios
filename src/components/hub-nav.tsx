@@ -20,11 +20,14 @@ const items = [
   { href: "/chores", label: "Chores", icon: CheckSquare2 },
   { href: "/meals", label: "Meals", icon: Soup },
   { href: "/recipes", label: "Recipes", icon: BookOpen },
-  { href: "/settings", label: "Settings", icon: Settings },
-];
+  { href: "/settings", label: "Settings", icon: Settings, parentOnly: true },
+] as const;
 
-export function HubNav() {
+export function HubNav({ showSettings = true }: { showSettings?: boolean }) {
   const pathname = usePathname();
+  const navItems = showSettings
+    ? items
+    : items.filter((item) => !("parentOnly" in item && item.parentOnly));
 
   return (
     <nav
@@ -38,7 +41,7 @@ export function HubNav() {
       >
         H
       </Link>
-      {items.map(({ href, label, icon: Icon }) => {
+      {navItems.map(({ href, label, icon: Icon }) => {
         const active = pathname === href || pathname.startsWith(`${href}/`);
         return (
           <Link

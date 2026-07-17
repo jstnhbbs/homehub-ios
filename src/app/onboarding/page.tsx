@@ -1,7 +1,7 @@
-import { Home, Users } from "lucide-react";
-import { redirect } from "next/navigation";
-import { createHousehold, joinHousehold } from "@/app/actions";
+import { createHousehold, joinHousehold, joinHouseholdAsGuest } from "@/app/actions";
 import { getCurrentHousehold, requireUser } from "@/lib/household";
+import { Home, UserPlus, Users } from "lucide-react";
+import { redirect } from "next/navigation";
 
 export default async function OnboardingPage() {
   await requireUser();
@@ -17,9 +17,10 @@ export default async function OnboardingPage() {
           Let’s make this hub yours.
         </h1>
         <p className="mt-3 max-w-xl text-lg text-[var(--muted)]">
-          Start a household or use the code from another parent.
+          Start a household, join as a parent, or join as a guest with a view-only
+          invite code.
         </p>
-        <div className="mt-10 grid gap-6 md:grid-cols-2">
+        <div className="mt-10 grid gap-6 lg:grid-cols-3">
           <section className="hub-card p-7">
             <Home className="mb-5 text-[var(--sage)]" size={32} />
             <h2 className="font-display text-3xl font-semibold">
@@ -49,20 +50,41 @@ export default async function OnboardingPage() {
           <section className="hub-card p-7">
             <Users className="mb-5 text-[var(--blue)]" size={32} />
             <h2 className="font-display text-3xl font-semibold">
-              Join your family
+              Join as a parent
             </h2>
             <p className="mt-2 text-[var(--muted)]">
-              Enter the invite code shown in the household settings.
+              Enter the parent invite code from household settings.
             </p>
             <form action={joinHousehold} className="mt-6 space-y-4">
               <input
                 className="hub-input uppercase tracking-[0.2em]"
                 name="inviteCode"
-                placeholder="FAMILY12"
+                placeholder="PARENT12"
                 required
               />
               <button className="hub-button secondary w-full">
-                Join household
+                Join as parent
+              </button>
+            </form>
+          </section>
+          <section className="hub-card p-7">
+            <UserPlus className="mb-5 text-[var(--sun)]" size={32} />
+            <h2 className="font-display text-3xl font-semibold">
+              Join as a guest
+            </h2>
+            <p className="mt-2 text-[var(--muted)]">
+              For grandparents, nannies, and other helpers. View the hub and
+              check off routines and chores.
+            </p>
+            <form action={joinHouseholdAsGuest} className="mt-6 space-y-4">
+              <input
+                className="hub-input uppercase tracking-[0.2em]"
+                name="guestInviteCode"
+                placeholder="GUEST12"
+                required
+              />
+              <button className="hub-button secondary w-full">
+                Join as guest
               </button>
             </form>
           </section>

@@ -10,6 +10,7 @@ import { db } from "@/db/client";
 import { meals, recipes } from "@/db/schema";
 import { weekDates } from "@/lib/dates";
 import { requireHousehold } from "@/lib/household";
+import { canManageHousehold } from "@/lib/household-roles";
 
 const slots = ["breakfast", "lunch", "dinner", "snack"] as const;
 
@@ -35,6 +36,7 @@ export default async function MealsPage() {
       .orderBy(asc(recipes.title)),
   ]);
   const weekStart = dateStrings[0];
+  const canManage = canManageHousehold(household.role);
 
   return (
     <div className="mx-auto max-w-[1500px]">
@@ -47,6 +49,7 @@ export default async function MealsPage() {
             Weekly meals
           </h1>
         </div>
+        {canManage && (
         <div className="flex flex-wrap gap-2">
           <form action={copyPreviousMealWeek}>
             <input type="hidden" name="weekStart" value={weekStart} />
@@ -61,6 +64,7 @@ export default async function MealsPage() {
             </button>
           </form>
         </div>
+        )}
       </div>
 
       <div className="mt-4 space-y-3 md:hidden">
@@ -94,6 +98,7 @@ export default async function MealsPage() {
                         initialValue={meal?.title ?? ""}
                         initialRecipeId={meal?.recipeId}
                         recipes={householdRecipes}
+                        readOnly={!canManage}
                       />
                     </div>
                   );
@@ -142,6 +147,7 @@ export default async function MealsPage() {
                       initialValue={meal?.title ?? ""}
                       initialRecipeId={meal?.recipeId}
                       recipes={householdRecipes}
+                      readOnly={!canManage}
                     />
                   </div>
                 );

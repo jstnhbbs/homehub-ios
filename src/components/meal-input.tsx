@@ -16,17 +16,37 @@ export function MealInput({
   initialValue,
   initialRecipeId,
   recipes,
+  readOnly = false,
 }: {
   localDate: string;
   slot: "breakfast" | "lunch" | "dinner" | "snack";
   initialValue: string;
   initialRecipeId?: string | null;
   recipes: RecipeOption[];
+  readOnly?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(initialValue);
   const [recipeId, setRecipeId] = useState(initialRecipeId ?? "");
   const titleRef = useRef<HTMLInputElement>(null);
+
+  if (readOnly) {
+    return (
+      <div className="space-y-2">
+        <p className="min-h-12 rounded-xl bg-white/60 px-3 py-3 text-sm font-semibold">
+          {initialValue || "Not planned"}
+        </p>
+        {initialRecipeId && initialValue && (
+          <Link
+            href={`/recipes/${initialRecipeId}`}
+            className="block truncate text-[11px] font-bold text-[var(--sage)]"
+          >
+            View recipe
+          </Link>
+        )}
+      </div>
+    );
+  }
 
   return (
     <form

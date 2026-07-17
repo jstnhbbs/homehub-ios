@@ -12,7 +12,7 @@ import {
   linesToList,
   serializeRecipeFields,
 } from "@/lib/recipes/store";
-import { requireHousehold } from "@/lib/household";
+import { requireParentHousehold } from "@/lib/household";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 function text(formData: FormData, key: string) {
@@ -67,7 +67,7 @@ function parseRecipeForm(formData: FormData) {
 }
 
 export async function addRecipe(formData: FormData) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const input = parseRecipeForm(formData);
   const id = randomUUID();
   await db.insert(recipes).values({
@@ -81,7 +81,7 @@ export async function addRecipe(formData: FormData) {
 }
 
 export async function importRecipe(formData: FormData) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const allowed = await checkRateLimit("recipe-import", household.id, {
     limit: 20,
     windowMs: 60 * 60 * 1000,
@@ -111,7 +111,7 @@ export async function importRecipe(formData: FormData) {
 }
 
 export async function updateRecipe(recipeId: string, formData: FormData) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const id = z.string().uuid().parse(recipeId);
   const input = parseRecipeForm(formData);
   const updated = await db
@@ -129,7 +129,7 @@ export async function updateRecipe(recipeId: string, formData: FormData) {
 }
 
 export async function deleteRecipe(recipeId: string) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const id = z.string().uuid().parse(recipeId);
   const deleted = await db
     .delete(recipes)

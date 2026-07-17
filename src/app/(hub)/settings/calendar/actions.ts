@@ -12,11 +12,11 @@ import {
 import { disconnectGoogleCalendar } from "@/lib/google/calendar";
 import { syncHouseholdCalendars } from "@/lib/calendar/sync";
 import { parseCalendarSyncIntervalMinutes } from "@/lib/calendar/sync-interval";
-import { requireHousehold } from "@/lib/household";
+import { requireParentHousehold } from "@/lib/household";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function connectCalendar(formData: FormData) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const allowed = await checkRateLimit("calendar-connect", household.id, {
     limit: 5,
     windowMs: 15 * 60 * 1000,
@@ -40,7 +40,7 @@ export async function connectCalendar(formData: FormData) {
 }
 
 export async function disconnectCalendar(formData: FormData) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const provider = z.enum(["icloud", "google"]).parse(formData.get("provider"));
   if (provider === "google") {
     await disconnectGoogleCalendar(household.id);
@@ -51,7 +51,7 @@ export async function disconnectCalendar(formData: FormData) {
 }
 
 export async function updateCalendarSelection(formData: FormData) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const selectedIds = new Set(
     z.array(z.string().uuid()).parse(formData.getAll("calendarId")),
   );
@@ -76,7 +76,7 @@ export async function updateCalendarSelection(formData: FormData) {
 }
 
 export async function updateCalendarSyncInterval(formData: FormData) {
-  const household = await requireHousehold();
+  const household = await requireParentHousehold();
   const intervalMinutes = parseCalendarSyncIntervalMinutes(
     formData.get("intervalMinutes"),
   );

@@ -6,6 +6,7 @@ import { RecipeFields } from "@/components/recipe-fields";
 import { db } from "@/db/client";
 import { recipes } from "@/db/schema";
 import { requireHousehold } from "@/lib/household";
+import { canManageHousehold } from "@/lib/household-roles";
 import { recipeFromRow } from "@/lib/recipes/store";
 
 export default async function RecipesPage() {
@@ -16,6 +17,7 @@ export default async function RecipesPage() {
     .where(eq(recipes.householdId, household.id))
     .orderBy(asc(recipes.title));
   const recipeList = rows.map(recipeFromRow);
+  const canManage = canManageHousehold(household.role);
 
   return (
     <div className="mx-auto max-w-[1400px]">
@@ -76,6 +78,7 @@ export default async function RecipesPage() {
           )}
         </div>
 
+        {canManage && (
         <aside className="space-y-5">
           <section className="hub-card h-fit p-5 max-md:p-4">
             <div className="flex items-center gap-2">
@@ -113,6 +116,7 @@ export default async function RecipesPage() {
             </form>
           </section>
         </aside>
+        )}
       </div>
     </div>
   );
