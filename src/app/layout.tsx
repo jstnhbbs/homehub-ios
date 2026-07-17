@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Sans, Fraunces } from "next/font/google";
+import { DM_Sans, Libre_Baskerville } from "next/font/google";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -7,9 +7,10 @@ const dmSans = DM_Sans({
   subsets: ["latin"],
 });
 
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
+const libreBaskerville = Libre_Baskerville({
+  variable: "--font-display-serif",
   subsets: ["latin"],
+  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {
@@ -62,7 +63,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${fraunces.variable}`}>
+    <html lang="en" className={`${dmSans.variable} ${libreBaskerville.variable}`}>
       <body>{children}</body>
     </html>
   );
