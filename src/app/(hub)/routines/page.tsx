@@ -105,21 +105,31 @@ export default async function RoutinesPage() {
                   </div>
                 </div>
                 <div className="mt-4 space-y-2">
-                  {rows.map(
-                    (row) =>
-                      row.stepId && (
-                        <CheckItem
-                          key={row.stepId}
-                          label={row.stepLabel ?? ""}
-                          color={profile?.color}
-                          initialChecked={done.has(row.stepId)}
-                          onToggle={toggleRoutineStep.bind(
-                            null,
-                            row.stepId,
-                            localDate,
-                          )}
-                        />
-                      ),
+                  {rows.some((row) => row.stepId && !done.has(row.stepId)) ? (
+                    rows.map(
+                      (row) =>
+                        row.stepId &&
+                        !done.has(row.stepId) && (
+                          <CheckItem
+                            key={row.stepId}
+                            label={row.stepLabel ?? ""}
+                            color={profile?.color}
+                            initialChecked={false}
+                            removeWhenChecked
+                            onToggle={toggleRoutineStep.bind(
+                              null,
+                              row.stepId,
+                              localDate,
+                            )}
+                          />
+                        ),
+                    )
+                  ) : (
+                    rows.some((row) => row.stepId) && (
+                      <p className="rounded-2xl bg-white/65 px-3 py-4 text-center text-sm font-bold text-[var(--muted)]">
+                        All done for today!
+                      </p>
+                    )
                   )}
                 </div>
                 {canManage && (

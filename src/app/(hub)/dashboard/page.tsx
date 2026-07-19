@@ -231,8 +231,11 @@ export default async function DashboardPage() {
             href="/routines"
           />
           <div className="scrollbar-none mt-4 max-h-[245px] space-y-2 overflow-auto">
-            {routineRows.length ? (
-              routineRows.slice(0, 5).map((step) => {
+            {routineRows.some((step) => !doneSteps.has(step.id)) ? (
+              routineRows
+                .filter((step) => !doneSteps.has(step.id))
+                .slice(0, 5)
+                .map((step) => {
                 const profile = step.profileId
                   ? profileMap.get(step.profileId)
                   : undefined;
@@ -242,7 +245,8 @@ export default async function DashboardPage() {
                     label={step.label}
                     detail={profile?.name ?? step.routineName}
                     color={profile?.color}
-                    initialChecked={doneSteps.has(step.id)}
+                    initialChecked={false}
+                    removeWhenChecked
                     onToggle={toggleRoutineStep.bind(
                       null,
                       step.id,
@@ -251,6 +255,10 @@ export default async function DashboardPage() {
                   />
                 );
               })
+            ) : routineRows.length ? (
+              <p className="rounded-2xl border border-dashed border-[var(--line)] p-4 text-center text-sm font-bold text-[var(--muted)]">
+                All routines done for today!
+              </p>
             ) : (
               <EmptyState text="Add a morning or bedtime routine." href="/routines" />
             )}
@@ -319,15 +327,25 @@ export default async function DashboardPage() {
         <section className="hub-card col-span-5 min-h-[245px] p-5 max-md:col-span-12 max-md:min-h-0 max-md:p-4">
           <CardTitle icon={Cookie} title="Snacks" href="/snacks" />
           <div className="mt-4 grid grid-cols-2 gap-2 max-sm:grid-cols-1">
-            {snackItems.length ? (
-              snackItems.slice(0, 6).map((item) => (
+            {snackItems.some((item) => !snackEaten.has(item)) ? (
+              snackItems
+                .filter((item) => !snackEaten.has(item))
+                .slice(0, 6)
+                .map((item) => (
                 <CheckItem
                   key={item}
                   label={item}
-                  initialChecked={snackEaten.has(item)}
+                  initialChecked={false}
+                  removeWhenChecked
                   onToggle={toggleSnack.bind(null, localDate, item)}
                 />
               ))
+            ) : snackItems.length ? (
+              <div className="col-span-2">
+                <p className="rounded-2xl border border-dashed border-[var(--line)] p-4 text-center text-sm font-bold text-[var(--muted)]">
+                  All snacks eaten for today!
+                </p>
+              </div>
             ) : (
               <div className="col-span-2">
                 <EmptyState text="Add snack options for the family." href="/snacks" />

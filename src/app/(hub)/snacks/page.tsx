@@ -65,14 +65,24 @@ export default async function SnacksPage() {
           </p>
           <div className="mt-5 space-y-2">
             {snackItems.length ? (
-              snackItems.map((item) => (
-                <CheckItem
-                  key={item}
-                  label={item}
-                  initialChecked={eaten.has(item)}
-                  onToggle={toggleSnack.bind(null, localDate, item)}
-                />
-              ))
+              snackItems.some((item) => !eaten.has(item)) ? (
+                snackItems.map(
+                  (item) =>
+                    !eaten.has(item) && (
+                      <CheckItem
+                        key={item}
+                        label={item}
+                        initialChecked={false}
+                        removeWhenChecked
+                        onToggle={toggleSnack.bind(null, localDate, item)}
+                      />
+                    ),
+                )
+              ) : (
+                <p className="rounded-2xl border border-dashed border-[var(--line)] p-8 text-center text-sm font-bold text-[var(--muted)]">
+                  All snacks eaten for today!
+                </p>
+              )
             ) : (
               <p className="rounded-2xl border border-dashed border-[var(--line)] p-8 text-center text-sm text-[var(--muted)]">
                 {canManage

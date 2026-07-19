@@ -11,17 +11,23 @@ export function CheckItem({
   onToggle,
   detail,
   disabled = false,
+  removeWhenChecked = false,
 }: {
   label: string;
   initialChecked: boolean;
   color?: string;
   detail?: string;
   disabled?: boolean;
+  removeWhenChecked?: boolean;
   onToggle: (checked: boolean) => Promise<void>;
 }) {
   const [checked, setChecked] = useState(initialChecked);
   const [pending, startTransition] = useTransition();
   const inactive = disabled || pending;
+
+  if (removeWhenChecked && checked) {
+    return null;
+  }
 
   return (
     <button
@@ -29,6 +35,19 @@ export function CheckItem({
       aria-pressed={checked}
       disabled={inactive}
       onClick={() => {
+        if (removeWhenChecked) {
+          if (checked || inactive) return;
+          setChecked(true);
+          startTransition(async () => {
+            try {
+              await onToggle(true);
+            } catch {
+              setChecked(false);
+            }
+          });
+          return;
+        }
+
         const next = !checked;
         setChecked(next);
         startTransition(async () => {
