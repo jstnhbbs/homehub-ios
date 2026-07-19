@@ -207,8 +207,9 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-12 gap-5 max-md:gap-3">
-        <section className="hub-card col-span-5 min-h-[310px] p-5 max-md:col-span-12 max-md:min-h-0 max-md:p-4">
+      <div className="space-y-5 max-md:space-y-3">
+        <div className="grid grid-cols-3 gap-5 max-md:grid-cols-1 max-md:gap-3">
+        <section className="hub-card min-h-[310px] p-5 max-md:min-h-0 max-md:p-4">
           <CardTitle
             icon={CalendarDays}
             title="Today’s schedule"
@@ -224,7 +225,7 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        <section className="hub-card col-span-4 min-h-[310px] p-5 max-md:col-span-12 max-md:min-h-0 max-md:p-4">
+        <section className="hub-card min-h-[310px] p-5 max-md:min-h-0 max-md:p-4">
           <CardTitle
             icon={ClipboardCheck}
             title="Today’s routines"
@@ -265,7 +266,7 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        <section className="hub-card col-span-3 min-h-[310px] p-5 max-md:col-span-12 max-md:min-h-0 max-md:p-4">
+        <section className="hub-card min-h-[310px] p-5 max-md:min-h-0 max-md:p-4">
           <CardTitle icon={CheckSquare2} title="Chores" href="/chores" />
           <div className="scrollbar-none mt-4 max-h-[245px] space-y-2 overflow-auto">
             {dueChores.length ? (
@@ -295,8 +296,10 @@ export default async function DashboardPage() {
             )}
           </div>
         </section>
+        </div>
 
-        <section className="hub-card col-span-7 min-h-[245px] bg-[var(--sun-soft)]/50 p-5 max-md:col-span-12 max-md:min-h-0 max-md:p-4">
+        <div className="grid grid-cols-2 gap-5 max-md:grid-cols-1 max-md:gap-3">
+        <section className="hub-card min-h-[245px] bg-[var(--sun-soft)]/50 p-5 max-md:min-h-0 max-md:p-4">
           <CardTitle icon={Soup} title="Today’s meals" href="/meals" />
           <div className="mt-5 grid grid-cols-3 gap-4 max-sm:grid-cols-1">
             {mealSlots.map((slot) => {
@@ -324,7 +327,7 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        <section className="hub-card col-span-5 min-h-[245px] p-5 max-md:col-span-12 max-md:min-h-0 max-md:p-4">
+        <section className="hub-card min-h-[245px] p-5 max-md:min-h-0 max-md:p-4">
           <CardTitle icon={Cookie} title="Snacks" href="/snacks" />
           <div className="mt-4 grid grid-cols-2 gap-2 max-sm:grid-cols-1">
             {snackItems.some((item) => !snackEaten.has(item)) ? (
@@ -358,6 +361,7 @@ export default async function DashboardPage() {
             </p>
           )}
         </section>
+        </div>
       </div>
     </div>
   );
