@@ -21,7 +21,7 @@ import {
 import {
   CALENDAR_SYNC_INTERVAL_OPTIONS,
 } from "@/lib/calendar/sync-interval";
-import { WEEK_START_OPTIONS } from "@/lib/calendar/week-start";
+import { WEEK_START_OPTIONS, parseWeekStartsOn } from "@/lib/calendar/week-start";
 
 function providerLabel(provider: "icloud" | "google") {
   return provider === "google" ? "Google Calendar" : "Apple Calendar";
@@ -70,6 +70,7 @@ export default async function CalendarSettingsPage({
             : null;
   const successMessage =
     params.connected === "google" ? "Google Calendar connected." : null;
+  const weekStartsOn = parseWeekStartsOn(household.weekStartsOn);
 
   return (
     <div className="mx-auto max-w-4xl pb-10">
@@ -114,12 +115,12 @@ export default async function CalendarSettingsPage({
             <span className="mb-1.5 block text-sm font-bold">Start week on</span>
             <select
               name="weekStartsOn"
-              defaultValue={household.weekStartsOn}
+              defaultValue={String(weekStartsOn)}
               className="hub-input"
               aria-label="Starting day of the week"
             >
               {WEEK_START_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
+                <option key={option.value} value={String(option.value)}>
                   {option.label}
                 </option>
               ))}
