@@ -304,23 +304,46 @@ export default async function DashboardPage() {
           <div className="mt-5 space-y-3">
             {mealSlots.map((slot) => {
               const meal = todayMeals.find((item) => item.slot === slot);
+              const items = meal?.title
+                ? meal.title
+                    .split("\n")
+                    .map((line) => line.trim())
+                    .filter(Boolean)
+                : [];
               return (
                 <div key={slot} className="rounded-2xl bg-white/65 p-4">
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[var(--muted)]">
                     {slot}
                   </p>
-                  <p className="mt-1 line-clamp-4 break-words text-sm font-bold leading-snug">
-                    {meal?.recipeId ? (
-                      <Link
-                        href={`/recipes/${meal.recipeId}`}
-                        className="hover:text-[var(--sage)]"
-                      >
-                        {meal.title}
-                      </Link>
-                    ) : (
-                      meal?.title || "Not planned"
-                    )}
-                  </p>
+                  {items.length ? (
+                    <ul className="mt-1 space-y-0.5">
+                      {items.map((item, index) => (
+                        <li
+                          key={`${item}-${index}`}
+                          className={
+                            index === 0
+                              ? "break-words text-sm font-bold leading-snug"
+                              : "break-words text-sm leading-snug text-[var(--muted)]"
+                          }
+                        >
+                          {index === 0 && meal?.recipeId ? (
+                            <Link
+                              href={`/recipes/${meal.recipeId}`}
+                              className="hover:text-[var(--sage)]"
+                            >
+                              {item}
+                            </Link>
+                          ) : (
+                            item
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1 text-sm font-bold leading-snug">
+                      Not planned
+                    </p>
+                  )}
                 </div>
               );
             })}

@@ -576,7 +576,7 @@ export async function saveMeal(formData: FormData) {
     .object({
       localDate: z.string().date(),
       slot: z.enum(["breakfast", "lunch", "dinner", "snack"]),
-      title: z.string().trim().max(120),
+      title: z.string().max(600),
       recipeId: z.string().uuid().optional(),
     })
     .parse({
@@ -586,7 +586,14 @@ export async function saveMeal(formData: FormData) {
       recipeId: recipeIdValue || undefined,
     });
 
-  if (!input.title) {
+  // Each non-empty line is a separate meal item (e.g. a main dish and sides).
+  const normalizedTitle = input.title
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("\n");
+
+  if (!normalizedTitle) {
     await db
       .delete(meals)
       .where(
@@ -598,7 +605,7 @@ export async function saveMeal(formData: FormData) {
       );
   } else {
     let recipeId = input.recipeId ?? null;
-    let title = input.title;
+    let title = normalizedTitle;
     if (recipeId) {
       const recipe = await db
         .select({ id: recipes.id, title: recipes.title })

@@ -161,7 +161,8 @@ export default async function MealsPage() {
           </section>
 
           <p className="text-center text-sm text-[var(--muted)] max-lg:hidden">
-            Pick a saved recipe or type a meal name. Leave it blank to clear that slot.
+            Pick a saved recipe or type a meal name. Put each item on its own
+            line to add sides. Leave it blank to clear that slot.
           </p>
         </div>
       </div>
