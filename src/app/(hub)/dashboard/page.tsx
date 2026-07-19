@@ -5,14 +5,14 @@ import {
   CalendarDays,
   CheckSquare2,
   ClipboardCheck,
+  Cookie,
   Soup,
 } from "lucide-react";
 import Link from "next/link";
-import { toggleChore, toggleRoutineStep } from "@/app/actions";
+import { toggleChore, toggleRoutineStep, toggleSnack } from "@/app/actions";
 import { calendarSyncStatus } from "@/lib/calendar/connections";
 import { CalendarSync } from "@/components/calendar-sync";
 import { CheckItem } from "@/components/check-item";
-import { ProfileAvatar } from "@/components/profile-avatar";
 import { TodaySchedule } from "@/components/today-schedule";
 import { db } from "@/db/client";
 import {
@@ -26,10 +26,10 @@ import {
   routineCompletions,
   routines,
   routineSteps,
+  snackCompletions,
 } from "@/db/schema";
 import {
   birthdayEventsInRange,
-  upcomingBirthdays,
 } from "@/lib/birthdays";
 import { expandIcalEvent } from "@/lib/caldav/ical";
 import { localDateIn, weekKey } from "@/lib/dates";
@@ -54,6 +54,7 @@ export default async function DashboardPage() {
     todayMeals,
     eventRows,
     connectionRows,
+    snackDone,
   ] = await Promise.all([
     db
       .select()
@@ -128,6 +129,15 @@ export default async function DashboardPage() {
       .select()
       .from(calendarConnections)
       .where(eq(calendarConnections.householdId, household.id)),
+    db
+      .select({ snackLabel: snackCompletions.snackLabel })
+      .from(snackCompletions)
+      .where(
+        and(
+          eq(snackCompletions.householdId, household.id),
+          eq(snackCompletions.localDate, localDate),
+        ),
+      ),
   ]);
 
   const doneSteps = new Set(routineDone.map((item) => item.stepId));
@@ -170,11 +180,11 @@ export default async function DashboardPage() {
     color: event.color,
     calendarName: event.calendarName,
   }));
-  const birthdayReminders = upcomingBirthdays(familyProfiles, localDate);
   const calendarStatus = calendarSyncStatus(connectionRows, household.timezone);
   const canManage = canManageHousehold(household.role);
   const mealSlots = ["breakfast", "lunch", "dinner"] as const;
   const snackItems = parseSnackOptions(household.snackOptions);
+  const snackEaten = new Set(snackDone.map((item) => item.snackLabel));
 
   return (
     <div className="mx-auto max-w-[1500px]">
@@ -247,62 +257,11 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        <section className="hub-card col-span-3 min-h-[310px] bg-[var(--sun-soft)]/50 p-5 max-md:col-span-12 max-md:min-h-0 max-md:p-4">
-          <CardTitle icon={Soup} title="Today’s meals" href="/meals" />
-          <div className="mt-5 space-y-3">
-            {mealSlots.map((slot) => {
-              const meal = todayMeals.find((item) => item.slot === slot);
-              return (
-                <div key={slot}>
-                  <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[var(--muted)]">
-                    {slot}
-                  </p>
-                  <p className="mt-0.5 truncate font-bold">
-                    {meal?.recipeId ? (
-                      <Link
-                        href={`/recipes/${meal.recipeId}`}
-                        className="hover:text-[var(--sage)]"
-                      >
-                        {meal.title}
-                      </Link>
-                    ) : (
-                      meal?.title || "Not planned"
-                    )}
-                  </p>
-                </div>
-              );
-            })}
-            <div>
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[var(--muted)]">
-                Snacks
-              </p>
-              {snackItems.length ? (
-                <ul className="mt-1 space-y-1">
-                  {snackItems.slice(0, 4).map((item) => (
-                    <li key={item} className="truncate text-sm font-bold">
-                      {item}
-                    </li>
-                  ))}
-                  {snackItems.length > 4 && (
-                    <li className="text-xs font-bold text-[var(--muted)]">
-                      +{snackItems.length - 4} more
-                    </li>
-                  )}
-                </ul>
-              ) : (
-                <p className="mt-0.5 text-sm font-bold text-[var(--muted)]">
-                  None listed
-                </p>
-              )}
-            </div>
-          </div>
-        </section>
-
-        <section className="hub-card col-span-7 min-h-[245px] p-5 max-md:col-span-12 max-md:min-h-0 max-md:p-4">
+        <section className="hub-card col-span-3 min-h-[310px] p-5 max-md:col-span-12 max-md:min-h-0 max-md:p-4">
           <CardTitle icon={CheckSquare2} title="Chores" href="/chores" />
-          <div className="mt-4 grid grid-cols-2 gap-2 max-sm:grid-cols-1">
+          <div className="scrollbar-none mt-4 max-h-[245px] space-y-2 overflow-auto">
             {dueChores.length ? (
-              dueChores.slice(0, 4).map((chore) => {
+              dueChores.slice(0, 5).map((chore) => {
                 const profile = chore.profileId
                   ? profileMap.get(chore.profileId)
                   : undefined;
@@ -324,46 +283,61 @@ export default async function DashboardPage() {
                 );
               })
             ) : (
-              <div className="col-span-2">
-                <EmptyState text="Add the first family chore." href="/chores" />
-              </div>
+              <EmptyState text="Add the first family chore." href="/chores" />
             )}
           </div>
         </section>
 
-        <section className="hub-card col-span-5 min-h-[245px] overflow-hidden p-5 max-md:col-span-12 max-md:min-h-0 max-md:p-4">
-          <h2 className="font-display text-2xl font-semibold">Family</h2>
-          <div className="mt-5 flex flex-wrap items-center gap-4">
-            {familyProfiles.map((profile) => (
-              <div key={profile.id} className="text-center">
-                <ProfileAvatar
-                  name={profile.name}
-                  avatar={profile.avatar}
-                  color={profile.color}
-                  size={64}
-                  className="mx-auto text-xl"
+        <section className="hub-card col-span-7 min-h-[245px] bg-[var(--sun-soft)]/50 p-5 max-md:col-span-12 max-md:min-h-0 max-md:p-4">
+          <CardTitle icon={Soup} title="Today’s meals" href="/meals" />
+          <div className="mt-5 grid grid-cols-3 gap-4 max-sm:grid-cols-1">
+            {mealSlots.map((slot) => {
+              const meal = todayMeals.find((item) => item.slot === slot);
+              return (
+                <div key={slot} className="rounded-2xl bg-white/65 p-4">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[var(--muted)]">
+                    {slot}
+                  </p>
+                  <p className="mt-1 truncate font-bold">
+                    {meal?.recipeId ? (
+                      <Link
+                        href={`/recipes/${meal.recipeId}`}
+                        className="hover:text-[var(--sage)]"
+                      >
+                        {meal.title}
+                      </Link>
+                    ) : (
+                      meal?.title || "Not planned"
+                    )}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="hub-card col-span-5 min-h-[245px] p-5 max-md:col-span-12 max-md:min-h-0 max-md:p-4">
+          <CardTitle icon={Cookie} title="Snacks" href="/snacks" />
+          <div className="mt-4 grid grid-cols-2 gap-2 max-sm:grid-cols-1">
+            {snackItems.length ? (
+              snackItems.slice(0, 6).map((item) => (
+                <CheckItem
+                  key={item}
+                  label={item}
+                  initialChecked={snackEaten.has(item)}
+                  onToggle={toggleSnack.bind(null, localDate, item)}
                 />
-                <p className="mt-2 text-sm font-bold">{profile.name}</p>
+              ))
+            ) : (
+              <div className="col-span-2">
+                <EmptyState text="Add snack options for the family." href="/snacks" />
               </div>
-            ))}
-            {!familyProfiles.length && (
-              <EmptyState text="Add child profiles in settings." href="/settings" />
             )}
           </div>
-          {birthdayReminders.length > 0 && (
-            <div className="mt-5 space-y-2 border-t border-[var(--line)] pt-4">
-              {birthdayReminders.slice(0, 2).map(({ profile, daysUntil }) => (
-                <Link
-                  key={profile.id}
-                  href={`/settings/profiles/${profile.id}`}
-                  className="block rounded-xl bg-[var(--sun-soft)] px-3 py-2 text-sm font-bold"
-                >
-                  {daysUntil === 0
-                    ? `🎉 ${profile.name}’s birthday is today!`
-                    : `🎂 ${profile.name}’s birthday is in ${daysUntil} day${daysUntil === 1 ? "" : "s"}`}
-                </Link>
-              ))}
-            </div>
+          {snackItems.length > 0 && (
+            <p className="mt-4 text-center text-sm font-bold text-[var(--muted)]">
+              {snackEaten.size} of {snackItems.length} eaten today
+            </p>
           )}
         </section>
       </div>

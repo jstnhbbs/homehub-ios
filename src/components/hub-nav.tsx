@@ -5,6 +5,7 @@ import {
   CalendarDays,
   CheckSquare2,
   ClipboardCheck,
+  Cookie,
   Home,
   Settings,
   Soup,
@@ -19,6 +20,7 @@ const items = [
   { href: "/routines", label: "Routines", icon: ClipboardCheck },
   { href: "/chores", label: "Chores", icon: CheckSquare2 },
   { href: "/meals", label: "Meals", icon: Soup },
+  { href: "/snacks", label: "Snacks", icon: Cookie },
   { href: "/recipes", label: "Recipes", icon: BookOpen },
   { href: "/settings", label: "Settings", icon: Settings, parentOnly: true },
 ] as const;

@@ -236,6 +236,26 @@ export const choreCompletions = sqliteTable(
   ],
 );
 
+export const snackCompletions = sqliteTable(
+  "snack_completions",
+  {
+    householdId: text("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    localDate: text("local_date").notNull(),
+    snackLabel: text("snack_label").notNull(),
+    completedAt: integer("completed_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.householdId, table.localDate, table.snackLabel],
+    }),
+    index("snack_completions_date_idx").on(table.localDate),
+  ],
+);
+
 export const recipes = sqliteTable(
   "recipes",
   {

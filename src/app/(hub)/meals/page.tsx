@@ -6,7 +6,6 @@ import {
   copyPreviousMealWeek,
 } from "@/app/actions";
 import { MealInput } from "@/components/meal-input";
-import { SnackOptionsPanel } from "@/components/snack-options-panel";
 import { db } from "@/db/client";
 import { meals, recipes } from "@/db/schema";
 import { weekDates } from "@/lib/dates";
@@ -68,7 +67,7 @@ export default async function MealsPage() {
         )}
       </div>
 
-      <div className="mt-6 space-y-6">
+      <div className="mt-6">
         <div className="min-w-0 space-y-4">
           <div className="space-y-3 lg:hidden">
             {days.map((day, dayIndex) => {
@@ -164,11 +163,6 @@ export default async function MealsPage() {
             Pick a saved recipe or type a meal name. Leave it blank to clear that slot.
           </p>
         </div>
-
-        <SnackOptionsPanel
-          snackOptions={household.snackOptions}
-          readOnly={!canManage}
-        />
       </div>
     </div>
   );

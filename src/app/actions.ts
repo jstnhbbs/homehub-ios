@@ -18,9 +18,11 @@ import {
   routineCompletions,
   routines,
   routineSteps,
+  snackCompletions,
 } from "@/db/schema";
 import { choreDaysForCadence } from "@/lib/chores";
 import { localDateIn } from "@/lib/dates";
+import { parseSnackOptions } from "@/lib/meals/snacks";
 import { isGuest } from "@/lib/household-roles";
 import {
   requireHousehold,
@@ -643,6 +645,54 @@ export async function saveSnackOptions(formData: FormData) {
     .update(households)
     .set({ snackOptions, updatedAt: new Date() })
     .where(eq(households.id, household.id));
+  revalidatePath("/", "layout");
+}
+
+export async function toggleSnack(
+  localDate: string,
+  snackLabel: string,
+  completed: boolean,
+) {
+  const household = await requireHousehold();
+  const date = z.string().date().parse(localDate);
+  const label = shortText.parse(snackLabel);
+  const allowed = parseSnackOptions(household.snackOptions);
+  if (!allowed.includes(label)) throw new Error("Snack not found.");
+
+  if (completed) {
+    await db
+      .insert(snackCompletions)
+      .values({
+        householdId: household.id,
+        localDate: date,
+        snackLabel: label,
+      })
+      .onConflictDoNothing();
+  } else {
+    await db
+      .delete(snackCompletions)
+      .where(
+        and(
+          eq(snackCompletions.householdId, household.id),
+          eq(snackCompletions.localDate, date),
+          eq(snackCompletions.snackLabel, label),
+        ),
+      );
+  }
+  revalidatePath("/", "layout");
+}
+
+export async function resetSnackChecklist(formData: FormData) {
+  const household = await requireHousehold();
+  const localDate = z.string().date().parse(text(formData, "localDate"));
+  await db
+    .delete(snackCompletions)
+    .where(
+      and(
+        eq(snackCompletions.householdId, household.id),
+        eq(snackCompletions.localDate, localDate),
+      ),
+    );
   revalidatePath("/", "layout");
 }
 
