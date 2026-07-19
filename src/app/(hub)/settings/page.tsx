@@ -1,8 +1,17 @@
 import { asc, eq } from "drizzle-orm";
-import { CalendarDays, Copy, Pencil, Plus, ShieldCheck, Users } from "lucide-react";
+import {
+  CalendarDays,
+  Copy,
+  Moon,
+  Pencil,
+  Plus,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { addProfile, removeGuestMember } from "@/app/actions";
 import { ProfileColorPicker } from "@/components/profile-color-picker";
+import { ThemeSetting } from "@/components/theme-setting";
 import {
   hasProfilePhoto,
   ProfileAvatar,
@@ -94,6 +103,18 @@ export default async function SettingsPage() {
               <Plus size={18} /> Add family member
             </button>
           </form>
+        </section>
+
+        <section className="hub-card p-6 max-md:p-4">
+          <Moon className="text-[var(--sage)]" size={28} />
+          <h2 className="font-display mt-4 text-2xl font-semibold">
+            Appearance
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            Switch between the light and dark theme. Your choice is remembered
+            on this device.
+          </p>
+          <ThemeSetting />
         </section>
 
         <section className="hub-card p-6 max-md:p-4">
