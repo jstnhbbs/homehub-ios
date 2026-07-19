@@ -132,7 +132,7 @@ export default async function ChoresPage() {
                             </summary>
                             <form
                               action={updateChore.bind(null, chore.id)}
-                              className="mt-2 space-y-2 rounded-xl border border-[var(--line)] bg-white/50 p-3"
+                              className="mt-2 space-y-2 rounded-xl border border-[var(--line)] bg-[var(--tile)] p-3"
                             >
                               <input
                                 name="title"

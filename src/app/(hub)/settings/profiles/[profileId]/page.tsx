@@ -52,7 +52,7 @@ export default async function EditProfilePage({
           Edit {familyMember.name}
         </h1>
 
-        <div className="mt-6 flex items-center gap-4 rounded-2xl border border-[var(--line)] bg-white/60 p-4">
+        <div className="mt-6 flex items-center gap-4 rounded-2xl border border-[var(--line)] bg-[var(--tile)] p-4">
           <ProfileAvatar
             name={familyMember.name}
             avatar={familyMember.avatar}

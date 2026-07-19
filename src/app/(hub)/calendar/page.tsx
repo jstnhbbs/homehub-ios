@@ -249,7 +249,7 @@ export default async function CalendarPage({
       </div>
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex rounded-xl border border-[var(--line)] bg-white/55 p-1">
+        <div className="flex rounded-xl border border-[var(--line)] bg-[var(--tile)] p-1">
           {(["month", "week", "day"] as const).map((option) => (
             <Link
               key={option}
@@ -261,7 +261,7 @@ export default async function CalendarPage({
               })}
               className={`rounded-lg px-4 py-2 text-sm font-bold ${
                 view === option
-                  ? "bg-white shadow-sm"
+                  ? "bg-[var(--tile-solid)] shadow-sm"
                   : "text-[var(--muted)]"
               }`}
             >
@@ -295,7 +295,7 @@ export default async function CalendarPage({
               selected: previousDate,
               q: query,
             })}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--line)] bg-white/55"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--line)] bg-[var(--tile)]"
             aria-label={`Previous ${view}`}
           >
             <ChevronLeft size={18} />
@@ -307,7 +307,7 @@ export default async function CalendarPage({
               selected: today,
               q: query,
             })}
-            className="flex h-10 items-center rounded-xl border border-[var(--line)] bg-white/55 px-4 text-sm font-bold"
+            className="flex h-10 items-center rounded-xl border border-[var(--line)] bg-[var(--tile)] px-4 text-sm font-bold"
           >
             Today
           </Link>
@@ -318,7 +318,7 @@ export default async function CalendarPage({
               selected: nextDate,
               q: query,
             })}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--line)] bg-white/55"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--line)] bg-[var(--tile)]"
             aria-label={`Next ${view}`}
           >
             <ChevronRight size={18} />
@@ -386,7 +386,7 @@ export default async function CalendarPage({
                       key={localDate}
                       className={`relative border-b border-r border-[var(--line)] p-2 last:border-r-0 ${
                         view === "month" ? "min-h-28" : "min-h-[520px]"
-                      } ${outsideMonth ? "bg-black/[0.015] text-[var(--muted)]" : ""} ${
+                      } ${outsideMonth ? "bg-[var(--tile-quiet)] text-[var(--muted)]" : ""} ${
                         selected ? "bg-[var(--sun-soft)]/35" : ""
                       } ${index % 7 === 6 ? "!border-r-0" : ""}`}
                     >
@@ -420,7 +420,7 @@ export default async function CalendarPage({
                                 selected: localDate,
                                 q: query,
                               })}
-                              className="block truncate rounded-lg bg-white/75 px-2 py-1.5 text-[11px] font-bold"
+                              className="block truncate rounded-lg bg-[var(--tile)] px-2 py-1.5 text-[11px] font-bold"
                               style={{
                                 borderLeft: `3px solid ${event.color}`,
                               }}
@@ -481,7 +481,7 @@ export default async function CalendarPage({
                 return (
                 <details
                   key={`${event.eventId}-${event.startsAt.toISOString()}-${index}`}
-                  className="rounded-2xl bg-white/70 p-3 text-sm"
+                  className="rounded-2xl bg-[var(--tile)] p-3 text-sm"
                   style={{ borderLeft: `4px solid ${event.color}` }}
                   open={
                     editEventId === event.eventId ||
@@ -516,7 +516,7 @@ export default async function CalendarPage({
                     canManage ? (
                       <Link
                         href={`/settings/profiles/${event.profileId}`}
-                        className="mt-3 block rounded-xl bg-white px-3 py-2 text-center text-xs font-bold"
+                        className="mt-3 block rounded-xl bg-[var(--tile-solid)] px-3 py-2 text-center text-xs font-bold"
                       >
                         Edit family profile
                       </Link>

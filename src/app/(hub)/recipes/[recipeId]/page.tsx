@@ -65,17 +65,17 @@ export default async function RecipeDetailPage({
               </span>
             )}
             {recipe.prepTime && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/70 px-3 py-1.5">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[var(--tile)] px-3 py-1.5">
                 <Clock3 size={15} /> Prep {recipe.prepTime}
               </span>
             )}
             {recipe.cookTime && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/70 px-3 py-1.5">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[var(--tile)] px-3 py-1.5">
                 <Clock3 size={15} /> Cook {recipe.cookTime}
               </span>
             )}
             {recipe.totalTime && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/70 px-3 py-1.5">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[var(--tile)] px-3 py-1.5">
                 <Clock3 size={15} /> Total {recipe.totalTime}
               </span>
             )}
@@ -100,7 +100,7 @@ export default async function RecipeDetailPage({
                 {recipe.ingredients.map((item) => (
                   <li
                     key={item}
-                    className="rounded-xl bg-white/65 px-3 py-2 text-sm font-medium"
+                    className="rounded-xl bg-[var(--tile)] px-3 py-2 text-sm font-medium"
                   >
                     {item}
                   </li>
@@ -116,7 +116,7 @@ export default async function RecipeDetailPage({
                 {recipe.directions.map((step, index) => (
                   <li
                     key={`${index}-${step}`}
-                    className="rounded-xl bg-white/65 px-3 py-3 text-sm"
+                    className="rounded-xl bg-[var(--tile)] px-3 py-3 text-sm"
                   >
                     <span className="mr-2 font-extrabold text-[var(--sage)]">
                       {index + 1}.
@@ -135,7 +135,7 @@ export default async function RecipeDetailPage({
                 {Object.entries(recipe.nutrition).map(([label, value]) => (
                   <div
                     key={label}
-                    className="flex items-center justify-between rounded-xl bg-white/65 px-3 py-2 text-sm"
+                    className="flex items-center justify-between rounded-xl bg-[var(--tile)] px-3 py-2 text-sm"
                   >
                     <span className="font-bold">{label}</span>
                     <span className="text-[var(--muted)]">{value}</span>

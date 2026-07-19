@@ -1,13 +1,14 @@
 import { CalendarDays, CheckCircle2, Soup } from "lucide-react";
 import { redirect } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { getSession } from "@/lib/household";
 
 export default async function SignInPage() {
   if (await getSession()) redirect("/");
   return (
     <main className="grid min-h-dvh lg:grid-cols-[1.15fr_0.85fr]">
-      <section className="relative hidden overflow-hidden bg-[var(--sage)] p-14 text-white lg:flex lg:flex-col lg:justify-between">
+      <section className="relative hidden overflow-hidden bg-[var(--hero)] p-14 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="absolute -right-24 -top-28 h-80 w-80 rounded-full bg-[var(--sun)]/80" />
         <div className="font-display relative text-3xl font-bold">Home Hub</div>
         <div className="relative max-w-xl">
@@ -34,7 +35,10 @@ export default async function SignInPage() {
           Designed for the family iPad.
         </p>
       </section>
-      <section className="flex items-center justify-center p-6">
+      <section className="relative flex items-center justify-center p-6">
+        <div className="absolute right-4 top-4">
+          <ThemeToggle />
+        </div>
         <div className="w-full max-w-md">
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--sage)]">
             Welcome home

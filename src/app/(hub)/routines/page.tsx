@@ -126,7 +126,7 @@ export default async function RoutinesPage() {
                     )
                   ) : (
                     rows.some((row) => row.stepId) && (
-                      <p className="rounded-2xl bg-white/65 px-3 py-4 text-center text-sm font-bold text-[var(--muted)]">
+                      <p className="rounded-2xl bg-[var(--tile)] px-3 py-4 text-center text-sm font-bold text-[var(--muted)]">
                         All done for today!
                       </p>
                     )
@@ -139,7 +139,7 @@ export default async function RoutinesPage() {
                   </summary>
                   <form
                     action={updateRoutine.bind(null, routine.routineId)}
-                    className="mt-3 space-y-2 rounded-xl bg-white/50 p-3"
+                    className="mt-3 space-y-2 rounded-xl bg-[var(--tile)] p-3"
                   >
                     <input
                       name="name"

@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: light;
   --background: #f7f3e9;
   --surface: #fffdf8;
   --surface-strong: #ffffff;
@@ -16,6 +17,39 @@
   --blue: #6689a3;
   --blue-soft: #dce7ed;
   --shadow: 0 14px 40px rgb(61 75 66 / 8%);
+
+  /* Semantic tokens for elevated tiles that used to be literal white/black. */
+  --button-foreground: #ffffff;
+  --tile: rgb(255 255 255 / 65%);
+  --tile-solid: #ffffff;
+  --tile-quiet: rgb(0 0 0 / 3%);
+  /* Saturated brand panel (sign-in hero) that always carries white text. */
+  --hero: #4f7c6d;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #131f1b;
+  --surface: #1b2a25;
+  --surface-strong: #223530;
+  --foreground: #edf2ec;
+  --muted: #96a69e;
+  --line: #33433d;
+  --sage: #6fae98;
+  --sage-soft: #24362f;
+  --sun: #e4ac57;
+  --sun-soft: #3a3221;
+  --coral: #df876f;
+  --coral-soft: #3c2823;
+  --blue: #7fa6bf;
+  --blue-soft: #223540;
+  --shadow: 0 16px 40px rgb(0 0 0 / 45%);
+
+  --button-foreground: #12201b;
+  --tile: rgb(255 255 255 / 6%);
+  --tile-solid: #2a3a34;
+  --tile-quiet: rgb(255 255 255 / 5%);
+  --hero: #2f5e50;
 }
 
 @theme inline {
@@ -91,7 +125,7 @@ a {
   border-radius: 999px;
   background: var(--sage);
   padding: 0.65rem 1.15rem;
-  color: white;
+  color: var(--button-foreground);
   font-weight: 700;
   cursor: pointer;
   transition: transform 150ms ease, filter 150ms ease;

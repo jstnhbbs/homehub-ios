@@ -60,7 +60,7 @@ export function CheckItem({
       }}
       className={cn(
         "flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 text-left transition",
-        checked ? "bg-black/[0.025] text-[var(--muted)]" : "bg-white/65",
+        checked ? "bg-[var(--tile-quiet)] text-[var(--muted)]" : "bg-[var(--tile)]",
         inactive && "opacity-70",
         disabled && "cursor-not-allowed",
       )}

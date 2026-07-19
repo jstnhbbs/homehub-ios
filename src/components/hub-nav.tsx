@@ -38,7 +38,7 @@ export function HubNav({ showSettings = true }: { showSettings?: boolean }) {
     >
       <Link
         href="/dashboard"
-        className="font-display mb-5 flex h-14 w-14 items-center justify-center rounded-[1.2rem] bg-[var(--sage)] text-2xl font-bold text-white shadow-lg max-md:hidden"
+        className="font-display mb-5 flex h-14 w-14 items-center justify-center rounded-[1.2rem] bg-[var(--sage)] text-2xl font-bold text-[var(--button-foreground)] shadow-lg max-md:hidden"
         aria-label="Home Hub"
       >
         H
@@ -53,7 +53,7 @@ export function HubNav({ showSettings = true }: { showSettings?: boolean }) {
               "flex min-h-[68px] w-full flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-bold transition max-md:min-h-[58px] max-md:min-w-0 max-md:flex-1 max-md:rounded-xl max-md:text-[9px]",
               active
                 ? "bg-[var(--sage-soft)] text-[var(--sage)]"
-                : "text-[var(--muted)] hover:bg-black/[0.03]",
+                : "text-[var(--muted)] hover:bg-[var(--tile-quiet)]",
             )}
           >
             <Icon size={23} strokeWidth={active ? 2.6 : 2} />

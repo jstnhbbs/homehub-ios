@@ -146,7 +146,7 @@ export default async function SettingsPage() {
             {members.map((member) => (
               <div
                 key={member.userId}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-white/60 p-4"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--tile)] p-4"
               >
                 <div className="min-w-0">
                   <p className="truncate font-bold">{member.name}</p>
@@ -209,7 +209,7 @@ function ProfileList({
         {profileList.map((profile) => (
           <div
             key={profile.id}
-            className="flex min-w-[240px] flex-1 items-center gap-3 rounded-2xl border border-[var(--line)] bg-white/60 p-3"
+            className="flex min-w-[240px] flex-1 items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--tile)] p-3"
           >
             <ProfileAvatar
               name={profile.name}
@@ -238,7 +238,7 @@ function ProfileList({
             </div>
             <Link
               href={`/settings/profiles/${profile.id}`}
-              className="rounded-full p-2 text-[var(--muted)] transition hover:bg-white hover:text-[var(--foreground)]"
+              className="rounded-full p-2 text-[var(--muted)] transition hover:bg-[var(--tile-solid)] hover:text-[var(--foreground)]"
               aria-label={`Edit ${profile.name}`}
             >
               <Pencil size={17} />

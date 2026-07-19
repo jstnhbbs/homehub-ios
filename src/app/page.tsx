@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { getCurrentHousehold, getSession } from "@/lib/household";
 
 const features = [
@@ -45,9 +46,12 @@ export default async function Home() {
     <main className="min-h-dvh">
       <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-6">
         <div className="font-display text-2xl font-bold">Home Hub</div>
-        <Link href="/sign-in" className="hub-button px-5">
-          Sign in
-        </Link>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <Link href="/sign-in" className="hub-button px-5">
+            Sign in
+          </Link>
+        </div>
       </header>
 
       <section className="mx-auto max-w-6xl px-6 pb-10 pt-4">
@@ -69,7 +73,7 @@ export default async function Home() {
             </Link>
             <Link
               href="/privacy"
-              className="rounded-full border border-[var(--line)] bg-white/60 px-6 py-3 text-sm font-bold"
+              className="rounded-full border border-[var(--line)] bg-[var(--tile)] px-6 py-3 text-sm font-bold"
             >
               Privacy Policy
             </Link>

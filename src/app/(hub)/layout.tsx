@@ -2,6 +2,7 @@ import { Bell } from "lucide-react";
 import { HubNav } from "@/components/hub-nav";
 import { LiveClock } from "@/components/live-clock";
 import { SignOutButton } from "@/components/sign-out-button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { requireHousehold } from "@/lib/household";
 import { canManageHousehold, isGuest } from "@/lib/household-roles";
 
@@ -44,6 +45,7 @@ export default async function HubLayout({
             {isGuest(household.role) && (
               <SignOutButton className="hub-button secondary !min-h-10 !px-4 text-xs" />
             )}
+            <ThemeToggle />
             <button
               type="button"
               aria-label="Notifications"

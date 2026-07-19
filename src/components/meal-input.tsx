@@ -35,7 +35,7 @@ export function MealInput({
   if (readOnly) {
     return (
       <div className="flex h-full flex-col space-y-2">
-        <p className="min-h-24 flex-1 whitespace-pre-wrap rounded-xl bg-white/60 px-3 py-3 text-sm font-semibold leading-6">
+        <p className="min-h-24 flex-1 whitespace-pre-wrap rounded-xl bg-[var(--tile)] px-3 py-3 text-sm font-semibold leading-6">
           {initialValue || "Not planned"}
         </p>
         {initialRecipeId && initialValue && (
@@ -99,7 +99,7 @@ export function MealInput({
           placeholder="Add meal"
           aria-label={`${slot} for ${localDate}`}
           onFocus={() => setEditing(true)}
-          className="min-h-24 w-full resize-none rounded-xl border border-transparent bg-white/60 px-3 py-2.5 pr-10 text-sm font-semibold leading-6 outline-none transition focus:border-[var(--sage)] focus:bg-white"
+          className="min-h-24 w-full resize-none rounded-xl border border-transparent bg-[var(--tile)] px-3 py-2.5 pr-10 text-sm font-semibold leading-6 outline-none transition focus:border-[var(--sage)] focus:bg-[var(--tile-solid)]"
         />
         <button
           type="submit"
