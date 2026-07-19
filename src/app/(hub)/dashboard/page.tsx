@@ -212,7 +212,7 @@ export default async function DashboardPage() {
         <section className="hub-card min-h-[310px] p-5 max-md:min-h-0 max-md:p-4">
           <CardTitle
             icon={CalendarDays}
-            title="Today’s schedule"
+            title="Today’s Schedule"
             href="/calendar"
           />
           <div className="mt-4 space-y-2">
@@ -228,7 +228,7 @@ export default async function DashboardPage() {
         <section className="hub-card min-h-[310px] p-5 max-md:min-h-0 max-md:p-4">
           <CardTitle
             icon={ClipboardCheck}
-            title="Today’s routines"
+            title="Today’s Routines"
             href="/routines"
           />
           <div className="scrollbar-none mt-4 max-h-[245px] space-y-2 overflow-auto">
@@ -300,8 +300,8 @@ export default async function DashboardPage() {
 
         <div className="grid grid-cols-2 gap-5 max-md:grid-cols-1 max-md:gap-3">
         <section className="hub-card min-h-[245px] bg-[var(--sun-soft)]/50 p-5 max-md:min-h-0 max-md:p-4">
-          <CardTitle icon={Soup} title="Today’s meals" href="/meals" />
-          <div className="mt-5 grid grid-cols-3 gap-4 max-sm:grid-cols-1">
+          <CardTitle icon={Soup} title="Today’s Meals" href="/meals" />
+          <div className="mt-5 space-y-3">
             {mealSlots.map((slot) => {
               const meal = todayMeals.find((item) => item.slot === slot);
               return (
@@ -309,7 +309,7 @@ export default async function DashboardPage() {
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[var(--muted)]">
                     {slot}
                   </p>
-                  <p className="mt-1 truncate font-bold">
+                  <p className="mt-1 line-clamp-4 break-words text-sm font-bold leading-snug">
                     {meal?.recipeId ? (
                       <Link
                         href={`/recipes/${meal.recipeId}`}
