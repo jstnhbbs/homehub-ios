@@ -83,7 +83,7 @@ export function ProfilePhotoUpload({
         />
         <button
           type="button"
-          className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[var(--line)] bg-white px-3 text-xs font-bold"
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--tile-solid)] px-3 text-xs font-bold"
           onClick={() => inputRef.current?.click()}
           disabled={uploading || removing}
         >

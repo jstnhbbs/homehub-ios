@@ -1,8 +1,17 @@
 import { asc, eq } from "drizzle-orm";
-import { CalendarDays, Copy, Pencil, Plus, ShieldCheck, Users } from "lucide-react";
+import {
+  CalendarDays,
+  Copy,
+  Moon,
+  Pencil,
+  Plus,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { addProfile, removeGuestMember } from "@/app/actions";
 import { ProfileColorPicker } from "@/components/profile-color-picker";
+import { ThemeSetting } from "@/components/theme-setting";
 import {
   hasProfilePhoto,
   ProfileAvatar,
@@ -97,6 +106,18 @@ export default async function SettingsPage() {
         </section>
 
         <section className="hub-card p-6 max-md:p-4">
+          <Moon className="text-[var(--sage)]" size={28} />
+          <h2 className="font-display mt-4 text-2xl font-semibold">
+            Appearance
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            Switch between the light and dark theme. Your choice is remembered
+            on this device.
+          </p>
+          <ThemeSetting />
+        </section>
+
+        <section className="hub-card p-6 max-md:p-4">
           <CalendarDays className="text-[var(--sage)]" size={28} />
           <h2 className="font-display mt-4 text-2xl font-semibold">
             Calendars
@@ -146,7 +167,7 @@ export default async function SettingsPage() {
             {members.map((member) => (
               <div
                 key={member.userId}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-white/60 p-4"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--tile)] p-4"
               >
                 <div className="min-w-0">
                   <p className="truncate font-bold">{member.name}</p>
@@ -209,7 +230,7 @@ function ProfileList({
         {profileList.map((profile) => (
           <div
             key={profile.id}
-            className="flex min-w-[240px] flex-1 items-center gap-3 rounded-2xl border border-[var(--line)] bg-white/60 p-3"
+            className="flex min-w-[240px] flex-1 items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--tile)] p-3"
           >
             <ProfileAvatar
               name={profile.name}
@@ -238,7 +259,7 @@ function ProfileList({
             </div>
             <Link
               href={`/settings/profiles/${profile.id}`}
-              className="rounded-full p-2 text-[var(--muted)] transition hover:bg-white hover:text-[var(--foreground)]"
+              className="rounded-full p-2 text-[var(--muted)] transition hover:bg-[var(--tile-solid)] hover:text-[var(--foreground)]"
               aria-label={`Edit ${profile.name}`}
             >
               <Pencil size={17} />

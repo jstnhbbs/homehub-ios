@@ -54,8 +54,13 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
-  themeColor: "#f7f3e9",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7f3e9" },
+    { media: "(prefers-color-scheme: dark)", color: "#131f1b" },
+  ],
 };
+
+const themeInitScript = `(function(){try{var t=localStorage.getItem("theme");if(t!=="light"&&t!=="dark"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}document.documentElement.dataset.theme=t;}catch(e){}})();`;
 
 export default function RootLayout({
   children,
@@ -63,8 +68,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${libreBaskerville.variable}`}>
-      <body>{children}</body>
+    <html
+      lang="en"
+      className={`${dmSans.variable} ${libreBaskerville.variable}`}
+      suppressHydrationWarning
+    >
+      <body>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        {children}
+      </body>
     </html>
   );
 }

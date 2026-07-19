@@ -136,7 +136,7 @@ function EventChip({
   return (
     <Link
       href={href}
-      className="block rounded-xl bg-white/75 px-3 py-2 text-sm font-bold"
+      className="block rounded-xl bg-[var(--tile)] px-3 py-2 text-sm font-bold"
       style={{ borderLeft: `4px solid ${event.color}` }}
     >
       <p>{event.title}</p>

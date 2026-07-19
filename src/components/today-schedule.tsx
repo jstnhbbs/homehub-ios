@@ -88,7 +88,7 @@ export function TodaySchedule({
       {visibleEvents.map((event, index) => (
         <div
           key={`${event.eventId}-${event.startsAt}-${index}`}
-          className="flex min-h-14 items-center gap-3 rounded-2xl bg-white/65 px-3"
+          className="flex min-h-14 items-center gap-3 rounded-2xl bg-[var(--tile)] px-3"
         >
           <span
             className="h-9 w-1.5 rounded-full"

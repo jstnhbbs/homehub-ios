@@ -311,7 +311,7 @@ export default async function DashboardPage() {
                     .filter(Boolean)
                 : [];
               return (
-                <div key={slot} className="rounded-2xl bg-white/65 p-4">
+                <div key={slot} className="rounded-2xl bg-[var(--tile)] p-4">
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[var(--muted)]">
                     {slot}
                   </p>
@@ -410,7 +410,7 @@ function CardTitle({
       <Link
         href={href}
         aria-label={`Open ${title}`}
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-black/[0.04]"
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--tile-quiet)]"
       >
         <ArrowRight size={17} />
       </Link>
