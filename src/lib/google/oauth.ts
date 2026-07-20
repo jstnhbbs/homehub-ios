@@ -34,9 +34,13 @@ export function googleOAuthConfig() {
   return { clientId, clientSecret, redirectUri };
 }
 
-export function googleOAuthState(householdId: string) {
+export function googleOAuthState(
+  householdId: string,
+  options?: { mobile?: boolean },
+) {
   const nonce = randomBytes(16).toString("base64url");
-  const payload = `${householdId}.${nonce}.${Date.now()}`;
+  const mobile = options?.mobile ? "1" : "0";
+  const payload = `${householdId}.${nonce}.${Date.now()}.${mobile}`;
   const secret = process.env.BETTER_AUTH_SECRET ?? "development";
   const signature = createHmac("sha256", secret)
     .update(payload)
@@ -46,9 +50,23 @@ export function googleOAuthState(householdId: string) {
 
 export function verifyGoogleOAuthState(state: string) {
   const parts = state.split(".");
-  if (parts.length !== 4) throw new Error("Invalid OAuth state.");
-  const [householdId, nonce, timestamp, signature] = parts;
-  const payload = `${householdId}.${nonce}.${timestamp}`;
+  if (parts.length === 4) {
+    const [householdId, nonce, timestamp, signature] = parts;
+    const payload = `${householdId}.${nonce}.${timestamp}`;
+    const secret = process.env.BETTER_AUTH_SECRET ?? "development";
+    const expected = createHmac("sha256", secret)
+      .update(payload)
+      .digest("base64url");
+    if (signature !== expected) throw new Error("Invalid OAuth state.");
+    const age = Date.now() - Number(timestamp);
+    if (Number.isNaN(age) || age > 10 * 60 * 1000) {
+      throw new Error("OAuth state expired.");
+    }
+    return { householdId: householdId!, mobile: false };
+  }
+  if (parts.length !== 5) throw new Error("Invalid OAuth state.");
+  const [householdId, nonce, timestamp, mobileFlag, signature] = parts;
+  const payload = `${householdId}.${nonce}.${timestamp}.${mobileFlag}`;
   const secret = process.env.BETTER_AUTH_SECRET ?? "development";
   const expected = createHmac("sha256", secret)
     .update(payload)
@@ -58,7 +76,15 @@ export function verifyGoogleOAuthState(state: string) {
   if (Number.isNaN(age) || age > 10 * 60 * 1000) {
     throw new Error("OAuth state expired.");
   }
-  return { householdId: householdId! };
+  return { householdId: householdId!, mobile: mobileFlag === "1" };
+}
+
+export function verifyGoogleOAuthStateSafe(state: string) {
+  try {
+    return verifyGoogleOAuthState(state);
+  } catch {
+    return null;
+  }
 }
 
 export function googleAuthUrl(state: string) {

@@ -16,6 +16,13 @@ export const auth = betterAuth({
     schema,
     usePlural: true,
   }),
+  user: {
+    changeEmail: {
+      enabled: true,
+      updateEmailWithoutVerification:
+        process.env.NODE_ENV === "development",
+    },
+  },
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 10,

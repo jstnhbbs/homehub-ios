@@ -41,6 +41,11 @@ yarn-error.log*
 *.db
 *.db-shm
 *.db-wal
+public/profile-photos/
+
+# Xcode user-specific state
+**/xcuserdata/
+*.xcuserstate
 
 # vercel
 .vercel

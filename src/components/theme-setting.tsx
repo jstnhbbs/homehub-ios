@@ -16,7 +16,7 @@ export function ThemeSetting() {
         <div className="min-w-0">
           <p className="font-bold">Dark mode</p>
           <p className="text-sm text-[var(--muted)]">
-            {isDark ? "On" : "Off"} · easier on the eyes at night.
+            {isDark ? "On · neutral grey surfaces" : "Off · light theme"}
           </p>
         </div>
       </div>

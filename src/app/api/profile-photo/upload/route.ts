@@ -5,7 +5,7 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import { profiles } from "@/db/schema";
 import { getCurrentHousehold, getSession } from "@/lib/household";
-import { canManageHousehold } from "@/lib/household-roles";
+import { assertCanEditProfilePhoto } from "@/lib/profile-photo-access";
 import {
   PROFILE_PHOTO_MAX_BYTES,
   PROFILE_PHOTO_TYPES,
@@ -30,13 +30,17 @@ export async function POST(request: Request) {
         const session = await getSession();
         const household = await getCurrentHousehold();
         if (!session || !household) throw new Error("Not authenticated.");
-        if (!canManageHousehold(household.role)) {
-          throw new Error("You do not have permission to do that.");
-        }
 
         const { profileId } = payloadSchema.parse(
           JSON.parse(clientPayload ?? "{}"),
         );
+        await assertCanEditProfilePhoto({
+          profileId,
+          householdId: household.id,
+          role: household.role,
+          userId: session.user.id,
+        });
+
         const profile = await db
           .select({ id: profiles.id })
           .from(profiles)
