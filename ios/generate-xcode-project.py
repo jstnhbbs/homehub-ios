@@ -7,6 +7,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 PROJECT = "HomeHub"
 BUNDLE_ID = "com.homehub.app"
+APP_ICON_NAME = "HomeHub"
+ICON_COMPOSER = ROOT / f"{APP_ICON_NAME}.icon"
 
 
 def uid() -> str:
@@ -35,6 +37,7 @@ target_release = uid()
 info_ref = uid()
 assets_ref = uid()
 assets_build = uid()
+icon_ref = uid()
 
 lines = [
     "// !$*UTF8*$!",
@@ -54,6 +57,7 @@ lines.extend(
     [
         f'\t\t{info_ref} /* Info.plist */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = {PROJECT}/Info.plist; sourceTree = SOURCE_ROOT; }};',
         f'\t\t{assets_ref} /* Assets.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = {PROJECT}/Assets.xcassets; sourceTree = SOURCE_ROOT; }};',
+        f'\t\t{icon_ref} /* {APP_ICON_NAME}.icon */ = {{isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = {APP_ICON_NAME}.icon; sourceTree = SOURCE_ROOT; }};',
         f'\t\t{product_ref} /* {PROJECT}.app */ = {{isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = {PROJECT}.app; sourceTree = BUILT_PRODUCTS_DIR; }};',
     ]
 )
@@ -73,7 +77,7 @@ lines.extend(
     [
         f'\t\t{products_group} /* Products */ = {{isa = PBXGroup; children = ({product_ref} /* {PROJECT}.app */); name = Products; sourceTree = "<group>"; }};',
         f'\t\t{app_group} /* {PROJECT} */ = {{isa = PBXGroup; children = ({swift_ref_list}, {info_ref} /* Info.plist */, {assets_ref} /* Assets.xcassets */); name = {PROJECT}; sourceTree = "<group>"; }};',
-        f'\t\t{main_group} = {{isa = PBXGroup; children = ({app_group} /* {PROJECT} */, {products_group} /* Products */); sourceTree = "<group>"; }};',
+        f'\t\t{main_group} = {{isa = PBXGroup; children = ({app_group} /* {PROJECT} */, {icon_ref} /* {APP_ICON_NAME}.icon */, {products_group} /* Products */); sourceTree = "<group>"; }};',
         f'\t\t{frameworks_phase} /* Frameworks */ = {{isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; }};',
         f'\t\t{sources_phase} /* Sources */ = {{isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = ({build_ref_list}); runOnlyForDeploymentPostprocessing = 0; }};',
         f'\t\t{resources_phase} /* Resources */ = {{isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = ({assets_build} /* Assets.xcassets in Resources */); runOnlyForDeploymentPostprocessing = 0; }};',
@@ -81,8 +85,8 @@ lines.extend(
         f'\t\t{project_uid} /* Project object */ = {{isa = PBXProject; attributes = {{BuildIndependentTargetsInParallel = 1; LastUpgradeCheck = 1600;}}; buildConfigurationList = {project_config_list}; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = {main_group}; productRefGroup = {products_group}; projectDirPath = ""; projectRoot = ""; targets = ({target_uid}); }};',
         f'\t\t{debug_config} /* Debug */ = {{isa = XCBuildConfiguration; buildSettings = {{IPHONEOS_DEPLOYMENT_TARGET = 17.0; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 2; }}; name = Debug; }};',
         f'\t\t{release_config} /* Release */ = {{isa = XCBuildConfiguration; buildSettings = {{IPHONEOS_DEPLOYMENT_TARGET = 17.0; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 2; }}; name = Release; }};',
-        f'\t\t{target_debug} /* Debug */ = {{isa = XCBuildConfiguration; buildSettings = {{ALWAYS_SEARCH_USER_PATHS = NO; ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = {PROJECT}/Info.plist; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks"); MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE_ID}; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; }}; name = Debug; }};',
-        f'\t\t{target_release} /* Release */ = {{isa = XCBuildConfiguration; buildSettings = {{ALWAYS_SEARCH_USER_PATHS = NO; ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = {PROJECT}/Info.plist; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks"); MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE_ID}; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; }}; name = Release; }};',
+        f'\t\t{target_debug} /* Debug */ = {{isa = XCBuildConfiguration; buildSettings = {{ALWAYS_SEARCH_USER_PATHS = NO; ASSETCATALOG_COMPILER_APPICON_NAME = {APP_ICON_NAME}; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = {PROJECT}/Info.plist; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks"); MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE_ID}; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; }}; name = Debug; }};',
+        f'\t\t{target_release} /* Release */ = {{isa = XCBuildConfiguration; buildSettings = {{ALWAYS_SEARCH_USER_PATHS = NO; ASSETCATALOG_COMPILER_APPICON_NAME = {APP_ICON_NAME}; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = {PROJECT}/Info.plist; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks"); MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE_ID}; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; }}; name = Release; }};',
         f'\t\t{project_config_list} = {{isa = XCConfigurationList; buildConfigurations = ({debug_config} /* Debug */, {release_config} /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; }};',
         f'\t\t{target_config_list} = {{isa = XCConfigurationList; buildConfigurations = ({target_debug} /* Debug */, {target_release} /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; }};',
         "\t};",
@@ -95,3 +99,5 @@ out = ROOT / f"{PROJECT}.xcodeproj" / "project.pbxproj"
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text("\n".join(lines) + "\n")
 print(f"Wrote {out}")
+if not ICON_COMPOSER.exists():
+    print(f"Warning: missing {ICON_COMPOSER} (create in Icon Composer and save as HomeHub.icon)")
