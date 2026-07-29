@@ -2,6 +2,7 @@ import Foundation
 
 struct DashboardData: Codable, Sendable {
     var household: Household
+    var hubModules: HubModules?
     var localDate: String
     var profiles: [Profile]
     var routineSteps: [RoutineStepRow]

@@ -2,12 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  type HubModuleId,
+  type HubModules,
+  isHubModuleEnabled,
+} from "@/lib/hub-modules";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { href: "/meals", label: "Weekly plan" },
-  { href: "/meals/snacks", label: "Snacks" },
-  { href: "/meals/recipes", label: "Recipes" },
+  {
+    href: "/meals/snacks",
+    label: "Snacks",
+    module: "snacks" satisfies HubModuleId,
+  },
+  {
+    href: "/meals/recipes",
+    label: "Recipes",
+    module: "recipes" satisfies HubModuleId,
+  },
 ] as const;
 
 function isActiveTab(pathname: string, href: string) {
@@ -15,15 +28,18 @@ function isActiveTab(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function MealsSubNav() {
+export function MealsSubNav({ modules }: { modules: HubModules }) {
   const pathname = usePathname();
+  const visibleTabs = tabs.filter(
+    (tab) => !("module" in tab && tab.module) || isHubModuleEnabled(modules, tab.module),
+  );
 
   return (
     <nav
       aria-label="Food sections"
       className="mb-6 flex gap-2 rounded-2xl bg-[var(--tile-quiet)] p-1.5 max-md:mb-4"
     >
-      {tabs.map(({ href, label }) => {
+      {visibleTabs.map(({ href, label }) => {
         const active = isActiveTab(pathname, href);
         return (
           <Link

@@ -91,7 +91,9 @@ struct DashboardView: View {
                             destination: .meals,
                             height: rowHeight,
                             onNavigate: {
-                                appState.pendingFoodSection = .snacks
+                                if appState.hubModules.snacks {
+                                    appState.pendingFoodSection = .snacks
+                                }
                                 appState.selectedDestination = .meals
                             }
                         ) {
@@ -499,7 +501,9 @@ private struct SnacksDashboardPanel: View {
                 EmptyStateView(
                     text: "Add snack options for the family.",
                     action: {
-                        appState.pendingFoodSection = .snacks
+                        if appState.hubModules.snacks {
+                            appState.pendingFoodSection = .snacks
+                        }
                         appState.selectedDestination = .meals
                     }
                 )

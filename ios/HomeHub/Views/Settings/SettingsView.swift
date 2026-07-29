@@ -43,6 +43,8 @@ struct SettingsView: View {
                         ThemeSettingView()
                     }
 
+                    HubModulesSettingView()
+
                     Button("Sign Out", role: .destructive) {
                         Task { await appState.signOut() }
                     }
@@ -269,5 +271,94 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+}
+
+private struct HubModulesSettingView: View {
+    @EnvironmentObject private var appState: AppState
+    @State private var modules = HubModules.defaults
+    @State private var isSaving = false
+
+    var body: some View {
+        HubCard {
+            VStack(alignment: .leading, spacing: 16) {
+                Label("Hub sections", systemImage: "square.grid.2x2")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(HubTheme.sage)
+
+                Text("Choose optional sidebar shortcuts and Food tabs. Today’s dashboard stays the same.")
+                    .font(.footnote)
+                    .foregroundStyle(HubTheme.muted)
+
+                moduleGroup(
+                    title: "Sidebar",
+                    description: "Optional shortcuts beside Calendar, Food, and Sleep.",
+                    moduleIds: [.routines, .chores]
+                )
+
+                moduleGroup(
+                    title: "Food tabs",
+                    description: "Weekly meal plan is always included.",
+                    moduleIds: [.snacks, .recipes]
+                )
+
+                Button("Reset to defaults") {
+                    Task { await updateModules(.defaults) }
+                }
+                .buttonStyle(HubButtonStyle(emphasis: .secondary))
+                .disabled(isSaving)
+            }
+        }
+        .onAppear {
+            modules = appState.hubModules
+        }
+        .onChange(of: appState.hubModules) { _, newValue in
+            modules = newValue
+        }
+    }
+
+    @ViewBuilder
+    private func moduleGroup(
+        title: String,
+        description: String,
+        moduleIds: [HubModuleId]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.headline)
+            Text(description)
+                .font(.caption)
+                .foregroundStyle(HubTheme.muted)
+
+            ForEach(moduleIds, id: \.self) { moduleId in
+                Toggle(moduleId.label, isOn: binding(for: moduleId))
+                    .font(.subheadline.weight(.semibold))
+                    .disabled(isSaving)
+            }
+        }
+        .padding(14)
+        .background(HubTheme.tileQuiet)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(HubTheme.line, lineWidth: 1)
+        )
+    }
+
+    private func binding(for moduleId: HubModuleId) -> Binding<Bool> {
+        Binding(
+            get: { modules.isEnabled(moduleId) },
+            set: { enabled in
+                let next = modules.updating(moduleId, enabled: enabled)
+                modules = next
+                Task { await updateModules(next) }
+            }
+        )
+    }
+
+    private func updateModules(_ next: HubModules) async {
+        isSaving = true
+        defer { isSaving = false }
+        await appState.saveHubModules(next)
     }
 }

@@ -56,6 +56,69 @@ enum FoodHubSection: String, Hashable {
     case week
     case recipes
     case snacks
+
+    var optionalModule: HubModuleId? {
+        switch self {
+        case .snacks: .snacks
+        case .recipes: .recipes
+        case .week: nil
+        }
+    }
+
+    func isVisible(in modules: HubModules) -> Bool {
+        guard let optionalModule else { return true }
+        return modules.isEnabled(optionalModule)
+    }
+}
+
+enum HubModuleId: String, Codable, Sendable, CaseIterable, Hashable {
+    case routines
+    case chores
+    case snacks
+    case recipes
+
+    var label: String {
+        switch self {
+        case .routines: "Routines"
+        case .chores: "Chores"
+        case .snacks: "Snacks"
+        case .recipes: "Recipes"
+        }
+    }
+}
+
+struct HubModules: Codable, Sendable, Equatable {
+    var routines: Bool
+    var chores: Bool
+    var snacks: Bool
+    var recipes: Bool
+
+    static let defaults = HubModules(
+        routines: true,
+        chores: true,
+        snacks: true,
+        recipes: true
+    )
+
+    func isEnabled(_ module: HubModuleId) -> Bool {
+        switch module {
+        case .routines: routines
+        case .chores: chores
+        case .snacks: snacks
+        case .recipes: recipes
+        }
+    }
+
+    func updating(_ module: HubModuleId, enabled: Bool) -> HubModules {
+        var copy = self
+        switch module {
+        case .routines: copy.routines = enabled
+        case .chores: copy.chores = enabled
+        case .snacks: copy.snacks = enabled
+        case .recipes: copy.recipes = enabled
+        }
+        return copy
+    }
 }
 
 enum HubDestination: String, Hashable, CaseIterable, Identifiable {
@@ -102,5 +165,19 @@ enum HubDestination: String, Hashable, CaseIterable, Identifiable {
 
     var showsInSidebar: Bool {
         self != .profile
+    }
+
+    var optionalModule: HubModuleId? {
+        switch self {
+        case .routines: .routines
+        case .chores: .chores
+        default: nil
+        }
+    }
+
+    func isVisible(in modules: HubModules) -> Bool {
+        guard showsInSidebar else { return false }
+        guard let optionalModule else { return true }
+        return modules.isEnabled(optionalModule)
     }
 }

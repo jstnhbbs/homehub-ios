@@ -9,7 +9,9 @@ struct MealsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            sectionPicker
+            if visibleSections.count > 1 {
+                sectionPicker
+            }
 
             switch section {
             case .week:
@@ -21,25 +23,49 @@ struct MealsView: View {
             }
         }
         .onAppear {
+            normalizeSection()
             applyPendingFoodSection()
         }
         .onChange(of: appState.pendingFoodSection) { _, _ in
             applyPendingFoodSection()
         }
+        .onChange(of: appState.hubModules) { _, _ in
+            normalizeSection()
+        }
+    }
+
+    private var visibleSections: [FoodHubSection] {
+        [FoodHubSection.week, .snacks, .recipes].filter { $0.isVisible(in: appState.hubModules) }
     }
 
     private var sectionPicker: some View {
         Picker("Food section", selection: $section) {
-            Text("Weekly plan").tag(FoodHubSection.week)
-            Text("Snacks").tag(FoodHubSection.snacks)
-            Text("Recipes").tag(FoodHubSection.recipes)
+            ForEach(visibleSections, id: \.self) { item in
+                Text(sectionLabel(item)).tag(item)
+            }
         }
         .pickerStyle(.segmented)
     }
 
+    private func sectionLabel(_ section: FoodHubSection) -> String {
+        switch section {
+        case .week: "Weekly plan"
+        case .snacks: "Snacks"
+        case .recipes: "Recipes"
+        }
+    }
+
+    private func normalizeSection() {
+        if !section.isVisible(in: appState.hubModules) {
+            section = .week
+        }
+    }
+
     private func applyPendingFoodSection() {
         guard let pending = appState.pendingFoodSection else { return }
-        section = pending
+        if pending.isVisible(in: appState.hubModules) {
+            section = pending
+        }
         appState.pendingFoodSection = nil
     }
 

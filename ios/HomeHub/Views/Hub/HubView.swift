@@ -44,7 +44,7 @@ struct HubNavView: View {
 
     private var items: [HubDestination] {
         HubDestination.allCases.filter { destination in
-            destination.showsInSidebar &&
+            destination.isVisible(in: appState.hubModules) &&
             (!destination.parentOnly || appState.canManageHousehold)
         }
     }

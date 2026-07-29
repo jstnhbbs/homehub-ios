@@ -11,23 +11,50 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  type HubModuleId,
+  type HubModules,
+  isHubModuleEnabled,
+} from "@/lib/hub-modules";
 import { cn } from "@/lib/utils";
 
 const items = [
   { href: "/dashboard", label: "Today", icon: Home },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
-  { href: "/routines", label: "Routines", icon: ClipboardCheck },
-  { href: "/chores", label: "Chores", icon: CheckSquare2 },
+  {
+    href: "/routines",
+    label: "Routines",
+    icon: ClipboardCheck,
+    module: "routines" satisfies HubModuleId,
+  },
+  {
+    href: "/chores",
+    label: "Chores",
+    icon: CheckSquare2,
+    module: "chores" satisfies HubModuleId,
+  },
   { href: "/meals", label: "Food", icon: Soup },
   { href: "/sleep", label: "Sleep", icon: Moon },
   { href: "/settings", label: "Settings", icon: Settings, parentOnly: true },
 ] as const;
 
-export function HubNav({ showSettings = true }: { showSettings?: boolean }) {
+export function HubNav({
+  showSettings = true,
+  modules,
+}: {
+  showSettings?: boolean;
+  modules: HubModules;
+}) {
   const pathname = usePathname();
-  const navItems = showSettings
-    ? items
-    : items.filter((item) => !("parentOnly" in item && item.parentOnly));
+  const navItems = items.filter((item) => {
+    if ("parentOnly" in item && item.parentOnly && !showSettings) {
+      return false;
+    }
+    if ("module" in item && item.module) {
+      return isHubModuleEnabled(modules, item.module);
+    }
+    return true;
+  });
 
   return (
     <nav

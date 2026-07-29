@@ -3,8 +3,9 @@ import { HubNav } from "@/components/hub-nav";
 import { LiveClock } from "@/components/live-clock";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { requireHousehold } from "@/lib/household";
+import { requireHousehold, requireUser } from "@/lib/household";
 import { canManageHousehold, isGuest } from "@/lib/household-roles";
+import { getUserHubModules } from "@/lib/hub-modules-store";
 
 export default async function HubLayout({
   children,
@@ -12,6 +13,8 @@ export default async function HubLayout({
   children: React.ReactNode;
 }) {
   const household = await requireHousehold();
+  const user = await requireUser();
+  const hubModules = await getUserHubModules(user.id);
   const showSettings = canManageHousehold(household.role);
   const dateLabel = new Intl.DateTimeFormat("en-US", {
     timeZone: household.timezone,
@@ -22,7 +25,7 @@ export default async function HubLayout({
 
   return (
     <div className="flex h-dvh min-h-[600px] overflow-hidden max-md:min-h-0 max-md:flex-col">
-      <HubNav showSettings={showSettings} />
+      <HubNav showSettings={showSettings} modules={hubModules} />
       <div className="flex min-w-0 flex-1 flex-col max-md:min-h-0 max-md:order-1">
         <header className="flex h-[78px] shrink-0 items-center justify-between border-b border-[var(--line)] bg-[var(--background)] px-7 max-md:h-[64px] max-md:px-4">
           <div className="min-w-0">

@@ -18,6 +18,7 @@ final class AppState: ObservableObject {
 
     @Published var household: Household?
     @Published var dashboard: DashboardData?
+    @Published var hubModules: HubModules = .defaults
     @Published var selectedDestination: HubDestination = .dashboard
     @Published var pendingFoodSection: FoodHubSection?
     @Published var pendingProfileEditId: String?
@@ -96,8 +97,34 @@ final class AppState: ObservableObject {
         do {
             dashboard = try await api.fetchDashboard()
             household = dashboard?.household
+            if let modules = dashboard?.hubModules {
+                applyHubModules(modules)
+            }
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func applyHubModules(_ modules: HubModules) {
+        hubModules = modules
+        normalizeNavigation()
+    }
+
+    func saveHubModules(_ modules: HubModules) async {
+        do {
+            let saved = try await api.saveHubModules(modules)
+            applyHubModules(saved)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func normalizeNavigation() {
+        if !selectedDestination.isVisible(in: hubModules) {
+            selectedDestination = .dashboard
+        }
+        if let pending = pendingFoodSection, !pending.isVisible(in: hubModules) {
+            pendingFoodSection = nil
         }
     }
 

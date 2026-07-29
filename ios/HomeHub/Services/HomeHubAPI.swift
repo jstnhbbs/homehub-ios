@@ -97,6 +97,16 @@ final class HomeHubAPI: ObservableObject {
         )
     }
 
+    // MARK: - Hub modules
+
+    func fetchHubModules() async throws -> HubModules {
+        try await client.request("/api/mobile/v1/hub-modules")
+    }
+
+    func saveHubModules(_ modules: HubModules) async throws -> HubModules {
+        try await client.request("/api/mobile/v1/hub-modules", method: "PATCH", body: modules)
+    }
+
     // MARK: - Routines
 
     func fetchRoutines() async throws -> [Routine] {

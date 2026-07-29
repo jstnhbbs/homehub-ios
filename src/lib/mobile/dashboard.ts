@@ -22,11 +22,15 @@ import { localDateIn, weekKey } from "@/lib/dates";
 import { parseSnackOptions } from "@/lib/meals/snacks";
 import { fetchNapsForDate, serializeNap } from "@/lib/naps/store";
 import type { getCurrentHousehold } from "@/lib/household";
+import { getUserHubModules } from "@/lib/hub-modules-store";
 import { serializeHousehold } from "@/lib/mobile/http";
 
 type Household = NonNullable<Awaited<ReturnType<typeof getCurrentHousehold>>>;
 
-export async function buildDashboardPayload(household: Household) {
+export async function buildDashboardPayload(
+  household: Household,
+  userId: string,
+) {
   const localDate = localDateIn(household.timezone);
   const dayStart = fromZonedTime(`${localDate}T00:00:00`, household.timezone);
   const dayEnd = fromZonedTime(`${localDate}T23:59:59`, household.timezone);
@@ -159,9 +163,11 @@ export async function buildDashboardPayload(household: Household) {
   ].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 
   const calendarStatus = calendarSyncStatus(connectionRows, household.timezone);
+  const hubModules = await getUserHubModules(userId);
 
   return {
     household: serializeHousehold(household),
+    hubModules,
     localDate,
     profiles: familyProfiles,
     routineSteps: routineRows.map((step) => ({

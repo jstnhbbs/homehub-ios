@@ -1,13 +1,18 @@
 import { MealsSubNav } from "@/components/meals-sub-nav";
+import { requireUser } from "@/lib/household";
+import { getUserHubModules } from "@/lib/hub-modules-store";
 
-export default function MealsLayout({
+export default async function MealsLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const user = await requireUser();
+  const hubModules = await getUserHubModules(user.id);
+
   return (
     <>
-      <MealsSubNav />
+      <MealsSubNav modules={hubModules} />
       {children}
     </>
   );

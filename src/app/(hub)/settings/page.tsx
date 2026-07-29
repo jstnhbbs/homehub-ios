@@ -12,6 +12,7 @@ import Link from "next/link";
 import { addProfile, removeGuestMember } from "@/app/actions";
 import { ProfileColorPicker } from "@/components/profile-color-picker";
 import { ThemeSetting } from "@/components/theme-setting";
+import { HubModulesSetting } from "@/components/hub-modules-setting";
 import {
   hasProfilePhoto,
   ProfileAvatar,
@@ -21,10 +22,13 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { db } from "@/db/client";
 import { householdMembers, profiles, users } from "@/db/schema";
 import { roleLabel } from "@/lib/household-roles";
-import { requireHousehold } from "@/lib/household";
+import { requireHousehold, requireUser } from "@/lib/household";
+import { getUserHubModules } from "@/lib/hub-modules-store";
 
 export default async function SettingsPage() {
   const household = await requireHousehold();
+  const user = await requireUser();
+  const hubModules = await getUserHubModules(user.id);
   const [familyProfiles, members] = await Promise.all([
     db
       .select()
@@ -116,6 +120,8 @@ export default async function SettingsPage() {
           </p>
           <ThemeSetting />
         </section>
+
+        <HubModulesSetting initialModules={hubModules} />
 
         <section className="hub-card p-6 max-md:p-4">
           <CalendarDays className="text-[var(--sage)]" size={28} />

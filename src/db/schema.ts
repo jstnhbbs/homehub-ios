@@ -27,6 +27,7 @@ export const users = sqliteTable("users", {
     .default(false)
     .notNull(),
   image: text("image"),
+  hubModules: text("hub_modules").notNull().default(""),
   ...timestamps,
 });
 
