@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct NapsView: View {
+    var embeddedInHub = false
+
     @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
     @State private var payload: NapsPayload?
@@ -12,41 +14,51 @@ struct NapsView: View {
     private let timer = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    if let errorMessage {
-                        Text(errorMessage)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                    }
+        Group {
+            if embeddedInHub {
+                sleepScrollContent
+            } else {
+                NavigationStack {
+                    sleepScrollContent
+                        .navigationTitle("Sleep")
+                        .toolbar {
+                            ToolbarItem(placement: .topBarTrailing) {
+                                Button("Done") { dismiss() }
+                            }
+                        }
+                }
+            }
+        }
+    }
 
-                    if isLoading && payload == nil {
-                        ProgressView()
-                            .frame(maxWidth: .infinity, minHeight: 240)
-                    } else if let payload {
-                        logHeader
-                        quickLogSection(payload)
-                        bedtimeSection(payload)
-                        manualEntrySection(payload)
-                        todayHistorySection(payload)
-                        patternsSection(payload)
-                    }
+    private var sleepScrollContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
                 }
-                .padding(24)
-            }
-            .background(HubTheme.surface)
-            .navigationTitle("Sleep")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
+
+                if isLoading && payload == nil {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, minHeight: 240)
+                } else if let payload {
+                    logHeader
+                    quickLogSection(payload)
+                    bedtimeSection(payload)
+                    manualEntrySection(payload)
+                    todayHistorySection(payload)
+                    patternsSection(payload)
                 }
             }
-            .refreshable { await load() }
-            .task { await load() }
-            .onReceive(timer) { date in
-                now = date
-            }
+            .padding(embeddedInHub ? 0 : 24)
+        }
+        .background(HubTheme.surface)
+        .refreshable { await load() }
+        .task { await load() }
+        .onReceive(timer) { date in
+            now = date
         }
     }
 

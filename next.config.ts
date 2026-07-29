@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       {
+        source: "/snacks",
+        destination: "/meals/snacks",
+        permanent: true,
+      },
+      {
         source: "/recipes",
         destination: "/meals/recipes",
         permanent: true,

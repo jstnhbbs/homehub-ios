@@ -6,22 +6,25 @@ import { cn } from "@/lib/utils";
 
 const tabs = [
   { href: "/meals", label: "Weekly plan" },
+  { href: "/meals/snacks", label: "Snacks" },
   { href: "/meals/recipes", label: "Recipes" },
 ] as const;
+
+function isActiveTab(pathname: string, href: string) {
+  if (href === "/meals") return pathname === "/meals";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function MealsSubNav() {
   const pathname = usePathname();
 
   return (
     <nav
-      aria-label="Meals sections"
+      aria-label="Food sections"
       className="mb-6 flex gap-2 rounded-2xl bg-[var(--tile-quiet)] p-1.5 max-md:mb-4"
     >
       {tabs.map(({ href, label }) => {
-        const active =
-          href === "/meals"
-            ? pathname === "/meals"
-            : pathname.startsWith("/meals/recipes");
+        const active = isActiveTab(pathname, href);
         return (
           <Link
             key={href}

@@ -123,7 +123,7 @@ test("a parent can create a household and use the hub", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Pancakes" })).toBeVisible();
   await expect(page.getByRole("listitem").filter({ hasText: "1 cup flour" })).toBeVisible();
 
-  await page.getByRole("link", { name: "Meals", exact: true }).click();
+  await page.getByRole("link", { name: "Food", exact: true }).click();
   const dinnerMealForm = page.locator("form").filter({
     has: page.locator('select[aria-label="Choose a saved recipe for dinner"]:visible'),
   }).first();

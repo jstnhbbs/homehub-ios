@@ -29,8 +29,8 @@ struct HubView: View {
             ChoresView()
         case .meals:
             MealsView()
-        case .snacks:
-            SnacksView()
+        case .sleep:
+            NapsView(embeddedInHub: true)
         case .profile:
             MyProfileView()
         case .settings:
@@ -44,7 +44,8 @@ struct HubNavView: View {
 
     private var items: [HubDestination] {
         HubDestination.allCases.filter { destination in
-            !destination.parentOnly || appState.canManageHousehold
+            destination.showsInSidebar &&
+            (!destination.parentOnly || appState.canManageHousehold)
         }
     }
 

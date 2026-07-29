@@ -1,23 +1,9 @@
 import SwiftUI
 
-private enum MealHubSection: String, CaseIterable, Identifiable {
-    case week
-    case recipes
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .week: "Weekly plan"
-        case .recipes: "Recipes"
-        }
-    }
-}
-
 struct MealsView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var viewModel = MealsViewModel()
-    @State private var section: MealHubSection = .week
+    @State private var section: FoodHubSection = .week
 
     private let mealSlots: [MealSlot] = [.breakfast, .lunch, .dinner]
 
@@ -30,17 +16,31 @@ struct MealsView: View {
                 weekContent
             case .recipes:
                 RecipesView()
+            case .snacks:
+                SnacksView()
             }
+        }
+        .onAppear {
+            applyPendingFoodSection()
+        }
+        .onChange(of: appState.pendingFoodSection) { _, _ in
+            applyPendingFoodSection()
         }
     }
 
     private var sectionPicker: some View {
-        Picker("Meals section", selection: $section) {
-            ForEach(MealHubSection.allCases) { item in
-                Text(item.label).tag(item)
-            }
+        Picker("Food section", selection: $section) {
+            Text("Weekly plan").tag(FoodHubSection.week)
+            Text("Snacks").tag(FoodHubSection.snacks)
+            Text("Recipes").tag(FoodHubSection.recipes)
         }
         .pickerStyle(.segmented)
+    }
+
+    private func applyPendingFoodSection() {
+        guard let pending = appState.pendingFoodSection else { return }
+        section = pending
+        appState.pendingFoodSection = nil
     }
 
     private var weekContent: some View {

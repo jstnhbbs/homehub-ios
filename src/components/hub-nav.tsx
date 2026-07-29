@@ -4,8 +4,8 @@ import {
   CalendarDays,
   CheckSquare2,
   ClipboardCheck,
-  Cookie,
   Home,
+  Moon,
   Settings,
   Soup,
 } from "lucide-react";
@@ -18,8 +18,8 @@ const items = [
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/routines", label: "Routines", icon: ClipboardCheck },
   { href: "/chores", label: "Chores", icon: CheckSquare2 },
-  { href: "/meals", label: "Meals", icon: Soup },
-  { href: "/snacks", label: "Snacks", icon: Cookie },
+  { href: "/meals", label: "Food", icon: Soup },
+  { href: "/sleep", label: "Sleep", icon: Moon },
   { href: "/settings", label: "Settings", icon: Settings, parentOnly: true },
 ] as const;
 

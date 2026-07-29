@@ -52,13 +52,19 @@ enum CalendarConnectionStatus: String, Codable, Sendable {
     case error
 }
 
+enum FoodHubSection: String, Hashable {
+    case week
+    case recipes
+    case snacks
+}
+
 enum HubDestination: String, Hashable, CaseIterable, Identifiable {
     case dashboard
     case calendar
     case routines
     case chores
     case meals
-    case snacks
+    case sleep
     case profile
     case settings
 
@@ -70,8 +76,8 @@ enum HubDestination: String, Hashable, CaseIterable, Identifiable {
         case .calendar: "Calendar"
         case .routines: "Routines"
         case .chores: "Chores"
-        case .meals: "Meals"
-        case .snacks: "Snacks"
+        case .meals: "Food"
+        case .sleep: "Sleep"
         case .profile: "Profile"
         case .settings: "Settings"
         }
@@ -84,7 +90,7 @@ enum HubDestination: String, Hashable, CaseIterable, Identifiable {
         case .routines: "checklist"
         case .chores: "checkmark.square.fill"
         case .meals: "fork.knife"
-        case .snacks: "carrot.fill"
+        case .sleep: "moon.fill"
         case .profile: "person.crop.circle"
         case .settings: "gearshape.fill"
         }
@@ -92,5 +98,9 @@ enum HubDestination: String, Hashable, CaseIterable, Identifiable {
 
     var parentOnly: Bool {
         self == .settings
+    }
+
+    var showsInSidebar: Bool {
+        self != .profile
     }
 }

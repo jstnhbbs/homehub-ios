@@ -88,8 +88,12 @@ struct DashboardView: View {
                         DashboardPanel(
                             systemImage: "carrot.fill",
                             title: "Snacks",
-                            destination: .snacks,
-                            height: rowHeight
+                            destination: .meals,
+                            height: rowHeight,
+                            onNavigate: {
+                                appState.pendingFoodSection = .snacks
+                                appState.selectedDestination = .meals
+                            }
                         ) {
                             SnacksDashboardPanel(dashboard: dashboard)
                         }
@@ -111,10 +115,6 @@ struct DashboardView: View {
             if appState.dashboard == nil {
                 await appState.refreshDashboard()
             }
-        }
-        .sheet(isPresented: $appState.showNapsSheet) {
-            NapsView()
-                .environmentObject(appState)
         }
     }
 
@@ -161,12 +161,17 @@ private struct DashboardPanel<Content: View>: View {
     let destination: HubDestination
     let height: CGFloat
     var background: Color = HubTheme.tile
+    var onNavigate: (() -> Void)? = nil
     @ViewBuilder var content: () -> Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             CardTitleView(systemImage: systemImage, title: title) {
-                appState.selectedDestination = destination
+                if let onNavigate {
+                    onNavigate()
+                } else {
+                    appState.selectedDestination = destination
+                }
             }
             content()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -359,7 +364,7 @@ private struct NapsDashboardPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             CardTitleView(systemImage: "moon.fill", title: "Sleep") {
-                appState.showNapsSheet = true
+                appState.selectedDestination = .sleep
             }
             if childProfiles.isEmpty {
                 EmptyStateView(
@@ -493,7 +498,10 @@ private struct SnacksDashboardPanel: View {
             if dashboard.snackOptions.isEmpty {
                 EmptyStateView(
                     text: "Add snack options for the family.",
-                    action: { appState.selectedDestination = .snacks }
+                    action: {
+                        appState.pendingFoodSection = .snacks
+                        appState.selectedDestination = .meals
+                    }
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
