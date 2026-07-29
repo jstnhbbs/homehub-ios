@@ -353,38 +353,37 @@ export function SleepDashboardRow({
 
   const actionLabel =
     status.state === "in_bed"
-      ? "Log wake up"
+      ? "Wake up"
       : status.state === "napping"
-        ? "End nap"
+        ? "End"
         : null;
 
   return (
     <div className="rounded-2xl bg-[var(--tile-quiet)] p-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <span
-            className="h-3 w-3 shrink-0 rounded-full"
-            style={profileColorStyle(profile.color)}
-          />
-          <div className="min-w-0">
+      <div className="flex min-w-0 items-start gap-2">
+        <span
+          className="mt-1 h-3 w-3 shrink-0 rounded-full"
+          style={profileColorStyle(profile.color)}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
             <p className="truncate text-sm font-bold">{profile.name}</p>
-            <p className="text-xs font-bold text-[var(--muted)]">{primaryLabel}</p>
-            {secondary ? (
-              <p className="text-xs font-bold text-[var(--muted)]">{secondary}</p>
+            {status.activeLogId && actionLabel ? (
+              <form action={endNapAction.bind(null, status.activeLogId)}>
+                <button
+                  type="submit"
+                  className="shrink-0 py-0 text-[10px] font-bold leading-none text-[var(--sage)]"
+                >
+                  {actionLabel}
+                </button>
+              </form>
             ) : null}
           </div>
+          <p className="text-xs font-bold text-[var(--muted)]">{primaryLabel}</p>
+          {secondary ? (
+            <p className="text-xs font-bold text-[var(--muted)]">{secondary}</p>
+          ) : null}
         </div>
-
-        {status.activeLogId && actionLabel ? (
-          <form action={endNapAction.bind(null, status.activeLogId)}>
-            <button
-              type="submit"
-              className="hub-button secondary !min-h-8 !px-2 text-xs"
-            >
-              {actionLabel}
-            </button>
-          </form>
-        ) : null}
       </div>
     </div>
   );

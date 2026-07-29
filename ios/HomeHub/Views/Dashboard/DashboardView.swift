@@ -422,14 +422,30 @@ private struct DashboardSleepRow: View {
         )
         let secondary = NapHelpers.dashboardSleepSecondary(for: status)
 
-        HStack(spacing: 10) {
+        HStack(alignment: .top, spacing: 10) {
             Circle()
                 .fill(HubTheme.profileColor(profile.color))
                 .frame(width: 10, height: 10)
+                .padding(.top, 4)
             VStack(alignment: .leading, spacing: 2) {
-                Text(profile.name)
-                    .font(.subheadline.weight(.bold))
-                    .lineLimit(1)
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(profile.name)
+                        .font(.subheadline.weight(.bold))
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                    if let activeLogId = status.activeLogId {
+                        Button(actionLabel(for: status)) {
+                            Task {
+                                try? await appState.api.endNap(napId: activeLogId)
+                                await appState.refreshDashboard()
+                            }
+                        }
+                        .font(.caption2.weight(.heavy))
+                        .foregroundStyle(HubTheme.sage)
+                        .buttonStyle(.plain)
+                        .padding(.top, 1)
+                    }
+                }
                 Text(primaryText(for: status))
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(HubTheme.muted)
@@ -440,17 +456,6 @@ private struct DashboardSleepRow: View {
                         .foregroundStyle(HubTheme.muted)
                         .lineLimit(2)
                 }
-            }
-            Spacer(minLength: 0)
-            if let activeLogId = status.activeLogId {
-                Button(actionLabel(for: status)) {
-                    Task {
-                        try? await appState.api.endNap(napId: activeLogId)
-                        await appState.refreshDashboard()
-                    }
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.mini)
             }
         }
         .padding(.horizontal, 10)
