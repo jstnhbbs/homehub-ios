@@ -281,7 +281,7 @@ export function NapPatternsSection({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="hub-button secondary !px-3 !py-2"
+              className="hub-button secondary sm"
               onClick={() => shiftSelectedDate(-1)}
               disabled={selectedIndex <= 0}
               aria-label="Previous day"
@@ -290,7 +290,7 @@ export function NapPatternsSection({
             </button>
             <button
               type="button"
-              className="hub-button secondary !px-3 !py-2"
+              className="hub-button secondary sm"
               onClick={() => setSelectedDate(todayLocalDate)}
               disabled={isToday}
             >
@@ -298,7 +298,7 @@ export function NapPatternsSection({
             </button>
             <button
               type="button"
-              className="hub-button secondary !px-3 !py-2"
+              className="hub-button secondary sm"
               onClick={() => shiftSelectedDate(1)}
               disabled={selectedIndex >= weekDates.length - 1}
               aria-label="Next day"

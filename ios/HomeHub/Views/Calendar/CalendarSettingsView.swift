@@ -63,7 +63,7 @@ struct CalendarSettingsView: View {
                 Button("Save week start") {
                     Task { _ = await viewModel.saveWeekStart() }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(HubButtonStyle(emphasis: .secondary))
                 .disabled(viewModel.isWorking)
             }
         }
@@ -88,7 +88,7 @@ struct CalendarSettingsView: View {
                 Button("Save frequency") {
                     Task { _ = await viewModel.saveSyncInterval() }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(HubButtonStyle(emphasis: .secondary))
                 .disabled(viewModel.isWorking)
             }
         }
@@ -111,7 +111,7 @@ struct CalendarSettingsView: View {
                     Label("Sync now", systemImage: "arrow.triangle.2.circlepath")
                 }
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(HubButtonStyle(emphasis: .secondary))
         }
     }
 
@@ -133,7 +133,7 @@ struct CalendarSettingsView: View {
                     Button("Disconnect \(title)", role: .destructive) {
                         Task { _ = await viewModel.disconnect(provider: provider) }
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(HubButtonStyle(emphasis: .secondary))
                     .disabled(viewModel.isWorking)
                 } else if provider == .google {
                     Text(title).font(.headline)
@@ -143,8 +143,7 @@ struct CalendarSettingsView: View {
                     Button("Connect Google Calendar") {
                         Task { _ = await viewModel.connectGoogle() }
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(HubTheme.sage)
+                    .buttonStyle(HubButtonStyle(emphasis: .primary))
                     .disabled(viewModel.isWorking)
                 } else {
                     appleConnectForm(title: title)
@@ -202,8 +201,7 @@ struct CalendarSettingsView: View {
             Button("Save calendar selection") {
                 Task { _ = await viewModel.saveCalendarSelection() }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(HubTheme.sage)
+            .buttonStyle(HubButtonStyle(emphasis: .primary))
             .disabled(viewModel.isWorking)
         }
     }
@@ -232,8 +230,7 @@ struct CalendarSettingsView: View {
             Button("Connect Apple Calendar") {
                 Task { _ = await viewModel.connectApple() }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(HubTheme.sage)
+            .buttonStyle(HubButtonStyle(emphasis: .primary))
             .disabled(viewModel.isWorking)
         }
     }

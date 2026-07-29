@@ -265,13 +265,13 @@ export function BedtimeChildRow({
 
         {activeNight ? (
           <form action={endNapAction.bind(null, activeNight.id)}>
-            <button type="submit" className="hub-button secondary !min-h-9 !px-3 text-xs">
+            <button type="submit" className="hub-button secondary sm">
               Log wake up
             </button>
           </form>
         ) : (
           <form action={startNightSleepAction.bind(null, profile.id)}>
-            <button type="submit" className="hub-button secondary !min-h-9 !px-3 text-xs">
+            <button type="submit" className="hub-button secondary sm">
               Start bedtime
             </button>
           </form>
@@ -372,7 +372,7 @@ export function SleepDashboardRow({
               <form action={endNapAction.bind(null, status.activeLogId)}>
                 <button
                   type="submit"
-                  className="shrink-0 py-0 text-[10px] font-bold leading-none text-[var(--sage)]"
+                  className="hub-button secondary xs shrink-0"
                 >
                   {actionLabel}
                 </button>
@@ -467,13 +467,13 @@ export function NapChildRow({
 
         {activeNap ? (
           <form action={endNapAction.bind(null, activeNap.id)}>
-            <button type="submit" className="hub-button secondary !min-h-9 !px-3 text-xs">
+            <button type="submit" className="hub-button secondary sm">
               End nap
             </button>
           </form>
         ) : (
           <form action={startNapAction.bind(null, profile.id)}>
-            <button type="submit" className="hub-button secondary !min-h-9 !px-3 text-xs">
+            <button type="submit" className="hub-button secondary sm">
               Start nap
             </button>
           </form>
@@ -583,7 +583,7 @@ export function NapHistoryRow({
         <div className="flex shrink-0 items-center gap-2">
           {!editing && nap.endedAt == null && (
             <form action={endNapAction.bind(null, nap.id)}>
-              <button type="submit" className="hub-button secondary !min-h-8 !px-2 text-xs">
+              <button type="submit" className="hub-button secondary sm">
                 {kind === "night" ? "Wake up" : "End"}
               </button>
             </form>
@@ -657,16 +657,12 @@ export function NapHistoryRow({
             <p className="text-xs font-bold text-[var(--coral)]">{saveError}</p>
           ) : null}
           <div className="flex gap-2">
-            <button
-              type="submit"
-              className="hub-button secondary !min-h-9 !px-4 text-xs"
-              disabled={saving}
-            >
+            <button type="submit" className="hub-button sm" disabled={saving}>
               {saving ? "Saving…" : "Save"}
             </button>
             <button
               type="button"
-              className="hub-button secondary !min-h-9 !px-4 text-xs"
+              className="hub-button secondary sm"
               onClick={() => setEditing(false)}
               disabled={saving}
             >

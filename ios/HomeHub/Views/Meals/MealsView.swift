@@ -84,15 +84,15 @@ struct MealsView: View {
                     } label: {
                         Label("Copy last week", systemImage: "doc.on.doc")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(HubButtonStyle(emphasis: .secondary))
                     .disabled(viewModel.isWorking)
 
-                    Button(role: .destructive) {
+                    Button {
                         Task { await viewModel.clearWeek() }
                     } label: {
                         Label("Clear week", systemImage: "trash")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(HubButtonStyle(emphasis: .secondaryDestructive))
                     .disabled(viewModel.isWorking)
                 }
             }

@@ -90,8 +90,7 @@ struct ProfileFormView: View {
                     _ = await onSubmit(input)
                 }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(HubTheme.sage)
+            .buttonStyle(HubButtonStyle(emphasis: .primary))
             .disabled(isSaving || (includeName && name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
         }
         .onAppear(perform: populate)

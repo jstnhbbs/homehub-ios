@@ -81,7 +81,7 @@ struct CalendarView: View {
                         Label("Sync", systemImage: "arrow.triangle.2.circlepath")
                     }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(HubButtonStyle(emphasis: .secondary))
             }
         }
     }
@@ -117,16 +117,16 @@ struct CalendarView: View {
                 Image(systemName: "chevron.left")
                     .frame(width: 40, height: 40)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(HubButtonStyle(emphasis: .secondary))
 
             Button("Today") { viewModel.goToToday() }
-                .buttonStyle(.bordered)
+                .buttonStyle(HubButtonStyle(emphasis: .secondary))
 
             Button { viewModel.goNext() } label: {
                 Image(systemName: "chevron.right")
                     .frame(width: 40, height: 40)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(HubButtonStyle(emphasis: .secondary))
         }
     }
 
@@ -222,7 +222,7 @@ struct CalendarView: View {
                             Button("Connect calendars") {
                                 showCalendarSettings = true
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(HubButtonStyle(emphasis: .secondary))
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.top, 8)
@@ -515,8 +515,7 @@ private struct CalendarAgendaEventRow: View {
                     Button("Edit birthday") {
                         onEditBirthday(profileId)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(HubTheme.sage)
+                    .buttonStyle(HubButtonStyle(emphasis: .primary))
                 } else {
                     Text("Birthdays are edited from a family member's profile.")
                         .font(.caption.weight(.bold))

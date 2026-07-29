@@ -60,7 +60,7 @@ export default async function MealsPage() {
             </form>
             <form action={clearMealWeek}>
               <input type="hidden" name="weekStart" value={weekStart} />
-              <button className="hub-button secondary text-[var(--coral)]">
+              <button className="hub-button secondary coral">
                 <Trash2 size={16} /> Clear week
               </button>
             </form>

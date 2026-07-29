@@ -114,7 +114,7 @@ export function CalendarEventForm({
           placeholder="Optional"
         />
       </label>
-      <button className="hub-button !min-h-9 w-full !py-1 text-xs">
+      <button className="hub-button sm w-full">
         {submitLabel}
       </button>
       <p className="text-[10px] leading-4 text-[var(--muted)]">

@@ -46,7 +46,7 @@ struct SettingsView: View {
                     Button("Sign Out", role: .destructive) {
                         Task { await appState.signOut() }
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(HubButtonStyle(emphasis: .secondary))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -91,7 +91,7 @@ struct SettingsView: View {
                         await viewModel.addProfile(input)
                     }
                     Button("Cancel") { viewModel.showAddForm = false }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(HubButtonStyle(emphasis: .secondary))
                 }
             }
         } else if let profile = viewModel.selectedProfile {
@@ -125,8 +125,7 @@ struct SettingsView: View {
                         viewModel.selectedProfileId = nil
                         viewModel.showAddForm = true
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(HubTheme.sage)
+                    .buttonStyle(HubButtonStyle(emphasis: .primary))
                 }
             }
         }
@@ -189,7 +188,7 @@ struct SettingsView: View {
                                 Button("Remove", role: .destructive) {
                                     Task { await membersViewModel.removeGuest(userId: member.userId) }
                                 }
-                                .buttonStyle(.bordered)
+                                .buttonStyle(HubButtonStyle(emphasis: .secondary))
                                 .disabled(membersViewModel.isWorking)
                             }
                         }
@@ -212,7 +211,7 @@ struct SettingsView: View {
                             viewModel.showAddForm = true
                             viewModel.selectedProfileId = nil
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(HubButtonStyle(emphasis: .secondary))
                     }
                 }
 

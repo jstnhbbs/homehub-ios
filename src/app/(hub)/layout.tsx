@@ -43,7 +43,7 @@ export default async function HubLayout({
               <LiveClock timezone={household.timezone} />
             </div>
             {isGuest(household.role) && (
-              <SignOutButton className="hub-button secondary !min-h-10 !px-4 text-xs" />
+              <SignOutButton className="hub-button secondary sm" />
             )}
             <ThemeToggle />
             <button

@@ -144,8 +144,7 @@ struct DashboardView: View {
                             await appState.refreshDashboard()
                         }
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
                 }
             }
         }
@@ -440,10 +439,7 @@ private struct DashboardSleepRow: View {
                                 await appState.refreshDashboard()
                             }
                         }
-                        .font(.caption2.weight(.heavy))
-                        .foregroundStyle(HubTheme.sage)
-                        .buttonStyle(.plain)
-                        .padding(.top, 1)
+                        .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .mini))
                     }
                 }
                 Text(primaryText(for: status))

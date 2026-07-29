@@ -341,15 +341,18 @@ struct NapsView: View {
                         HStack(spacing: 8) {
                             Button { shiftPatternDate(payload: payload, delta: -1) } label: {
                                 Image(systemName: "chevron.left")
-                            }.disabled(selectedIndex <= 0)
+                            }
+                            .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
+                            .disabled(selectedIndex <= 0)
                             Button("Today") { selectedPatternDate = payload.localDate }
+                                .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
                                 .disabled(selectedDate == payload.localDate)
                             Button { shiftPatternDate(payload: payload, delta: 1) } label: {
                                 Image(systemName: "chevron.right")
-                            }.disabled(selectedIndex >= payload.weekDates.count - 1)
+                            }
+                            .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
+                            .disabled(selectedIndex >= payload.weekDates.count - 1)
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
                     }
 
                     ForEach(payload.childProfiles) { profile in
@@ -611,8 +614,7 @@ private struct ManualNapFormView: View {
                         )
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(HubTheme.sage)
+                .buttonStyle(HubButtonStyle(emphasis: .primary))
                 .disabled(selectedProfileId.isEmpty)
             }
         }
@@ -687,8 +689,7 @@ private struct ManualNightSleepFormView: View {
                         )
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(HubTheme.sage)
+                .buttonStyle(HubButtonStyle(emphasis: .primary))
                 .disabled(selectedProfileId.isEmpty)
             }
         }
@@ -757,14 +758,12 @@ private struct NapChildRowView: View {
                 Button(endLabel) {
                     Task { await endAction() }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
             } else {
                 Button(startLabel) {
                     Task { await startAction() }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
             }
         }
         .padding(12)
@@ -842,8 +841,7 @@ private struct NapHistoryRowView: View {
                         Button(nap.kind == "night" ? "Wake up" : "End") {
                             Task { await endAction() }
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.mini)
+                        .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .mini))
                     }
 
                     Button("Edit") {
@@ -893,15 +891,12 @@ private struct NapHistoryRowView: View {
                             isEditing = false
                         }
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(HubTheme.sage)
-                    .controlSize(.small)
+                    .buttonStyle(HubButtonStyle(emphasis: .primary, size: .small))
 
                     Button("Cancel") {
                         isEditing = false
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
                 }
             }
         }

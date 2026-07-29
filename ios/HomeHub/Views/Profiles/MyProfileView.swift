@@ -38,7 +38,7 @@ struct MyProfileView: View {
                 Button("Sign Out", role: .destructive) {
                     Task { await appState.signOut() }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(HubButtonStyle(emphasis: .secondary))
             }
             .frame(maxWidth: 720, alignment: .leading)
         }
@@ -89,8 +89,7 @@ struct MyProfileView: View {
                 Button("Save name") {
                     Task { _ = await viewModel.updateName(name) }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(HubTheme.sage)
+                .buttonStyle(HubButtonStyle(emphasis: .primary))
                 .disabled(viewModel.isWorking || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                 Divider()
@@ -109,7 +108,7 @@ struct MyProfileView: View {
                 Button("Update email") {
                     Task { _ = await viewModel.changeEmail(newEmail) }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(HubButtonStyle(emphasis: .secondary))
                 .disabled(viewModel.isWorking || newEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                 Divider()
@@ -147,7 +146,7 @@ struct MyProfileView: View {
                         }
                     }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(HubButtonStyle(emphasis: .secondary))
                 .disabled(viewModel.isWorking || currentPassword.isEmpty || newPassword.isEmpty)
             }
         }

@@ -39,14 +39,14 @@ struct ProfilePhotoUploadView: View {
                             )
                             .font(.caption.weight(.bold))
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(HubButtonStyle(emphasis: .secondary))
                         .disabled(isWorking)
 
                         if ProfilePhotoHelpers.hasPhoto(profile.avatar) {
                             Button("Remove", role: .destructive) {
                                 Task { await removePhoto() }
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(HubButtonStyle(emphasis: .secondary))
                             .disabled(isWorking)
                         }
 

@@ -29,6 +29,7 @@ enum HubTheme {
 
     static let canvas = Color(.systemGroupedBackground)
     static let surface = Color(.systemBackground)
+    static let surfaceStrong = Color(.tertiarySystemGroupedBackground)
     static let tile = Color(.secondarySystemGroupedBackground)
     static let tileQuiet = Color(.tertiarySystemGroupedBackground)
     static let line = Color(.separator)
@@ -213,4 +214,104 @@ struct EmptyStateView: View {
         .buttonStyle(.plain)
         .disabled(action == nil)
     }
+}
+
+enum HubButtonSize {
+    case regular
+    case small
+    case mini
+
+    var font: Font {
+        switch self {
+        case .regular: .subheadline.weight(.bold)
+        case .small: .caption.weight(.bold)
+        case .mini: .caption2.weight(.bold)
+        }
+    }
+
+    var horizontalPadding: CGFloat {
+        switch self {
+        case .regular: 18
+        case .small: 14
+        case .mini: 10
+        }
+    }
+
+    var verticalPadding: CGFloat {
+        switch self {
+        case .regular: 10
+        case .small: 8
+        case .mini: 5
+        }
+    }
+
+    var minHeight: CGFloat {
+        switch self {
+        case .regular: 48
+        case .small: 36
+        case .mini: 28
+        }
+    }
+}
+
+enum HubButtonEmphasis {
+    case primary
+    case secondary
+    case secondaryDestructive
+    case danger
+}
+
+struct HubButtonStyle: ButtonStyle {
+    var emphasis: HubButtonEmphasis = .primary
+    var size: HubButtonSize = .regular
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(size.font)
+            .foregroundStyle(foregroundColor)
+            .frame(minHeight: size.minHeight)
+            .padding(.horizontal, size.horizontalPadding)
+            .padding(.vertical, size.verticalPadding)
+            .background(backgroundColor)
+            .overlay {
+                if showsBorder {
+                    Capsule().stroke(HubTheme.line, lineWidth: 1)
+                }
+            }
+            .clipShape(Capsule())
+            .opacity(configuration.isPressed ? 0.88 : 1)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+
+    private var showsBorder: Bool {
+        switch emphasis {
+        case .secondary, .secondaryDestructive: true
+        case .primary, .danger: false
+        }
+    }
+
+    private var backgroundColor: Color {
+        switch emphasis {
+        case .primary: HubTheme.sage
+        case .secondary, .secondaryDestructive: HubTheme.surfaceStrong
+        case .danger: HubTheme.coral
+        }
+    }
+
+    private var foregroundColor: Color {
+        switch emphasis {
+        case .primary, .danger: .white
+        case .secondary: .primary
+        case .secondaryDestructive: HubTheme.coral
+        }
+    }
+}
+
+extension HubTheme {
+    static let coral = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.87, green: 0.53, blue: 0.44, alpha: 1)
+            : UIColor(red: 0.85, green: 0.47, blue: 0.38, alpha: 1)
+    })
 }

@@ -52,7 +52,7 @@ struct SnacksView: View {
                 } label: {
                     Label("Reset checklist", systemImage: "arrow.counterclockwise")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(HubButtonStyle(emphasis: .secondary))
                 .disabled(viewModel.isWorking)
             }
         }
@@ -125,8 +125,7 @@ struct SnacksView: View {
                 Button("Save snack list") {
                     Task { _ = await viewModel.saveSnackOptions() }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(HubTheme.sage)
+                .buttonStyle(HubButtonStyle(emphasis: .primary))
                 .disabled(viewModel.isWorking)
             }
         }

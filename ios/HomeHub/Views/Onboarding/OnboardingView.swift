@@ -63,9 +63,7 @@ struct OnboardingView: View {
             Button("Continue") {
                 Task { await submit() }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(HubTheme.sage)
-            .controlSize(.large)
+            .buttonStyle(HubButtonStyle(emphasis: .primary))
             .disabled(isSubmitting)
         }
         .padding(40)

@@ -112,8 +112,7 @@ struct CalendarEventFormView: View {
                     _ = await onSubmit(input)
                 }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(HubTheme.sage)
+            .buttonStyle(HubButtonStyle(emphasis: .primary))
             .disabled(isSaving || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || calendarId.isEmpty)
 
             if let onDelete {

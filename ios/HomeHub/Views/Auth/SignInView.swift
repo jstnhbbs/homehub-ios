@@ -53,9 +53,7 @@ struct SignInView: View {
             Button(mode == .signIn ? "Sign In" : "Create Account") {
                 Task { await submit() }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(HubTheme.sage)
-            .controlSize(.large)
+            .buttonStyle(HubButtonStyle(emphasis: .primary))
             .disabled(appState.auth.isLoading)
         }
         .padding(40)

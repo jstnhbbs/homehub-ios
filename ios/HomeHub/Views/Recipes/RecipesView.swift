@@ -78,8 +78,7 @@ struct RecipesView: View {
                 Button("Import recipe") {
                     Task { _ = await viewModel.importRecipe() }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(HubTheme.sage)
+                .buttonStyle(HubButtonStyle(emphasis: .primary))
                 .disabled(viewModel.isWorking || viewModel.importURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }

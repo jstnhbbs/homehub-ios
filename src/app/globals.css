@@ -150,6 +150,24 @@ a {
   background: var(--coral);
 }
 
+.hub-button.sm {
+  min-height: 2.25rem;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.75rem;
+  gap: 0.35rem;
+}
+
+.hub-button.xs {
+  min-height: 1.75rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.625rem;
+  gap: 0.25rem;
+}
+
+.hub-button.secondary.coral {
+  color: var(--coral);
+}
+
 .scrollbar-none {
   scrollbar-width: none;
 }

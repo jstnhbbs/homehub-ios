@@ -128,7 +128,7 @@ struct HubHeaderView: View {
                 Button("Sign Out") {
                     Task { await appState.signOut() }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(HubButtonStyle(emphasis: .secondary))
             }
         }
         .padding(.horizontal, 28)
