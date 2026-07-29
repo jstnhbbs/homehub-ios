@@ -234,6 +234,105 @@ export function formatChildTodaySleepSummary(
   return parts.join(" · ");
 }
 
+export type ChildDashboardSleepStatus = {
+  state: "napping" | "in_bed" | "awake" | "empty";
+  activeLogId: string | null;
+  activeKind: SleepKind | null;
+  startedAt: Date | null;
+  durationMinutes: number;
+  todayStats: ReturnType<typeof daySleepStats> | null;
+};
+
+export function getChildDashboardSleepStatus<
+  T extends {
+    id: string;
+    kind?: SleepKind;
+    profileId: string;
+    localDate: string;
+    startedAt: Date;
+    endedAt: Date | null;
+  },
+>(
+  logs: T[],
+  profileId: string,
+  localDate: string,
+  timezone: string,
+  now: Date = new Date(),
+): ChildDashboardSleepStatus {
+  const todayLogs = childNapsForDate(logs, profileId, localDate, timezone, now);
+  const active = logs.find(
+    (log) => log.profileId === profileId && log.endedAt == null,
+  );
+
+  if (active) {
+    const completedToday = todayLogs.filter((log) => log.endedAt != null);
+    return {
+      state: active.kind === "night" ? "in_bed" : "napping",
+      activeLogId: active.id,
+      activeKind: active.kind ?? "nap",
+      startedAt: active.startedAt,
+      durationMinutes: napDurationMinutes(active.startedAt, null, now),
+      todayStats: completedToday.length
+        ? daySleepStats(completedToday, now)
+        : null,
+    };
+  }
+
+  if (todayLogs.length === 0) {
+    return {
+      state: "empty",
+      activeLogId: null,
+      activeKind: null,
+      startedAt: null,
+      durationMinutes: 0,
+      todayStats: null,
+    };
+  }
+
+  const lastEnded = todayLogs
+    .map((log) => log.endedAt)
+    .filter((value): value is Date => value != null)
+    .sort((a, b) => b.getTime() - a.getTime())[0];
+
+  return {
+    state: "awake",
+    activeLogId: null,
+    activeKind: null,
+    startedAt: null,
+    durationMinutes: lastEnded
+      ? Math.max(
+          0,
+          Math.floor((now.getTime() - lastEnded.getTime()) / 60_000),
+        )
+      : 0,
+    todayStats: daySleepStats(todayLogs, now),
+  };
+}
+
+export function formatDashboardSleepSecondary(
+  status: ChildDashboardSleepStatus,
+): string | null {
+  if (status.state === "in_bed") return "Night in progress";
+  if (status.state === "napping") {
+    if (status.todayStats) {
+      return formatChildDaySummary(
+        status.todayStats.napCount,
+        status.todayStats.nightCount,
+        status.todayStats.totalMinutes,
+      );
+    }
+    return "Nap in progress";
+  }
+  if (status.state === "awake" && status.todayStats) {
+    return formatChildDaySummary(
+      status.todayStats.napCount,
+      status.todayStats.nightCount,
+      status.todayStats.totalMinutes,
+    );
+  }
+  return null;
+}
+
 /** @deprecated Use formatChildTodaySleepSummary */
 export function formatChildTodayNapSummary(
   naps: Array<{ localDate: string; startedAt: Date; endedAt: Date | null }>,

@@ -14,7 +14,7 @@ import { toggleChore, toggleRoutineStep, toggleSnack } from "@/app/actions";
 import { calendarSyncStatus } from "@/lib/calendar/connections";
 import { CalendarSync } from "@/components/calendar-sync";
 import { CheckItem } from "@/components/check-item";
-import { NapChildRow } from "@/components/nap-controls";
+import { NapChildRow, SleepDashboardRow } from "@/components/nap-controls";
 import { TodaySchedule } from "@/components/today-schedule";
 import { db } from "@/db/client";
 import {
@@ -194,11 +194,6 @@ export default async function DashboardPage() {
     snackEaten,
   );
   const childProfiles = napData.childProfiles;
-  const activeNaps = new Map(
-    napData.naps
-      .filter((log) => log.kind === "nap" && !log.endedAt)
-      .map((log) => [log.profileId, log]),
-  );
 
   return (
     <div className="mx-auto max-w-[1500px]">
@@ -393,45 +388,31 @@ export default async function DashboardPage() {
           <CardTitle icon={Moon} title="Sleep" href="/sleep" />
           <div className="scrollbar-none mt-4 max-h-[180px] space-y-2 overflow-auto">
             {childProfiles.length ? (
-              childProfiles.map((profile) => {
-                const activeNap = activeNaps.get(profile.id);
-                const profileLogs = napData.logs.filter(
-                  (log) => log.profileId === profile.id,
-                );
-                return (
-                  <NapChildRow
-                    key={profile.id}
-                    profile={profile}
-                    activeNap={
-                      activeNap
-                        ? {
-                            id: activeNap.id,
-                            profileId: activeNap.profileId,
-                            kind: activeNap.kind,
-                            localDate: activeNap.localDate,
-                            startedAt: activeNap.startedAt.toISOString(),
-                            endedAt: activeNap.endedAt?.toISOString() ?? null,
-                          }
-                        : undefined
-                    }
-                    todayLogs={profileLogs.map((log) => ({
-                      id: log.id,
-                      profileId: log.profileId,
-                      kind: log.kind,
-                      localDate: log.localDate,
-                      startedAt: log.startedAt.toISOString(),
-                      endedAt: log.endedAt?.toISOString() ?? null,
-                    }))}
-                    localDate={napData.localDate}
-                    timezone={household.timezone}
-                    compact
-                  />
-                );
-              })
+              childProfiles.map((profile) => (
+                <SleepDashboardRow
+                  key={profile.id}
+                  profile={profile}
+                  logs={napData.logs.map((log) => ({
+                    id: log.id,
+                    profileId: log.profileId,
+                    kind: log.kind,
+                    localDate: log.localDate,
+                    startedAt: log.startedAt.toISOString(),
+                    endedAt: log.endedAt?.toISOString() ?? null,
+                  }))}
+                  localDate={napData.localDate}
+                  timezone={household.timezone}
+                />
+              ))
             ) : (
               <EmptyState text="Add a child profile to log sleep." href="/settings" />
             )}
           </div>
+          {childProfiles.length ? (
+            <p className="mt-3 text-xs font-bold text-[var(--muted)]">
+              Tap Sleep to log naps, bedtime, or edit times.
+            </p>
+          ) : null}
         </section>
         </div>
       </div>

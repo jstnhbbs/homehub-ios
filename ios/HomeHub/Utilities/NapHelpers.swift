@@ -18,6 +18,25 @@ struct ChildWeekNapStats: Sendable {
     let elapsedDays: Int
 }
 
+struct ChildDashboardSleepStatus: Sendable {
+    enum State: Sendable {
+        case napping
+        case inBed
+        case awake
+        case empty
+    }
+
+    let state: State
+    let activeLogId: String?
+    let activeKind: String?
+    let startedAt: Date?
+    let durationMinutes: Int
+    let todayNapCount: Int
+    let todayNightCount: Int
+    let todayTotalMinutes: Int
+    let hasCompletedToday: Bool
+}
+
 enum NapHelpers {
     static func durationMinutes(startedAt: Date, endedAt: Date?, now: Date = .now) -> Int {
         let end = endedAt ?? now
@@ -41,6 +60,108 @@ enum NapHelpers {
 
     static func activeNight(for profileId: String, in logs: [NapLog]) -> NapLog? {
         logs.first { $0.profileId == profileId && $0.kind == "night" && $0.endedAt == nil }
+    }
+
+    static func activeSleep(for profileId: String, in logs: [NapLog]) -> NapLog? {
+        logs.first { $0.profileId == profileId && $0.endedAt == nil }
+    }
+
+    static func getChildDashboardSleepStatus(
+        logs: [NapLog],
+        profileId: String,
+        localDate: String,
+        timezone: TimeZone,
+        now: Date = .now
+    ) -> ChildDashboardSleepStatus {
+        let todayLogs = logsForDate(
+            profileId: profileId,
+            in: logs,
+            localDate: localDate,
+            timezone: timezone,
+            now: now
+        )
+        let active = logs.first { $0.profileId == profileId && $0.endedAt == nil }
+
+        if let active {
+            let completedToday = todayLogs.filter { $0.endedAt != nil }
+            let stats = completedToday.reduce(into: (napCount: 0, nightCount: 0, totalMinutes: 0)) { partial, log in
+                if log.kind == "night" {
+                    partial.nightCount += 1
+                } else {
+                    partial.napCount += 1
+                }
+                partial.totalMinutes += durationMinutes(startedAt: log.startedAt, endedAt: log.endedAt, now: now)
+            }
+            return ChildDashboardSleepStatus(
+                state: active.kind == "night" ? .inBed : .napping,
+                activeLogId: active.id,
+                activeKind: active.kind,
+                startedAt: active.startedAt,
+                durationMinutes: durationMinutes(startedAt: active.startedAt, endedAt: nil, now: now),
+                todayNapCount: stats.napCount,
+                todayNightCount: stats.nightCount,
+                todayTotalMinutes: stats.totalMinutes,
+                hasCompletedToday: !completedToday.isEmpty
+            )
+        }
+
+        if todayLogs.isEmpty {
+            return ChildDashboardSleepStatus(
+                state: .empty,
+                activeLogId: nil,
+                activeKind: nil,
+                startedAt: nil,
+                durationMinutes: 0,
+                todayNapCount: 0,
+                todayNightCount: 0,
+                todayTotalMinutes: 0,
+                hasCompletedToday: false
+            )
+        }
+
+        let lastEnded = todayLogs.compactMap(\.endedAt).max()
+        let awakeMinutes = lastEnded.map { max(0, Int(now.timeIntervalSince($0) / 60)) } ?? 0
+        let napCount = todayLogs.filter { $0.kind == "nap" }.count
+        let nightCount = todayLogs.filter { $0.kind == "night" }.count
+        let totalMinutes = todayLogs.reduce(0) { partial, log in
+            partial + durationMinutes(startedAt: log.startedAt, endedAt: log.endedAt, now: now)
+        }
+
+        return ChildDashboardSleepStatus(
+            state: .awake,
+            activeLogId: nil,
+            activeKind: nil,
+            startedAt: nil,
+            durationMinutes: awakeMinutes,
+            todayNapCount: napCount,
+            todayNightCount: nightCount,
+            todayTotalMinutes: totalMinutes,
+            hasCompletedToday: true
+        )
+    }
+
+    static func dashboardSleepSecondary(for status: ChildDashboardSleepStatus) -> String? {
+        switch status.state {
+        case .inBed:
+            return "Night in progress"
+        case .napping:
+            if status.hasCompletedToday {
+                return daySummary(
+                    napCount: status.todayNapCount,
+                    nightCount: status.todayNightCount,
+                    totalMinutes: status.todayTotalMinutes
+                )
+            }
+            return "Nap in progress"
+        case .awake:
+            return daySummary(
+                napCount: status.todayNapCount,
+                nightCount: status.todayNightCount,
+                totalMinutes: status.todayTotalMinutes
+            )
+        case .empty:
+            return nil
+        }
     }
 
     static func sleepOverlapsLocalDate(_ log: NapLog, localDate: String, timezone: TimeZone, now: Date = .now) -> Bool {

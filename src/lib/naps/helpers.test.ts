@@ -4,6 +4,9 @@ import {
   formatAverageSessionCount,
   formatChildDaySummary,
   formatChildTodaySleepSummary,
+  formatDashboardSleepSecondary,
+  formatSleepDuration,
+  getChildDashboardSleepStatus,
   napDurationMinutes,
 } from "./helpers";
 
@@ -40,6 +43,53 @@ describe("formatAverageSessionCount", () => {
 
   it("formats fractional averages to one decimal", () => {
     expect(formatAverageSessionCount(1.666666)).toBe("1.7");
+  });
+});
+
+describe("getChildDashboardSleepStatus", () => {
+  const logs = [
+    {
+      id: "nap-1",
+      profileId: "child-1",
+      kind: "nap" as const,
+      localDate: "2026-07-28",
+      startedAt: new Date("2026-07-28T13:00:00.000Z"),
+      endedAt: new Date("2026-07-28T14:00:00.000Z"),
+    },
+    {
+      id: "night-1",
+      profileId: "child-2",
+      kind: "night" as const,
+      localDate: "2026-07-28",
+      startedAt: new Date("2026-07-28T01:00:00.000Z"),
+      endedAt: null,
+    },
+  ];
+
+  it("detects an active bedtime", () => {
+    const status = getChildDashboardSleepStatus(
+      logs,
+      "child-2",
+      "2026-07-28",
+      "UTC",
+      new Date("2026-07-28T02:30:00.000Z"),
+    );
+    expect(status.state).toBe("in_bed");
+    expect(status.activeLogId).toBe("night-1");
+    expect(formatDashboardSleepSecondary(status)).toBe("Night in progress");
+  });
+
+  it("shows awake time and today totals when up", () => {
+    const status = getChildDashboardSleepStatus(
+      logs,
+      "child-1",
+      "2026-07-28",
+      "UTC",
+      new Date("2026-07-28T16:00:00.000Z"),
+    );
+    expect(status.state).toBe("awake");
+    expect(status.durationMinutes).toBe(120);
+    expect(formatDashboardSleepSecondary(status)).toBe("1 nap · 1h total");
   });
 });
 

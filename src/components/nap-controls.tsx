@@ -18,6 +18,8 @@ import {
 import {
   formatSleepDuration,
   formatChildTodaySleepSummary,
+  formatDashboardSleepSecondary,
+  getChildDashboardSleepStatus,
   napDurationMinutes,
   sleepKindLabel,
 } from "@/lib/naps/helpers";
@@ -274,6 +276,115 @@ export function BedtimeChildRow({
             </button>
           </form>
         )}
+      </div>
+    </div>
+  );
+}
+
+export function SleepDashboardRow({
+  profile,
+  logs,
+  localDate,
+  timezone,
+}: {
+  profile: ChildProfile;
+  logs: SleepItem[];
+  localDate: string;
+  timezone: string;
+}) {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const records = logs.map((log) => ({
+    id: log.id,
+    profileId: log.profileId,
+    kind: log.kind ?? "nap",
+    localDate: log.localDate,
+    startedAt: new Date(log.startedAt),
+    endedAt: log.endedAt ? new Date(log.endedAt) : null,
+  }));
+
+  const status = getChildDashboardSleepStatus(
+    records,
+    profile.id,
+    localDate,
+    timezone,
+    now,
+  );
+  const secondary = formatDashboardSleepSecondary(status);
+
+  const primaryLabel = (() => {
+    if (status.state === "napping") {
+      return (
+        <>
+          Nap · asleep{" "}
+          <LiveDuration
+            startedAt={status.startedAt!.toISOString()}
+            endedAt={null}
+          />
+        </>
+      );
+    }
+    if (status.state === "in_bed") {
+      const startedLabel = formatInTimeZone(
+        status.startedAt!,
+        timezone,
+        "h:mm a",
+      );
+      return (
+        <>
+          In bed since {startedLabel} ·{" "}
+          <LiveDuration
+            startedAt={status.startedAt!.toISOString()}
+            endedAt={null}
+          />
+        </>
+      );
+    }
+    if (status.state === "awake") {
+      return `Awake ${formatSleepDuration(status.durationMinutes)}`;
+    }
+    return "No sleep logged today";
+  })();
+
+  const actionLabel =
+    status.state === "in_bed"
+      ? "Log wake up"
+      : status.state === "napping"
+        ? "End nap"
+        : null;
+
+  return (
+    <div className="rounded-2xl bg-[var(--tile-quiet)] p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            className="h-3 w-3 shrink-0 rounded-full"
+            style={profileColorStyle(profile.color)}
+          />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold">{profile.name}</p>
+            <p className="text-xs font-bold text-[var(--muted)]">{primaryLabel}</p>
+            {secondary ? (
+              <p className="text-xs font-bold text-[var(--muted)]">{secondary}</p>
+            ) : null}
+          </div>
+        </div>
+
+        {status.activeLogId && actionLabel ? (
+          <form action={endNapAction.bind(null, status.activeLogId)}>
+            <button
+              type="submit"
+              className="hub-button secondary !min-h-8 !px-2 text-xs"
+            >
+              {actionLabel}
+            </button>
+          </form>
+        ) : null}
       </div>
     </div>
   );

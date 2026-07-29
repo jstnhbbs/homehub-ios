@@ -359,12 +359,12 @@ private struct NapsDashboardPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            CardTitleView(systemImage: "moon.fill", title: "Naps") {
+            CardTitleView(systemImage: "moon.fill", title: "Sleep") {
                 appState.showNapsSheet = true
             }
             if childProfiles.isEmpty {
                 EmptyStateView(
-                    text: "Add a child profile to log naps.",
+                    text: "Add a child profile to log sleep.",
                     action: appState.canManageHousehold ? { appState.selectedDestination = .settings } : nil
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -372,10 +372,9 @@ private struct NapsDashboardPanel: View {
                 ScrollView {
                     VStack(spacing: 8) {
                         ForEach(childProfiles) { profile in
-                            DashboardNapRow(
+                            DashboardSleepRow(
                                 profile: profile,
-                                activeNap: NapHelpers.activeNap(for: profile.id, in: dashboard.naps),
-                                naps: dashboard.naps,
+                                logs: dashboard.naps,
                                 localDate: dashboard.localDate,
                                 timezone: TimeZone(identifier: dashboard.household.timezone) ?? .current,
                                 now: now
@@ -384,6 +383,11 @@ private struct NapsDashboardPanel: View {
                     }
                 }
                 .scrollIndicators(.hidden)
+
+                Text("Tap Sleep to log naps, bedtime, or edit times.")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(HubTheme.muted)
+                    .lineLimit(2)
             }
         }
         .padding(16)
@@ -400,16 +404,24 @@ private struct NapsDashboardPanel: View {
     }
 }
 
-private struct DashboardNapRow: View {
+private struct DashboardSleepRow: View {
     @EnvironmentObject private var appState: AppState
     let profile: Profile
-    let activeNap: NapLog?
-    let naps: [NapLog]
+    let logs: [NapLog]
     let localDate: String
     let timezone: TimeZone
     let now: Date
 
     var body: some View {
+        let status = NapHelpers.getChildDashboardSleepStatus(
+            logs: logs,
+            profileId: profile.id,
+            localDate: localDate,
+            timezone: timezone,
+            now: now
+        )
+        let secondary = NapHelpers.dashboardSleepSecondary(for: status)
+
         HStack(spacing: 10) {
             Circle()
                 .fill(HubTheme.profileColor(profile.color))
@@ -418,33 +430,22 @@ private struct DashboardNapRow: View {
                 Text(profile.name)
                     .font(.subheadline.weight(.bold))
                     .lineLimit(1)
-                if let activeNap {
-                    Text(activeStatus(for: activeNap))
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(HubTheme.muted)
-                        .lineLimit(1)
-                }
-                Text(summaryText)
+                Text(primaryText(for: status))
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(HubTheme.muted)
                     .lineLimit(2)
+                if let secondary {
+                    Text(secondary)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(HubTheme.muted)
+                        .lineLimit(2)
+                }
             }
             Spacer(minLength: 0)
-            if activeNap != nil {
-                Button("End") {
+            if let activeLogId = status.activeLogId {
+                Button(actionLabel(for: status)) {
                     Task {
-                        if let napId = activeNap?.id {
-                            try? await appState.api.endNap(napId: napId)
-                            await appState.refreshDashboard()
-                        }
-                    }
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.mini)
-            } else {
-                Button("Start") {
-                    Task {
-                        try? await appState.api.startNap(profileId: profile.id)
+                        try? await appState.api.endNap(napId: activeLogId)
                         await appState.refreshDashboard()
                     }
                 }
@@ -458,20 +459,22 @@ private struct DashboardNapRow: View {
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    private func activeStatus(for nap: NapLog) -> String {
-        let minutes = NapHelpers.durationMinutes(startedAt: nap.startedAt, endedAt: nil, now: now)
-        let started = DateHelpers.timeString(nap.startedAt, timezone: timezone)
-        return "Asleep since \(started) · \(NapHelpers.formatDuration(minutes: minutes))"
+    private func primaryText(for status: ChildDashboardSleepStatus) -> String {
+        switch status.state {
+        case .napping:
+            return "Nap · asleep \(NapHelpers.formatDuration(minutes: status.durationMinutes))"
+        case .inBed:
+            let started = DateHelpers.timeString(status.startedAt ?? now, timezone: timezone)
+            return "In bed since \(started) · \(NapHelpers.formatDuration(minutes: status.durationMinutes))"
+        case .awake:
+            return "Awake \(NapHelpers.formatDuration(minutes: status.durationMinutes))"
+        case .empty:
+            return "No sleep logged today"
+        }
     }
 
-    private var summaryText: String {
-        NapHelpers.todaySummary(
-            for: profile.id,
-            in: naps,
-            localDate: localDate,
-            now: now,
-            isActive: activeNap != nil
-        )
+    private func actionLabel(for status: ChildDashboardSleepStatus) -> String {
+        status.state == .inBed ? "Wake up" : "End"
     }
 }
 
