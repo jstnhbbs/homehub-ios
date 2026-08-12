@@ -16,9 +16,10 @@ import {
 } from "@/lib/calendar/event-input";
 import {
   createRemoteCalendarEvent,
+  deleteCachedCalendarEvent,
   deleteRemoteCalendarEvent,
   moveRemoteCalendarEvent,
-  syncHouseholdCalendars,
+  upsertCachedCalendarEvent,
   updateRemoteCalendarEvent,
 } from "@/lib/calendar/sync";
 import { requireParentHousehold } from "@/lib/household";
@@ -58,7 +59,7 @@ export async function createCalendarEvent(formData: FormData) {
   );
 
   const uid = `${randomUUID()}@homehub`;
-  await createRemoteCalendarEvent({
+  const remote = await createRemoteCalendarEvent({
     provider: calendar.provider,
     householdId: household.id,
     calendarUrl: calendar.url,
@@ -72,7 +73,17 @@ export async function createCalendarEvent(formData: FormData) {
     allDay,
     uid,
   });
-  await syncHouseholdCalendars(household.id, true);
+  await upsertCachedCalendarEvent({
+    calendarId: calendar.id,
+    remote,
+    uid,
+    title: input.title,
+    description: input.description,
+    location: input.location,
+    startsAt,
+    endsAt,
+    allDay,
+  });
   revalidatePath("/", "layout");
 }
 
@@ -128,7 +139,7 @@ export async function updateCalendarEvent(formData: FormData) {
   };
 
   if (input.calendarId !== event[0].calendarId) {
-    await moveRemoteCalendarEvent({
+    const remote = await moveRemoteCalendarEvent({
       provider: event[0].provider,
       householdId: household.id,
       fromCalendarUrl: event[0].calendarUrl,
@@ -140,9 +151,14 @@ export async function updateCalendarEvent(formData: FormData) {
       rawIcal: event[0].rawIcal,
       ...payload,
     });
-    await db.delete(calendarEvents).where(eq(calendarEvents.id, eventId));
+    await deleteCachedCalendarEvent(eventId);
+    await upsertCachedCalendarEvent({
+      calendarId: targetCalendar.id,
+      remote,
+      ...payload,
+    });
   } else {
-    await updateRemoteCalendarEvent({
+    const remote = await updateRemoteCalendarEvent({
       provider: event[0].provider,
       householdId: household.id,
       calendarUrl: event[0].calendarUrl,
@@ -151,9 +167,13 @@ export async function updateCalendarEvent(formData: FormData) {
       rawIcal: event[0].rawIcal,
       ...payload,
     });
+    await upsertCachedCalendarEvent({
+      calendarId: event[0].calendarId,
+      remote,
+      ...payload,
+    });
   }
 
-  await syncHouseholdCalendars(household.id, true);
   revalidatePath("/", "layout");
 }
 
@@ -191,6 +211,6 @@ export async function deleteCalendarEvent(formData: FormData) {
     eventEtag: event[0].etag,
     rawIcal: event[0].rawIcal,
   });
-  await db.delete(calendarEvents).where(eq(calendarEvents.id, eventId));
+  await deleteCachedCalendarEvent(eventId);
   revalidatePath("/", "layout");
 }

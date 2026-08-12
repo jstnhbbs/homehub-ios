@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, inArray, lt, lte } from "drizzle-orm";
-import { google } from "googleapis";
+import { google, type calendar_v3 } from "googleapis";
 import { db } from "@/db/client";
 import {
   calendarConnections,
@@ -24,10 +24,163 @@ import {
   googleEventToRawIcal,
   parsedEventToGoogleBody,
 } from "./events";
+import type { RemoteCalendarEvent } from "@/lib/calendar/sync";
 
 const LOCK_FOR_MS = 2 * 60 * 1000;
 
 type GoogleConnection = typeof calendarConnections.$inferSelect;
+type GoogleCalendarClient = calendar_v3.Calendar;
+type LocalCalendar = typeof calendars.$inferSelect;
+
+function isGoogleGoneError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error &&
+    typeof error.response === "object" &&
+    error.response !== null &&
+    "status" in error.response &&
+    error.response.status === 410
+  );
+}
+
+function normalizeGoogleEvent(
+  event: calendar_v3.Schema$Event,
+  timezone: string,
+) {
+  if (!event.id || event.status === "cancelled") return null;
+  const parsed = googleEventToParsed(event, timezone);
+  return {
+    href: event.id,
+    etag: event.etag ?? null,
+    rawIcal: googleEventToRawIcal(event, timezone),
+    parsed,
+  };
+}
+
+async function syncGoogleCalendarPageSet(input: {
+  client: GoogleCalendarClient;
+  localCalendar: LocalCalendar;
+  timezone: string;
+  now: number;
+  incremental: boolean;
+}) {
+  const rangeStart = new Date(input.now - 45 * 24 * 60 * 60 * 1000);
+  const rangeEnd = new Date(input.now + 370 * 24 * 60 * 60 * 1000);
+  const syncStartedAt = new Date(input.now);
+  const remoteHrefs = new Set<string>();
+  const changedObjects: NonNullable<ReturnType<typeof normalizeGoogleEvent>>[] = [];
+  const deletedHrefs: string[] = [];
+  let pageToken: string | undefined;
+  let nextSyncToken: string | null | undefined;
+
+  do {
+    const response = await input.client.events.list(
+      input.incremental
+        ? {
+            calendarId: input.localCalendar.url,
+            syncToken: input.localCalendar.syncToken ?? undefined,
+            showDeleted: true,
+            singleEvents: true,
+            maxResults: 2500,
+            pageToken,
+          }
+        : {
+            calendarId: input.localCalendar.url,
+            timeMin: rangeStart.toISOString(),
+            timeMax: rangeEnd.toISOString(),
+            singleEvents: true,
+            maxResults: 2500,
+            orderBy: "startTime",
+            pageToken,
+          },
+    );
+    for (const event of response.data.items ?? []) {
+      if (!event.id) continue;
+      if (event.status === "cancelled") {
+        deletedHrefs.push(event.id);
+        continue;
+      }
+      const object = normalizeGoogleEvent(event, input.timezone);
+      if (!object) continue;
+      changedObjects.push(object);
+      remoteHrefs.add(object.href);
+    }
+    pageToken = response.data.nextPageToken ?? undefined;
+    nextSyncToken = response.data.nextSyncToken;
+  } while (pageToken);
+
+  await db.transaction(async (tx) => {
+    for (const object of changedObjects) {
+      await tx
+        .insert(calendarEvents)
+        .values({
+          id: randomUUID(),
+          calendarId: input.localCalendar.id,
+          href: object.href,
+          etag: object.etag,
+          rawIcal: object.rawIcal,
+          ...object.parsed,
+        })
+        .onConflictDoUpdate({
+          target: [calendarEvents.calendarId, calendarEvents.href],
+          set: {
+            etag: object.etag,
+            rawIcal: object.rawIcal,
+            ...object.parsed,
+            updatedAt: new Date(),
+          },
+        });
+    }
+
+    if (input.incremental) {
+      for (let index = 0; index < deletedHrefs.length; index += 200) {
+        await tx
+          .delete(calendarEvents)
+          .where(
+            and(
+              eq(calendarEvents.calendarId, input.localCalendar.id),
+              inArray(calendarEvents.href, deletedHrefs.slice(index, index + 200)),
+            ),
+          );
+      }
+    } else {
+      const cachedEvents = await tx
+        .select({
+          id: calendarEvents.id,
+          href: calendarEvents.href,
+          updatedAt: calendarEvents.updatedAt,
+        })
+        .from(calendarEvents)
+        .where(eq(calendarEvents.calendarId, input.localCalendar.id));
+      const staleIds = staleCalendarEventIds(
+        cachedEvents,
+        remoteHrefs,
+        syncStartedAt,
+      );
+      for (let index = 0; index < staleIds.length; index += 200) {
+        await tx
+          .delete(calendarEvents)
+          .where(
+            and(
+              eq(calendarEvents.calendarId, input.localCalendar.id),
+              inArray(calendarEvents.id, staleIds.slice(index, index + 200)),
+              lte(calendarEvents.updatedAt, syncStartedAt),
+            ),
+          );
+      }
+    }
+
+    if (nextSyncToken) {
+      await tx
+        .update(calendars)
+        .set({ syncToken: nextSyncToken })
+        .where(eq(calendars.id, input.localCalendar.id));
+    }
+  });
+
+  return changedObjects.length + deletedHrefs.length;
+}
 
 async function getValidAccessToken(connection: GoogleConnection) {
   const now = Date.now();
@@ -243,89 +396,35 @@ export async function syncGoogleCalendars(
         ),
       );
 
-    const rangeStart = new Date(now - 45 * 24 * 60 * 60 * 1000);
-    const rangeEnd = new Date(now + 370 * 24 * 60 * 60 * 1000);
-    const syncStartedAt = new Date(now);
     let count = 0;
 
     for (const localCalendar of selected) {
-      const response = await client.events.list({
-        calendarId: localCalendar.url,
-        timeMin: rangeStart.toISOString(),
-        timeMax: rangeEnd.toISOString(),
-        singleEvents: true,
-        maxResults: 2500,
-        orderBy: "startTime",
-      });
-      const items = response.data.items ?? [];
-      const normalizedObjects = items.flatMap((event) => {
-        if (!event.id) return [];
-        try {
-          const parsed = googleEventToParsed(event, household[0].timezone);
-          return [
-            {
-              href: event.id,
-              etag: event.etag ?? null,
-              rawIcal: googleEventToRawIcal(event, household[0].timezone),
-              parsed,
-            },
-          ];
-        } catch {
-          return [];
-        }
-      });
-      const remoteHrefs = new Set(
-        normalizedObjects.map((object) => object.href),
-      );
-      const cachedEvents = await db
-        .select({
-          id: calendarEvents.id,
-          href: calendarEvents.href,
-          updatedAt: calendarEvents.updatedAt,
-        })
-        .from(calendarEvents)
-        .where(eq(calendarEvents.calendarId, localCalendar.id));
-      const staleIds = staleCalendarEventIds(
-        cachedEvents,
-        remoteHrefs,
-        syncStartedAt,
-      );
-
-      await db.transaction(async (tx) => {
-        for (const object of normalizedObjects) {
-          await tx
-            .insert(calendarEvents)
-            .values({
-              id: randomUUID(),
-              calendarId: localCalendar.id,
-              href: object.href,
-              etag: object.etag,
-              rawIcal: object.rawIcal,
-              ...object.parsed,
-            })
-            .onConflictDoUpdate({
-              target: [calendarEvents.calendarId, calendarEvents.href],
-              set: {
-                etag: object.etag,
-                rawIcal: object.rawIcal,
-                ...object.parsed,
-                updatedAt: new Date(),
-              },
-            });
-          count += 1;
-        }
-        for (let index = 0; index < staleIds.length; index += 200) {
-          await tx
-            .delete(calendarEvents)
-            .where(
-              and(
-                eq(calendarEvents.calendarId, localCalendar.id),
-                inArray(calendarEvents.id, staleIds.slice(index, index + 200)),
-                lte(calendarEvents.updatedAt, syncStartedAt),
-              ),
-            );
-        }
-      });
+      const incremental = Boolean(localCalendar.syncToken);
+      try {
+        count += await syncGoogleCalendarPageSet({
+          client,
+          localCalendar,
+          timezone: household[0].timezone,
+          now,
+          incremental,
+        });
+      } catch (error) {
+        if (!incremental || !isGoogleGoneError(error)) throw error;
+        await db
+          .delete(calendarEvents)
+          .where(eq(calendarEvents.calendarId, localCalendar.id));
+        await db
+          .update(calendars)
+          .set({ syncToken: null })
+          .where(eq(calendars.id, localCalendar.id));
+        count += await syncGoogleCalendarPageSet({
+          client,
+          localCalendar: { ...localCalendar, syncToken: null },
+          timezone: household[0].timezone,
+          now,
+          incremental: false,
+        });
+      }
     }
 
     await db
@@ -373,7 +472,7 @@ export async function createGoogleEvent(input: {
   endsAt: Date;
   allDay: boolean;
   uid: string;
-}) {
+}): Promise<RemoteCalendarEvent> {
   const connection = await db
     .select()
     .from(calendarConnections)
@@ -399,6 +498,11 @@ export async function createGoogleEvent(input: {
     }),
   });
   if (!response.data.id) throw new Error("Google could not create that event.");
+  return {
+    href: response.data.id,
+    etag: response.data.etag ?? null,
+    rawIcal: googleEventToRawIcal(response.data, "UTC"),
+  };
 }
 
 export async function updateGoogleEvent(input: {
@@ -412,7 +516,7 @@ export async function updateGoogleEvent(input: {
   endsAt: Date;
   allDay: boolean;
   uid: string;
-}) {
+}): Promise<RemoteCalendarEvent> {
   const connection = await db
     .select()
     .from(calendarConnections)
@@ -425,7 +529,7 @@ export async function updateGoogleEvent(input: {
     .limit(1);
   if (!connection[0]) throw new Error("Google Calendar is not connected.");
   const client = await getGoogleClient(connection[0]);
-  await client.events.update({
+  const response = await client.events.update({
     calendarId: input.calendarUrl,
     eventId: input.eventId,
     requestBody: parsedEventToGoogleBody({
@@ -438,6 +542,11 @@ export async function updateGoogleEvent(input: {
       uid: input.uid,
     }),
   });
+  return {
+    href: response.data.id ?? input.eventId,
+    etag: response.data.etag ?? null,
+    rawIcal: googleEventToRawIcal(response.data, "UTC"),
+  };
 }
 
 export async function moveGoogleEvent(input: {
@@ -452,7 +561,7 @@ export async function moveGoogleEvent(input: {
   endsAt: Date;
   allDay: boolean;
   uid: string;
-}) {
+}): Promise<RemoteCalendarEvent> {
   const connection = await db
     .select()
     .from(calendarConnections)
@@ -471,7 +580,7 @@ export async function moveGoogleEvent(input: {
     destination: input.toCalendarUrl,
   });
   const eventId = moved.data.id ?? input.eventId;
-  await client.events.update({
+  const response = await client.events.update({
     calendarId: input.toCalendarUrl,
     eventId,
     requestBody: parsedEventToGoogleBody({
@@ -484,6 +593,11 @@ export async function moveGoogleEvent(input: {
       uid: input.uid,
     }),
   });
+  return {
+    href: response.data.id ?? eventId,
+    etag: response.data.etag ?? null,
+    rawIcal: googleEventToRawIcal(response.data, "UTC"),
+  };
 }
 
 export async function deleteGoogleEvent(input: {

@@ -57,7 +57,7 @@ export async function updateCalendarSelection(formData: FormData) {
     z.array(z.string().uuid()).parse(formData.getAll("calendarId")),
   );
   const householdCalendars = await db
-    .select({ id: calendars.id })
+    .select({ id: calendars.id, enabled: calendars.enabled })
     .from(calendars)
     .innerJoin(
       calendarConnections,
@@ -65,6 +65,9 @@ export async function updateCalendarSelection(formData: FormData) {
     )
     .where(eq(calendarConnections.householdId, household.id));
 
+  const enablesNewCalendar = householdCalendars.some(
+    (calendar) => !calendar.enabled && selectedIds.has(calendar.id),
+  );
   for (const calendar of householdCalendars) {
     await db
       .update(calendars)
@@ -72,7 +75,9 @@ export async function updateCalendarSelection(formData: FormData) {
       .where(eq(calendars.id, calendar.id));
   }
 
-  await syncHouseholdCalendars(household.id, true);
+  if (enablesNewCalendar) {
+    await syncHouseholdCalendars(household.id, true);
+  }
   revalidatePath("/", "layout");
 }
 

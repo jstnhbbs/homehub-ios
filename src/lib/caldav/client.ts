@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, inArray, lt, lte } from "drizzle-orm";
-import { DAVClient, type DAVCalendar } from "tsdav";
+import { DAVClient, type DAVCalendar, type DAVCalendarObject } from "tsdav";
 import { db } from "@/db/client";
 import {
   calendarConnections,
@@ -13,9 +13,116 @@ import { upsertDiscoveredCalendars } from "@/lib/calendar/discovery";
 import { calendarSyncIntervalMs } from "@/lib/calendar/sync-interval";
 import { parseIcalEvent, makeIcalEvent } from "./ical";
 import { staleCalendarEventIds } from "./reconcile";
+import type { RemoteCalendarEvent } from "@/lib/calendar/sync";
 
 const ICLOUD_URL = "https://caldav.icloud.com";
 const LOCK_FOR_MS = 2 * 60 * 1000;
+type LocalCalendar = typeof calendars.$inferSelect;
+
+function calendarObjectUrl(calendarUrl: string, filename: string) {
+  return new URL(filename, calendarUrl.endsWith("/") ? calendarUrl : `${calendarUrl}/`)
+    .href;
+}
+
+function calendarResponseObjectUrl(calendarUrl: string, filename: string, response: Response) {
+  const location = response.headers.get("location");
+  if (location) return new URL(location, calendarUrl).href;
+  return calendarObjectUrl(calendarUrl, filename);
+}
+
+function normalizeDavObject(object: DAVCalendarObject, timezone: string) {
+  if (!object.data || !object.url) return null;
+  try {
+    return {
+      href: object.url,
+      etag: object.etag ?? null,
+      rawIcal: object.data,
+      parsed: parseIcalEvent(object.data, timezone),
+    };
+  } catch {
+    // Ignore non-event calendar objects without leaking calendar content.
+    return null;
+  }
+}
+
+async function applyDavObjects(input: {
+  localCalendar: LocalCalendar;
+  timezone: string;
+  objects: DAVCalendarObject[];
+  deletedHrefs?: string[];
+  fullRemoteHrefs?: Set<string>;
+  syncStartedAt?: Date;
+}) {
+  const normalizedObjects = input.objects.flatMap((object) => {
+    const normalized = normalizeDavObject(object, input.timezone);
+    return normalized ? [normalized] : [];
+  });
+
+  await db.transaction(async (tx) => {
+    for (const object of normalizedObjects) {
+      await tx
+        .insert(calendarEvents)
+        .values({
+          id: randomUUID(),
+          calendarId: input.localCalendar.id,
+          href: object.href,
+          etag: object.etag,
+          rawIcal: object.rawIcal,
+          ...object.parsed,
+        })
+        .onConflictDoUpdate({
+          target: [calendarEvents.calendarId, calendarEvents.href],
+          set: {
+            etag: object.etag,
+            rawIcal: object.rawIcal,
+            ...object.parsed,
+            updatedAt: new Date(),
+          },
+        });
+    }
+
+    const deletedHrefs = input.deletedHrefs ?? [];
+    for (let index = 0; index < deletedHrefs.length; index += 200) {
+      await tx
+        .delete(calendarEvents)
+        .where(
+          and(
+            eq(calendarEvents.calendarId, input.localCalendar.id),
+            inArray(calendarEvents.href, deletedHrefs.slice(index, index + 200)),
+          ),
+        );
+    }
+
+    if (input.fullRemoteHrefs && input.syncStartedAt) {
+      const cachedEvents = await tx
+        .select({
+          id: calendarEvents.id,
+          href: calendarEvents.href,
+          updatedAt: calendarEvents.updatedAt,
+        })
+        .from(calendarEvents)
+        .where(eq(calendarEvents.calendarId, input.localCalendar.id));
+      const staleIds = staleCalendarEventIds(
+        cachedEvents,
+        input.fullRemoteHrefs,
+        input.syncStartedAt,
+      );
+      for (let index = 0; index < staleIds.length; index += 200) {
+        await tx
+          .delete(calendarEvents)
+          .where(
+            and(
+              eq(calendarEvents.calendarId, input.localCalendar.id),
+              inArray(calendarEvents.id, staleIds.slice(index, index + 200)),
+              lte(calendarEvents.updatedAt, input.syncStartedAt),
+            ),
+          );
+      }
+    }
+  });
+
+  return normalizedObjects.length + (input.deletedHrefs?.length ?? 0);
+}
 
 function makeClient(username: string, password: string) {
   return new DAVClient({
@@ -172,21 +279,6 @@ export async function syncICloudCalendars(
       decryptSecret(current.encryptedPassword!),
     );
     await client.login();
-    const discovered = await client.fetchCalendars();
-    await upsertDiscoveredCalendars(
-      current.id,
-      discovered.map((calendar) => ({
-        url: calendar.url,
-        displayName:
-          typeof calendar.displayName === "string"
-            ? calendar.displayName
-            : "iCloud Calendar",
-        color: calendar.calendarColor || "#6689a3",
-        syncToken: calendar.syncToken,
-        ctag: calendar.ctag,
-      })),
-      { enableNewCalendars: false },
-    );
     const selected = await db
       .select()
       .from(calendars)
@@ -196,97 +288,126 @@ export async function syncICloudCalendars(
           eq(calendars.enabled, true),
         ),
       );
+    const discovered = await client.fetchCalendars();
+    const remoteByUrl = new Map(
+      discovered.map((calendar) => [calendar.url, calendar]),
+    );
+    await upsertDiscoveredCalendars(
+      current.id,
+      discovered.map((calendar) => ({
+        url: calendar.url,
+        displayName:
+          typeof calendar.displayName === "string"
+            ? calendar.displayName
+            : "iCloud Calendar",
+        color: calendar.calendarColor || "#6689a3",
+      })),
+      { enableNewCalendars: false },
+    );
 
     const rangeStart = new Date(now - 45 * 24 * 60 * 60 * 1000);
     const rangeEnd = new Date(now + 370 * 24 * 60 * 60 * 1000);
     const syncStartedAt = new Date(now);
     let count = 0;
     for (const localCalendar of selected) {
-      const remoteCalendar = {
-        url: localCalendar.url,
-        displayName: localCalendar.displayName,
-        calendarColor: localCalendar.color,
-        syncToken: localCalendar.syncToken,
-        ctag: localCalendar.ctag,
-      } as DAVCalendar;
-      const objects = await client.fetchCalendarObjects({
-        calendar: remoteCalendar,
-        timeRange: {
-          start: rangeStart.toISOString(),
-          end: rangeEnd.toISOString(),
-        },
-      });
-      const normalizedObjects = objects.flatMap((object) => {
-        if (!object.data || !object.url) return [];
-        try {
-          return [
-            {
-              href: object.url,
-              etag: object.etag,
-              rawIcal: object.data,
-              parsed: parseIcalEvent(
-                object.data,
-                household[0].timezone,
-              ),
-            },
-          ];
-        } catch {
-          // Ignore non-event calendar objects without leaking calendar content.
-          return [];
-        }
-      });
-      const remoteHrefs = new Set(
-        normalizedObjects.map((object) => object.href),
-      );
+      const discoveredCalendar = remoteByUrl.get(localCalendar.url);
       const cachedEvents = await db
         .select({
-          id: calendarEvents.id,
           href: calendarEvents.href,
-          updatedAt: calendarEvents.updatedAt,
+          etag: calendarEvents.etag,
+          rawIcal: calendarEvents.rawIcal,
         })
         .from(calendarEvents)
         .where(eq(calendarEvents.calendarId, localCalendar.id));
-      const staleIds = staleCalendarEventIds(
-        cachedEvents,
-        remoteHrefs,
-        syncStartedAt,
-      );
+      const syncTokenMatches =
+        discoveredCalendar?.syncToken &&
+        discoveredCalendar.syncToken === localCalendar.syncToken;
+      const ctagMatches =
+        !discoveredCalendar?.syncToken &&
+        discoveredCalendar?.ctag &&
+        discoveredCalendar.ctag === localCalendar.ctag;
+      if (cachedEvents.length > 0 && (syncTokenMatches || ctagMatches)) {
+        continue;
+      }
 
-      await db.transaction(async (tx) => {
-        for (const object of normalizedObjects) {
-          await tx
-            .insert(calendarEvents)
-            .values({
-              id: randomUUID(),
-              calendarId: localCalendar.id,
-              href: object.href,
-              etag: object.etag,
-              rawIcal: object.rawIcal,
-              ...object.parsed,
-            })
-            .onConflictDoUpdate({
-              target: [calendarEvents.calendarId, calendarEvents.href],
-              set: {
-                etag: object.etag,
-                rawIcal: object.rawIcal,
-                ...object.parsed,
-                updatedAt: new Date(),
-              },
-            });
-          count += 1;
-        }
-        for (let index = 0; index < staleIds.length; index += 200) {
-          await tx
-            .delete(calendarEvents)
-            .where(
-              and(
-                eq(calendarEvents.calendarId, localCalendar.id),
-                inArray(calendarEvents.id, staleIds.slice(index, index + 200)),
-                lte(calendarEvents.updatedAt, syncStartedAt),
-              ),
-            );
-        }
-      });
+      const remoteCalendar = {
+        ...(discoveredCalendar ?? {}),
+        url: localCalendar.url,
+        displayName:
+          discoveredCalendar?.displayName ?? localCalendar.displayName,
+        calendarColor:
+          discoveredCalendar?.calendarColor ?? localCalendar.color,
+        syncToken: localCalendar.syncToken,
+        ctag: localCalendar.ctag,
+      } as DAVCalendar;
+
+      try {
+        const result = await client.smartCollectionSyncDetailed({
+          account: client.account,
+          collection: {
+            ...remoteCalendar,
+            objects: cachedEvents.map((event) => ({
+              url: event.href,
+              etag: event.etag ?? undefined,
+              data: event.rawIcal,
+            })),
+            objectMultiGet: client.calendarMultiGet.bind(client),
+            fetchObjects: (params?: { collection: DAVCalendar }) =>
+              params
+                ? client.fetchCalendarObjects({
+                    calendar: params.collection,
+                    timeRange: {
+                      start: rangeStart.toISOString(),
+                      end: rangeEnd.toISOString(),
+                    },
+                  })
+                : Promise.resolve([]),
+          },
+        });
+        count += await applyDavObjects({
+          localCalendar,
+          timezone: household[0].timezone,
+          objects: [
+            ...result.objects.created,
+            ...result.objects.updated,
+          ] as DAVCalendarObject[],
+          deletedHrefs: result.objects.deleted.map((object) => object.url),
+        });
+        await db
+          .update(calendars)
+          .set({
+            ctag: result.ctag ?? discoveredCalendar?.ctag ?? localCalendar.ctag,
+            syncToken:
+              result.syncToken ??
+              discoveredCalendar?.syncToken ??
+              localCalendar.syncToken,
+          })
+          .where(eq(calendars.id, localCalendar.id));
+      } catch {
+        const objects = await client.fetchCalendarObjects({
+          calendar: remoteCalendar,
+          timeRange: {
+            start: rangeStart.toISOString(),
+            end: rangeEnd.toISOString(),
+          },
+        });
+        count += await applyDavObjects({
+          localCalendar,
+          timezone: household[0].timezone,
+          objects,
+          fullRemoteHrefs: new Set(
+            objects.flatMap((object) => (object.url ? [object.url] : [])),
+          ),
+          syncStartedAt,
+        });
+        await db
+          .update(calendars)
+          .set({
+            ctag: discoveredCalendar?.ctag ?? localCalendar.ctag,
+            syncToken: discoveredCalendar?.syncToken ?? localCalendar.syncToken,
+          })
+          .where(eq(calendars.id, localCalendar.id));
+      }
     }
 
     await db
@@ -358,7 +479,7 @@ export async function createICloudEvent(input: {
   endsAt: Date;
   allDay: boolean;
   uid: string;
-}) {
+}): Promise<RemoteCalendarEvent> {
   const rawIcal = makeIcalEvent({
     uid: input.uid,
     title: input.title,
@@ -369,16 +490,22 @@ export async function createICloudEvent(input: {
     allDay: input.allDay,
   });
   const { client } = await getICloudClientForHousehold(input.householdId);
+  const filename = `${input.uid}.ics`;
   const response = await client.createCalendarObject({
     calendar: {
       url: input.calendarUrl,
       displayName: input.calendarDisplayName,
       calendarColor: input.calendarColor,
     } as DAVCalendar,
-    filename: `${input.uid}.ics`,
+    filename,
     iCalString: rawIcal,
   });
   if (!response.ok) throw new Error("iCloud could not create that event.");
+  return {
+    href: calendarResponseObjectUrl(input.calendarUrl, filename, response),
+    etag: response.headers.get("etag"),
+    rawIcal,
+  };
 }
 
 export async function updateICloudEvent(input: {
@@ -393,7 +520,7 @@ export async function updateICloudEvent(input: {
   endsAt: Date;
   allDay: boolean;
   uid: string;
-}) {
+}): Promise<RemoteCalendarEvent> {
   const rawIcal = makeIcalEvent({
     uid: input.uid,
     title: input.title,
@@ -412,6 +539,11 @@ export async function updateICloudEvent(input: {
     },
   });
   if (!response.ok) throw new Error("iCloud could not update that event.");
+  return {
+    href: input.eventHref,
+    etag: response.headers.get("etag") ?? input.eventEtag,
+    rawIcal,
+  };
 }
 
 export async function deleteICloudEvent(input: {
@@ -447,8 +579,8 @@ export async function moveICloudEvent(input: {
   endsAt: Date;
   allDay: boolean;
   uid: string;
-}) {
-  await createICloudEvent({
+}): Promise<RemoteCalendarEvent> {
+  const created = await createICloudEvent({
     householdId: input.householdId,
     calendarUrl: input.toCalendarUrl,
     calendarDisplayName: input.toCalendarDisplayName,
@@ -467,4 +599,5 @@ export async function moveICloudEvent(input: {
     eventEtag: input.eventEtag,
     rawIcal: input.rawIcal,
   });
+  return created;
 }

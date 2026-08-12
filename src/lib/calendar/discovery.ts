@@ -18,6 +18,14 @@ export async function upsertDiscoveredCalendars(
 ) {
   await db.transaction(async (tx) => {
     for (const calendar of discovered) {
+      const syncStateUpdates: Partial<typeof calendars.$inferInsert> = {};
+      if (calendar.syncToken !== undefined) {
+        syncStateUpdates.syncToken = calendar.syncToken;
+      }
+      if (calendar.ctag !== undefined) {
+        syncStateUpdates.ctag = calendar.ctag;
+      }
+
       await tx
         .insert(calendars)
         .values({
@@ -35,8 +43,7 @@ export async function upsertDiscoveredCalendars(
           set: {
             displayName: calendar.displayName,
             color: calendar.color,
-            syncToken: calendar.syncToken ?? null,
-            ctag: calendar.ctag ?? null,
+            ...syncStateUpdates,
           },
         });
     }

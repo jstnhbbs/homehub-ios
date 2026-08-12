@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, gte, isNotNull, lte, or } from "drizzle-orm";
 import {
   addDays,
   addMonths,
@@ -129,6 +129,13 @@ export default async function CalendarPage({
           and(
             eq(calendarConnections.householdId, household.id),
             eq(calendars.enabled, true),
+            or(
+              isNotNull(calendarEvents.recurrenceRule),
+              and(
+                lte(calendarEvents.startsAt, rangeEnd),
+                gte(calendarEvents.endsAt, rangeStart),
+              ),
+            ),
           ),
         ),
       db

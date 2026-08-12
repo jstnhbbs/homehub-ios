@@ -78,7 +78,6 @@ final class CalendarSettingsViewModel: ObservableObject {
                 ConnectICloudRequest(username: username, password: password)
             )
             applePassword = ""
-            try await appState.api.syncCalendar(force: true)
             await load()
             await appState.refreshDashboard()
             successMessage = "Apple Calendar connected."
@@ -104,7 +103,6 @@ final class CalendarSettingsViewModel: ObservableObject {
                 errorMessage = error
                 return false
             }
-            try await appState.api.syncCalendar(force: true)
             await load()
             await appState.refreshDashboard()
             successMessage = result.success ?? "Google Calendar connected."

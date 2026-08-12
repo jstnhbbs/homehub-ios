@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const connected = await db
-    .select({ householdId: households.id })
+    .selectDistinct({ householdId: households.id })
     .from(calendarConnections)
     .innerJoin(
       households,

@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gte, isNotNull, lte, or } from "drizzle-orm";
 import { fromZonedTime } from "date-fns-tz";
 import {
   ArrowRight,
@@ -14,7 +14,7 @@ import { toggleChore, toggleRoutineStep, toggleSnack } from "@/app/actions";
 import { calendarSyncStatus } from "@/lib/calendar/connections";
 import { CalendarSync } from "@/components/calendar-sync";
 import { CheckItem } from "@/components/check-item";
-import { NapChildRow, SleepDashboardRow } from "@/components/nap-controls";
+import { SleepDashboardRow } from "@/components/nap-controls";
 import { TodaySchedule } from "@/components/today-schedule";
 import { db } from "@/db/client";
 import {
@@ -127,6 +127,13 @@ export default async function DashboardPage() {
         and(
           eq(calendarConnections.householdId, household.id),
           eq(calendars.enabled, true),
+          or(
+            isNotNull(calendarEvents.recurrenceRule),
+            and(
+              lte(calendarEvents.startsAt, dayEnd),
+              gte(calendarEvents.endsAt, dayStart),
+            ),
+          ),
         ),
       ),
     db

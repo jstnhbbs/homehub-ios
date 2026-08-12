@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gte, isNotNull, lte, or } from "drizzle-orm";
 import { fromZonedTime } from "date-fns-tz";
 import { db } from "@/db/client";
 import {
@@ -112,6 +112,13 @@ export async function buildDashboardPayload(
         and(
           eq(calendarConnections.householdId, household.id),
           eq(calendars.enabled, true),
+          or(
+            isNotNull(calendarEvents.recurrenceRule),
+            and(
+              lte(calendarEvents.startsAt, dayEnd),
+              gte(calendarEvents.endsAt, dayStart),
+            ),
+          ),
         ),
       ),
     db
@@ -240,6 +247,13 @@ export async function buildCalendarEvents(
       and(
         eq(calendarConnections.householdId, household.id),
         eq(calendars.enabled, true),
+        or(
+          isNotNull(calendarEvents.recurrenceRule),
+          and(
+            lte(calendarEvents.startsAt, dayEnd),
+            gte(calendarEvents.endsAt, dayStart),
+          ),
+        ),
       ),
     );
 

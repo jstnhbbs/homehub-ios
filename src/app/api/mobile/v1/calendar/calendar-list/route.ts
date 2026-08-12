@@ -32,7 +32,7 @@ export async function PATCH(request: Request) {
 
     const selectedIds = new Set(input.calendarIds);
     const householdCalendars = await db
-      .select({ id: calendars.id })
+      .select({ id: calendars.id, enabled: calendars.enabled })
       .from(calendars)
       .innerJoin(
         calendarConnections,
@@ -40,6 +40,9 @@ export async function PATCH(request: Request) {
       )
       .where(eq(calendarConnections.householdId, household.id));
 
+    const enablesNewCalendar = householdCalendars.some(
+      (calendar) => !calendar.enabled && selectedIds.has(calendar.id),
+    );
     for (const calendar of householdCalendars) {
       await db
         .update(calendars)
@@ -47,7 +50,9 @@ export async function PATCH(request: Request) {
         .where(eq(calendars.id, calendar.id));
     }
 
-    await syncHouseholdCalendars(household.id, true);
+    if (enablesNewCalendar) {
+      await syncHouseholdCalendars(household.id, true);
+    }
     return mobileJson(await listHouseholdCalendars(household.id));
   } catch (error) {
     return handleMobileError(error);

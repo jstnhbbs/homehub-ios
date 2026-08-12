@@ -12,6 +12,16 @@ import {
   deleteICloudEvent,
   moveICloudEvent,
 } from "@/lib/caldav/client";
+import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import { calendarEvents } from "@/db/schema";
+
+export type RemoteCalendarEvent = {
+  href: string;
+  etag: string | null;
+  rawIcal: string;
+};
 
 export type SyncResult =
   | { status: "not-connected" }
@@ -44,9 +54,9 @@ export async function createRemoteCalendarEvent(input: {
   endsAt: Date;
   allDay: boolean;
   uid: string;
-}) {
+}): Promise<RemoteCalendarEvent> {
   if (input.provider === "google") {
-    await createGoogleEvent({
+    return createGoogleEvent({
       householdId: input.householdId,
       calendarUrl: input.calendarUrl,
       title: input.title,
@@ -57,9 +67,8 @@ export async function createRemoteCalendarEvent(input: {
       allDay: input.allDay,
       uid: input.uid,
     });
-    return;
   }
-  await createICloudEvent({
+  return createICloudEvent({
     householdId: input.householdId,
     calendarUrl: input.calendarUrl,
     calendarDisplayName: input.calendarDisplayName,
@@ -88,9 +97,9 @@ export async function updateRemoteCalendarEvent(input: {
   endsAt: Date;
   allDay: boolean;
   uid: string;
-}) {
+}): Promise<RemoteCalendarEvent> {
   if (input.provider === "google") {
-    await updateGoogleEvent({
+    return updateGoogleEvent({
       householdId: input.householdId,
       calendarUrl: input.calendarUrl,
       eventId: input.eventHref,
@@ -102,9 +111,8 @@ export async function updateRemoteCalendarEvent(input: {
       allDay: input.allDay,
       uid: input.uid,
     });
-    return;
   }
-  await updateICloudEvent({
+  return updateICloudEvent({
     householdId: input.householdId,
     eventHref: input.eventHref,
     eventEtag: input.eventEtag,
@@ -136,9 +144,9 @@ export async function moveRemoteCalendarEvent(input: {
   endsAt: Date;
   allDay: boolean;
   uid: string;
-}) {
+}): Promise<RemoteCalendarEvent> {
   if (input.provider === "google") {
-    await moveGoogleEvent({
+    return moveGoogleEvent({
       householdId: input.householdId,
       fromCalendarUrl: input.fromCalendarUrl,
       toCalendarUrl: input.toCalendarUrl,
@@ -151,9 +159,8 @@ export async function moveRemoteCalendarEvent(input: {
       allDay: input.allDay,
       uid: input.uid,
     });
-    return;
   }
-  await moveICloudEvent({
+  return moveICloudEvent({
     householdId: input.householdId,
     fromCalendarUrl: input.fromCalendarUrl,
     toCalendarUrl: input.toCalendarUrl,
@@ -194,4 +201,55 @@ export async function deleteRemoteCalendarEvent(input: {
     eventEtag: input.eventEtag,
     rawIcal: input.rawIcal,
   });
+}
+
+export async function upsertCachedCalendarEvent(input: {
+  calendarId: string;
+  remote: RemoteCalendarEvent;
+  uid: string;
+  title: string;
+  description?: string;
+  location?: string;
+  startsAt: Date;
+  endsAt: Date;
+  allDay: boolean;
+  recurrenceRule?: string | null;
+}) {
+  await db
+    .insert(calendarEvents)
+    .values({
+      id: randomUUID(),
+      calendarId: input.calendarId,
+      href: input.remote.href,
+      etag: input.remote.etag,
+      rawIcal: input.remote.rawIcal,
+      uid: input.uid,
+      title: input.title,
+      description: input.description ?? null,
+      location: input.location ?? null,
+      startsAt: input.startsAt,
+      endsAt: input.endsAt,
+      allDay: input.allDay,
+      recurrenceRule: input.recurrenceRule ?? null,
+    })
+    .onConflictDoUpdate({
+      target: [calendarEvents.calendarId, calendarEvents.href],
+      set: {
+        etag: input.remote.etag,
+        rawIcal: input.remote.rawIcal,
+        uid: input.uid,
+        title: input.title,
+        description: input.description ?? null,
+        location: input.location ?? null,
+        startsAt: input.startsAt,
+        endsAt: input.endsAt,
+        allDay: input.allDay,
+        recurrenceRule: input.recurrenceRule ?? null,
+        updatedAt: new Date(),
+      },
+    });
+}
+
+export async function deleteCachedCalendarEvent(eventId: string) {
+  await db.delete(calendarEvents).where(eq(calendarEvents.id, eventId));
 }

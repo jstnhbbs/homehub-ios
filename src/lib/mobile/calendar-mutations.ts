@@ -13,9 +13,10 @@ import {
 } from "@/lib/calendar/event-input";
 import {
   createRemoteCalendarEvent,
+  deleteCachedCalendarEvent,
   deleteRemoteCalendarEvent,
   moveRemoteCalendarEvent,
-  syncHouseholdCalendars,
+  upsertCachedCalendarEvent,
   updateRemoteCalendarEvent,
 } from "@/lib/calendar/sync";
 import type { getCurrentHousehold } from "@/lib/household";
@@ -57,7 +58,7 @@ export async function createMobileCalendarEvent(
     household.timezone,
   );
   const uid = `${randomUUID()}@homehub`;
-  await createRemoteCalendarEvent({
+  const remote = await createRemoteCalendarEvent({
     provider: calendar.provider,
     householdId: household.id,
     calendarUrl: calendar.url,
@@ -71,7 +72,17 @@ export async function createMobileCalendarEvent(
     allDay,
     uid,
   });
-  await syncHouseholdCalendars(household.id, true);
+  await upsertCachedCalendarEvent({
+    calendarId: calendar.id,
+    remote,
+    uid,
+    title: input.title,
+    description: input.description,
+    location: input.location,
+    startsAt,
+    endsAt,
+    allDay,
+  });
   return { ok: true as const };
 }
 
@@ -128,7 +139,7 @@ export async function updateMobileCalendarEvent(
   };
 
   if (input.calendarId !== event[0].calendarId) {
-    await moveRemoteCalendarEvent({
+    const remote = await moveRemoteCalendarEvent({
       provider: event[0].provider,
       householdId: household.id,
       fromCalendarUrl: event[0].calendarUrl,
@@ -140,9 +151,14 @@ export async function updateMobileCalendarEvent(
       rawIcal: event[0].rawIcal,
       ...payload,
     });
-    await db.delete(calendarEvents).where(eq(calendarEvents.id, eventId));
+    await deleteCachedCalendarEvent(eventId);
+    await upsertCachedCalendarEvent({
+      calendarId: targetCalendar.id,
+      remote,
+      ...payload,
+    });
   } else {
-    await updateRemoteCalendarEvent({
+    const remote = await updateRemoteCalendarEvent({
       provider: event[0].provider,
       householdId: household.id,
       calendarUrl: event[0].calendarUrl,
@@ -151,9 +167,13 @@ export async function updateMobileCalendarEvent(
       rawIcal: event[0].rawIcal,
       ...payload,
     });
+    await upsertCachedCalendarEvent({
+      calendarId: event[0].calendarId,
+      remote,
+      ...payload,
+    });
   }
 
-  await syncHouseholdCalendars(household.id, true);
   return { ok: true as const };
 }
 
@@ -192,7 +212,7 @@ export async function deleteMobileCalendarEvent(
     eventEtag: event[0].etag,
     rawIcal: event[0].rawIcal,
   });
-  await db.delete(calendarEvents).where(eq(calendarEvents.id, eventId));
+  await deleteCachedCalendarEvent(eventId);
   return { ok: true as const };
 }
 
