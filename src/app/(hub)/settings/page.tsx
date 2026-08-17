@@ -2,10 +2,13 @@ import { asc, eq } from "drizzle-orm";
 import {
   CalendarDays,
   Copy,
+  Bell,
   Moon,
   Pencil,
   Plus,
+  RotateCcw,
   ShieldCheck,
+  Sun,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -134,6 +137,45 @@ export default async function SettingsPage() {
           </p>
           <Link href="/settings/calendar" className="hub-button mt-6">
             Calendar settings
+          </Link>
+        </section>
+
+        <section className="hub-card p-6 max-md:p-4">
+          <Bell className="text-[var(--sage)]" size={28} />
+          <h2 className="font-display mt-4 text-2xl font-semibold">
+            Notifications
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            Tune reminder categories and quiet hours for this parent account.
+          </p>
+          <Link href="/settings/notifications" className="hub-button mt-6">
+            Reminder settings
+          </Link>
+        </section>
+
+        <section className="hub-card p-6 max-md:p-4">
+          <Sun className="text-[var(--sun)]" size={28} />
+          <h2 className="font-display mt-4 text-2xl font-semibold">
+            Weather
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            Set the location used by the dashboard forecast card.
+          </p>
+          <Link href="/settings/weather" className="hub-button mt-6">
+            Weather settings
+          </Link>
+        </section>
+
+        <section className="hub-card p-6 max-md:p-4">
+          <RotateCcw className="text-[var(--blue)]" size={28} />
+          <h2 className="font-display mt-4 text-2xl font-semibold">
+            Recycle bin
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            Restore deleted shopping items, notes, and birthday records.
+          </p>
+          <Link href="/settings/recycle-bin" className="hub-button mt-6">
+            Open recycle bin
           </Link>
         </section>
 

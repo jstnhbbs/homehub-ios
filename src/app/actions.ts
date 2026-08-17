@@ -10,20 +10,29 @@ import { db } from "@/db/client";
 import {
   choreCompletions,
   chores,
+  familyBirthdays,
   householdMembers,
+  householdNotes,
   households,
   meals,
+  notificationPreferences,
   profiles,
   recipes,
+  recycleBinItems,
   routineCompletions,
   routines,
   routineSteps,
+  schoolPeriods,
+  schoolScheduleEntries,
+  schoolSubjects,
+  shoppingItems,
   snackCompletions,
 } from "@/db/schema";
 import { choreDaysForCadence } from "@/lib/chores";
 import { localDateIn } from "@/lib/dates";
 import { parseSnackOptions } from "@/lib/meals/snacks";
 import { isGuest } from "@/lib/household-roles";
+import { categorizeShoppingItem, parseShoppingTitle } from "@/lib/shopping";
 import {
   requireHousehold,
   requireParentHousehold,
@@ -40,6 +49,8 @@ function text(formData: FormData, key: string) {
 }
 
 const shortText = z.string().trim().min(1).max(120);
+const optionalText = z.string().trim().max(2000);
+const colorText = z.string().trim().regex(/^#[0-9a-f]{6}$/i);
 
 function generateInviteCode() {
   return randomBytes(4).toString("hex").toUpperCase();
@@ -761,5 +772,476 @@ export async function copyPreviousMealWeek(formData: FormData) {
         },
       });
   }
+  revalidatePath("/", "layout");
+}
+
+async function addRecycleBinItem({
+  householdId,
+  itemType,
+  itemId,
+  label,
+  snapshot,
+}: {
+  householdId: string;
+  itemType: string;
+  itemId: string;
+  label: string;
+  snapshot: unknown;
+}) {
+  const deletedAt = new Date();
+  const restoreBy = addDays(deletedAt, 30);
+  await db.insert(recycleBinItems).values({
+    id: randomUUID(),
+    householdId,
+    itemType,
+    itemId,
+    label,
+    snapshot: JSON.stringify(snapshot),
+    deletedAt,
+    restoreBy,
+  });
+}
+
+export async function addShoppingItem(formData: FormData) {
+  const household = await requireHousehold();
+  const rawTitle = shortText.parse(text(formData, "title"));
+  const parsed = parseShoppingTitle(rawTitle);
+  const category =
+    text(formData, "category") || categorizeShoppingItem(parsed.title);
+  await db.insert(shoppingItems).values({
+    id: randomUUID(),
+    householdId: household.id,
+    title: parsed.title,
+    quantity: parsed.quantity || null,
+    category: shortText.parse(category),
+  });
+  revalidatePath("/", "layout");
+}
+
+export async function toggleShoppingItem(itemId: string, checked: boolean) {
+  const household = await requireHousehold();
+  await db
+    .update(shoppingItems)
+    .set({
+      checked,
+      checkedAt: checked ? new Date() : null,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(eq(shoppingItems.id, itemId), eq(shoppingItems.householdId, household.id)),
+    );
+  revalidatePath("/", "layout");
+}
+
+export async function deleteShoppingItem(itemId: string) {
+  const household = await requireHousehold();
+  const item = await db
+    .select()
+    .from(shoppingItems)
+    .where(
+      and(eq(shoppingItems.id, itemId), eq(shoppingItems.householdId, household.id)),
+    )
+    .limit(1);
+  if (!item[0]) throw new Error("Shopping item not found.");
+  await addRecycleBinItem({
+    householdId: household.id,
+    itemType: "shopping_item",
+    itemId,
+    label: item[0].title,
+    snapshot: item[0],
+  });
+  await db.delete(shoppingItems).where(eq(shoppingItems.id, itemId));
+  revalidatePath("/", "layout");
+}
+
+export async function clearCheckedShoppingItems() {
+  const household = await requireHousehold();
+  const items = await db
+    .select()
+    .from(shoppingItems)
+    .where(
+      and(eq(shoppingItems.householdId, household.id), eq(shoppingItems.checked, true)),
+    );
+  for (const item of items) {
+    await addRecycleBinItem({
+      householdId: household.id,
+      itemType: "shopping_item",
+      itemId: item.id,
+      label: item.title,
+      snapshot: item,
+    });
+  }
+  await db
+    .delete(shoppingItems)
+    .where(
+      and(eq(shoppingItems.householdId, household.id), eq(shoppingItems.checked, true)),
+    );
+  revalidatePath("/", "layout");
+}
+
+export async function addHouseholdNote(formData: FormData) {
+  const household = await requireHousehold();
+  const user = await requireUser();
+  const input = z
+    .object({
+      title: shortText,
+      body: optionalText,
+      color: colorText,
+    })
+    .parse({
+      title: text(formData, "title"),
+      body: text(formData, "body"),
+      color: text(formData, "color") || "#f8e8bf",
+    });
+  await db.insert(householdNotes).values({
+    id: randomUUID(),
+    householdId: household.id,
+    createdByUserId: user.id,
+    title: input.title,
+    body: input.body,
+    color: input.color,
+  });
+  revalidatePath("/", "layout");
+}
+
+export async function deleteHouseholdNote(noteId: string) {
+  const household = await requireHousehold();
+  const note = await db
+    .select()
+    .from(householdNotes)
+    .where(
+      and(eq(householdNotes.id, noteId), eq(householdNotes.householdId, household.id)),
+    )
+    .limit(1);
+  if (!note[0]) throw new Error("Note not found.");
+  await addRecycleBinItem({
+    householdId: household.id,
+    itemType: "household_note",
+    itemId: noteId,
+    label: note[0].title,
+    snapshot: note[0],
+  });
+  await db.delete(householdNotes).where(eq(householdNotes.id, noteId));
+  revalidatePath("/", "layout");
+}
+
+export async function addFamilyBirthday(formData: FormData) {
+  const household = await requireHousehold();
+  const profileId = text(formData, "profileId");
+  const input = z
+    .object({
+      name: shortText,
+      birthDate: z.string().date(),
+      notes: optionalText,
+      giftIdeas: optionalText,
+      notifyDaysBefore: z.coerce.number().int().min(0).max(60),
+    })
+    .parse({
+      name: text(formData, "name"),
+      birthDate: text(formData, "birthDate"),
+      notes: text(formData, "notes"),
+      giftIdeas: text(formData, "giftIdeas"),
+      notifyDaysBefore: text(formData, "notifyDaysBefore") || "7",
+    });
+  if (profileId) {
+    const profile = await db
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(and(eq(profiles.id, profileId), eq(profiles.householdId, household.id)))
+      .limit(1);
+    if (!profile[0]) throw new Error("Profile not found.");
+  }
+  await db.insert(familyBirthdays).values({
+    id: randomUUID(),
+    householdId: household.id,
+    profileId: profileId || null,
+    name: input.name,
+    birthDate: input.birthDate,
+    notes: input.notes || null,
+    giftIdeas: input.giftIdeas || null,
+    notifyDaysBefore: input.notifyDaysBefore,
+  });
+  revalidatePath("/", "layout");
+}
+
+export async function deleteFamilyBirthday(birthdayId: string) {
+  const household = await requireHousehold();
+  const birthday = await db
+    .select()
+    .from(familyBirthdays)
+    .where(
+      and(
+        eq(familyBirthdays.id, birthdayId),
+        eq(familyBirthdays.householdId, household.id),
+      ),
+    )
+    .limit(1);
+  if (!birthday[0]) throw new Error("Birthday not found.");
+  await addRecycleBinItem({
+    householdId: household.id,
+    itemType: "family_birthday",
+    itemId: birthdayId,
+    label: birthday[0].name,
+    snapshot: birthday[0],
+  });
+  await db.delete(familyBirthdays).where(eq(familyBirthdays.id, birthdayId));
+  revalidatePath("/", "layout");
+}
+
+export async function addSchoolSubject(formData: FormData) {
+  const household = await requireHousehold();
+  const input = z
+    .object({
+      name: shortText,
+      color: colorText,
+      packItems: optionalText,
+    })
+    .parse({
+      name: text(formData, "name"),
+      color: text(formData, "color") || "#6689a3",
+      packItems: text(formData, "packItems"),
+    });
+  await db.insert(schoolSubjects).values({
+    id: randomUUID(),
+    householdId: household.id,
+    name: input.name,
+    color: input.color,
+    packItems: input.packItems,
+  });
+  revalidatePath("/", "layout");
+}
+
+export async function addSchoolPeriod(formData: FormData) {
+  const household = await requireHousehold();
+  const input = z
+    .object({
+      label: shortText,
+      startsAt: z.string().regex(/^\d{2}:\d{2}$/),
+      endsAt: z.string().regex(/^\d{2}:\d{2}$/),
+    })
+    .parse({
+      label: text(formData, "label"),
+      startsAt: text(formData, "startsAt") || "08:00",
+      endsAt: text(formData, "endsAt") || "08:45",
+    });
+  await db.insert(schoolPeriods).values({
+    id: randomUUID(),
+    householdId: household.id,
+    label: input.label,
+    startsAt: input.startsAt,
+    endsAt: input.endsAt,
+  });
+  revalidatePath("/", "layout");
+}
+
+export async function addSchoolScheduleEntry(formData: FormData) {
+  const household = await requireHousehold();
+  const profileId = text(formData, "profileId");
+  const input = z
+    .object({
+      subjectId: z.string().uuid(),
+      periodId: z.string().uuid(),
+      weekday: z.coerce.number().int().min(0).max(6),
+      room: z.string().trim().max(80),
+      notes: z.string().trim().max(500),
+    })
+    .parse({
+      subjectId: text(formData, "subjectId"),
+      periodId: text(formData, "periodId"),
+      weekday: text(formData, "weekday"),
+      room: text(formData, "room"),
+      notes: text(formData, "notes"),
+    });
+  const [subject, period, profile] = await Promise.all([
+    db
+      .select({ id: schoolSubjects.id })
+      .from(schoolSubjects)
+      .where(
+        and(
+          eq(schoolSubjects.id, input.subjectId),
+          eq(schoolSubjects.householdId, household.id),
+        ),
+      )
+      .limit(1),
+    db
+      .select({ id: schoolPeriods.id })
+      .from(schoolPeriods)
+      .where(
+        and(
+          eq(schoolPeriods.id, input.periodId),
+          eq(schoolPeriods.householdId, household.id),
+        ),
+      )
+      .limit(1),
+    profileId
+      ? db
+          .select({ id: profiles.id })
+          .from(profiles)
+          .where(and(eq(profiles.id, profileId), eq(profiles.householdId, household.id)))
+          .limit(1)
+      : Promise.resolve([{ id: "" }]),
+  ]);
+  if (!subject[0]) throw new Error("Subject not found.");
+  if (!period[0]) throw new Error("Period not found.");
+  if (!profile[0]) throw new Error("Profile not found.");
+  await db
+    .insert(schoolScheduleEntries)
+    .values({
+      id: randomUUID(),
+      householdId: household.id,
+      profileId: profileId || null,
+      subjectId: input.subjectId,
+      periodId: input.periodId,
+      weekday: input.weekday,
+      room: input.room || null,
+      notes: input.notes || null,
+    })
+    .onConflictDoUpdate({
+      target: [
+        schoolScheduleEntries.householdId,
+        schoolScheduleEntries.profileId,
+        schoolScheduleEntries.periodId,
+        schoolScheduleEntries.weekday,
+      ],
+      set: {
+        subjectId: input.subjectId,
+        room: input.room || null,
+        notes: input.notes || null,
+        updatedAt: new Date(),
+      },
+    });
+  revalidatePath("/", "layout");
+}
+
+export async function deleteSchoolScheduleEntry(entryId: string) {
+  const household = await requireHousehold();
+  await db
+    .delete(schoolScheduleEntries)
+    .where(
+      and(
+        eq(schoolScheduleEntries.id, entryId),
+        eq(schoolScheduleEntries.householdId, household.id),
+      ),
+    );
+  revalidatePath("/", "layout");
+}
+
+export async function saveNotificationPreferences(formData: FormData) {
+  const household = await requireHousehold();
+  const user = await requireUser();
+  const input = z
+    .object({
+      quietStart: z.string().regex(/^\d{2}:\d{2}$/),
+      quietEnd: z.string().regex(/^\d{2}:\d{2}$/),
+    })
+    .parse({
+      quietStart: text(formData, "quietStart") || "20:30",
+      quietEnd: text(formData, "quietEnd") || "07:00",
+    });
+  const values = {
+    calendarReminders: formData.get("calendarReminders") === "on",
+    choreDigest: formData.get("choreDigest") === "on",
+    birthdayReminders: formData.get("birthdayReminders") === "on",
+    schoolReminders: formData.get("schoolReminders") === "on",
+    quietStart: input.quietStart,
+    quietEnd: input.quietEnd,
+  };
+  await db
+    .insert(notificationPreferences)
+    .values({
+      id: randomUUID(),
+      householdId: household.id,
+      userId: user.id,
+      ...values,
+    })
+    .onConflictDoUpdate({
+      target: [
+        notificationPreferences.householdId,
+        notificationPreferences.userId,
+      ],
+      set: { ...values, updatedAt: new Date() },
+    });
+  revalidatePath("/", "layout");
+}
+
+export async function saveWeatherSettings(formData: FormData) {
+  const household = await requireParentHousehold();
+  const input = z
+    .object({
+      location: shortText,
+      latitude: z.coerce.number().min(-90).max(90),
+      longitude: z.coerce.number().min(-180).max(180),
+    })
+    .parse({
+      location: text(formData, "location"),
+      latitude: text(formData, "latitude"),
+      longitude: text(formData, "longitude"),
+    });
+  await db
+    .update(households)
+    .set({
+      weatherLocation: input.location,
+      weatherLatitude: String(input.latitude),
+      weatherLongitude: String(input.longitude),
+      updatedAt: new Date(),
+    })
+    .where(eq(households.id, household.id));
+  revalidatePath("/", "layout");
+}
+
+export async function restoreRecycleBinItem(itemId: string) {
+  const household = await requireHousehold();
+  const item = await db
+    .select()
+    .from(recycleBinItems)
+    .where(
+      and(eq(recycleBinItems.id, itemId), eq(recycleBinItems.householdId, household.id)),
+    )
+    .limit(1);
+  if (!item[0]) throw new Error("Recycle bin item not found.");
+
+  const snapshot = JSON.parse(item[0].snapshot) as Record<string, unknown>;
+  const now = new Date();
+  if (item[0].itemType === "shopping_item") {
+    await db.insert(shoppingItems).values({
+      id: String(snapshot.id),
+      householdId: household.id,
+      title: String(snapshot.title),
+      quantity: snapshot.quantity ? String(snapshot.quantity) : null,
+      category: String(snapshot.category ?? "Other"),
+      checked: Boolean(snapshot.checked),
+      checkedAt: null,
+      sortOrder: Number(snapshot.sortOrder ?? 0),
+      createdAt: now,
+      updatedAt: now,
+    });
+  } else if (item[0].itemType === "household_note") {
+    await db.insert(householdNotes).values({
+      id: String(snapshot.id),
+      householdId: household.id,
+      createdByUserId: null,
+      title: String(snapshot.title),
+      body: String(snapshot.body ?? ""),
+      color: String(snapshot.color ?? "#f8e8bf"),
+      pinned: Boolean(snapshot.pinned ?? true),
+      createdAt: now,
+      updatedAt: now,
+    });
+  } else if (item[0].itemType === "family_birthday") {
+    await db.insert(familyBirthdays).values({
+      id: String(snapshot.id),
+      householdId: household.id,
+      profileId: snapshot.profileId ? String(snapshot.profileId) : null,
+      name: String(snapshot.name),
+      birthDate: String(snapshot.birthDate),
+      notes: snapshot.notes ? String(snapshot.notes) : null,
+      giftIdeas: snapshot.giftIdeas ? String(snapshot.giftIdeas) : null,
+      notifyDaysBefore: Number(snapshot.notifyDaysBefore ?? 7),
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  await db.delete(recycleBinItems).where(eq(recycleBinItems.id, itemId));
   revalidatePath("/", "layout");
 }

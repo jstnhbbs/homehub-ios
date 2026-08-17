@@ -95,6 +95,9 @@ export const households = sqliteTable("households", {
   inviteCode: text("invite_code").notNull().unique(),
   guestInviteCode: text("guest_invite_code").notNull().unique(),
   snackOptions: text("snack_options").notNull().default(""),
+  weatherLocation: text("weather_location").notNull().default("Chicago, IL"),
+  weatherLatitude: text("weather_latitude").notNull().default("41.8781"),
+  weatherLongitude: text("weather_longitude").notNull().default("-87.6298"),
   ...timestamps,
 });
 
@@ -332,6 +335,195 @@ export const meals = sqliteTable(
       table.localDate,
       table.slot,
     ),
+  ],
+);
+
+export const shoppingItems = sqliteTable(
+  "shopping_items",
+  {
+    id: text("id").primaryKey(),
+    householdId: text("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    quantity: text("quantity"),
+    category: text("category").notNull().default("Other"),
+    checked: integer("checked", { mode: "boolean" }).notNull().default(false),
+    checkedAt: integer("checked_at", { mode: "timestamp" }),
+    sortOrder: integer("sort_order").notNull().default(0),
+    ...timestamps,
+  },
+  (table) => [
+    index("shopping_items_household_idx").on(table.householdId),
+    index("shopping_items_checked_idx").on(table.householdId, table.checked),
+  ],
+);
+
+export const householdNotes = sqliteTable(
+  "household_notes",
+  {
+    id: text("id").primaryKey(),
+    householdId: text("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    createdByUserId: text("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    title: text("title").notNull(),
+    body: text("body").notNull().default(""),
+    color: text("color").notNull().default("#f8e8bf"),
+    pinned: integer("pinned", { mode: "boolean" }).notNull().default(true),
+    ...timestamps,
+  },
+  (table) => [
+    index("household_notes_household_idx").on(table.householdId),
+    index("household_notes_pinned_idx").on(table.householdId, table.pinned),
+  ],
+);
+
+export const familyBirthdays = sqliteTable(
+  "family_birthdays",
+  {
+    id: text("id").primaryKey(),
+    householdId: text("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    profileId: text("profile_id").references(() => profiles.id, {
+      onDelete: "cascade",
+    }),
+    name: text("name").notNull(),
+    birthDate: text("birth_date").notNull(),
+    notes: text("notes"),
+    giftIdeas: text("gift_ideas"),
+    notifyDaysBefore: integer("notify_days_before").notNull().default(7),
+    ...timestamps,
+  },
+  (table) => [
+    index("family_birthdays_household_idx").on(table.householdId),
+    index("family_birthdays_profile_idx").on(table.profileId),
+  ],
+);
+
+export const schoolSubjects = sqliteTable(
+  "school_subjects",
+  {
+    id: text("id").primaryKey(),
+    householdId: text("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    color: text("color").notNull().default("#6689a3"),
+    packItems: text("pack_items").notNull().default(""),
+    sortOrder: integer("sort_order").notNull().default(0),
+    ...timestamps,
+  },
+  (table) => [index("school_subjects_household_idx").on(table.householdId)],
+);
+
+export const schoolPeriods = sqliteTable(
+  "school_periods",
+  {
+    id: text("id").primaryKey(),
+    householdId: text("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    startsAt: text("starts_at").notNull().default("08:00"),
+    endsAt: text("ends_at").notNull().default("08:45"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    ...timestamps,
+  },
+  (table) => [index("school_periods_household_idx").on(table.householdId)],
+);
+
+export const schoolScheduleEntries = sqliteTable(
+  "school_schedule_entries",
+  {
+    id: text("id").primaryKey(),
+    householdId: text("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    profileId: text("profile_id").references(() => profiles.id, {
+      onDelete: "cascade",
+    }),
+    subjectId: text("subject_id")
+      .notNull()
+      .references(() => schoolSubjects.id, { onDelete: "cascade" }),
+    periodId: text("period_id")
+      .notNull()
+      .references(() => schoolPeriods.id, { onDelete: "cascade" }),
+    weekday: integer("weekday").notNull(),
+    room: text("room"),
+    notes: text("notes"),
+    ...timestamps,
+  },
+  (table) => [
+    index("school_schedule_household_day_idx").on(
+      table.householdId,
+      table.weekday,
+    ),
+    uniqueIndex("school_schedule_slot_idx").on(
+      table.householdId,
+      table.profileId,
+      table.periodId,
+      table.weekday,
+    ),
+  ],
+);
+
+export const notificationPreferences = sqliteTable(
+  "notification_preferences",
+  {
+    id: text("id").primaryKey(),
+    householdId: text("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    calendarReminders: integer("calendar_reminders", { mode: "boolean" })
+      .notNull()
+      .default(true),
+    choreDigest: integer("chore_digest", { mode: "boolean" })
+      .notNull()
+      .default(true),
+    birthdayReminders: integer("birthday_reminders", { mode: "boolean" })
+      .notNull()
+      .default(true),
+    schoolReminders: integer("school_reminders", { mode: "boolean" })
+      .notNull()
+      .default(true),
+    quietStart: text("quiet_start").notNull().default("20:30"),
+    quietEnd: text("quiet_end").notNull().default("07:00"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("notification_preferences_user_household_idx").on(
+      table.householdId,
+      table.userId,
+    ),
+  ],
+);
+
+export const recycleBinItems = sqliteTable(
+  "recycle_bin_items",
+  {
+    id: text("id").primaryKey(),
+    householdId: text("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    itemType: text("item_type").notNull(),
+    itemId: text("item_id").notNull(),
+    label: text("label").notNull(),
+    snapshot: text("snapshot").notNull(),
+    deletedAt: integer("deleted_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
+      .notNull(),
+    restoreBy: integer("restore_by", { mode: "timestamp" }),
+  },
+  (table) => [
+    index("recycle_bin_household_idx").on(table.householdId),
+    index("recycle_bin_type_idx").on(table.householdId, table.itemType),
   ],
 );
 

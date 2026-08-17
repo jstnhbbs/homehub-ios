@@ -31,6 +31,9 @@ export async function getCurrentHousehold() {
       inviteCode: households.inviteCode,
       guestInviteCode: households.guestInviteCode,
       snackOptions: households.snackOptions,
+      weatherLocation: households.weatherLocation,
+      weatherLatitude: households.weatherLatitude,
+      weatherLongitude: households.weatherLongitude,
       role: householdMembers.role,
     })
     .from(householdMembers)

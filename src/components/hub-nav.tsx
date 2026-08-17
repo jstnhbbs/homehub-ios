@@ -1,13 +1,16 @@
 "use client";
 
 import {
+  BookOpen,
   CalendarDays,
   CheckSquare2,
   ClipboardCheck,
   Home,
+  ListChecks,
   Moon,
   Settings,
   Soup,
+  StickyNote,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -21,6 +24,8 @@ import { cn } from "@/lib/utils";
 const items = [
   { href: "/dashboard", label: "Today", icon: Home },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/shopping", label: "Shopping", icon: ListChecks },
+  { href: "/notes", label: "Notes", icon: StickyNote },
   {
     href: "/routines",
     label: "Routines",
@@ -34,6 +39,7 @@ const items = [
     module: "chores" satisfies HubModuleId,
   },
   { href: "/meals", label: "Food", icon: Soup },
+  { href: "/school", label: "School", icon: BookOpen },
   { href: "/sleep", label: "Sleep", icon: Moon },
   { href: "/settings", label: "Settings", icon: Settings, parentOnly: true },
 ] as const;
