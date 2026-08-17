@@ -1,9 +1,11 @@
 import { Save, Sun } from "lucide-react";
 import { saveWeatherSettings } from "@/app/actions";
 import { requireHousehold } from "@/lib/household";
+import { normalizeUsZipCode } from "@/lib/weather";
 
 export default async function WeatherSettingsPage() {
   const household = await requireHousehold();
+  const zipCode = normalizeUsZipCode(household.weatherLocation);
   return (
     <div className="mx-auto max-w-3xl pb-10">
       <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--sage)]">
@@ -15,22 +17,18 @@ export default async function WeatherSettingsPage() {
       <form action={saveWeatherSettings} className="hub-card mt-6 grid gap-4 p-6">
         <Sun className="text-[var(--sun)]" size={30} />
         <input
-          name="location"
+          name="zipCode"
           className="hub-input"
-          defaultValue={household.weatherLocation}
-          placeholder="Chicago, IL"
+          defaultValue={zipCode}
+          inputMode="numeric"
+          pattern="[0-9]{5}"
+          maxLength={5}
+          placeholder="60601"
           required
         />
-        <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-          <label className="text-xs font-bold">
-            Latitude
-            <input name="latitude" className="hub-input mt-1" defaultValue={household.weatherLatitude} required />
-          </label>
-          <label className="text-xs font-bold">
-            Longitude
-            <input name="longitude" className="hub-input mt-1" defaultValue={household.weatherLongitude} required />
-          </label>
-        </div>
+        <p className="text-sm font-semibold text-[var(--muted)]">
+          Current forecast area: {household.weatherLocation}
+        </p>
         <button className="hub-button w-fit">
           <Save size={18} /> Save weather
         </button>

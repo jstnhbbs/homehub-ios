@@ -33,6 +33,7 @@ import { localDateIn } from "@/lib/dates";
 import { parseSnackOptions } from "@/lib/meals/snacks";
 import { isGuest } from "@/lib/household-roles";
 import { categorizeShoppingItem, parseShoppingTitle } from "@/lib/shopping";
+import { normalizeUsZipCode, resolveUsZipCode } from "@/lib/weather";
 import {
   requireHousehold,
   requireParentHousehold,
@@ -1166,23 +1167,18 @@ export async function saveNotificationPreferences(formData: FormData) {
 
 export async function saveWeatherSettings(formData: FormData) {
   const household = await requireParentHousehold();
-  const input = z
-    .object({
-      location: shortText,
-      latitude: z.coerce.number().min(-90).max(90),
-      longitude: z.coerce.number().min(-180).max(180),
-    })
-    .parse({
-      location: text(formData, "location"),
-      latitude: text(formData, "latitude"),
-      longitude: text(formData, "longitude"),
-    });
+  const zipCode = normalizeUsZipCode(text(formData, "zipCode"));
+  if (!zipCode) {
+    revalidatePath("/", "layout");
+    return;
+  }
+  const resolved = await resolveUsZipCode(zipCode);
   await db
     .update(households)
     .set({
-      weatherLocation: input.location,
-      weatherLatitude: String(input.latitude),
-      weatherLongitude: String(input.longitude),
+      weatherLocation: resolved?.location ?? zipCode,
+      weatherLatitude: resolved?.latitude ?? "",
+      weatherLongitude: resolved?.longitude ?? "",
       updatedAt: new Date(),
     })
     .where(eq(households.id, household.id));

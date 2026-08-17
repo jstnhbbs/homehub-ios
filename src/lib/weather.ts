@@ -12,6 +12,15 @@ type WeatherResponse = {
   };
 };
 
+type ZipLookupResponse = {
+  places?: Array<{
+    "place name"?: string;
+    "state abbreviation"?: string;
+    latitude?: string;
+    longitude?: string;
+  }>;
+};
+
 const WEATHER_LABELS = new Map<number, string>([
   [0, "Clear"],
   [1, "Mostly clear"],
@@ -40,6 +49,37 @@ export type HouseholdWeather = {
   label: string;
 };
 
+export function normalizeUsZipCode(value: string) {
+  const zip = value.trim().match(/\d{5}/)?.[0];
+  return zip ?? "";
+}
+
+export async function resolveUsZipCode(zipCode: string) {
+  const zip = normalizeUsZipCode(zipCode);
+  if (!zip) return null;
+
+  try {
+    const response = await fetch(`https://api.zippopotam.us/us/${zip}`, {
+      next: { revalidate: 60 * 60 * 24 * 7 },
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as ZipLookupResponse;
+    const place = data.places?.[0];
+    if (!place?.latitude || !place.longitude) return null;
+    const cityState = [place["place name"], place["state abbreviation"]]
+      .filter(Boolean)
+      .join(", ");
+    return {
+      zipCode: zip,
+      location: cityState ? `${cityState} ${zip}` : zip,
+      latitude: place.latitude,
+      longitude: place.longitude,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchHouseholdWeather({
   location,
   latitude,
@@ -49,8 +89,12 @@ export async function fetchHouseholdWeather({
   latitude: string;
   longitude: string;
 }): Promise<HouseholdWeather | null> {
-  const lat = Number(latitude);
-  const lon = Number(longitude);
+  const resolved =
+    latitude && longitude
+      ? null
+      : await resolveUsZipCode(location);
+  const lat = Number(resolved?.latitude ?? latitude);
+  const lon = Number(resolved?.longitude ?? longitude);
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
 
   const params = new URLSearchParams({
@@ -77,7 +121,7 @@ export async function fetchHouseholdWeather({
     if (temperature == null || feelsLike == null) return null;
 
     return {
-      location,
+      location: resolved?.location ?? location,
       temperature: Math.round(temperature),
       feelsLike: Math.round(feelsLike),
       high:
