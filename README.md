@@ -82,5 +82,6 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
+npm run build:with-migrate
 npm run test:e2e
 ```

@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run db:migrate && next build",
+    "build": "next build",
+    "build:with-migrate": "npm run db:migrate && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
