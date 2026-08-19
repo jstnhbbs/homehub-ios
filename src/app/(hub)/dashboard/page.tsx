@@ -25,6 +25,7 @@ import {
 import { calendarSyncStatus } from "@/lib/calendar/connections";
 import { CalendarSync } from "@/components/calendar-sync";
 import { CheckItem } from "@/components/check-item";
+import { DashboardRoutineStep } from "@/components/dashboard-routine-step";
 import { SleepDashboardRow } from "@/components/nap-controls";
 import { TodaySchedule } from "@/components/today-schedule";
 import { db } from "@/db/client";
@@ -60,6 +61,7 @@ import { canManageHousehold } from "@/lib/household-roles";
 import { upcomingFamilyBirthdays } from "@/lib/family-birthdays";
 import { nextSchoolDate, parsePackItems, weekdayForLocalDate, WEEKDAYS } from "@/lib/school";
 import { fetchHouseholdWeather } from "@/lib/weather";
+import { routineStepDisplay } from "@/lib/routine-glyphs";
 
 export default async function DashboardPage() {
   const household = await requireHousehold();
@@ -341,23 +343,22 @@ export default async function DashboardPage() {
             title="Today’s Routines"
             href="/routines"
           />
-          <div className="scrollbar-none mt-4 max-h-[245px] space-y-2 overflow-auto">
+          <div className="scrollbar-none mt-4 grid max-h-[245px] grid-cols-2 gap-2 overflow-auto">
             {routineRows.some((step) => !doneSteps.has(step.id)) ? (
               routineRows
                 .filter((step) => !doneSteps.has(step.id))
-                .slice(0, 5)
+                .slice(0, 6)
                 .map((step) => {
                 const profile = step.profileId
                   ? profileMap.get(step.profileId)
                   : undefined;
+                const display = routineStepDisplay(step.label);
                 return (
-                  <CheckItem
+                  <DashboardRoutineStep
                     key={step.id}
-                    label={step.label}
-                    detail={profile?.name ?? step.routineName}
+                    label={`${display.label} · ${profile?.name ?? step.routineName}`}
+                    glyph={display.glyph}
                     color={profile?.color}
-                    initialChecked={false}
-                    removeWhenChecked
                     onToggle={toggleRoutineStep.bind(
                       null,
                       step.id,
@@ -367,11 +368,13 @@ export default async function DashboardPage() {
                 );
               })
             ) : routineRows.length ? (
-              <p className="rounded-2xl border border-dashed border-[var(--line)] p-4 text-center text-sm font-bold text-[var(--muted)]">
+              <p className="col-span-2 rounded-2xl border border-dashed border-[var(--line)] p-4 text-center text-sm font-bold text-[var(--muted)]">
                 All routines done for today!
               </p>
             ) : (
+              <div className="col-span-2">
               <EmptyState text="Add a morning or bedtime routine." href="/routines" />
+              </div>
             )}
           </div>
         </section>
