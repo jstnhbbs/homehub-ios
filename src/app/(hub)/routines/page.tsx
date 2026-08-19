@@ -7,6 +7,7 @@ import {
   updateRoutine,
 } from "@/app/actions";
 import { KidRoutineStep } from "@/components/kid-routine-step";
+import { RoutineStepsField } from "@/components/routine-steps-field";
 import { db } from "@/db/client";
 import {
   profiles,
@@ -174,19 +175,13 @@ export default async function RoutinesPage() {
                       <option value="afternoon">After school</option>
                       <option value="evening">Bedtime</option>
                     </select>
-                    <textarea
-                      name="steps"
-                      className="hub-input min-h-36 resize-none"
-                      defaultValue={rows
-                        .flatMap((row) =>
-                          row.stepLabel ? [row.stepLabel] : [],
-                        )
-                        .join("\n")}
-                      aria-label="Routine steps"
-                      required
+                    <RoutineStepsField
+                      initialSteps={rows.flatMap((row) =>
+                        row.stepLabel ? [row.stepLabel] : [],
+                      )}
                     />
                     <p className="text-xs font-semibold text-[var(--muted)]">
-                      Add an emoji first to choose the picture, like 🪥 Brush teeth.
+                      Pick a picture for each step or let Home Hub suggest one.
                     </p>
                     <button className="hub-button w-full">
                       Save routine
@@ -236,14 +231,15 @@ export default async function RoutinesPage() {
               <option value="afternoon">After school</option>
               <option value="evening">Bedtime</option>
             </select>
-            <textarea
-              name="steps"
-              className="hub-input min-h-36 resize-none"
-              placeholder={"🪥 Brush teeth\n🚽 Use the potty\n🐶 Feed the dog\n🎒 Pack backpack"}
-              required
+            <RoutineStepsField
+              initialSteps={[
+                "🪥 Brush teeth",
+                "🚽 Use the potty",
+                "🐶 Feed the dog",
+              ]}
             />
             <p className="text-xs text-[var(--muted)]">
-              Put each item on a new line. Start with an emoji to choose the picture.
+              Pick from common pictures or type a custom step.
             </p>
             <button className="hub-button w-full">Add routine</button>
           </form>
