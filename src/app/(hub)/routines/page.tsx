@@ -6,7 +6,7 @@ import {
   toggleRoutineStep,
   updateRoutine,
 } from "@/app/actions";
-import { CheckItem } from "@/components/check-item";
+import { KidRoutineStep } from "@/components/kid-routine-step";
 import { db } from "@/db/client";
 import {
   profiles,
@@ -18,6 +18,7 @@ import { groupBy } from "@/lib/group-by";
 import { localDateIn } from "@/lib/dates";
 import { requireHousehold } from "@/lib/household";
 import { canManageHousehold } from "@/lib/household-roles";
+import { routineStepDisplay } from "@/lib/routine-glyphs";
 
 const periodMeta = {
   morning: { label: "Morning", icon: Sun, color: "var(--sun-soft)" },
@@ -104,30 +105,29 @@ export default async function RoutinesPage() {
                     <Icon size={22} />
                   </div>
                 </div>
-                <div className="mt-4 space-y-2">
+                <div className="mt-4 grid gap-3">
                   {rows.some((row) => row.stepId && !done.has(row.stepId)) ? (
-                    rows.map(
-                      (row) =>
-                        row.stepId &&
-                        !done.has(row.stepId) && (
-                          <CheckItem
-                            key={row.stepId}
-                            label={row.stepLabel ?? ""}
-                            color={profile?.color}
-                            initialChecked={false}
-                            removeWhenChecked
-                            onToggle={toggleRoutineStep.bind(
-                              null,
-                              row.stepId,
-                              localDate,
-                            )}
-                          />
-                        ),
-                    )
+                    rows.map((row) => {
+                      if (!row.stepId || done.has(row.stepId)) return null;
+                      const step = routineStepDisplay(row.stepLabel ?? "");
+                      return (
+                        <KidRoutineStep
+                          key={row.stepId}
+                          label={step.label}
+                          glyph={step.glyph}
+                          color={profile?.color}
+                          onToggle={toggleRoutineStep.bind(
+                            null,
+                            row.stepId,
+                            localDate,
+                          )}
+                        />
+                      );
+                    })
                   ) : (
                     rows.some((row) => row.stepId) && (
-                      <p className="rounded-2xl bg-[var(--tile)] px-3 py-4 text-center text-sm font-bold text-[var(--muted)]">
-                        All done for today!
+                      <p className="rounded-[1.5rem] bg-[var(--sage-soft)] px-5 py-8 text-center text-2xl font-extrabold text-[var(--sage)]">
+                        🎉 All done for today!
                       </p>
                     )
                   )}
@@ -185,6 +185,9 @@ export default async function RoutinesPage() {
                       aria-label="Routine steps"
                       required
                     />
+                    <p className="text-xs font-semibold text-[var(--muted)]">
+                      Add an emoji first to choose the picture, like 🪥 Brush teeth.
+                    </p>
                     <button className="hub-button w-full">
                       Save routine
                     </button>
@@ -236,11 +239,11 @@ export default async function RoutinesPage() {
             <textarea
               name="steps"
               className="hub-input min-h-36 resize-none"
-              placeholder={"Brush teeth\nPack backpack\nPut shoes by the door"}
+              placeholder={"🪥 Brush teeth\n🚽 Use the potty\n🐶 Feed the dog\n🎒 Pack backpack"}
               required
             />
             <p className="text-xs text-[var(--muted)]">
-              Put each checklist item on a new line.
+              Put each item on a new line. Start with an emoji to choose the picture.
             </p>
             <button className="hub-button w-full">Add routine</button>
           </form>
