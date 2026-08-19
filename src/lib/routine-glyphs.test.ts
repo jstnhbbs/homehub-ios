@@ -16,6 +16,12 @@ describe("routineStepDisplay", () => {
     });
   });
 
+  it("suggests bedtime routine glyphs", () => {
+    expect(routineStepDisplay("Change diaper").glyph).toBe("🍼");
+    expect(routineStepDisplay("Sing a song").glyph).toBe("🎵");
+    expect(routineStepDisplay("Say prayers").glyph).toBe("🙏");
+  });
+
   it("falls back to a star for unknown labels", () => {
     expect(routineStepDisplay("Check the thing")).toEqual({
       glyph: "⭐",
