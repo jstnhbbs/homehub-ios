@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Check } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
 
 export function DashboardRoutineStep({
@@ -15,7 +16,18 @@ export function DashboardRoutineStep({
   onToggle: (checked: boolean) => Promise<void>;
 }) {
   const [done, setDone] = useState(false);
+  const [celebrating, setCelebrating] = useState(false);
   const [pending, startTransition] = useTransition();
+  const doneTimer = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (doneTimer.current) {
+        window.clearTimeout(doneTimer.current);
+      }
+    },
+    [],
+  );
 
   if (done) return null;
 
@@ -27,34 +39,48 @@ export function DashboardRoutineStep({
       disabled={pending}
       onClick={() => {
         if (pending) return;
-        setDone(true);
+        setCelebrating(true);
+        doneTimer.current = window.setTimeout(() => setDone(true), 800);
         startTransition(async () => {
           try {
             await onToggle(true);
           } catch {
+            if (doneTimer.current) {
+              window.clearTimeout(doneTimer.current);
+            }
+            setCelebrating(false);
             setDone(false);
           }
         });
       }}
       className={cn(
-        "flex min-h-14 items-center justify-between gap-2 rounded-2xl px-3 text-left transition hover:-translate-y-0.5",
+        "routine-celebration group relative flex min-h-14 items-center justify-between gap-2 overflow-hidden rounded-2xl px-3 text-left transition hover:-translate-y-0.5",
+        celebrating && "is-celebrating pointer-events-none",
         pending && "opacity-70",
       )}
       style={{
+        "--routine-color": color,
         background: `${color}22`,
         border: `1px solid ${color}55`,
-      }}
+      } as React.CSSProperties}
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-2xl">
+      <span className="routine-celebration__mini-sparkles" aria-hidden="true">
+        <span>✨</span>
+        <span>⭐</span>
+        <span>✨</span>
+      </span>
+      <span className="routine-celebration__glyph flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-2xl">
         {glyph}
       </span>
       <span
-        className="h-8 w-8 shrink-0 rounded-full border-2 bg-[var(--surface)]/55"
+        className="routine-celebration__check flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 bg-[var(--surface)]/55"
         style={{
           borderColor: color,
         }}
         aria-hidden="true"
-      />
+      >
+        {celebrating && <Check size={16} strokeWidth={3} />}
+      </span>
     </button>
   );
 }

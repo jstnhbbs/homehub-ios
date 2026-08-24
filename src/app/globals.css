@@ -99,6 +99,190 @@ a {
   font-family: var(--font-display-serif, Georgia, serif);
 }
 
+.routine-celebration {
+  --routine-color: var(--sage);
+}
+
+.routine-celebration.is-celebrating {
+  animation: routine-pop 760ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+  border-color: color-mix(in srgb, var(--routine-color) 80%, white) !important;
+  box-shadow:
+    0 0 0 5px color-mix(in srgb, var(--routine-color) 18%, transparent),
+    0 16px 34px color-mix(in srgb, var(--routine-color) 18%, transparent);
+}
+
+.routine-celebration.is-celebrating::after {
+  position: absolute;
+  inset: -28%;
+  content: "";
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--routine-color) 28%, transparent) 0 8%,
+    transparent 9% 100%
+  );
+  animation: routine-ripple 760ms ease-out both;
+  pointer-events: none;
+}
+
+.routine-celebration__glyph {
+  position: relative;
+  z-index: 1;
+}
+
+.routine-celebration.is-celebrating .routine-celebration__glyph {
+  animation: routine-glyph-bounce 700ms cubic-bezier(0.2, 1.15, 0.25, 1) both;
+}
+
+.routine-celebration__badge,
+.routine-celebration__check {
+  position: relative;
+  z-index: 1;
+}
+
+.routine-celebration.is-celebrating .routine-celebration__badge,
+.routine-celebration.is-celebrating .routine-celebration__check {
+  background: var(--routine-color);
+  color: var(--button-foreground);
+}
+
+.routine-celebration__sparkles,
+.routine-celebration__mini-sparkles {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.routine-celebration.is-celebrating .routine-celebration__sparkles,
+.routine-celebration.is-celebrating .routine-celebration__mini-sparkles {
+  opacity: 1;
+}
+
+.routine-celebration__sparkles span,
+.routine-celebration__mini-sparkles span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  font-size: 1.35rem;
+  transform: translate(-50%, -50%) scale(0);
+}
+
+.routine-celebration.is-celebrating .routine-celebration__sparkles span,
+.routine-celebration.is-celebrating .routine-celebration__mini-sparkles span {
+  animation: routine-sparkle 780ms ease-out both;
+}
+
+.routine-celebration__sparkles span:nth-child(1) {
+  --sparkle-x: -5.9rem;
+  --sparkle-y: -3rem;
+}
+
+.routine-celebration__sparkles span:nth-child(2) {
+  --sparkle-x: 0;
+  --sparkle-y: -4.4rem;
+}
+
+.routine-celebration__sparkles span:nth-child(3) {
+  --sparkle-x: 5.8rem;
+  --sparkle-y: -2.6rem;
+}
+
+.routine-celebration__sparkles span:nth-child(4) {
+  --sparkle-x: -4.2rem;
+  --sparkle-y: 3.6rem;
+}
+
+.routine-celebration__sparkles span:nth-child(5) {
+  --sparkle-x: 4.8rem;
+  --sparkle-y: 3.4rem;
+}
+
+.routine-celebration__mini-sparkles span:nth-child(1) {
+  --sparkle-x: -2.2rem;
+  --sparkle-y: -1.7rem;
+}
+
+.routine-celebration__mini-sparkles span:nth-child(2) {
+  --sparkle-x: 0.4rem;
+  --sparkle-y: -2.2rem;
+}
+
+.routine-celebration__mini-sparkles span:nth-child(3) {
+  --sparkle-x: 2.4rem;
+  --sparkle-y: -1.4rem;
+}
+
+@keyframes routine-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.04) rotate(-1deg);
+  }
+  70% {
+    transform: scale(0.98) rotate(0.6deg);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes routine-glyph-bounce {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  40% {
+    transform: scale(1.38) rotate(-8deg);
+  }
+  68% {
+    transform: scale(0.95) rotate(5deg);
+  }
+  100% {
+    transform: scale(1.05) rotate(0deg);
+  }
+}
+
+@keyframes routine-ripple {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+@keyframes routine-sparkle {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.25) rotate(0deg);
+  }
+  22% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(
+        calc(-50% + var(--sparkle-x)),
+        calc(-50% + var(--sparkle-y))
+      )
+      scale(1.1)
+      rotate(26deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .routine-celebration.is-celebrating,
+  .routine-celebration.is-celebrating::after,
+  .routine-celebration.is-celebrating .routine-celebration__glyph,
+  .routine-celebration.is-celebrating .routine-celebration__sparkles span,
+  .routine-celebration.is-celebrating .routine-celebration__mini-sparkles span {
+    animation-duration: 1ms;
+  }
+}
+
 .hub-card {
   border: 1px solid color-mix(in srgb, var(--line) 85%, white);
   border-radius: 1.5rem;
