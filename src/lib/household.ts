@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/db/client";
 import { householdMembers, households, users } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { ensureLatestSchema } from "@/lib/ensure-schema";
 import { canManageHousehold } from "@/lib/household-roles";
 import { ensureMemberProfiles } from "@/lib/member-profiles";
 
@@ -20,6 +21,8 @@ export async function requireUser() {
 export async function getCurrentHousehold() {
   const session = await getSession();
   if (!session) return null;
+
+  await ensureLatestSchema();
 
   const result = await db
     .select({
