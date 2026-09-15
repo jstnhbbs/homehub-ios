@@ -23,6 +23,7 @@ describe("parseHubModules", () => {
         }),
       ),
     ).toEqual({
+      ...DEFAULT_HUB_MODULES,
       routines: false,
       chores: true,
       snacks: false,
@@ -40,6 +41,59 @@ describe("mergeHubModules", () => {
     expect(mergeHubModules({ routines: false })).toEqual({
       ...DEFAULT_HUB_MODULES,
       routines: false,
+    });
+  });
+
+  it("preserves reordered dashboard cards including weather", () => {
+    const dashboardOrder = [
+      "schedule",
+      "routines",
+      "weather",
+      "chores",
+      "meals",
+      "snacks",
+      "sleep",
+      "groceries",
+    ] as const;
+
+    const serialized = serializeHubModules({
+      dashboardCards: { weather: false, routines: true },
+      dashboardOrder: [...dashboardOrder],
+    });
+
+    expect(parseHubModules(serialized)).toMatchObject({
+      dashboardCards: expect.objectContaining({ weather: false }),
+      dashboardOrder: [...dashboardOrder, "notes", "birthdays"],
+    });
+  });
+
+  it("maps legacy shopping keys to groceries", () => {
+    expect(
+      mergeHubModules({
+        shopping: false,
+        sidebarOrder: ["shopping", "calendar"],
+        dashboardCards: { shopping: false },
+        dashboardOrder: ["shopping", "weather"],
+      } as Parameters<typeof mergeHubModules>[0]),
+    ).toMatchObject({
+      groceries: false,
+      sidebarOrder: expect.arrayContaining(["groceries", "calendar"]),
+      dashboardCards: expect.objectContaining({ groceries: false }),
+      dashboardOrder: expect.arrayContaining(["groceries", "weather"]),
+    });
+
+    expect(
+      parseHubModules(
+        JSON.stringify({
+          shopping: false,
+          sidebarOrder: ["calendar", "shopping"],
+          dashboardCards: { shopping: false },
+          dashboardOrder: ["weather", "shopping"],
+        }),
+      ),
+    ).toMatchObject({
+      groceries: false,
+      dashboardCards: expect.objectContaining({ groceries: false }),
     });
   });
 });

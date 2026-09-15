@@ -6,6 +6,7 @@ struct CalendarEventFormView: View {
     let submitLabel: String
     var event: CalendarOccurrence?
     var defaultSelectedDate: String
+    var preferredCalendarId: String? = nil
 
     var onSubmit: (CalendarEventFormInput) async -> Bool
     var onDelete: (() async -> Bool)?
@@ -29,8 +30,12 @@ struct CalendarEventFormView: View {
             if !calendars.isEmpty {
                 labeledField("Calendar") {
                     Picker("Calendar", selection: $calendarId) {
-                        ForEach(calendars) { calendar in
-                            Text(calendarLabel(calendar)).tag(calendar.id)
+                        ForEach(CalendarPickerOption.groupedByAccount(calendars), id: \.account) { group in
+                            Section(group.account) {
+                                ForEach(group.calendars) { calendar in
+                                    Text(calendar.displayName).tag(calendar.id)
+                                }
+                            }
                         }
                     }
                     .pickerStyle(.menu)
@@ -144,7 +149,11 @@ struct CalendarEventFormView: View {
             location = event.location ?? ""
             notes = event.description ?? ""
         } else {
-            calendarId = calendars.first?.id ?? ""
+            if let preferredCalendarId, calendars.contains(where: { $0.id == preferredCalendarId }) {
+                calendarId = preferredCalendarId
+            } else {
+                calendarId = calendars.first?.id ?? ""
+            }
             let fields = CalendarHelpers.defaultTimedFields(selectedDate: defaultSelectedDate, timezone: timezone)
             startDate = CalendarHelpers.parseFormDate(fields.startsAt, timezone: timezone) ?? .now
             endDate = CalendarHelpers.parseFormDate(fields.endsAt, timezone: timezone) ?? startDate.addingTimeInterval(3600)
@@ -157,14 +166,6 @@ struct CalendarEventFormView: View {
         } else if endDate < startDate {
             endDate = startDate.addingTimeInterval(3600)
         }
-    }
-
-    private func calendarLabel(_ calendar: CalendarPickerOption) -> String {
-        let providers = Set(calendars.map(\.provider))
-        if providers.count > 1 {
-            return "\(calendar.displayName) · \(calendar.provider.rawValue.capitalized)"
-        }
-        return calendar.displayName
     }
 
     @ViewBuilder

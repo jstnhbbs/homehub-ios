@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 export default async function OnboardingPage() {
   await requireUser();
-  if (await getCurrentHousehold()) redirect("/dashboard");
+  if (await getCurrentHousehold()) redirect("/settings");
 
   return (
     <main className="min-h-dvh p-6 md:p-10">

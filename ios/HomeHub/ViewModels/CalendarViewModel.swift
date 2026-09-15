@@ -9,14 +9,12 @@ final class CalendarViewModel: ObservableObject {
     @Published var occurrences: [CalendarOccurrence] = []
     @Published var calendars: [CalendarPickerOption] = []
     @Published var isLoading = false
-    @Published var isSyncing = false
     @Published var errorMessage: String?
     @Published var editingEvent: CalendarOccurrence?
     @Published var showAddEvent = false
+    @Published var nativeAccessStatus: NativeCalendarAccessStatus = .notDetermined
 
     private var appState: AppState?
-    private var autoSyncTask: Task<Void, Never>?
-    private var lastAutoSyncAt: Date?
 
     func bind(to appState: AppState) {
         self.appState = appState
@@ -42,7 +40,27 @@ final class CalendarViewModel: ObservableObject {
     }
 
     var isConnected: Bool {
-        appState?.dashboard?.calendarStatus.connected ?? false
+        usesNativeCalendar
+    }
+
+    var usesNativeCalendar: Bool {
+        appState?.nativeCalendar.hasFullAccess ?? false
+    }
+
+    var calendarSourceLabel: String {
+        usesNativeCalendar ? "Device Calendars" : "Calendar access needed"
+    }
+
+    var needsNativeCalendarPermission: Bool {
+        nativeAccessStatus == .notDetermined
+    }
+
+    var nativeCalendarDenied: Bool {
+        nativeAccessStatus == .denied || nativeAccessStatus == .restricted
+    }
+
+    var supportsServerEventEditing: Bool {
+        false
     }
 
     var headerTitle: String {
@@ -92,6 +110,8 @@ final class CalendarViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
+        appState.nativeCalendar.refreshAccessStatus()
+        nativeAccessStatus = appState.nativeCalendar.accessStatus
 
         let (start, end) = CalendarHelpers.rangeStartEnd(
             viewMode: viewMode,
@@ -100,74 +120,46 @@ final class CalendarViewModel: ObservableObject {
             weekStartsOn: weekStartsOn
         )
 
-        do {
-            async let eventsTask = appState.api.fetchCalendarOccurrences(start: start, end: end, query: searchQuery)
-            async let calendarsTask = appState.api.fetchCalendarPickerOptions()
-            occurrences = try await eventsTask
-            calendars = try await calendarsTask
-        } catch {
-            errorMessage = error.localizedDescription
+        guard appState.nativeCalendar.hasFullAccess,
+              let startDate = CalendarHelpers.parseLocalDate(start, timezone: timezone),
+              let endDate = CalendarHelpers.parseLocalDate(end, timezone: timezone) else {
+            occurrences = []
+            calendars = []
+            return
         }
+        let calendar = CalendarHelpers.calendar(timezone: timezone, weekStartsOn: weekStartsOn)
+        let startOfRange = calendar.startOfDay(for: startDate)
+        let endOfRange = calendar.date(byAdding: DateComponents(day: 1, second: -1), to: calendar.startOfDay(for: endDate)) ?? endDate
+        occurrences = appState.nativeCalendar.occurrences(start: startOfRange, end: endOfRange, query: searchQuery)
+        calendars = appState.nativeCalendar.pickerOptions()
+        await appState.refreshNativeTodaySchedule()
+    }
+
+    func requestNativeCalendarAccess() async {
+        guard let appState else { return }
+        await appState.nativeCalendar.requestFullAccess()
+        nativeAccessStatus = appState.nativeCalendar.accessStatus
+        await load()
+        await appState.refreshNativeTodaySchedule()
     }
 
     func syncCalendars() async {
         guard let appState else { return }
-        isSyncing = true
-        defer { isSyncing = false }
-        do {
-            try await appState.api.syncCalendar(force: true)
-            lastAutoSyncAt = .now
-            await load()
-            await appState.refreshDashboard()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        await appState.nativeCalendar.requestFullAccess()
+        nativeAccessStatus = appState.nativeCalendar.accessStatus
+        await load()
+        await appState.refreshNativeTodaySchedule()
     }
 
     func startAutoSync(appState: AppState) {
-        stopAutoSync()
         self.appState = appState
-        guard isConnected else { return }
-        let minutes = CalendarSyncInterval.parse(appState.household?.calendarSyncIntervalMinutes)
-        guard minutes > 0 else { return }
-
-        let interval = CalendarSyncInterval.intervalSeconds(minutes)
-        autoSyncTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(250))
-            while !Task.isCancelled {
-                await self?.performAutoSync()
-                try? await Task.sleep(for: .seconds(interval))
-            }
-        }
     }
 
     func stopAutoSync() {
-        autoSyncTask?.cancel()
-        autoSyncTask = nil
     }
 
     private func performAutoSync() async {
-        guard let appState, isConnected, !isSyncing else { return }
-        let minutes = CalendarSyncInterval.parse(appState.household?.calendarSyncIntervalMinutes)
-        let cooldown = CalendarSyncInterval.cooldownSeconds(minutes)
-        if let lastAutoSyncAt, Date.now.timeIntervalSince(lastAutoSyncAt) < cooldown {
-            return
-        }
-        if let lastSynced = appState.dashboard?.calendarStatus.lastSyncedAt,
-           Date.now.timeIntervalSince(lastSynced) < cooldown {
-            return
-        }
-
-        isSyncing = true
-        defer { isSyncing = false }
-        do {
-            try await appState.api.syncCalendar(force: false)
-            lastAutoSyncAt = .now
-            await load()
-            await appState.refreshDashboard()
-        } catch {
-            // Keep auto-sync quiet; manual sync still shows errors.
-        }
+        await load()
     }
 
     func goToToday() {
@@ -202,6 +194,7 @@ final class CalendarViewModel: ObservableObject {
 
     func editableCalendars(for event: CalendarOccurrence) -> [CalendarPickerOption] {
         guard let provider = event.provider else { return [] }
+        guard provider != .local else { return [] }
         return calendars.filter { $0.provider == provider }
     }
 
@@ -214,7 +207,9 @@ final class CalendarViewModel: ObservableObject {
             await appState.refreshDashboard()
             return true
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
             return false
         }
     }
@@ -228,7 +223,9 @@ final class CalendarViewModel: ObservableObject {
             await appState.refreshDashboard()
             return true
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
             return false
         }
     }
@@ -242,7 +239,9 @@ final class CalendarViewModel: ObservableObject {
             await appState.refreshDashboard()
             return true
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
             return false
         }
     }

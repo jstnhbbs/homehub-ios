@@ -3,21 +3,20 @@ import { LegalPage, LegalSection } from "@/components/legal-page";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
-  description: "Terms for using the Home Hub family dashboard.",
+  description: "Terms for using the Beacon family dashboard.",
 };
 
 export default function TermsOfServicePage() {
   return (
     <LegalPage title="Terms of Service" updated="July 15, 2026">
       <p>
-        These Terms of Service govern your use of Home Hub. By creating a parent
-        account, joining a household, or connecting external services such as
-        Google Calendar, you agree to these terms.
+        These Terms of Service govern your use of Beacon. By creating a parent
+        account or joining a household, you agree to these terms.
       </p>
 
       <LegalSection title="The service">
         <p>
-          Home Hub provides a shared family dashboard for calendars, routines,
+          Beacon provides a shared family dashboard for calendars, routines,
           chores, meals, and recipes. Features may change as the application is
           updated.
         </p>
@@ -25,7 +24,7 @@ export default function TermsOfServicePage() {
 
       <LegalSection title="Eligibility and accounts">
         <p>
-          Home Hub is intended for parents or guardians managing a household.
+          Beacon is intended for parents or guardians managing a household.
           You are responsible for keeping your sign-in credentials secure and
           for activity that occurs through your account.
         </p>
@@ -35,21 +34,17 @@ export default function TermsOfServicePage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="Connected services">
+      <LegalSection title="Device permissions">
         <p>
-          If you connect Apple Calendar or Google Calendar, you authorize Home
-          Hub to access and sync calendar data on your behalf. You are
-          responsible for ensuring you have the right to share any calendar
-          content displayed on the household hub.
-        </p>
-        <p>
-          You may disconnect external calendar services at any time from
-          Settings → Calendars.
+          If you grant calendar access on iPhone or iPad, you authorize Beacon
+          to read calendar data available on that device. You are responsible
+          for ensuring you have the right to show any calendar content inside
+          the household app.
         </p>
       </LegalSection>
 
       <LegalSection title="Acceptable use">
-        <p>You agree not to misuse Home Hub, including by:</p>
+        <p>You agree not to misuse Beacon, including by:</p>
         <ul className="list-disc space-y-2 pl-5">
           <li>attempting to access another household&apos;s data</li>
           <li>interfering with the security or operation of the service</li>
@@ -59,16 +54,16 @@ export default function TermsOfServicePage() {
 
       <LegalSection title="Your content">
         <p>
-          You retain responsibility for the information you add to Home Hub,
+          You retain responsibility for the information you add to Beacon,
           including family profile details, calendar events, recipes, and meal
-          plans. You grant Home Hub permission to store and process that
+          plans. You grant Beacon permission to store and process that
           information solely to provide the service to your household.
         </p>
       </LegalSection>
 
       <LegalSection title="Availability and changes">
         <p>
-          Home Hub is provided on an as-available basis. The operator of your
+          Beacon is provided on an as-available basis. The operator of your
           deployment may perform maintenance, updates, or configuration changes
           that temporarily affect availability.
         </p>
@@ -81,7 +76,7 @@ export default function TermsOfServicePage() {
 
       <LegalSection title="Disclaimer">
         <p>
-          Home Hub is provided without warranties of any kind, to the fullest
+          Beacon is provided without warranties of any kind, to the fullest
           extent permitted by law. Calendar sync, reminders, and household
           planning features should not be relied on as your only source of
           time-sensitive scheduling information.
@@ -90,7 +85,7 @@ export default function TermsOfServicePage() {
 
       <LegalSection title="Limitation of liability">
         <p>
-          To the fullest extent permitted by law, Home Hub and its operator
+          To the fullest extent permitted by law, Beacon and its operator
           will not be liable for indirect, incidental, special, consequential,
           or punitive damages arising from your use of the service.
         </p>
@@ -99,7 +94,7 @@ export default function TermsOfServicePage() {
       <LegalSection title="Contact">
         <p>
           For questions about these terms, contact the parent or administrator
-          who operates your Home Hub deployment.
+          who operates your Beacon deployment.
         </p>
       </LegalSection>
     </LegalPage>

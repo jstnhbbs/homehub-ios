@@ -14,6 +14,7 @@ export type ParsedRecipe = {
 
 export type StoredRecipe = ParsedRecipe & {
   id: string;
+  householdId: string;
   notes?: string | null;
   createdAt: Date;
   updatedAt: Date;

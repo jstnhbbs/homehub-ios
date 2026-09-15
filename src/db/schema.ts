@@ -98,6 +98,7 @@ export const households = sqliteTable("households", {
   weatherLocation: text("weather_location").notNull().default("Chicago, IL"),
   weatherLatitude: text("weather_latitude").notNull().default("41.8781"),
   weatherLongitude: text("weather_longitude").notNull().default("-87.6298"),
+  photo: text("photo"),
   ...timestamps,
 });
 
@@ -338,8 +339,8 @@ export const meals = sqliteTable(
   ],
 );
 
-export const shoppingItems = sqliteTable(
-  "shopping_items",
+export const groceryItems = sqliteTable(
+  "grocery_items",
   {
     id: text("id").primaryKey(),
     householdId: text("household_id")
@@ -354,8 +355,8 @@ export const shoppingItems = sqliteTable(
     ...timestamps,
   },
   (table) => [
-    index("shopping_items_household_idx").on(table.householdId),
-    index("shopping_items_checked_idx").on(table.householdId, table.checked),
+    index("grocery_items_household_idx").on(table.householdId),
+    index("grocery_items_checked_idx").on(table.householdId, table.checked),
   ],
 );
 

@@ -6,7 +6,9 @@ import {
   requireMobileUser,
 } from "@/lib/mobile/http";
 import {
-  type HubModules,
+  DASHBOARD_CARD_IDS,
+  HUB_MODULE_IDS,
+  type HubModulesInput,
   mergeHubModules,
 } from "@/lib/hub-modules";
 import {
@@ -14,11 +16,24 @@ import {
   saveUserHubModules,
 } from "@/lib/hub-modules-store";
 
+const dashboardCardsSchema = z.partialRecord(
+  z.enum(DASHBOARD_CARD_IDS),
+  z.boolean(),
+);
+
 const hubModulesSchema = z.object({
+  calendar: z.boolean().optional(),
+  groceries: z.boolean().optional(),
   routines: z.boolean().optional(),
   chores: z.boolean().optional(),
+  meals: z.boolean().optional(),
+  sleep: z.boolean().optional(),
+  birthdays: z.boolean().optional(),
   snacks: z.boolean().optional(),
   recipes: z.boolean().optional(),
+  sidebarOrder: z.array(z.enum(HUB_MODULE_IDS)).optional(),
+  dashboardCards: dashboardCardsSchema.optional(),
+  dashboardOrder: z.array(z.enum(DASHBOARD_CARD_IDS)).optional(),
 });
 
 export async function GET() {
@@ -34,7 +49,7 @@ export async function PATCH(request: Request) {
   try {
     const user = await requireMobileUser();
     const input = hubModulesSchema.parse(await parseJsonBody(request));
-    const next = await saveUserHubModules(user.id, input as Partial<HubModules>);
+    const next = await saveUserHubModules(user.id, input as HubModulesInput);
     return mobileJson(next);
   } catch (error) {
     return handleMobileError(error);

@@ -1,5 +1,9 @@
 import type { SleepKind } from "@/db/schema";
-import { sleepLogsForDate } from "@/lib/naps/overlap";
+import {
+  overlapMinutesOnLocalDate,
+  sleepLogsForDate,
+  sleepOverlapsLocalDate,
+} from "@/lib/naps/overlap";
 
 export function napDurationMinutes(
   startedAt: Date,
@@ -80,13 +84,29 @@ export function childNapsForDate<
 
 export function daySleepStats<
   T extends { kind?: SleepKind; startedAt: Date; endedAt: Date | null },
->(logs: T[], now: Date = new Date()) {
+>(
+  logs: T[],
+  now: Date = new Date(),
+  overlap?: { localDate: string; timezone: string },
+) {
   const naps = logs.filter((log) => (log.kind ?? "nap") === "nap");
   const nights = logs.filter((log) => log.kind === "night");
   return {
     napCount: naps.length,
     nightCount: nights.length,
-    totalMinutes: totalSleepMinutes(logs, now),
+    totalMinutes: overlap
+      ? logs.reduce(
+          (total, log) =>
+            total +
+            overlapMinutesOnLocalDate(
+              { ...log, localDate: overlap.localDate },
+              overlap.localDate,
+              overlap.timezone,
+              now,
+            ),
+          0,
+        )
+      : totalSleepMinutes(logs, now),
   };
 }
 
@@ -108,7 +128,7 @@ export function childDaySleepStats<
   const dayLogs = childNapsForDate(logs, profileId, localDate, timezone, now);
   return {
     localDate,
-    ...daySleepStats(dayLogs, now),
+    ...daySleepStats(dayLogs, now, { localDate, timezone }),
   };
 }
 
@@ -132,8 +152,13 @@ export function childWeekSleepStats<
     childDaySleepStats(logs, profileId, localDate, timezone, now),
   );
   const elapsedDays = weekDates.filter((date) => date <= todayLocalDate).length;
-  const totalNaps = days.reduce((sum, day) => sum + day.napCount, 0);
-  const totalNights = days.reduce((sum, day) => sum + day.nightCount, 0);
+  const weekLogs = logs.filter(
+    (log) =>
+      log.profileId === profileId &&
+      weekDates.some((date) => sleepOverlapsLocalDate(log, date, timezone, now)),
+  );
+  const totalNaps = weekLogs.filter((log) => (log.kind ?? "nap") === "nap").length;
+  const totalNights = weekLogs.filter((log) => log.kind === "night").length;
   const totalMinutes = days.reduce((sum, day) => sum + day.totalMinutes, 0);
   const totalSessions = totalNaps + totalNights;
 
@@ -273,7 +298,7 @@ export function getChildDashboardSleepStatus<
       startedAt: active.startedAt,
       durationMinutes: napDurationMinutes(active.startedAt, null, now),
       todayStats: completedToday.length
-        ? daySleepStats(completedToday, now)
+        ? daySleepStats(completedToday, now, { localDate, timezone })
         : null,
     };
   }
@@ -305,7 +330,7 @@ export function getChildDashboardSleepStatus<
           Math.floor((now.getTime() - lastEnded.getTime()) / 60_000),
         )
       : 0,
-    todayStats: daySleepStats(todayLogs, now),
+    todayStats: daySleepStats(todayLogs, now, { localDate, timezone }),
   };
 }
 

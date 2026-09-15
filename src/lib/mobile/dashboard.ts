@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, isNotNull, lte, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNotNull, lte, or } from "drizzle-orm";
 import { fromZonedTime } from "date-fns-tz";
 import { db } from "@/db/client";
 import {
@@ -7,16 +7,19 @@ import {
   calendars,
   choreCompletions,
   chores,
+  householdNotes,
   meals,
   profiles,
   routineCompletions,
   routines,
   routineSteps,
   snackCompletions,
+  familyBirthdays,
+  groceryItems,
 } from "@/db/schema";
 import { birthdayEventsInRange } from "@/lib/birthdays";
+import { listHouseholdBirthdays } from "@/lib/family-birthdays";
 import { expandIcalEvent } from "@/lib/caldav/ical";
-import { calendarSyncStatus } from "@/lib/calendar/connections";
 import { isChoreDueOnDate } from "@/lib/chores";
 import { localDateIn, weekKey } from "@/lib/dates";
 import { parseSnackOptions } from "@/lib/meals/snacks";
@@ -33,7 +36,6 @@ export async function buildDashboardPayload(
 ) {
   const localDate = localDateIn(household.timezone);
   const dayStart = fromZonedTime(`${localDate}T00:00:00`, household.timezone);
-  const dayEnd = fromZonedTime(`${localDate}T23:59:59`, household.timezone);
   const weeklyKey = weekKey(dayStart);
 
   const [
@@ -43,10 +45,11 @@ export async function buildDashboardPayload(
     choreRows,
     choreDone,
     todayMeals,
-    eventRows,
-    connectionRows,
     snackDone,
     todayNaps,
+    groceryRows,
+    noteRows,
+    familyBirthdayRows,
   ] = await Promise.all([
     db
       .select()
@@ -96,36 +99,6 @@ export async function buildDashboardPayload(
         and(eq(meals.householdId, household.id), eq(meals.localDate, localDate)),
       ),
     db
-      .select({
-        id: calendarEvents.id,
-        rawIcal: calendarEvents.rawIcal,
-        color: calendars.color,
-        calendarName: calendars.displayName,
-      })
-      .from(calendarEvents)
-      .innerJoin(calendars, eq(calendarEvents.calendarId, calendars.id))
-      .innerJoin(
-        calendarConnections,
-        eq(calendars.connectionId, calendarConnections.id),
-      )
-      .where(
-        and(
-          eq(calendarConnections.householdId, household.id),
-          eq(calendars.enabled, true),
-          or(
-            isNotNull(calendarEvents.recurrenceRule),
-            and(
-              lte(calendarEvents.startsAt, dayEnd),
-              gte(calendarEvents.endsAt, dayStart),
-            ),
-          ),
-        ),
-      ),
-    db
-      .select()
-      .from(calendarConnections)
-      .where(eq(calendarConnections.householdId, household.id)),
-    db
       .select({ snackLabel: snackCompletions.snackLabel })
       .from(snackCompletions)
       .where(
@@ -135,6 +108,26 @@ export async function buildDashboardPayload(
         ),
       ),
     fetchNapsForDate(household, localDate),
+    db
+      .select()
+      .from(groceryItems)
+      .where(
+        and(
+          eq(groceryItems.householdId, household.id),
+          eq(groceryItems.checked, false),
+        ),
+      )
+      .orderBy(asc(groceryItems.category), asc(groceryItems.createdAt)),
+    db
+      .select()
+      .from(householdNotes)
+      .where(eq(householdNotes.householdId, household.id))
+      .orderBy(desc(householdNotes.pinned), desc(householdNotes.updatedAt)),
+    db
+      .select()
+      .from(familyBirthdays)
+      .where(eq(familyBirthdays.householdId, household.id))
+      .orderBy(asc(familyBirthdays.name)),
   ]);
 
   const doneSteps = new Set(routineDone.map((item) => item.stepId));
@@ -147,30 +140,35 @@ export async function buildDashboardPayload(
     ),
   );
 
+  const hubModules = await getUserHubModules(userId);
+  const birthdayItems = listHouseholdBirthdays(
+    familyProfiles,
+    familyBirthdayRows.map((row) => ({
+      id: row.id,
+      profileId: row.profileId,
+      name: row.name,
+      birthDate: row.birthDate,
+      notes: row.notes,
+      giftIdeas: row.giftIdeas,
+      notifyDaysBefore: row.notifyDaysBefore,
+    })),
+    localDate,
+  );
+  const upcomingBirthdays = birthdayItems.filter((item) => item.daysUntil <= 45);
+
   const schedule = [
-    ...eventRows.flatMap((event) =>
-      expandIcalEvent(
-        event.rawIcal,
-        dayStart,
-        dayEnd,
-        household.timezone,
-      ).map((occurrence) => ({
-        ...occurrence,
-        eventId: event.id,
-        color: event.color,
-        calendarName: event.calendarName,
-      })),
-    ),
     ...birthdayEventsInRange(
-      familyProfiles,
+      birthdayItems.map((item) => ({
+        id: item.id,
+        name: item.name,
+        color: item.color,
+        birthday: item.birthDate,
+      })),
       localDate,
       localDate,
       household.timezone,
     ),
   ].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
-
-  const calendarStatus = calendarSyncStatus(connectionRows, household.timezone);
-  const hubModules = await getUserHubModules(userId);
 
   return {
     household: serializeHousehold(household),
@@ -206,14 +204,12 @@ export async function buildDashboardPayload(
       color: event.color,
       calendarName: event.calendarName,
     })),
-    calendarStatus: {
-      connected: calendarStatus.connected,
-      updatedLabel: calendarStatus.updatedLabel,
-      lastSyncedAt: calendarStatus.lastSyncedAt,
-    },
     snackOptions: parseSnackOptions(household.snackOptions),
     snackEaten: snackDone.map((item) => item.snackLabel),
     naps: todayNaps.map(serializeNap),
+    groceryItems: groceryRows,
+    notes: noteRows,
+    upcomingBirthdays,
   };
 }
 

@@ -3,11 +3,11 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Home Hub",
-    template: "%s · Home Hub",
+    default: "Beacon",
+    template: "%s · Beacon",
   },
   description: "A calm place for your family's days, meals, and routines.",
-  applicationName: "Home Hub",
+  applicationName: "Beacon",
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Home Hub",
+    title: "Beacon",
   },
   formatDetection: { telephone: false },
   ...(process.env.GOOGLE_SITE_VERIFICATION
@@ -48,7 +48,7 @@ export const viewport = {
   ],
 };
 
-const themeInitScript = `(function(){try{var t=localStorage.getItem("theme");if(t!=="light"&&t!=="dark"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}document.documentElement.dataset.theme=t;}catch(e){}})();`;
+const themeInitScript = `(function(){try{var t=localStorage.getItem("theme");if(t!=="light"&&t!=="dark"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}document.documentElement.dataset.theme=t;var a=localStorage.getItem("accent");if(a!=="sage"&&a!=="ocean"&&a!=="clay"&&a!=="plum"&&a!=="slate"){a="sage";}document.documentElement.dataset.accent=a;}catch(e){}})();`;
 
 export default function RootLayout({
   children,

@@ -25,14 +25,18 @@ import {
   schoolPeriods,
   schoolScheduleEntries,
   schoolSubjects,
-  shoppingItems,
+  groceryItems,
   snackCompletions,
 } from "@/db/schema";
 import { choreDaysForCadence } from "@/lib/chores";
 import { localDateIn } from "@/lib/dates";
 import { parseSnackOptions } from "@/lib/meals/snacks";
-import { isGuest } from "@/lib/household-roles";
-import { categorizeShoppingItem, parseShoppingTitle } from "@/lib/shopping";
+import {
+  householdRoles,
+  isGuest,
+} from "@/lib/household-roles";
+import { updateHouseholdMemberRole } from "@/lib/household-members";
+import { categorizeGroceryItem, parseGroceryTitle } from "@/lib/groceries";
 import { normalizeUsZipCode, resolveUsZipCode } from "@/lib/weather";
 import {
   requireHousehold,
@@ -41,6 +45,13 @@ import {
 } from "@/lib/household";
 import { isProfileColor } from "@/lib/profile-colors";
 import {
+  removeHouseholdPhoto,
+  saveHouseholdPhoto,
+  uploadHouseholdPhotoFile,
+} from "@/lib/household-photo";
+import {
+  PROFILE_PHOTO_MAX_BYTES,
+  PROFILE_PHOTO_TYPES,
   removeProfilePhotoForHousehold,
   saveProfilePhotoForHousehold,
 } from "@/lib/profile-photo";
@@ -99,7 +110,7 @@ export async function createHousehold(formData: FormData) {
       });
     }
   });
-  redirect("/dashboard");
+  redirect("/settings");
 }
 
 export async function joinHousehold(formData: FormData) {
@@ -119,7 +130,7 @@ export async function joinHousehold(formData: FormData) {
       role: "parent",
     })
     .onConflictDoNothing();
-  redirect("/dashboard");
+  redirect("/settings");
 }
 
 export async function joinHouseholdAsGuest(formData: FormData) {
@@ -139,7 +150,7 @@ export async function joinHouseholdAsGuest(formData: FormData) {
       role: "guest",
     })
     .onConflictDoNothing();
-  redirect("/dashboard");
+  redirect("/settings");
 }
 
 export async function removeGuestMember(formData: FormData) {
@@ -166,6 +177,21 @@ export async function removeGuestMember(formData: FormData) {
         eq(householdMembers.userId, userId),
       ),
     );
+  revalidatePath("/", "layout");
+}
+
+export async function updateMemberRole(formData: FormData) {
+  const user = await requireUser();
+  const household = await requireParentHousehold();
+  const userId = z.string().parse(formData.get("userId"));
+  const role = z.enum(householdRoles).parse(formData.get("role"));
+  await updateHouseholdMemberRole({
+    householdId: household.id,
+    actorUserId: user.id,
+    actorRole: household.role,
+    targetUserId: userId,
+    nextRole: role,
+  });
   revalidatePath("/", "layout");
 }
 
@@ -262,6 +288,42 @@ export async function removeProfilePhoto(profileId: string) {
     householdId: household.id,
     profileId: z.string().uuid().parse(profileId),
   });
+  revalidatePath("/", "layout");
+}
+
+export async function setHouseholdPhoto(formData: FormData) {
+  const household = await requireParentHousehold();
+  const file = formData.get("file");
+  if (!(file instanceof File)) {
+    throw new Error("Photo file is required.");
+  }
+  if (
+    !PROFILE_PHOTO_TYPES.includes(
+      file.type as (typeof PROFILE_PHOTO_TYPES)[number],
+    )
+  ) {
+    throw new Error("Choose a JPEG, PNG, or WebP image.");
+  }
+  if (file.size > PROFILE_PHOTO_MAX_BYTES) {
+    throw new Error("Choose an image smaller than 5 MB.");
+  }
+
+  const url = await uploadHouseholdPhotoFile({
+    householdId: household.id,
+    fileName: file.name || "photo.jpg",
+    contentType: file.type,
+    data: Buffer.from(await file.arrayBuffer()),
+  });
+  await saveHouseholdPhoto({
+    householdId: household.id,
+    url,
+  });
+  revalidatePath("/", "layout");
+}
+
+export async function deleteHouseholdPhoto() {
+  const household = await requireParentHousehold();
+  await removeHouseholdPhoto(household.id);
   revalidatePath("/", "layout");
 }
 
@@ -803,13 +865,13 @@ async function addRecycleBinItem({
   });
 }
 
-export async function addShoppingItem(formData: FormData) {
+export async function addGroceryItem(formData: FormData) {
   const household = await requireHousehold();
   const rawTitle = shortText.parse(text(formData, "title"));
-  const parsed = parseShoppingTitle(rawTitle);
+  const parsed = parseGroceryTitle(rawTitle);
   const category =
-    text(formData, "category") || categorizeShoppingItem(parsed.title);
-  await db.insert(shoppingItems).values({
+    text(formData, "category") || categorizeGroceryItem(parsed.title);
+  await db.insert(groceryItems).values({
     id: randomUUID(),
     householdId: household.id,
     title: parsed.title,
@@ -819,63 +881,63 @@ export async function addShoppingItem(formData: FormData) {
   revalidatePath("/", "layout");
 }
 
-export async function toggleShoppingItem(itemId: string, checked: boolean) {
+export async function toggleGroceryItem(itemId: string, checked: boolean) {
   const household = await requireHousehold();
   await db
-    .update(shoppingItems)
+    .update(groceryItems)
     .set({
       checked,
       checkedAt: checked ? new Date() : null,
       updatedAt: new Date(),
     })
     .where(
-      and(eq(shoppingItems.id, itemId), eq(shoppingItems.householdId, household.id)),
+      and(eq(groceryItems.id, itemId), eq(groceryItems.householdId, household.id)),
     );
   revalidatePath("/", "layout");
 }
 
-export async function deleteShoppingItem(itemId: string) {
+export async function deleteGroceryItem(itemId: string) {
   const household = await requireHousehold();
   const item = await db
     .select()
-    .from(shoppingItems)
+    .from(groceryItems)
     .where(
-      and(eq(shoppingItems.id, itemId), eq(shoppingItems.householdId, household.id)),
+      and(eq(groceryItems.id, itemId), eq(groceryItems.householdId, household.id)),
     )
     .limit(1);
-  if (!item[0]) throw new Error("Shopping item not found.");
+  if (!item[0]) throw new Error("Grocery item not found.");
   await addRecycleBinItem({
     householdId: household.id,
-    itemType: "shopping_item",
+    itemType: "grocery_item",
     itemId,
     label: item[0].title,
     snapshot: item[0],
   });
-  await db.delete(shoppingItems).where(eq(shoppingItems.id, itemId));
+  await db.delete(groceryItems).where(eq(groceryItems.id, itemId));
   revalidatePath("/", "layout");
 }
 
-export async function clearCheckedShoppingItems() {
+export async function clearCheckedGroceryItems() {
   const household = await requireHousehold();
   const items = await db
     .select()
-    .from(shoppingItems)
+    .from(groceryItems)
     .where(
-      and(eq(shoppingItems.householdId, household.id), eq(shoppingItems.checked, true)),
+      and(eq(groceryItems.householdId, household.id), eq(groceryItems.checked, true)),
     );
   for (const item of items) {
     await addRecycleBinItem({
       householdId: household.id,
-      itemType: "shopping_item",
+      itemType: "grocery_item",
       itemId: item.id,
       label: item.title,
       snapshot: item,
     });
   }
   await db
-    .delete(shoppingItems)
+    .delete(groceryItems)
     .where(
-      and(eq(shoppingItems.householdId, household.id), eq(shoppingItems.checked, true)),
+      and(eq(groceryItems.householdId, household.id), eq(groceryItems.checked, true)),
     );
   revalidatePath("/", "layout");
 }
@@ -1198,8 +1260,8 @@ export async function restoreRecycleBinItem(itemId: string) {
 
   const snapshot = JSON.parse(item[0].snapshot) as Record<string, unknown>;
   const now = new Date();
-  if (item[0].itemType === "shopping_item") {
-    await db.insert(shoppingItems).values({
+  if (item[0].itemType === "grocery_item" || item[0].itemType === "shopping_item") {
+    await db.insert(groceryItems).values({
       id: String(snapshot.id),
       householdId: household.id,
       title: String(snapshot.title),

@@ -1,34 +1,11 @@
 import SwiftUI
 
 struct MealInputView: View {
-    let localDate: String
-    let slot: MealSlot
-    let meal: Meal?
     let recipes: [RecipeOption]
     let readOnly: Bool
-    var onSave: (String, String?) async -> Bool
-
-    @State private var title: String
-    @State private var recipeId: String?
-    @State private var isSaving = false
-
-    init(
-        localDate: String,
-        slot: MealSlot,
-        meal: Meal?,
-        recipes: [RecipeOption],
-        readOnly: Bool,
-        onSave: @escaping (String, String?) async -> Bool
-    ) {
-        self.localDate = localDate
-        self.slot = slot
-        self.meal = meal
-        self.recipes = recipes
-        self.readOnly = readOnly
-        self.onSave = onSave
-        _title = State(initialValue: meal?.title ?? "")
-        _recipeId = State(initialValue: meal?.recipeId)
-    }
+    @Binding var title: String
+    @Binding var recipeId: String?
+    var onTitleChanged: () -> Void
 
     var body: some View {
         if readOnly {
@@ -80,23 +57,8 @@ struct MealInputView: View {
                 .lineLimit(3...6)
                 .textFieldStyle(.roundedBorder)
                 .onChange(of: title) { _, _ in
-                    if recipeId != nil, title != recipes.first(where: { $0.id == recipeId })?.title {
-                        recipeId = nil
-                    }
+                    onTitleChanged()
                 }
-
-                Button {
-                    Task {
-                        isSaving = true
-                        defer { isSaving = false }
-                        _ = await onSave(title, recipeId)
-                    }
-                } label: {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(HubTheme.sage)
-                }
-                .padding(8)
-                .disabled(isSaving)
             }
         }
     }

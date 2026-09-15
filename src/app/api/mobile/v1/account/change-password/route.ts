@@ -2,7 +2,6 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import {
-  getMobileSession,
   handleMobileError,
   mobileJson,
   parseJsonBody,

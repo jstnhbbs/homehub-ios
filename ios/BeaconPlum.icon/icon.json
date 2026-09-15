@@ -1,0 +1,117 @@
+{
+  "fill" : {
+    "solid" : "srgb:0.96863,0.95294,0.91373,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "fill" : {
+            "solid" : "display-p3:0.21176,0.36863,0.43529,1.00000"
+          },
+          "image-name" : "check-sage.svg",
+          "name" : "check-sage",
+          "position" : {
+            "scale" : 1.31,
+            "translation-in-points" : [
+              -13.86704698211446,
+              93.77999999999997
+            ]
+          }
+        },
+        {
+          "fill" : {
+            "solid" : "display-p3:0.89020,0.66275,0.29020,1.00000"
+          },
+          "image-name" : "check-gold.svg",
+          "name" : "check-gold",
+          "position" : {
+            "scale" : 1.31,
+            "translation-in-points" : [
+              -19.1245585893667,
+              72.77999999999997
+            ]
+          }
+        },
+        {
+          "image-name" : "doorway-panel.svg",
+          "name" : "doorway-panel",
+          "position" : {
+            "scale" : 1.31,
+            "translation-in-points" : [
+              0.021685607007270846,
+              25.779999999999973
+            ]
+          }
+        },
+        {
+          "fill-specializations" : [
+            {
+              "value" : {
+                "solid" : "display-p3:0.47843,0.35686,0.48627,1.00000"
+              }
+            },
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "display-p3:0.47843,0.35686,0.48627,1.00000"
+              }
+            }
+          ],
+          "image-name" : "house.svg",
+          "name" : "house",
+          "position" : {
+            "scale" : 1.24,
+            "translation-in-points" : [
+              0.021685607007270846,
+              53.77999999999997
+            ]
+          }
+        },
+        {
+          "image-name" : "sun.svg",
+          "name" : "sun",
+          "position" : {
+            "scale" : 1.24,
+            "translation-in-points" : [
+              2.6504414106333343,
+              0.7799999999999727
+            ]
+          }
+        },
+        {
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : "none"
+            }
+          ],
+          "hidden" : true,
+          "image-name" : "background.svg",
+          "name" : "background",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

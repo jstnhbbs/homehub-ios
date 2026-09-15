@@ -46,7 +46,9 @@ final class RoutinesViewModel: ObservableObject {
             profiles = try await profilesTask
             await refreshCompletedSteps()
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
         }
     }
 
@@ -62,21 +64,24 @@ final class RoutinesViewModel: ObservableObject {
         )
     }
 
-    func toggleStep(_ stepId: String) async {
-        guard let appState else { return }
+    func toggleStep(_ stepId: String) async -> Bool {
+        guard let appState else { return false }
         do {
             try await appState.api.toggleRoutineStep(
                 ToggleRoutineStepRequest(stepId: stepId, localDate: localDate)
             )
-            if completedStepIds.contains(stepId) {
-                completedStepIds.remove(stepId)
-            } else {
-                completedStepIds.insert(stepId)
-            }
             await appState.refreshDashboard()
+            return true
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
+            return false
         }
+    }
+
+    func markStepCompleted(_ stepId: String) {
+        completedStepIds.insert(stepId)
     }
 
     func createRoutine(_ input: RoutineInput) async -> Bool {
@@ -88,7 +93,9 @@ final class RoutinesViewModel: ObservableObject {
             await appState.refreshDashboard()
             return true
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
             return false
         }
     }
@@ -102,7 +109,9 @@ final class RoutinesViewModel: ObservableObject {
             await appState.refreshDashboard()
             return true
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
             return false
         }
     }
@@ -116,7 +125,9 @@ final class RoutinesViewModel: ObservableObject {
             await appState.refreshDashboard()
             return true
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
             return false
         }
     }

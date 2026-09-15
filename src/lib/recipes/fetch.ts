@@ -45,7 +45,7 @@ export async function fetchRecipeHtml(url: string) {
       redirect: "follow",
       headers: {
         Accept: "text/html,application/xhtml+xml",
-        "User-Agent": "HomeHub Recipe Importer/1.0",
+        "User-Agent": "Beacon Recipe Importer/1.0",
       },
     });
     if (!response.ok) {

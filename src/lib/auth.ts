@@ -4,7 +4,7 @@ import { db } from "@/db/client";
 import * as schema from "@/db/schema";
 
 export const auth = betterAuth({
-  appName: "Home Hub",
+  appName: "Beacon",
   secret:
     process.env.BETTER_AUTH_SECRET ??
     (process.env.NODE_ENV === "development"

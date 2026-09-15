@@ -4,14 +4,13 @@ const pngSizes = [48, 72, 96, 128, 144, 192, 384, 512] as const;
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Home Hub",
-    short_name: "Home Hub",
-    description: "Your family's shared calendar, routines, chores, and meals.",
-    start_url: "/dashboard",
+    name: "Beacon",
+    short_name: "Beacon",
+    description: "Your family's shared routines, chores, notes, calendar, and meals.",
+    start_url: "/settings",
     display: "standalone",
     background_color: "#f7f3e9",
     theme_color: "#f7f3e9",
-    orientation: "landscape",
     icons: [
       {
         src: "/icon.svg",

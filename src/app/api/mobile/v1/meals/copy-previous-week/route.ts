@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { addDays, format, parseISO, subWeeks } from "date-fns";
 import { z } from "zod";
 import { db } from "@/db/client";

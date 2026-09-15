@@ -1,10 +1,4 @@
-import {
-  BookOpen,
-  CalendarDays,
-  CheckSquare2,
-  ClipboardCheck,
-  Soup,
-} from "lucide-react";
+import { CalendarDays, CheckSquare2, ClipboardCheck, Soup } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -13,9 +7,9 @@ import { getCurrentHousehold, getSession } from "@/lib/household";
 const features = [
   {
     icon: CalendarDays,
-    title: "Shared calendar",
+    title: "Native calendar",
     description:
-      "Connect Apple or Google calendars for two-way sync on the family dashboard.",
+      "Use the calendars already on each iPhone or iPad for the family schedule.",
   },
   {
     icon: ClipboardCheck,
@@ -39,13 +33,13 @@ export default async function Home() {
   const session = await getSession();
   if (session) {
     const household = await getCurrentHousehold();
-    redirect(household ? "/dashboard" : "/onboarding");
+    redirect(household ? "/settings" : "/onboarding");
   }
 
   return (
     <main className="min-h-dvh">
       <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-6">
-        <div className="font-display text-2xl font-bold">Home Hub</div>
+        <div className="font-display text-2xl font-bold">Beacon</div>
         <div className="flex items-center gap-3">
           <ThemeToggle />
           <Link href="/sign-in" className="hub-button px-5">
@@ -63,7 +57,7 @@ export default async function Home() {
             A calmer way to run the family week.
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-[var(--muted)]">
-            Home Hub brings calendars, routines, chores, meals, and recipes
+            Beacon brings calendars, routines, chores, meals, and recipes
             together on one iPad-friendly screen so everyone knows what&apos;s
             happening today.
           </p>
@@ -96,15 +90,15 @@ export default async function Home() {
 
         <section className="hub-card mt-8 p-6">
           <div className="flex items-start gap-3">
-            <BookOpen className="mt-1 shrink-0 text-[var(--blue)]" size={24} />
+            <ClipboardCheck className="mt-1 shrink-0 text-[var(--blue)]" size={24} />
             <div>
               <h2 className="font-display text-2xl font-semibold">
                 Built for parents
               </h2>
               <p className="mt-2 text-sm leading-7 text-[var(--muted)]">
                 Parents sign in to manage the hub. Children appear as family
-                profiles without needing their own accounts. Calendar
-                credentials are encrypted before storage.
+                profiles without needing their own accounts. Calendar access is
+                granted locally on each iPhone or iPad.
               </p>
             </div>
           </div>

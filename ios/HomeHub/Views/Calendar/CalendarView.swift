@@ -2,27 +2,26 @@ import SwiftUI
 
 struct CalendarView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @StateObject private var viewModel = CalendarViewModel()
     @State private var showCalendarSettings = false
+    @State private var didApplyCompactDefault = false
+    @AppStorage(NativeCalendarPreferenceKeys.agendaFontSize) private var agendaFontSize = 15.0
+    @AppStorage(NativeCalendarPreferenceKeys.useSystemAgendaFont) private var useSystemAgendaFont = true
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            header
-            controls
-            if let error = viewModel.errorMessage {
-                Text(error)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.red)
-            }
-            HStack(alignment: .top, spacing: 20) {
-                mainCalendar
-                    .frame(maxWidth: .infinity)
-                agendaPanel
-                    .frame(width: 320)
+        Group {
+            if horizontalSizeClass == .compact {
+                ScrollView {
+                    content
+                }
+            } else {
+                content
             }
         }
         .onAppear {
             viewModel.bind(to: appState)
+            applyCompactDefaultViewMode()
             viewModel.startAutoSync(appState: appState)
         }
         .task(id: taskKey) {
@@ -38,7 +37,7 @@ struct CalendarView: View {
                         .padding(24)
                         .environmentObject(appState)
                 }
-                .navigationTitle("Calendars")
+                .navigationTitle("Calendar & Reminders")
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") { showCalendarSettings = false }
@@ -51,6 +50,39 @@ struct CalendarView: View {
         }
     }
 
+    @ViewBuilder
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            header
+            controls
+            if let error = viewModel.errorMessage {
+                Text(error)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.red)
+            }
+            nativeCalendarAccessBanner
+            if horizontalSizeClass == .compact {
+                VStack(alignment: .leading, spacing: 16) {
+                    mainCalendar
+                    agendaPanel
+                }
+            } else {
+                HStack(alignment: .top, spacing: 20) {
+                    mainCalendar
+                        .frame(maxWidth: .infinity)
+                    agendaPanel
+                        .frame(width: 320)
+                }
+            }
+        }
+    }
+
+    private var agendaEventFont: Font {
+        useSystemAgendaFont
+            ? .subheadline.weight(.heavy)
+            : .system(size: CGFloat(agendaFontSize), weight: .heavy)
+    }
+
     private func canEditBirthday(for event: CalendarOccurrence) -> Bool {
         guard event.isBirthday, let profileId = event.profileId else { return false }
         return appState.canEditProfile(profileId, profiles: appState.dashboard?.profiles ?? [])
@@ -60,59 +92,134 @@ struct CalendarView: View {
         "\(viewModel.viewMode.rawValue)-\(viewModel.anchorDate.timeIntervalSince1970)-\(viewModel.searchQuery)"
     }
 
+    private func applyCompactDefaultViewMode() {
+        guard horizontalSizeClass == .compact, !didApplyCompactDefault else { return }
+        didApplyCompactDefault = true
+        viewModel.setViewMode(.day)
+    }
+
     private var header: some View {
-        HStack(alignment: .bottom) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Everyone, all in one place")
-                    .font(.caption.weight(.bold))
-                    .textCase(.uppercase)
-                    .foregroundStyle(HubTheme.sage)
-                Text("Family calendar")
-                    .font(.system(size: 34, weight: .semibold, design: .rounded))
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .bottom) {
+                headerTitle
+                Spacer()
+                calendarSourceAndActions
             }
-            Spacer()
-            if viewModel.canManage {
-                Button {
-                    Task { await viewModel.syncCalendars() }
-                } label: {
-                    if viewModel.isSyncing {
-                        ProgressView()
-                    } else {
-                        Label("Sync", systemImage: "arrow.triangle.2.circlepath")
-                    }
-                }
-                .buttonStyle(HubButtonStyle(emphasis: .secondary))
+            VStack(alignment: .leading, spacing: 10) {
+                headerTitle
+                calendarSourceAndActions
             }
         }
     }
 
-    private var controls: some View {
-        HStack(spacing: 12) {
-            Picker("View", selection: Binding(
-                get: { viewModel.viewMode },
-                set: { viewModel.setViewMode($0) }
-            )) {
-                ForEach(CalendarViewMode.allCases) { mode in
-                    Text(mode.label).tag(mode)
+    private var headerTitle: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Family calendar")
+                .font(.system(size: 34, weight: .semibold, design: .rounded))
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+        }
+    }
+
+    private var calendarSourceAndActions: some View {
+        HStack(spacing: 8) {
+            Text(viewModel.calendarSourceLabel)
+                .font(.caption2.weight(.bold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(HubTheme.sunSoft)
+                .clipShape(Capsule())
+
+            if viewModel.needsNativeCalendarPermission {
+                Button {
+                    Task { await viewModel.requestNativeCalendarAccess() }
+                } label: {
+                    Label("Use Device Calendars", systemImage: "calendar.badge.checkmark")
                 }
+                .buttonStyle(HubButtonStyle(emphasis: .primary))
             }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 280)
+        }
+    }
 
-            HStack {
-                Image(systemName: "magnifyingglass")
+    @ViewBuilder
+    private var nativeCalendarAccessBanner: some View {
+        if viewModel.nativeCalendarDenied {
+            HStack(spacing: 10) {
+                Image(systemName: "lock.fill")
+                    .foregroundStyle(HubTheme.coral)
+                Text("Calendar access is off. Turn it on in Settings to use local calendars.")
+                    .font(.footnote.weight(.semibold))
                     .foregroundStyle(HubTheme.muted)
-                TextField("Search events…", text: $viewModel.searchQuery)
-                    .textFieldStyle(.plain)
+                Spacer()
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(12)
             .background(HubTheme.tileQuiet)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .frame(maxWidth: 280)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        } else if viewModel.needsNativeCalendarPermission {
+            HStack(spacing: 10) {
+                Image(systemName: "calendar")
+                    .foregroundStyle(HubTheme.sage)
+                Text("Use the calendars already on this device for a native schedule.")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(HubTheme.muted)
+                Spacer()
+                Button("Allow") {
+                    Task { await viewModel.requestNativeCalendarAccess() }
+                }
+                .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
+            }
+            .padding(12)
+            .background(HubTheme.tileQuiet)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+    }
 
-            Spacer()
+    private var controls: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                calendarModePicker
+                    .frame(maxWidth: 280)
+                calendarSearchField
+                    .frame(maxWidth: 280)
+                Spacer()
+                calendarNavigationControls
+            }
 
+            VStack(alignment: .leading, spacing: 10) {
+                calendarModePicker
+                calendarSearchField
+                calendarNavigationControls
+            }
+        }
+    }
+
+    private var calendarModePicker: some View {
+        Picker("View", selection: Binding(
+            get: { viewModel.viewMode },
+            set: { viewModel.setViewMode($0) }
+        )) {
+            ForEach(CalendarViewMode.allCases) { mode in
+                Text(mode.label).tag(mode)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var calendarSearchField: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(HubTheme.muted)
+            TextField("Search events…", text: $viewModel.searchQuery)
+                .textFieldStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(HubTheme.tileQuiet)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private var calendarNavigationControls: some View {
+        HStack(spacing: 12) {
             Button { viewModel.goPrevious() } label: {
                 Image(systemName: "chevron.left")
                     .frame(width: 40, height: 40)
@@ -132,7 +239,7 @@ struct CalendarView: View {
 
     @ViewBuilder
     private var mainCalendar: some View {
-        HubCard {
+        calendarSurface {
             if viewModel.isLoading && viewModel.occurrences.isEmpty {
                 ProgressView()
                     .frame(maxWidth: .infinity, minHeight: 420)
@@ -141,10 +248,25 @@ struct CalendarView: View {
                 case .day:
                     CalendarDayTimelineView(viewModel: viewModel)
                 default:
-                    CalendarGridView(viewModel: viewModel)
+                    CalendarGridView(
+                        viewModel: viewModel,
+                        compactLayout: horizontalSizeClass == .compact
+                    )
                 }
             }
         }
+    }
+
+    private func calendarSurface<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(horizontalSizeClass == .compact ? 12 : 20)
+            .background(HubTheme.tile)
+            .clipShape(RoundedRectangle(cornerRadius: horizontalSizeClass == .compact ? 18 : 24, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: horizontalSizeClass == .compact ? 18 : 24, style: .continuous)
+                    .stroke(HubTheme.line, lineWidth: 1)
+            )
     }
 
     private var agendaPanel: some View {
@@ -178,6 +300,7 @@ struct CalendarView: View {
                                 CalendarAgendaEventRow(
                                     event: event,
                                     timezone: viewModel.timezone,
+                                    titleFont: agendaEventFont,
                                     canManage: viewModel.canManage,
                                     canEditBirthday: canEditBirthday(for: event),
                                     isExpanded: viewModel.editingEvent?.id == event.id,
@@ -200,15 +323,16 @@ struct CalendarView: View {
                     .frame(maxHeight: 360)
                 }
 
-                if viewModel.canManage {
+                if viewModel.supportsServerEventEditing {
                     if viewModel.isConnected, !viewModel.calendars.isEmpty {
                         DisclosureGroup("Add an event", isExpanded: $viewModel.showAddEvent) {
-                            CalendarEventFormView(
-                                calendars: viewModel.calendars,
-                                timezone: viewModel.timezone,
-                                submitLabel: "Add event",
-                                defaultSelectedDate: viewModel.selectedDate
-                            ) { input in
+            CalendarEventFormView(
+                calendars: viewModel.calendars,
+                timezone: viewModel.timezone,
+                submitLabel: "Add event",
+                defaultSelectedDate: viewModel.selectedDate,
+                preferredCalendarId: appState.nativeCalendar.defaultCalendarForNewEvents?.calendarIdentifier
+            ) { input in
                                 await viewModel.createEvent(input)
                             }
                         }
@@ -227,6 +351,12 @@ struct CalendarView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.top, 8)
                     }
+                } else if viewModel.usesNativeCalendar {
+                    Text("Events are coming directly from this device's calendars.")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(HubTheme.muted)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 8)
                 }
             }
         }
@@ -235,6 +365,7 @@ struct CalendarView: View {
 
 private struct CalendarGridView: View {
     @ObservedObject var viewModel: CalendarViewModel
+    let compactLayout: Bool
 
     private var weekdayLabels: [String] {
         WeekStart.weekdayLabels(weekStartsOn: viewModel.weekStartsOn)
@@ -244,16 +375,12 @@ private struct CalendarGridView: View {
         VStack(spacing: 0) {
             HStack {
                 Text(viewModel.headerTitle)
-                    .font(.title2.weight(.semibold))
+                    .font((compactLayout ? Font.headline : Font.title2).weight(.semibold))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
                 Spacer()
-                Text("Family")
-                    .font(.caption2.weight(.bold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(HubTheme.sunSoft)
-                    .clipShape(Capsule())
             }
-            .padding(.bottom, 12)
+            .padding(.bottom, compactLayout ? 8 : 12)
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 0) {
                 ForEach(weekdayLabels, id: \.self) { label in
@@ -261,7 +388,7 @@ private struct CalendarGridView: View {
                         .font(.caption2.weight(.heavy))
                         .foregroundStyle(HubTheme.muted)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, compactLayout ? 5 : 8)
                 }
 
                 ForEach(viewModel.gridDates, id: \.timeIntervalSince1970) { day in
@@ -274,7 +401,8 @@ private struct CalendarGridView: View {
                         isSelected: localDate == viewModel.selectedDate,
                         isToday: localDate == viewModel.today,
                         isOutsideMonth: viewModel.viewMode == .month && !CalendarHelpers.isSameMonth(day, anchor: viewModel.anchorDate, timezone: viewModel.timezone),
-                        compact: viewModel.viewMode == .month,
+                        compact: compactLayout || viewModel.viewMode == .month,
+                        showsEventLabels: !compactLayout,
                         onSelect: { viewModel.selectDate(localDate) }
                     )
                 }
@@ -292,6 +420,7 @@ private struct CalendarDayCell: View {
     let isToday: Bool
     let isOutsideMonth: Bool
     let compact: Bool
+    let showsEventLabels: Bool
     let onSelect: () -> Void
 
     var body: some View {
@@ -309,32 +438,36 @@ private struct CalendarDayCell: View {
                         }
                     }
 
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(events.prefix(compact ? 3 : 8)) { event in
-                        HStack(spacing: 4) {
-                            RoundedRectangle(cornerRadius: 1)
-                                .fill(HubTheme.profileColor(event.color))
-                                .frame(width: 3)
-                            Text(eventLabel(event))
-                                .font(.caption2.weight(.bold))
-                                .lineLimit(1)
+                if showsEventLabels {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(events.prefix(compact ? 3 : 8)) { event in
+                            HStack(spacing: 4) {
+                                RoundedRectangle(cornerRadius: 1)
+                                    .fill(HubTheme.profileColor(event.color))
+                                    .frame(width: 3)
+                                Text(eventLabel(event))
+                                    .font(.caption2.weight(.bold))
+                                    .lineLimit(1)
+                            }
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 3)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(HubTheme.tileQuiet)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         }
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 3)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(HubTheme.tileQuiet)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        if events.count > (compact ? 3 : 8) {
+                            Text("+\(events.count - (compact ? 3 : 8)) more")
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(HubTheme.muted)
+                        }
                     }
-                    if events.count > (compact ? 3 : 8) {
-                        Text("+\(events.count - (compact ? 3 : 8)) more")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(HubTheme.muted)
-                    }
+                } else if !events.isEmpty {
+                    compactEventDots
                 }
                 Spacer(minLength: 0)
             }
-            .padding(6)
-            .frame(maxWidth: .infinity, minHeight: compact ? 112 : 520, alignment: .topLeading)
+            .padding(compact ? 4 : 6)
+            .frame(maxWidth: .infinity, minHeight: compact ? 58 : 520, alignment: .topLeading)
             .background(isSelected ? HubTheme.sunSoft.opacity(0.35) : Color.clear)
             .opacity(isOutsideMonth ? 0.55 : 1)
         }
@@ -350,6 +483,22 @@ private struct CalendarDayCell: View {
     private var dayNumber: String {
         let cal = CalendarHelpers.calendar(timezone: timezone, weekStartsOn: 1)
         return String(cal.component(.day, from: date))
+    }
+
+    private var compactEventDots: some View {
+        HStack(spacing: 3) {
+            ForEach(Array(events.prefix(3).enumerated()), id: \.element.id) { _, event in
+                Circle()
+                    .fill(HubTheme.profileColor(event.color))
+                    .frame(width: 5, height: 5)
+            }
+            if events.count > 3 {
+                Text("+\(events.count - 3)")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(HubTheme.muted)
+                    .lineLimit(1)
+            }
+        }
     }
 
     private func eventLabel(_ event: CalendarOccurrence) -> String {
@@ -466,6 +615,7 @@ private struct CalendarDayTimelineView: View {
 private struct CalendarAgendaEventRow: View {
     let event: CalendarOccurrence
     let timezone: TimeZone
+    var titleFont: Font = .subheadline.weight(.heavy)
     let canManage: Bool
     let canEditBirthday: Bool
     let isExpanded: Bool
@@ -480,7 +630,7 @@ private struct CalendarAgendaEventRow: View {
             Button(action: onEdit) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(event.title)
-                        .font(.subheadline.weight(.heavy))
+                        .font(titleFont)
                         .foregroundStyle(.primary)
                     Text(detailLine)
                         .font(.caption)

@@ -5,6 +5,7 @@ struct OnboardingView: View {
 
     @State private var mode: OnboardingMode = .create
     @State private var householdName = ""
+    @State private var ownerLastName = ""
     @State private var childName = ""
     @State private var inviteCode = ""
     @State private var guestInviteCode = ""
@@ -25,7 +26,7 @@ struct OnboardingView: View {
 
     var body: some View {
         VStack(spacing: 24) {
-            Text("Welcome to Home Hub")
+            Text("Welcome to Beacon")
                 .font(.system(size: 36, weight: .bold, design: .rounded))
             Text("Create a household or join one with an invite code.")
                 .foregroundStyle(HubTheme.muted)
@@ -42,6 +43,8 @@ struct OnboardingView: View {
                 switch mode {
                 case .create:
                     TextField("Household name", text: $householdName)
+                    TextField("Your last name", text: $ownerLastName)
+                        .textContentType(.familyName)
                     TextField("First child name (optional)", text: $childName)
                 case .join:
                     TextField("Parent invite code", text: $inviteCode)
@@ -64,7 +67,7 @@ struct OnboardingView: View {
                 Task { await submit() }
             }
             .buttonStyle(HubButtonStyle(emphasis: .primary))
-            .disabled(isSubmitting)
+            .disabled(isSubmitting || !canSubmit)
         }
         .padding(40)
     }
@@ -80,6 +83,7 @@ struct OnboardingView: View {
                 _ = try await appState.api.createHousehold(
                     CreateHouseholdRequest(
                         name: householdName,
+                        ownerLastName: ownerLastName,
                         childName: childName.isEmpty ? nil : childName,
                         timezone: TimeZone.current.identifier
                     )
@@ -96,6 +100,18 @@ struct OnboardingView: View {
             await appState.refreshHousehold()
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    private var canSubmit: Bool {
+        switch mode {
+        case .create:
+            !householdName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+                !ownerLastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .join:
+            !inviteCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .guest:
+            !guestInviteCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
     }
 }

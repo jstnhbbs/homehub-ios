@@ -1,3 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <circle cx="365" cy="158" r="55" fill="#e3a94a"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="translate(512 512) translate(2.6504414106333343 0.7799999999999727) scale(1.24) translate(-512 -512)">
+    <circle cx="710" cy="292" r="112" fill="#e3a94a"/>
+  </g>
 </svg>

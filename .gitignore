@@ -26,6 +26,7 @@
 # misc
 .DS_Store
 *.pem
+**/__pycache__/
 
 # debug
 npm-debug.log*
@@ -42,10 +43,12 @@ yarn-error.log*
 *.db-shm
 *.db-wal
 public/profile-photos/
+public/household-photos/
 
 # Xcode user-specific state
 **/xcuserdata/
 *.xcuserstate
+ios/.derivedData/
 
 # vercel
 .vercel

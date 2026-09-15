@@ -11,36 +11,37 @@ struct MyProfileView: View {
     @State private var confirmPassword = ""
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                header
+        VStack(alignment: .leading, spacing: 12) {
+            header
+                .padding(.horizontal)
 
-                if let error = viewModel.errorMessage {
-                    Text(error).font(.footnote).foregroundStyle(.red)
-                }
-                if let success = viewModel.successMessage {
-                    Text(success).font(.footnote).foregroundStyle(HubTheme.sage)
-                }
-
+            Form {
+                statusSection
                 if viewModel.isLoading && viewModel.account == nil {
-                    ProgressView().frame(maxWidth: .infinity, minHeight: 240)
-                } else                 if let account = viewModel.account {
+                    Section {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                            Spacer()
+                        }
+                    }
+                } else if let account = viewModel.account {
                     accountSection(account)
                     if account.profile != nil {
                         familyProfileSection
                     }
                 }
 
-                HubCard {
-                    ThemeSettingView()
-                }
+                ThemeSettingView()
 
-                Button("Sign Out", role: .destructive) {
-                    Task { await appState.signOut() }
+                Section {
+                    Button("Sign Out", role: .destructive) {
+                        Task { await appState.signOut() }
+                    }
                 }
-                .buttonStyle(HubButtonStyle(emphasis: .secondary))
             }
-            .frame(maxWidth: 720, alignment: .leading)
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
         }
         .onAppear {
             viewModel.bind(to: appState)
@@ -54,18 +55,30 @@ struct MyProfileView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Your info")
-                .font(.caption.weight(.bold))
-                .textCase(.uppercase)
-                .foregroundStyle(HubTheme.sage)
             Text("Profile")
                 .font(.system(size: 34, weight: .semibold, design: .rounded))
         }
     }
 
+    @ViewBuilder
+    private var statusSection: some View {
+        if let error = viewModel.errorMessage {
+            Section {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+            }
+        }
+        if let success = viewModel.successMessage {
+            Section {
+                Label(success, systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(HubTheme.sage)
+            }
+        }
+    }
+
     private func accountSection(_ account: AccountData) -> some View {
-        HubCard {
-            VStack(alignment: .leading, spacing: 16) {
+        Group {
+            Section("Account") {
                 HStack(spacing: 12) {
                     ProfileAvatarView(
                         name: account.user.name,
@@ -82,50 +95,37 @@ struct MyProfileView: View {
                     }
                 }
 
-                FormField(label: "Display name") {
-                    TextField("Your name", text: $name)
-                        .textFieldStyle(.roundedBorder)
-                }
-                Button("Save name") {
+                TextField("Display Name", text: $name)
+                    .textContentType(.name)
+
+                Button("Save Name") {
                     Task { _ = await viewModel.updateName(name) }
                 }
-                .buttonStyle(HubButtonStyle(emphasis: .primary))
                 .disabled(viewModel.isWorking || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
 
-                Divider()
+            Section("Email") {
+                LabeledContent("Current Email", value: account.user.email)
+                TextField("New Email", text: $newEmail)
+                    .textContentType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.emailAddress)
 
-                FormField(label: "Email") {
-                    Text(account.user.email)
-                        .font(.subheadline)
-                        .foregroundStyle(HubTheme.muted)
-                }
-                FormField(label: "New email") {
-                    TextField("new-email@example.com", text: $newEmail)
-                        .textFieldStyle(.roundedBorder)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.emailAddress)
-                }
-                Button("Update email") {
+                Button("Update Email") {
                     Task { _ = await viewModel.changeEmail(newEmail) }
                 }
-                .buttonStyle(HubButtonStyle(emphasis: .secondary))
                 .disabled(viewModel.isWorking || newEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
 
-                Divider()
+            Section("Password") {
+                SecureField("Current Password", text: $currentPassword)
+                    .textContentType(.password)
+                SecureField("New Password", text: $newPassword)
+                    .textContentType(.newPassword)
+                SecureField("Confirm New Password", text: $confirmPassword)
+                    .textContentType(.newPassword)
 
-                FormField(label: "Current password") {
-                    SecureField("Current password", text: $currentPassword)
-                        .textFieldStyle(.roundedBorder)
-                }
-                FormField(label: "New password") {
-                    SecureField("At least 10 characters", text: $newPassword)
-                        .textFieldStyle(.roundedBorder)
-                }
-                FormField(label: "Confirm new password") {
-                    SecureField("Repeat new password", text: $confirmPassword)
-                        .textFieldStyle(.roundedBorder)
-                }
-                Button("Change password") {
+                Button("Change Password") {
                     Task {
                         guard newPassword == confirmPassword else {
                             viewModel.errorMessage = "New passwords do not match."
@@ -146,40 +146,35 @@ struct MyProfileView: View {
                         }
                     }
                 }
-                .buttonStyle(HubButtonStyle(emphasis: .secondary))
                 .disabled(viewModel.isWorking || currentPassword.isEmpty || newPassword.isEmpty)
             }
         }
     }
 
     private var familyProfileSection: some View {
-        HubCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Family profile")
-                    .font(.headline)
-                Text("This is how you appear on the family dashboard and calendar.")
-                    .font(.footnote)
-                    .foregroundStyle(HubTheme.muted)
-
-                if let profile = viewModel.account?.profile {
-                    ProfilePhotoUploadView(profile: profile) {
-                        await viewModel.load()
-                        await appState.refreshDashboard()
-                    }
-                }
-
-                ProfileFormView(
-                    profile: viewModel.account?.profile,
-                    mode: .selfEdit,
-                    timezone: viewModel.timezone,
-                    birthdayPickerStyle: .graphical,
-                    includeName: false,
-                    submitLabel: "Save profile",
-                    accountName: viewModel.account?.user.name
-                ) { input in
-                    await viewModel.updateProfile(input)
+        Section {
+            if let profile = viewModel.account?.profile {
+                ProfilePhotoUploadView(profile: profile) {
+                    await viewModel.load()
+                    await appState.refreshDashboard()
                 }
             }
+
+            ProfileFormView(
+                profile: viewModel.account?.profile,
+                mode: .selfEdit,
+                timezone: viewModel.timezone,
+                birthdayPickerStyle: .graphical,
+                includeName: false,
+                submitLabel: "Save Profile",
+                accountName: viewModel.account?.user.name
+            ) { input in
+                await viewModel.updateProfile(input)
+            }
+        } header: {
+            Text("Family Profile")
+        } footer: {
+            Text("This is how you appear on the family dashboard and calendar.")
         }
     }
 

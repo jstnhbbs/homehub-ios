@@ -70,6 +70,7 @@ final class ChoresViewModel: ObservableObject {
             chores = try await choresTask
             profiles = try await profilesTask
         } catch {
+            guard !error.isCancellation else { return }
             errorMessage = error.localizedDescription
         }
     }
@@ -83,6 +84,7 @@ final class ChoresViewModel: ObservableObject {
             await load()
             await appState.refreshDashboard()
         } catch {
+            guard !error.isCancellation else { return }
             errorMessage = error.localizedDescription
         }
     }
@@ -96,6 +98,7 @@ final class ChoresViewModel: ObservableObject {
             await appState.refreshDashboard()
             return true
         } catch {
+            guard !error.isCancellation else { return false }
             errorMessage = error.localizedDescription
             return false
         }
@@ -110,6 +113,7 @@ final class ChoresViewModel: ObservableObject {
             await appState.refreshDashboard()
             return true
         } catch {
+            guard !error.isCancellation else { return false }
             errorMessage = error.localizedDescription
             return false
         }
@@ -124,6 +128,7 @@ final class ChoresViewModel: ObservableObject {
             await appState.refreshDashboard()
             return true
         } catch {
+            guard !error.isCancellation else { return false }
             errorMessage = error.localizedDescription
             return false
         }

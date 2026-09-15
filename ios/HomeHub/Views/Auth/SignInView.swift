@@ -16,9 +16,9 @@ struct SignInView: View {
     var body: some View {
         VStack(spacing: 28) {
             VStack(spacing: 8) {
-                Text("Home Hub")
+                Text("Beacon")
                     .font(.system(size: 44, weight: .bold, design: .rounded))
-                Text("Your family dashboard for iPad")
+                Text("Your family dashboard")
                     .font(.title3)
                     .foregroundStyle(HubTheme.muted)
             }

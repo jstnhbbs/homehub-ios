@@ -44,6 +44,7 @@ export function serializeRecipeFields(input: {
 export function recipeFromRow(row: typeof recipes.$inferSelect): StoredRecipe {
   return {
     id: row.id,
+    householdId: row.householdId,
     title: row.title,
     description: row.description ?? undefined,
     servings: row.servings ?? undefined,

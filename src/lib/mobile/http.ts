@@ -58,11 +58,12 @@ export function serializeHousehold(
     id: household.id,
     name: household.name,
     timezone: household.timezone,
-    calendarSyncIntervalMinutes: household.calendarSyncIntervalMinutes,
     weekStartsOn: household.weekStartsOn,
     inviteCode: household.inviteCode,
     guestInviteCode: household.guestInviteCode,
     snackOptions: household.snackOptions,
+    ownerName: household.ownerName,
+    photo: household.photo,
     role: household.role,
   };
 }

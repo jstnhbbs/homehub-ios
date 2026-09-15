@@ -23,6 +23,19 @@ enum APIError: LocalizedError, Sendable {
     }
 }
 
+extension Error {
+    var isCancellation: Bool {
+        if self is CancellationError { return true }
+        if (self as? URLError)?.code == .cancelled { return true }
+        let nsError = self as NSError
+        return nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled
+    }
+
+    var userFacingMessage: String? {
+        isCancellation ? nil : localizedDescription
+    }
+}
+
 struct APIClient: Sendable {
     let baseURL: URL
     private let session: URLSession
@@ -44,8 +57,9 @@ struct APIClient: Sendable {
 
         var request = URLRequest(url: url)
         request.httpMethod = method
+        request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("HomeHub-iOS/1.0", forHTTPHeaderField: "User-Agent")
+        request.setValue("Beacon-iOS/1.0", forHTTPHeaderField: "User-Agent")
 
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -68,7 +82,7 @@ struct APIClient: Sendable {
         do {
             return try JSONDecoder.api.decode(T.self, from: data)
         } catch {
-            throw APIError.decodingError(error.localizedDescription)
+            throw APIError.decodingError(APIClient.decodingMessage(error))
         }
     }
 
@@ -101,9 +115,10 @@ struct APIClient: Sendable {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.timeoutInterval = 30
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("HomeHub-iOS/1.0", forHTTPHeaderField: "User-Agent")
+        request.setValue("Beacon-iOS/1.0", forHTTPHeaderField: "User-Agent")
         request.httpBody = body
 
         let (data, response) = try await session.data(for: request)
@@ -122,7 +137,7 @@ struct APIClient: Sendable {
         do {
             return try JSONDecoder.api.decode(T.self, from: data)
         } catch {
-            throw APIError.decodingError(error.localizedDescription)
+            throw APIError.decodingError(APIClient.decodingMessage(error))
         }
     }
 
@@ -137,8 +152,9 @@ struct APIClient: Sendable {
 
         var request = URLRequest(url: url)
         request.httpMethod = method
+        request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("HomeHub-iOS/1.0", forHTTPHeaderField: "User-Agent")
+        request.setValue("Beacon-iOS/1.0", forHTTPHeaderField: "User-Agent")
 
         if let jsonBody {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -171,7 +187,7 @@ struct APIClient: Sendable {
             case 404:
                 return """
                 The server does not have the mobile API yet (404). \
-                Deploy the latest Home Hub backend, or point HOMEHUB_API_URL at a local dev server.
+                Deploy the latest Beacon backend, or point HOMEHUB_API_URL at a local dev server.
                 """
             default:
                 return "Unexpected server response (\(statusCode))."
@@ -186,6 +202,26 @@ struct APIClient: Sendable {
             return String(body.prefix(240)) + "…"
         }
         return body
+    }
+
+    static func decodingMessage(_ error: Error) -> String {
+        func path(_ codingPath: [CodingKey]) -> String {
+            let value = codingPath.map(\.stringValue).joined(separator: ".")
+            return value.isEmpty ? "response" : value
+        }
+
+        switch error {
+        case let DecodingError.keyNotFound(key, context):
+            return "Missing \(path(context.codingPath + [key]))."
+        case let DecodingError.valueNotFound(_, context):
+            return "Missing value at \(path(context.codingPath))."
+        case let DecodingError.typeMismatch(_, context):
+            return "Unexpected value at \(path(context.codingPath)): \(context.debugDescription)"
+        case let DecodingError.dataCorrupted(context):
+            return "Invalid data at \(path(context.codingPath)): \(context.debugDescription)"
+        default:
+            return error.localizedDescription
+        }
     }
 }
 

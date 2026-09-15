@@ -2,131 +2,168 @@ import SwiftUI
 
 struct SnacksView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @StateObject private var viewModel = SnacksViewModel()
+    @FocusState private var focusedField: SnackFocusField?
+
+    private enum SnackFocusField: Hashable {
+        case add
+        case edit
+    }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 20) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    header
-                    if let error = viewModel.errorMessage {
-                        Text(error).font(.footnote).foregroundStyle(.red)
-                    }
-                    if let success = viewModel.successMessage {
-                        Text(success).font(.footnote).foregroundStyle(HubTheme.sage)
-                    }
-                    checklistSection
-                }
-            }
-            .frame(maxWidth: .infinity)
-
-            if viewModel.canManage {
-                optionsPanel
-                    .frame(width: 330)
-            }
+        List {
+            headerSection
+            messagesSection
+            snackChecklistSection
         }
+        .listStyle(.insetGrouped)
         .onAppear { viewModel.bind(to: appState) }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
-    }
-
-    private var header: some View {
-        HStack(alignment: .bottom) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Grab and go")
-                    .font(.caption.weight(.bold))
-                    .textCase(.uppercase)
-                    .foregroundStyle(HubTheme.sage)
-                Text("Today's snacks")
-                    .font(.system(size: 34, weight: .semibold, design: .rounded))
-                if !viewModel.dateLabel.isEmpty {
-                    Text(viewModel.dateLabel)
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(HubTheme.muted)
-                }
-            }
-            Spacer()
-            if !viewModel.snackOptions.isEmpty {
-                Button {
-                    Task { await viewModel.resetChecklist() }
-                } label: {
-                    Label("Reset checklist", systemImage: "arrow.counterclockwise")
-                }
-                .buttonStyle(HubButtonStyle(emphasis: .secondary))
-                .disabled(viewModel.isWorking)
-            }
+        .onChange(of: viewModel.editingSnack) { _, snack in
+            focusedField = snack == nil ? nil : .edit
         }
     }
 
-    private var checklistSection: some View {
-        HubCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Label("Snack checklist", systemImage: "carrot.fill")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(HubTheme.sage)
-                Text("Check off snacks as they're eaten. Checked items stay on the list with a strikethrough.")
-                    .font(.footnote)
-                    .foregroundStyle(HubTheme.muted)
-
-                if viewModel.isLoading && viewModel.snackOptions.isEmpty {
-                    ProgressView().frame(maxWidth: .infinity, minHeight: 120)
-                } else if viewModel.snackOptions.isEmpty {
-                    EmptyStateView(
-                        text: viewModel.canManage
-                            ? "Add snack options in the panel."
-                            : "No snacks listed yet."
-                    )
-                } else {
-                    VStack(spacing: 8) {
-                        ForEach(viewModel.displayedSnacks, id: \.self) { snack in
-                            SnackCheckRow(
-                                label: snack,
-                                isEaten: viewModel.eaten.contains(snack)
-                            ) {
-                                await viewModel.toggleSnack(snack)
-                            }
-                        }
+    @ViewBuilder
+    private var headerSection: some View {
+        Section {
+            HStack(alignment: .bottom) {
+                VStack(alignment: .leading, spacing: 4) {
+                    if horizontalSizeClass != .compact {
+                        Text("Today's snacks")
+                            .font(.system(size: 28, weight: .semibold, design: .rounded))
+                    }
+                    if !viewModel.dateLabel.isEmpty {
+                        Text(viewModel.dateLabel)
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(HubTheme.muted)
                     }
                 }
-
+                Spacer()
                 if !viewModel.snackOptions.isEmpty {
-                    Text("\(viewModel.eaten.count) of \(viewModel.snackOptions.count) eaten today")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(HubTheme.muted)
-                        .frame(maxWidth: .infinity)
+                    Button {
+                        Task { await viewModel.resetChecklist() }
+                    } label: {
+                        Label("Reset", systemImage: "arrow.counterclockwise")
+                    }
+                    .disabled(viewModel.isWorking)
                 }
+            }
+            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+            .listRowBackground(Color.clear)
+        }
+    }
+
+    @ViewBuilder
+    private var messagesSection: some View {
+        if let error = viewModel.errorMessage {
+            Section {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+        } else if let success = viewModel.successMessage {
+            Section {
+                Text(success)
+                    .font(.footnote)
+                    .foregroundStyle(HubTheme.sage)
             }
         }
     }
 
-    private var optionsPanel: some View {
-        HubCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Label("Snack options", systemImage: "list.bullet")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(HubTheme.sage)
-                Text("Keep a running list of snacks the family can grab anytime.")
-                    .font(.footnote)
+    @ViewBuilder
+    private var snackChecklistSection: some View {
+        Section {
+            if viewModel.isLoading && viewModel.snackOptions.isEmpty {
+                ProgressView()
+                    .frame(maxWidth: .infinity, minHeight: 80)
+            } else if viewModel.snackOptions.isEmpty && !viewModel.canManage {
+                Text("No snacks listed yet.")
+                    .font(.footnote.weight(.semibold))
                     .foregroundStyle(HubTheme.muted)
-
-                TextField(
-                    "Apples\nYogurt tubes\nCheese sticks",
-                    text: $viewModel.snackOptionsText,
-                    axis: .vertical
-                )
-                .lineLimit(6...12)
-                .textFieldStyle(.roundedBorder)
-                .font(.system(.body, design: .monospaced))
-
-                Text("Put each snack on a new line.")
-                    .font(.caption2)
-                    .foregroundStyle(HubTheme.muted)
-
-                Button("Save snack list") {
-                    Task { _ = await viewModel.saveSnackOptions() }
+            } else {
+                ForEach(viewModel.displayedSnacks, id: \.self) { snack in
+                    snackRow(snack)
                 }
-                .buttonStyle(HubButtonStyle(emphasis: .primary))
+            }
+
+            if viewModel.canManage {
+                HStack(spacing: 10) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(HubTheme.sage)
+                    TextField("New snack", text: $viewModel.newSnackText)
+                        .textInputAutocapitalization(.sentences)
+                        .submitLabel(.done)
+                        .focused($focusedField, equals: .add)
+                        .onSubmit {
+                            Task {
+                                if await viewModel.addSnack() {
+                                    focusedField = .add
+                                }
+                            }
+                        }
+                }
                 .disabled(viewModel.isWorking)
+            }
+        } header: {
+            Label("Snacks", systemImage: "carrot.fill")
+        } footer: {
+            if !viewModel.snackOptions.isEmpty {
+                Text("\(viewModel.eaten.count) of \(viewModel.snackOptions.count) eaten today")
+            } else if viewModel.canManage {
+                Text("Add a snack below to start today's checklist.")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func snackRow(_ snack: String) -> some View {
+        Group {
+            if viewModel.editingSnack == snack {
+                HStack(spacing: 10) {
+                    Image(systemName: "pencil.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(HubTheme.sage)
+                    TextField("Snack name", text: $viewModel.editDraft)
+                        .textInputAutocapitalization(.sentences)
+                        .submitLabel(.done)
+                        .focused($focusedField, equals: .edit)
+                        .onSubmit {
+                            Task { _ = await viewModel.commitEditing() }
+                        }
+                    Button("Cancel") {
+                        viewModel.cancelEditing()
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(HubTheme.muted)
+                }
+            } else {
+                SnackCheckRow(
+                    label: snack,
+                    isEaten: viewModel.eaten.contains(snack)
+                ) {
+                    await viewModel.toggleSnack(snack)
+                }
+            }
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            if viewModel.canManage {
+                Button(role: .destructive) {
+                    Task { await viewModel.deleteSnack(snack) }
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+                .tint(.red)
+
+                Button {
+                    viewModel.beginEditing(snack)
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+                .tint(.indigo)
             }
         }
     }
@@ -147,9 +184,25 @@ private struct SnackCheckRow: View {
     }
 
     var body: some View {
-        CheckItemView(label: label, isChecked: $isChecked) {
-            await onToggle()
+        Button {
+            Task {
+                isChecked.toggle()
+                await onToggle()
+            }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isChecked ? HubTheme.sage : HubTheme.muted)
+                Text(label)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(isChecked ? HubTheme.muted : .primary)
+                    .strikethrough(isChecked, color: HubTheme.muted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         .onChange(of: isEaten) { _, eaten in
             isChecked = eaten
         }

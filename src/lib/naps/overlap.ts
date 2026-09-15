@@ -41,3 +41,17 @@ export function sleepLogsOnDate<
 >(logs: T[], localDate: string, timezone: string, now?: Date) {
   return logs.filter((log) => sleepOverlapsLocalDate(log, localDate, timezone, now));
 }
+
+export function overlapMinutesOnLocalDate(
+  log: SleepLogLike,
+  localDate: string,
+  timezone: string,
+  now: Date = new Date(),
+) {
+  if (!sleepOverlapsLocalDate(log, localDate, timezone, now)) return 0;
+  const { start, end } = localDayBounds(localDate, timezone);
+  const sleepEnd = log.endedAt ?? now;
+  const overlapStart = Math.max(log.startedAt.getTime(), start.getTime());
+  const overlapEnd = Math.min(sleepEnd.getTime(), end.getTime() + 1);
+  return Math.max(0, Math.floor((overlapEnd - overlapStart) / 60_000));
+}

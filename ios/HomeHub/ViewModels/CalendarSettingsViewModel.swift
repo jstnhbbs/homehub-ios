@@ -1,135 +1,118 @@
 import Foundation
+import UIKit
 
 @MainActor
 final class CalendarSettingsViewModel: ObservableObject {
-    @Published var connections: [CalendarConnection] = []
-    @Published var calendars: [HouseholdCalendarOption] = []
+    @Published var nativeAccessStatus: NativeCalendarAccessStatus = .notDetermined
+    @Published var remindersAccessStatus: NativeRemindersAccessStatus = .notDetermined
+    @Published var calendars: [CalendarPickerOption] = []
+    @Published var writableCalendars: [CalendarPickerOption] = []
+    @Published var reminderLists: [ReminderListOption] = []
     @Published var selectedCalendarIds: Set<String> = []
+    @Published var defaultCalendarId = NativeCalendarPreferenceKeys.automaticId
+    @Published var defaultReminderListId = NativeCalendarPreferenceKeys.automaticId
     @Published var weekStartsOn = WeekStart.defaultWeekStartsOn
-    @Published var syncIntervalMinutes = CalendarSyncInterval.defaultMinutes
     @Published var isLoading = false
     @Published var isWorking = false
     @Published var errorMessage: String?
     @Published var successMessage: String?
 
-    @Published var appleEmail = ""
-    @Published var applePassword = ""
-
     private var appState: AppState?
-    private var lastAutoSyncAt: Date?
 
     func bind(to appState: AppState) {
         self.appState = appState
         if let household = appState.household {
             weekStartsOn = WeekStart.parseWeekStartsOn(household.weekStartsOn)
-            syncIntervalMinutes = CalendarSyncInterval.parse(household.calendarSyncIntervalMinutes)
         }
+        refreshFromNativeServices()
     }
 
-    var icloudConnection: CalendarConnection? {
-        connections.first { $0.provider == .icloud }
+    var hasCalendarAccess: Bool {
+        nativeAccessStatus == .authorized
     }
 
-    var googleConnection: CalendarConnection? {
-        connections.first { $0.provider == .google }
+    var needsCalendarPermission: Bool {
+        nativeAccessStatus == .notDetermined
     }
 
-    func calendars(for provider: CalendarProvider) -> [HouseholdCalendarOption] {
-        calendars.filter { $0.provider == provider }
+    var calendarAccessDenied: Bool {
+        nativeAccessStatus == .denied || nativeAccessStatus == .restricted
+    }
+
+    var hasRemindersAccess: Bool {
+        remindersAccessStatus == .authorized
+    }
+
+    var needsRemindersPermission: Bool {
+        remindersAccessStatus == .notDetermined
+    }
+
+    var remindersAccessDenied: Bool {
+        remindersAccessStatus == .denied || remindersAccessStatus == .restricted
     }
 
     func load() async {
-        guard let appState else { return }
+        guard appState != nil else { return }
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
-
-        do {
-            async let connectionsTask = appState.api.fetchCalendarConnections()
-            async let calendarsTask = appState.api.fetchHouseholdCalendars()
-            connections = try await connectionsTask
-            calendars = try await calendarsTask
-            selectedCalendarIds = Set(calendars.filter(\.enabled).map(\.id))
-            if let household = appState.household {
-                weekStartsOn = WeekStart.parseWeekStartsOn(household.weekStartsOn)
-                syncIntervalMinutes = CalendarSyncInterval.parse(household.calendarSyncIntervalMinutes)
-            }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        refreshFromNativeServices()
     }
 
-    func connectApple() async -> Bool {
-        guard let appState else { return false }
-        let username = appleEmail.trimmingCharacters(in: .whitespacesAndNewlines)
-        let password = applePassword.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !username.isEmpty, password.count >= 16 else {
-            errorMessage = "Enter your Apple Account email and app-specific password."
-            return false
-        }
-
+    func requestNativeCalendarAccess() async {
+        guard let appState else { return }
         isWorking = true
         errorMessage = nil
         successMessage = nil
         defer { isWorking = false }
 
-        do {
-            try await appState.api.connectICloudCalendar(
-                ConnectICloudRequest(username: username, password: password)
-            )
-            applePassword = ""
-            await load()
-            await appState.refreshDashboard()
-            successMessage = "Apple Calendar connected."
-            return true
-        } catch {
-            errorMessage = error.localizedDescription
-            return false
+        await appState.nativeCalendar.requestFullAccess()
+        refreshFromNativeServices()
+        if hasCalendarAccess {
+            await appState.refreshNativeTodaySchedule()
+            successMessage = "Calendar access enabled."
+        } else if calendarAccessDenied {
+            errorMessage = "Calendar access is off. You can enable it in iOS Settings."
+        } else {
+            errorMessage = "Calendar access was not enabled."
         }
     }
 
-    func connectGoogle() async -> Bool {
-        guard let appState else { return false }
+    func requestNativeRemindersAccess() async {
+        guard let appState else { return }
         isWorking = true
         errorMessage = nil
         successMessage = nil
         defer { isWorking = false }
 
-        do {
-            let url = try await appState.api.fetchGoogleCalendarConnectURL()
-            let callbackURL = try await GoogleCalendarAuth.connect(authURL: url)
-            let result = GoogleCalendarAuth.resultMessage(from: callbackURL)
-            if let error = result.error {
-                errorMessage = error
-                return false
-            }
-            await load()
-            await appState.refreshDashboard()
-            successMessage = result.success ?? "Google Calendar connected."
-            return true
-        } catch {
-            errorMessage = error.localizedDescription
-            return false
+        await appState.nativeReminders.requestFullAccess()
+        refreshFromNativeServices()
+        if hasRemindersAccess {
+            await appState.refreshNativeGroceryItems()
+            successMessage = "Reminders access enabled."
+        } else if remindersAccessDenied {
+            errorMessage = "Reminders access is off. You can enable it in iOS Settings."
+        } else {
+            errorMessage = "Reminders access was not enabled."
         }
     }
 
-    func disconnect(provider: CalendarProvider) async -> Bool {
-        guard let appState else { return false }
-        isWorking = true
-        errorMessage = nil
-        successMessage = nil
-        defer { isWorking = false }
+    func openSystemSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
+    }
 
-        do {
-            try await appState.api.disconnectCalendar(provider: provider)
-            await load()
-            await appState.refreshDashboard()
-            successMessage = "\(provider == .google ? "Google" : "Apple") Calendar disconnected."
-            return true
-        } catch {
-            errorMessage = error.localizedDescription
-            return false
-        }
+    func saveDefaultCalendar() {
+        guard let appState else { return }
+        appState.nativeCalendar.defaultCalendarId = defaultCalendarId
+        refreshFromNativeServices()
+    }
+
+    func saveDefaultReminderList() {
+        guard let appState else { return }
+        appState.nativeReminders.selectedListId = defaultReminderListId
+        refreshFromNativeServices()
+        Task { await appState.refreshNativeGroceryItems() }
     }
 
     func saveCalendarSelection() async -> Bool {
@@ -139,68 +122,29 @@ final class CalendarSettingsViewModel: ObservableObject {
         successMessage = nil
         defer { isWorking = false }
 
-        do {
-            calendars = try await appState.api.updateCalendarSelection(
-                calendarIds: Array(selectedCalendarIds)
-            )
-            selectedCalendarIds = Set(calendars.filter(\.enabled).map(\.id))
-            await appState.refreshDashboard()
-            successMessage = "Calendar selection saved."
-            return true
-        } catch {
-            errorMessage = error.localizedDescription
-            return false
-        }
+        appState.nativeCalendar.saveSelectedCalendarIds(selectedCalendarIds)
+        refreshFromNativeServices()
+        await appState.refreshNativeTodaySchedule()
+        await appState.refreshDashboard()
+        successMessage = "Calendar selection saved."
+        return true
     }
 
-    func saveWeekStart() async -> Bool {
-        await saveSettings(weekStartsOn: weekStartsOn, syncIntervalMinutes: nil)
-    }
-
-    func saveSyncInterval() async -> Bool {
-        await saveSettings(weekStartsOn: nil, syncIntervalMinutes: syncIntervalMinutes)
-    }
-
-    func syncNow() async {
+    func selectAllCalendars() async {
         guard let appState else { return }
         isWorking = true
         errorMessage = nil
+        successMessage = nil
         defer { isWorking = false }
-        do {
-            try await appState.api.syncCalendar(force: true)
-            await load()
-            await appState.refreshDashboard()
-            successMessage = "Calendars synced."
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+
+        appState.nativeCalendar.selectAllCalendars()
+        refreshFromNativeServices()
+        await appState.refreshNativeTodaySchedule()
+        await appState.refreshDashboard()
+        successMessage = "All calendars selected."
     }
 
-    func maybeAutoSync() async {
-        guard let appState, connections.contains(where: { $0.status == .connected }) else { return }
-        let minutes = CalendarSyncInterval.parse(appState.household?.calendarSyncIntervalMinutes)
-        guard minutes > 0 else { return }
-
-        let cooldown = CalendarSyncInterval.cooldownSeconds(minutes)
-        if let lastAutoSyncAt, Date.now.timeIntervalSince(lastAutoSyncAt) < cooldown {
-            return
-        }
-        if let lastSynced = appState.dashboard?.calendarStatus.lastSyncedAt,
-           Date.now.timeIntervalSince(lastSynced) < cooldown {
-            return
-        }
-
-        lastAutoSyncAt = .now
-        do {
-            try await appState.api.syncCalendar(force: false)
-            await load()
-            await appState.refreshDashboard()
-        } catch {
-            // Auto-sync failures stay quiet unless manual sync is used.
-        }
-    }
-
-    private func saveSettings(weekStartsOn: Int?, syncIntervalMinutes: Int?) async -> Bool {
+    func saveWeekStart() async -> Bool {
         guard let appState else { return false }
         isWorking = true
         errorMessage = nil
@@ -210,19 +154,35 @@ final class CalendarSettingsViewModel: ObservableObject {
         do {
             let household = try await appState.api.updateCalendarSettings(
                 UpdateCalendarSettingsRequest(
-                    weekStartsOn: weekStartsOn,
-                    calendarSyncIntervalMinutes: syncIntervalMinutes
+                    weekStartsOn: weekStartsOn
                 )
             )
             appState.household = household
             await appState.refreshDashboard()
-            self.weekStartsOn = WeekStart.parseWeekStartsOn(household.weekStartsOn)
-            self.syncIntervalMinutes = CalendarSyncInterval.parse(household.calendarSyncIntervalMinutes)
+            weekStartsOn = WeekStart.parseWeekStartsOn(household.weekStartsOn)
             successMessage = "Calendar settings saved."
             return true
         } catch {
             errorMessage = error.localizedDescription
             return false
         }
+    }
+
+    private func refreshFromNativeServices() {
+        guard let appState else { return }
+        appState.nativeCalendar.refreshAccessStatus()
+        appState.nativeReminders.refreshAccessStatus()
+        nativeAccessStatus = appState.nativeCalendar.accessStatus
+        remindersAccessStatus = appState.nativeReminders.accessStatus
+        calendars = appState.nativeCalendar.pickerOptions()
+        writableCalendars = appState.nativeCalendar.writablePickerOptions()
+        reminderLists = appState.nativeReminders.reminderLists()
+        selectedCalendarIds = appState.nativeCalendar.effectiveSelectedCalendarIds()
+        defaultCalendarId = appState.nativeCalendar.usesAutomaticDefaultCalendar
+            ? NativeCalendarPreferenceKeys.automaticId
+            : appState.nativeCalendar.defaultCalendarId
+        defaultReminderListId = appState.nativeReminders.usesAutomaticList
+            ? NativeCalendarPreferenceKeys.automaticId
+            : (appState.nativeReminders.selectedListId ?? NativeCalendarPreferenceKeys.automaticId)
     }
 }

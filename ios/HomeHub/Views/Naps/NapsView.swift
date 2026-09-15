@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 struct NapsView: View {
@@ -65,10 +66,6 @@ struct NapsView: View {
     @ViewBuilder
     private var logHeader: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Log")
-                .font(.caption.weight(.heavy))
-                .foregroundStyle(HubTheme.sage)
-                .textCase(.uppercase)
             Text("Track sleep")
                 .font(.title2.weight(.semibold))
         }
@@ -86,19 +83,23 @@ struct NapsView: View {
                     EmptyStateView(text: "Add a child profile in Settings to start logging sleep.")
                 } else {
                     ForEach(payload.childProfiles) { profile in
+                        let logs = sleepLogs(from: payload)
                         NapChildRowView(
                             profile: profile,
-                            activeNap: NapHelpers.activeNap(for: profile.id, in: payload.naps),
-                            timezone: TimeZone(identifier: appState.household?.timezone ?? "") ?? .current,
+                            activeNap: NapHelpers.activeNap(for: profile.id, in: logs),
+                            timezone: timezone,
                             now: now,
                             emptyLabel: "No active nap",
                             activeLabel: "Asleep since",
                             startLabel: "Start nap",
-                            endLabel: "End nap"
+                            endLabel: "End nap",
+                            blockedReason: NapHelpers.activeNight(for: profile.id, in: logs) == nil
+                                ? nil
+                                : "Bedtime in progress"
                         ) {
                             await startNap(profileId: profile.id)
                         } endAction: {
-                            if let nap = NapHelpers.activeNap(for: profile.id, in: payload.naps) {
+                            if let nap = NapHelpers.activeNap(for: profile.id, in: logs) {
                                 await endNap(napId: nap.id)
                             }
                         }
@@ -124,19 +125,23 @@ struct NapsView: View {
                     EmptyStateView(text: "Add a child profile in Settings to start logging sleep.")
                 } else {
                     ForEach(payload.childProfiles) { profile in
+                        let logs = sleepLogs(from: payload)
                         NapChildRowView(
                             profile: profile,
-                            activeNap: NapHelpers.activeNight(for: profile.id, in: payload.weekLogs),
-                            timezone: TimeZone(identifier: appState.household?.timezone ?? "") ?? .current,
+                            activeNap: NapHelpers.activeNight(for: profile.id, in: logs),
+                            timezone: timezone,
                             now: now,
                             emptyLabel: "No active bedtime",
                             activeLabel: "In bed since",
                             startLabel: "Start bedtime",
-                            endLabel: "Log wake up"
+                            endLabel: "Log wake up",
+                            blockedReason: NapHelpers.activeNap(for: profile.id, in: logs) == nil
+                                ? nil
+                                : "Nap in progress"
                         ) {
                             await startNightSleep(profileId: profile.id)
                         } endAction: {
-                            if let night = NapHelpers.activeNight(for: profile.id, in: payload.weekLogs) {
+                            if let night = NapHelpers.activeNight(for: profile.id, in: logs) {
                                 await endNap(napId: night.id)
                             }
                         }
@@ -211,8 +216,6 @@ struct NapsView: View {
 
     @ViewBuilder
     private func patternsSection(_ payload: NapsPayload) -> some View {
-        let weekStartsOn = appState.household?.weekStartsOn ?? WeekStart.defaultWeekStartsOn
-        let dayLabels = WeekStart.weekdayLabels(weekStartsOn: weekStartsOn)
         let selectedDate = selectedPatternDate ?? payload.localDate
         let selectedIndex = payload.weekDates.firstIndex(of: selectedDate) ?? 0
         let selectedDayLogs = NapHelpers.logsForDate(
@@ -259,19 +262,19 @@ struct NapsView: View {
                             HStack(spacing: 8) {
                                 Circle().fill(HubTheme.profileColor(profile.color)).frame(width: 12, height: 12)
                                 Text(profile.name).font(.subheadline.weight(.bold))
-                                Text("Avg \(NapHelpers.formatAverageNapCount(stats.avgNapsPerDay)) naps/day · \(NapHelpers.formatDuration(minutes: Int(stats.avgMinutesPerDay.rounded())))/day")
+                                Text("Avg \(NapHelpers.formatAverageNapCount(stats.avgNapsPerDay)) sleeps/day · \(NapHelpers.formatDuration(minutes: Int(stats.avgMinutesPerDay.rounded())))/day")
                                     .font(.caption.weight(.bold))
                                     .foregroundStyle(HubTheme.muted)
                             }
 
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
-                                    ForEach(Array(stats.days.enumerated()), id: \.element.localDate) { index, day in
+                                    ForEach(stats.days, id: \.localDate) { day in
                                         Button {
                                             selectedPatternDate = day.localDate
                                         } label: {
                                             VStack(alignment: .leading, spacing: 6) {
-                                                Text(dayLabels[index]).font(.caption2.weight(.heavy)).foregroundStyle(HubTheme.muted)
+                                                Text(DateHelpers.formatLocalDate(day.localDate, timezone: timezone, pattern: "EEE")).font(.caption2.weight(.heavy)).foregroundStyle(HubTheme.muted)
                                                 Text(DateHelpers.formatLocalDate(day.localDate, timezone: timezone, pattern: "MMM d"))
                                                     .font(.caption2.weight(.bold)).foregroundStyle(HubTheme.muted)
                                                 Text("\(day.napCount)").font(.title3.weight(.semibold))
@@ -331,7 +334,7 @@ struct NapsView: View {
                                 }
                             }
 
-                            Text("Week total: \(stats.totalNaps) naps · \(NapHelpers.formatDuration(minutes: stats.totalMinutes))")
+                            Text("Week total: \(NapHelpers.daySummary(napCount: stats.totalNaps, nightCount: stats.totalNights, totalMinutes: stats.totalMinutes))")
                                 .font(.caption.weight(.bold))
                                 .foregroundStyle(HubTheme.muted)
                         }
@@ -376,7 +379,15 @@ struct NapsView: View {
                         )
                         let bars = NapTimelineHelpers.dayTimelineBars(naps: profileDayLogs, localDate: selectedDate, timezone: timezone, now: now)
                         let gaps = NapTimelineHelpers.awakeGaps(naps: profileDayLogs, localDate: selectedDate, timezone: timezone)
-                        let totalMinutes = profileDayLogs.reduce(0) { $0 + NapHelpers.durationMinutes(startedAt: $1.startedAt, endedAt: $1.endedAt, now: now) }
+                        let totalMinutes = profileDayLogs.reduce(0) {
+                            $0 + NapHelpers.overlapMinutes(
+                                startedAt: $1.startedAt,
+                                endedAt: $1.endedAt,
+                                localDate: selectedDate,
+                                timezone: timezone,
+                                now: now
+                            )
+                        }
                         let napCount = profileDayLogs.filter { $0.kind == "nap" }.count
                         let nightCount = profileDayLogs.filter { $0.kind == "night" }.count
 
@@ -395,24 +406,33 @@ struct NapsView: View {
                                         .overlay(RoundedRectangle(cornerRadius: 16).stroke(HubTheme.line))
 
                                     ForEach(gaps) { gap in
+                                        let frame = timelineFrame(
+                                            leftPercent: gap.leftPercent,
+                                            widthPercent: gap.widthPercent,
+                                            trackWidth: geometry.size.width
+                                        )
                                         Text(gap.widthPercent > 8 ? gap.label : "")
                                             .font(.caption2.weight(.bold))
                                             .foregroundStyle(HubTheme.muted)
-                                            .frame(width: geometry.size.width * gap.widthPercent / 100)
-                                            .offset(x: geometry.size.width * gap.leftPercent / 100)
+                                            .frame(width: frame.width)
+                                            .offset(x: frame.x)
                                     }
 
                                     ForEach(bars) { bar in
+                                        let frame = timelineFrame(
+                                            leftPercent: bar.leftPercent,
+                                            widthPercent: bar.widthPercent,
+                                            trackWidth: geometry.size.width
+                                        )
                                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                                             .fill(HubTheme.profileColor(profile.color))
-                                            .frame(width: max(geometry.size.width * bar.widthPercent / 100, 24))
-                                            .offset(x: geometry.size.width * bar.leftPercent / 100)
+                                            .frame(width: frame.width)
+                                            .offset(x: frame.x)
                                             .overlay {
                                                 if bar.widthPercent > 10 {
                                                     Text(bar.durationLabel)
                                                         .font(.caption2.weight(.bold))
                                                         .foregroundStyle(.white)
-                                                        .offset(x: geometry.size.width * bar.leftPercent / 100)
                                                 }
                                             }
                                     }
@@ -424,6 +444,7 @@ struct NapsView: View {
                                             .frame(maxWidth: .infinity)
                                     }
                                 }
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                             }
                             .frame(height: 56)
                         }
@@ -478,6 +499,20 @@ struct NapsView: View {
         TimeZone(identifier: appState.household?.timezone ?? "") ?? .current
     }
 
+    private func sleepLogs(from payload: NapsPayload) -> [NapLog] {
+        var seen = Set<String>()
+        return (payload.weekLogs + payload.naps).filter { seen.insert($0.id).inserted }
+    }
+
+    private func timelineFrame(leftPercent: Double, widthPercent: Double, trackWidth: CGFloat) -> (x: CGFloat, width: CGFloat) {
+        let left = min(max(leftPercent, 0), 100)
+        let width = min(max(widthPercent, 0), 100 - left)
+        let x = trackWidth * left / 100
+        let rawWidth = trackWidth * width / 100
+        let maxWidth = max(0, trackWidth - x)
+        return (x, min(rawWidth, maxWidth))
+    }
+
     private func load() async {
         isLoading = true
         defer { isLoading = false }
@@ -485,7 +520,9 @@ struct NapsView: View {
             payload = try await appState.api.fetchNaps()
             errorMessage = nil
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
         }
     }
 
@@ -495,7 +532,9 @@ struct NapsView: View {
             await appState.refreshDashboard()
             await load()
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
         }
     }
 
@@ -505,7 +544,9 @@ struct NapsView: View {
             await appState.refreshDashboard()
             await load()
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
         }
     }
 
@@ -515,7 +556,9 @@ struct NapsView: View {
             await appState.refreshDashboard()
             await load()
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
         }
     }
 
@@ -525,7 +568,9 @@ struct NapsView: View {
             await appState.refreshDashboard()
             await load()
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
         }
     }
 
@@ -535,7 +580,9 @@ struct NapsView: View {
             await appState.refreshDashboard()
             await load()
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
         }
     }
 
@@ -545,7 +592,9 @@ struct NapsView: View {
             await appState.refreshDashboard()
             await load()
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
         }
     }
 
@@ -555,7 +604,9 @@ struct NapsView: View {
             await appState.refreshDashboard()
             await load()
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
         }
     }
 }
@@ -617,19 +668,25 @@ private struct ManualNapFormView: View {
                     )
                 }
 
+                if includeEndTime, !NapHelpers.isValidSleepRange(startedAt: startedAt, endedAt: resolvedEndTime) {
+                    Text("End time must be after start time.")
+                        .font(.footnote.weight(.bold))
+                        .foregroundStyle(.red)
+                }
+
                 Button("Add nap") {
                     Task {
-                        await onSubmit(
-                            selectedProfileId,
-                            startedAt,
-                            includeEndTime ? (endedAt ?? startedAt.addingTimeInterval(3600)) : nil
-                        )
+                        await onSubmit(selectedProfileId, startedAt, includeEndTime ? resolvedEndTime : nil)
                     }
                 }
                 .buttonStyle(HubButtonStyle(emphasis: .primary))
-                .disabled(selectedProfileId.isEmpty)
+                .disabled(selectedProfileId.isEmpty || (includeEndTime && !NapHelpers.isValidSleepRange(startedAt: startedAt, endedAt: resolvedEndTime)))
             }
         }
+    }
+
+    private var resolvedEndTime: Date {
+        endedAt ?? startedAt.addingTimeInterval(3600)
     }
 }
 
@@ -692,6 +749,12 @@ private struct ManualNightSleepFormView: View {
                         .foregroundStyle(HubTheme.muted)
                 }
 
+                if includeWakeTime, !NapHelpers.isValidSleepRange(startedAt: fellAsleepAt, endedAt: wokeUpAt) {
+                    Text("Wake time must be after sleep time.")
+                        .font(.footnote.weight(.bold))
+                        .foregroundStyle(.red)
+                }
+
                 Button(includeWakeTime ? "Add night sleep" : "Start bedtime") {
                     Task {
                         await onSubmit(
@@ -702,7 +765,7 @@ private struct ManualNightSleepFormView: View {
                     }
                 }
                 .buttonStyle(HubButtonStyle(emphasis: .primary))
-                .disabled(selectedProfileId.isEmpty)
+                .disabled(selectedProfileId.isEmpty || (includeWakeTime && !NapHelpers.isValidSleepRange(startedAt: fellAsleepAt, endedAt: wokeUpAt)))
             }
         }
     }
@@ -717,6 +780,7 @@ private struct NapChildRowView: View {
     let activeLabel: String
     let startLabel: String
     let endLabel: String
+    let blockedReason: String?
     let startAction: () async -> Void
     let endAction: () async -> Void
 
@@ -729,6 +793,7 @@ private struct NapChildRowView: View {
         activeLabel: String = "Asleep since",
         startLabel: String = "Start nap",
         endLabel: String = "End nap",
+        blockedReason: String? = nil,
         startAction: @escaping () async -> Void,
         endAction: @escaping () async -> Void
     ) {
@@ -740,6 +805,7 @@ private struct NapChildRowView: View {
         self.activeLabel = activeLabel
         self.startLabel = startLabel
         self.endLabel = endLabel
+        self.blockedReason = blockedReason
         self.startAction = startAction
         self.endAction = endAction
     }
@@ -758,7 +824,7 @@ private struct NapChildRowView: View {
                         .font(.caption.weight(.bold))
                         .foregroundStyle(HubTheme.muted)
                 } else {
-                    Text(emptyLabel)
+                    Text(blockedReason ?? emptyLabel)
                         .font(.caption.weight(.bold))
                         .foregroundStyle(HubTheme.muted)
                 }
@@ -771,7 +837,7 @@ private struct NapChildRowView: View {
                     Task { await endAction() }
                 }
                 .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
-            } else {
+            } else if blockedReason == nil {
                 Button(startLabel) {
                     Task { await startAction() }
                 }
@@ -896,14 +962,21 @@ private struct NapHistoryRowView: View {
                         .foregroundStyle(HubTheme.muted)
                 }
 
+                if includeEndTime, !NapHelpers.isValidSleepRange(startedAt: startedAt, endedAt: resolvedEndTime) {
+                    Text("End time must be after start time.")
+                        .font(.footnote.weight(.bold))
+                        .foregroundStyle(.red)
+                }
+
                 HStack {
                     Button("Save") {
                         Task {
-                            await saveAction(startedAt, includeEndTime ? endedAt : nil)
+                            await saveAction(startedAt, includeEndTime ? resolvedEndTime : nil)
                             isEditing = false
                         }
                     }
                     .buttonStyle(HubButtonStyle(emphasis: .primary, size: .small))
+                    .disabled(includeEndTime && !NapHelpers.isValidSleepRange(startedAt: startedAt, endedAt: resolvedEndTime))
 
                     Button("Cancel") {
                         isEditing = false
@@ -913,6 +986,10 @@ private struct NapHistoryRowView: View {
             }
         }
         .padding(.vertical, 8)
+    }
+
+    private var resolvedEndTime: Date {
+        endedAt ?? startedAt.addingTimeInterval(3600)
     }
 
     private var sleepKindLabel: String {

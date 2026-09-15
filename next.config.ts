@@ -33,6 +33,11 @@ const nextConfig: NextConfig = {
         hostname: "*.public.blob.vercel-storage.com",
         pathname: "/profiles/**",
       },
+      {
+        protocol: "https",
+        hostname: "*.public.blob.vercel-storage.com",
+        pathname: "/households/**",
+      },
     ],
   },
   turbopack: {

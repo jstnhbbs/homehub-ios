@@ -7,9 +7,9 @@ enum ProfilePhotoHelpers {
     static func hasPhoto(_ avatar: String?) -> Bool {
         guard let avatar, let url = URL(string: avatar) else { return false }
         if url.host?.contains("blob.vercel-storage.com") == true {
-            return url.path.contains("/profiles/")
+            return url.path.contains("/profiles/") || url.path.contains("/households/")
         }
-        if url.path.contains("/profile-photos/") {
+        if url.path.contains("/profile-photos/") || url.path.contains("/household-photos/") {
             return true
         }
         return false

@@ -3,235 +3,260 @@ import SwiftUI
 struct CalendarSettingsView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var viewModel = CalendarSettingsViewModel()
+    @AppStorage(NativeCalendarPreferenceKeys.defaultNewItem) private var defaultNewItem = NativeNewItemKind.event.rawValue
+    @AppStorage(NativeCalendarPreferenceKeys.eventAlert) private var eventAlertMinutes = NativeAlertOffset.fifteenMinutes.rawValue
+    @AppStorage(NativeCalendarPreferenceKeys.reminderAlert) private var reminderAlertMinutes = NativeAlertOffset.atTime.rawValue
+    @AppStorage(NativeCalendarPreferenceKeys.agendaFontSize) private var agendaFontSize = 15.0
+    @AppStorage(NativeCalendarPreferenceKeys.useSystemAgendaFont) private var useSystemAgendaFont = true
+
+    private let agendaFontRange = 11.0...24.0
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            header
-
-            if let error = viewModel.errorMessage {
-                Text(error).font(.footnote).foregroundStyle(.red)
-            }
-            if let success = viewModel.successMessage {
-                Text(success).font(.footnote).foregroundStyle(HubTheme.sage)
-            }
-
-            if viewModel.isLoading && viewModel.connections.isEmpty {
-                ProgressView().frame(maxWidth: .infinity, minHeight: 120)
-            } else {
-                displaySettings
-                autoSyncSettings
-                syncButton
-                providerSection(.icloud)
-                providerSection(.google)
+        Form {
+            statusSection
+            accessSection
+            defaultsSection
+            agendaFontSection
+            if viewModel.hasCalendarAccess {
+                calendarSelection
             }
         }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
         .onAppear { viewModel.bind(to: appState) }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Private, two-way sync")
-                .font(.caption.weight(.bold))
-                .textCase(.uppercase)
-                .foregroundStyle(HubTheme.sage)
-            Text("Calendars")
-                .font(.title2.weight(.semibold))
-            Text("Connect Apple or Google calendars for the family hub.")
-                .font(.footnote)
-                .foregroundStyle(HubTheme.muted)
-        }
-    }
-
-    private var displaySettings: some View {
-        HubCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Calendar display")
-                    .font(.headline)
-                Text("Choose which day starts the week on the calendar and meal plan.")
-                    .font(.footnote)
-                    .foregroundStyle(HubTheme.muted)
-
-                Picker("Start week on", selection: $viewModel.weekStartsOn) {
-                    ForEach(WeekStart.options) { option in
-                        Text(option.label).tag(option.value)
-                    }
-                }
-                .pickerStyle(.menu)
-
-                Button("Save week start") {
-                    Task { _ = await viewModel.saveWeekStart() }
-                }
-                .buttonStyle(HubButtonStyle(emphasis: .secondary))
-                .disabled(viewModel.isWorking)
-            }
-        }
-    }
-
-    private var autoSyncSettings: some View {
-        HubCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Auto-sync")
-                    .font(.headline)
-                Text("How often Home Hub checks connected calendars while the app is open.")
-                    .font(.footnote)
-                    .foregroundStyle(HubTheme.muted)
-
-                Picker("Sync frequency", selection: $viewModel.syncIntervalMinutes) {
-                    ForEach(CalendarSyncInterval.options) { option in
-                        Text(option.label).tag(option.minutes)
-                    }
-                }
-                .pickerStyle(.menu)
-
-                Button("Save frequency") {
-                    Task { _ = await viewModel.saveSyncInterval() }
-                }
-                .buttonStyle(HubButtonStyle(emphasis: .secondary))
-                .disabled(viewModel.isWorking)
-            }
-        }
-    }
-
-    private var syncButton: some View {
-        HStack {
-            if let label = appState.dashboard?.calendarStatus.updatedLabel {
-                Text(label)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(HubTheme.muted)
-            }
-            Spacer()
-            Button {
-                Task { await viewModel.syncNow() }
-            } label: {
-                if viewModel.isWorking {
+    @ViewBuilder
+    private var statusSection: some View {
+        if viewModel.isLoading {
+            Section {
+                HStack {
+                    Spacer()
                     ProgressView()
-                } else {
-                    Label("Sync now", systemImage: "arrow.triangle.2.circlepath")
+                    Spacer()
                 }
             }
-            .buttonStyle(HubButtonStyle(emphasis: .secondary))
+        }
+        if let error = viewModel.errorMessage {
+            Section {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+            }
+        }
+        if let success = viewModel.successMessage {
+            Section {
+                Label(success, systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(HubTheme.sage)
+            }
+        }
+    }
+
+    private var accessSection: some View {
+        Section {
+            accessRow(
+                title: "Calendar",
+                systemImage: "calendar",
+                status: viewModel.nativeAccessStatus.settingsLabel,
+                isAuthorized: viewModel.hasCalendarAccess,
+                needsPermission: viewModel.needsCalendarPermission,
+                isDenied: viewModel.calendarAccessDenied
+            ) {
+                Task { await viewModel.requestNativeCalendarAccess() }
+            }
+
+            accessRow(
+                title: "Reminders",
+                systemImage: "checklist",
+                status: viewModel.remindersAccessStatus.settingsLabel,
+                isAuthorized: viewModel.hasRemindersAccess,
+                needsPermission: viewModel.needsRemindersPermission,
+                isDenied: viewModel.remindersAccessDenied
+            ) {
+                Task { await viewModel.requestNativeRemindersAccess() }
+            }
+        } header: {
+            Text("Calendar and Reminders")
+        } footer: {
+            Text("Beacon reads Apple Calendar on this device and can write grocery items to Reminders.")
+        }
+    }
+
+    private func accessRow(
+        title: String,
+        systemImage: String,
+        status: String,
+        isAuthorized: Bool,
+        needsPermission: Bool,
+        isDenied: Bool,
+        request: @escaping () -> Void
+    ) -> some View {
+        Button {
+            if needsPermission {
+                request()
+            } else {
+                viewModel.openSystemSettings()
+            }
+        } label: {
+            HStack {
+                Label(title, systemImage: systemImage)
+                    .foregroundStyle(.primary)
+                Spacer()
+                if isAuthorized {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(Color.green)
+                    Text(status)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(status)
+                        .foregroundStyle(isDenied ? Color.red : Color.accentColor)
+                }
+            }
+        }
+        .disabled(viewModel.isWorking)
+    }
+
+    private var defaultsSection: some View {
+        Section {
+            Picker("Default New Item Creation", selection: $defaultNewItem) {
+                ForEach(NativeNewItemKind.allCases) { kind in
+                    Text(kind.label).tag(kind.rawValue)
+                }
+            }
+
+            Picker("Default Calendar", selection: $viewModel.defaultCalendarId) {
+                Text("Automatic").tag(NativeCalendarPreferenceKeys.automaticId)
+                ForEach(viewModel.writableCalendars) { calendar in
+                    Text(calendar.displayName).tag(calendar.id)
+                }
+            }
+            .disabled(!viewModel.hasCalendarAccess)
+            .onChange(of: viewModel.defaultCalendarId) { _, _ in
+                viewModel.saveDefaultCalendar()
+            }
+
+            Picker("Default Reminders List", selection: $viewModel.defaultReminderListId) {
+                Text("Automatic").tag(NativeCalendarPreferenceKeys.automaticId)
+                ForEach(viewModel.reminderLists) { list in
+                    Text(list.title).tag(list.id)
+                }
+            }
+            .disabled(!viewModel.hasRemindersAccess)
+            .onChange(of: viewModel.defaultReminderListId) { _, _ in
+                viewModel.saveDefaultReminderList()
+            }
+
+            Picker("Default Event Alert", selection: $eventAlertMinutes) {
+                ForEach(NativeAlertOffset.allCases) { offset in
+                    Text(offset.label).tag(offset.rawValue)
+                }
+            }
+
+            Picker("Default Reminder Alert", selection: $reminderAlertMinutes) {
+                ForEach(NativeAlertOffset.allCases) { offset in
+                    Text(offset.label).tag(offset.rawValue)
+                }
+            }
+        } footer: {
+            Text("Automatic uses this device’s default Calendar and Reminders destinations. Alerts apply to new items created in Beacon.")
+        }
+    }
+
+    private var agendaFontSection: some View {
+        Section {
+            HStack {
+                Text("Agenda Font Size")
+                Spacer()
+                Text("\(Int(agendaFontSize.rounded())) pt")
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                Button {
+                    agendaFontSize = max(agendaFontRange.lowerBound, agendaFontSize - 1)
+                } label: {
+                    Image(systemName: "minus")
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.bordered)
+                .disabled(useSystemAgendaFont || agendaFontSize <= agendaFontRange.lowerBound)
+
+                Button {
+                    agendaFontSize = min(agendaFontRange.upperBound, agendaFontSize + 1)
+                } label: {
+                    Image(systemName: "plus")
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.bordered)
+                .disabled(useSystemAgendaFont || agendaFontSize >= agendaFontRange.upperBound)
+            }
+
+            Toggle("Use System Size", isOn: $useSystemAgendaFont)
+        } footer: {
+            Text("Controls event text in the calendar agenda. System size follows Dynamic Type.")
         }
     }
 
     @ViewBuilder
-    private func providerSection(_ provider: CalendarProvider) -> some View {
-        let connection = provider == .icloud ? viewModel.icloudConnection : viewModel.googleConnection
-        let title = provider == .google ? "Google Calendar" : "Apple Calendar"
+    private var calendarSelection: some View {
+        if viewModel.calendars.isEmpty {
+            Section {
+                ContentUnavailableView(
+                    "No Calendars",
+                    systemImage: "calendar.badge.exclamationmark",
+                    description: Text("No calendars are available on this device.")
+                )
+            } header: {
+                Text("Calendars Shown in Beacon")
+            }
+        } else {
+            ForEach(CalendarPickerOption.groupedByAccount(viewModel.calendars), id: \.account) { group in
+                Section {
+                    ForEach(group.calendars) { calendar in
+                        calendarToggle(calendar)
+                    }
+                } header: {
+                    Text(group.account)
+                }
+            }
 
-        HubCard {
-            VStack(alignment: .leading, spacing: 12) {
-                if let connection {
-                    connectedProviderHeader(title: title, connection: connection)
-                    calendarSelection(provider: provider)
-                    if connection.status == .error, let message = connection.errorMessage {
-                        Text(message)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                    }
-                    Button("Disconnect \(title)", role: .destructive) {
-                        Task { _ = await viewModel.disconnect(provider: provider) }
-                    }
-                    .buttonStyle(HubButtonStyle(emphasis: .secondary))
-                    .disabled(viewModel.isWorking)
-                } else if provider == .google {
-                    Text(title).font(.headline)
-                    Text("Sign in with Google to sync calendars both ways. Home Hub stores an encrypted refresh token and only uses it for calendar access.")
-                        .font(.footnote)
-                        .foregroundStyle(HubTheme.muted)
-                    Button("Connect Google Calendar") {
-                        Task { _ = await viewModel.connectGoogle() }
-                    }
-                    .buttonStyle(HubButtonStyle(emphasis: .primary))
-                    .disabled(viewModel.isWorking)
+            Section {
+                Button {
+                    Task { _ = await viewModel.saveCalendarSelection() }
+                } label: {
+                    Label("Save Selection", systemImage: "checkmark")
+                }
+                .disabled(viewModel.isWorking)
+
+                Button {
+                    Task { await viewModel.selectAllCalendars() }
+                } label: {
+                    Label("Select All", systemImage: "checklist.checked")
+                }
+                .disabled(viewModel.isWorking)
+            } footer: {
+                Text("Unselected calendars stay hidden in Beacon.")
+            }
+        }
+    }
+
+    private func calendarToggle(_ calendar: CalendarPickerOption) -> some View {
+        Toggle(isOn: Binding(
+            get: { viewModel.selectedCalendarIds.contains(calendar.id) },
+            set: { enabled in
+                if enabled {
+                    viewModel.selectedCalendarIds.insert(calendar.id)
                 } else {
-                    appleConnectForm(title: title)
+                    viewModel.selectedCalendarIds.remove(calendar.id)
                 }
             }
-        }
-    }
-
-    private func connectedProviderHeader(title: String, connection: CalendarConnection) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label("\(title) connected", systemImage: "checkmark.circle.fill")
-                .font(.headline)
-                .foregroundStyle(HubTheme.sage)
-            Text(connection.accountEmail)
-                .font(.subheadline)
-                .foregroundStyle(HubTheme.muted)
-            if let lastSynced = connection.lastSyncedAt {
-                Text("Last synced \(lastSynced.formatted(date: .abbreviated, time: .shortened))")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(HubTheme.muted)
+        )) {
+            Label {
+                Text(calendar.displayName)
+            } icon: {
+                Circle()
+                    .fill(HubTheme.profileColor(calendar.color))
+                    .frame(width: 12, height: 12)
             }
-        }
-    }
-
-    @ViewBuilder
-    private func calendarSelection(provider: CalendarProvider) -> some View {
-        let items = viewModel.calendars(for: provider)
-        if !items.isEmpty {
-            Text("Calendars shown on the hub")
-                .font(.subheadline.weight(.bold))
-            Text("Enable calendars to display and sync events. Unselected calendars stay private.")
-                .font(.caption)
-                .foregroundStyle(HubTheme.muted)
-
-            ForEach(items) { calendar in
-                Toggle(isOn: Binding(
-                    get: { viewModel.selectedCalendarIds.contains(calendar.id) },
-                    set: { enabled in
-                        if enabled {
-                            viewModel.selectedCalendarIds.insert(calendar.id)
-                        } else {
-                            viewModel.selectedCalendarIds.remove(calendar.id)
-                        }
-                    }
-                )) {
-                    HStack(spacing: 8) {
-                        Circle()
-                            .fill(HubTheme.profileColor(calendar.color))
-                            .frame(width: 12, height: 12)
-                        Text(calendar.displayName)
-                    }
-                }
-            }
-
-            Button("Save calendar selection") {
-                Task { _ = await viewModel.saveCalendarSelection() }
-            }
-            .buttonStyle(HubButtonStyle(emphasis: .primary))
-            .disabled(viewModel.isWorking)
-        }
-    }
-
-    private func appleConnectForm(title: String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title).font(.headline)
-            Text("Create an app-specific password in your Apple Account security settings, then paste it here—not your Apple Account password.")
-                .font(.footnote)
-                .foregroundStyle(HubTheme.muted)
-
-            Link("Open Apple Account", destination: URL(string: "https://account.apple.com/account/manage")!)
-
-            FormField(label: "Apple Account email") {
-                TextField("you@icloud.com", text: $viewModel.appleEmail)
-                    .textFieldStyle(.roundedBorder)
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.emailAddress)
-            }
-
-            FormField(label: "App-specific password") {
-                SecureField("xxxx-xxxx-xxxx-xxxx", text: $viewModel.applePassword)
-                    .textFieldStyle(.roundedBorder)
-            }
-
-            Button("Connect Apple Calendar") {
-                Task { _ = await viewModel.connectApple() }
-            }
-            .buttonStyle(HubButtonStyle(emphasis: .primary))
-            .disabled(viewModel.isWorking)
         }
     }
 }

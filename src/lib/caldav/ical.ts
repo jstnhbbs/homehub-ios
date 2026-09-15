@@ -125,7 +125,7 @@ export function makeIcalEvent(input: {
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Home Hub//Family Calendar//EN",
+    "PRODID:-//Beacon//Family Calendar//EN",
     "CALSCALE:GREGORIAN",
     "BEGIN:VEVENT",
     `UID:${input.uid}`,

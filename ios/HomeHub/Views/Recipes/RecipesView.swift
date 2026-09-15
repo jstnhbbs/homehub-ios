@@ -2,9 +2,41 @@ import SwiftUI
 
 struct RecipesView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @StateObject private var viewModel = RecipesViewModel()
+    @State private var activeRecipeSheet: RecipeSheetPresentation?
 
     var body: some View {
+        Group {
+            if horizontalSizeClass == .compact {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        header
+                        if let error = viewModel.errorMessage {
+                            Text(error).font(.footnote).foregroundStyle(.red)
+                        }
+                        if let success = viewModel.successMessage {
+                            Text(success).font(.footnote.weight(.semibold)).foregroundStyle(HubTheme.sage)
+                        }
+                        recipesGrid(columns: [GridItem(.flexible())])
+                    }
+                }
+                .navigationDestination(for: RecipeRoute.self) { route in
+                    recipeViewer(id: route.id)
+                }
+            } else {
+                wideContent
+            }
+        }
+        .sheet(item: $activeRecipeSheet) { sheet in
+            RecipeManagementSheet(sheet: sheet, recipes: viewModel.recipes, viewModel: viewModel)
+        }
+        .onAppear { viewModel.bind(to: appState) }
+        .task { await viewModel.load() }
+        .refreshable { await viewModel.load() }
+    }
+
+    private var wideContent: some View {
         HStack(alignment: .top, spacing: 20) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
@@ -12,100 +44,134 @@ struct RecipesView: View {
                     if let error = viewModel.errorMessage {
                         Text(error).font(.footnote).foregroundStyle(.red)
                     }
+                    if let success = viewModel.successMessage {
+                        Text(success).font(.footnote.weight(.semibold)).foregroundStyle(HubTheme.sage)
+                    }
                     if viewModel.isLoading && viewModel.recipes.isEmpty {
                         ProgressView().frame(maxWidth: .infinity, minHeight: 240)
                     } else if viewModel.recipes.isEmpty {
                         EmptyStateView(text: "Save your first recipe manually or import one from a website.")
                     } else {
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                            ForEach(viewModel.recipes) { recipe in
-                                RecipeCard(recipe: recipe, isSelected: viewModel.selectedRecipeId == recipe.id) {
-                                    viewModel.selectedRecipeId = recipe.id
-                                }
-                            }
-                        }
+                        recipesGrid(columns: [GridItem(.flexible()), GridItem(.flexible())])
                     }
                 }
             }
             .frame(maxWidth: .infinity)
 
-            VStack(spacing: 16) {
-                if let recipe = viewModel.selectedRecipe {
-                    RecipeDetailPanel(recipe: recipe, viewModel: viewModel)
-                } else if !viewModel.isLoading {
-                    HubCard {
-                        Text("Select a recipe to view details.")
-                            .foregroundStyle(HubTheme.muted)
+            recipeDetailPanel
+                .frame(width: 360)
+        }
+    }
+
+    @ViewBuilder
+    private func recipesGrid(columns: [GridItem]) -> some View {
+        if viewModel.isLoading && viewModel.recipes.isEmpty {
+            ProgressView().frame(maxWidth: .infinity, minHeight: 240)
+        } else if viewModel.recipes.isEmpty {
+            EmptyStateView(text: "Save your first recipe manually or import one from a website.")
+        } else {
+            LazyVGrid(columns: columns, spacing: 16) {
+                ForEach(viewModel.recipes) { recipe in
+                    if horizontalSizeClass == .compact {
+                        NavigationLink(value: RecipeRoute(id: recipe.id)) {
+                            RecipeCard(recipe: recipe, isSelected: false)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        RecipeCard(recipe: recipe, isSelected: viewModel.selectedRecipeId == recipe.id) {
+                            viewModel.selectedRecipeId = recipe.id
+                        }
                     }
                 }
-
-                if viewModel.canManage {
-                    importPanel
-                    addPanel
-                }
             }
-            .frame(width: 360)
-        }
-        .onAppear { viewModel.bind(to: appState) }
-        .task { await viewModel.load() }
-        .refreshable { await viewModel.load() }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Family favorites")
-                .font(.caption.weight(.bold))
-                .textCase(.uppercase)
-                .foregroundStyle(HubTheme.sage)
-            Text("Recipes")
-                .font(.system(size: 34, weight: .semibold, design: .rounded))
         }
     }
 
-    private var importPanel: some View {
-        HubCard {
-            VStack(alignment: .leading, spacing: 10) {
-                Label("Import recipe", systemImage: "arrow.down.circle")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(HubTheme.sage)
-                Text("Paste a recipe URL. We pull ingredients, directions, times, and nutrition from structured page data.")
-                    .font(.footnote)
+    @ViewBuilder
+    private func recipeViewer(id: String) -> some View {
+        if let recipe = viewModel.recipes.first(where: { $0.id == id }) {
+            RecipeDetailPanel(recipe: recipe, viewModel: viewModel) {
+                activeRecipeSheet = .edit(recipe.id)
+            }
+            .navigationTitle(recipe.title)
+            .navigationBarTitleDisplayMode(.inline)
+        } else {
+            ContentUnavailableView(
+                "Recipe Missing",
+                systemImage: "fork.knife.circle",
+                description: Text("This recipe could not be found.")
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var recipeDetailPanel: some View {
+        if let recipe = viewModel.selectedRecipe {
+            RecipeDetailPanel(recipe: recipe, viewModel: viewModel) {
+                activeRecipeSheet = .edit(recipe.id)
+            }
+            .frame(maxHeight: 520)
+        } else if !viewModel.isLoading {
+            HubCard {
+                Text("Select a recipe to view details.")
                     .foregroundStyle(HubTheme.muted)
-                TextField("https://example.com/recipe", text: $viewModel.importURL)
-                    .textFieldStyle(.roundedBorder)
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.URL)
-                Button("Import recipe") {
-                    Task { _ = await viewModel.importRecipe() }
-                }
-                .buttonStyle(HubButtonStyle(emphasis: .primary))
-                .disabled(viewModel.isWorking || viewModel.importURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
     }
 
-    private var addPanel: some View {
-        HubCard {
-            VStack(alignment: .leading, spacing: 10) {
-                Label("Add manually", systemImage: "plus")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(HubTheme.sage)
-                RecipeFormView(submitLabel: "Save recipe") { input in
-                    await viewModel.addRecipe(input)
+    @ViewBuilder
+    private var header: some View {
+        if horizontalSizeClass != .compact || viewModel.canManage {
+            HStack(alignment: .bottom) {
+                if horizontalSizeClass != .compact {
+                    Text("Recipes")
+                        .font(.system(size: 34, weight: .semibold, design: .rounded))
+                }
+                Spacer()
+                if viewModel.canManage {
+                    Menu {
+                        Button {
+                            activeRecipeSheet = .add(UUID())
+                        } label: {
+                            Label("Add Manually", systemImage: "plus")
+                        }
+                        Button {
+                            activeRecipeSheet = .importRecipe(UUID())
+                        } label: {
+                            Label("Import from URL", systemImage: "arrow.down.circle")
+                        }
+                    } label: {
+                        Label("Add Recipe", systemImage: "plus")
+                    }
+                    .buttonStyle(HubButtonStyle(emphasis: .primary))
                 }
             }
         }
     }
 }
 
+private struct RecipeRoute: Hashable {
+    let id: String
+}
+
 private struct RecipeCard: View {
     let recipe: Recipe
-    let isSelected: Bool
-    let onSelect: () -> Void
+    var isSelected = false
+    var onSelect: (() -> Void)?
 
     var body: some View {
-        Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 0) {
+        Group {
+            if let onSelect {
+                Button(action: onSelect) { card }
+                    .buttonStyle(.plain)
+            } else {
+                card
+            }
+        }
+    }
+
+    private var card: some View {
+        VStack(alignment: .leading, spacing: 0) {
                 if let imageUrl = recipe.imageUrl, let url = URL(string: imageUrl) {
                     AsyncImage(url: url) { phase in
                         switch phase {
@@ -153,8 +219,6 @@ private struct RecipeCard: View {
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .stroke(isSelected ? HubTheme.sage : HubTheme.line, lineWidth: isSelected ? 2 : 1)
             )
-        }
-        .buttonStyle(.plain)
     }
 
     private var placeholderImage: some View {
@@ -168,102 +232,126 @@ private struct RecipeCard: View {
 }
 
 private struct RecipeDetailPanel: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let recipe: Recipe
     @ObservedObject var viewModel: RecipesViewModel
-    @State private var showEditForm = false
+    let onEdit: () -> Void
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                if let imageUrl = recipe.imageUrl, let url = URL(string: imageUrl) {
-                    AsyncImage(url: url) { phase in
-                        if case .success(let image) = phase {
-                            image.resizable().scaledToFill()
+                HubCard {
+                    VStack(alignment: .leading, spacing: 16) {
+                        if let imageUrl = recipe.imageUrl, let url = URL(string: imageUrl) {
+                            AsyncImage(url: url) { phase in
+                                if case .success(let image) = phase {
+                                    image.resizable().scaledToFill()
+                                }
+                            }
+                            .frame(height: 180)
+                            .frame(maxWidth: .infinity)
+                            .clipped()
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                         }
-                    }
-                    .frame(height: 180)
-                    .frame(maxWidth: .infinity)
-                    .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                }
 
-                Text(recipe.title)
-                    .font(.title.weight(.semibold))
-                if let description = recipe.description, !description.isEmpty {
-                    Text(description).foregroundStyle(HubTheme.muted)
-                }
-
-                HStack(spacing: 8) {
-                    if let servings = recipe.servings {
-                        metaChip(servings, icon: "person.2")
-                    }
-                    if let prepTime = recipe.prepTime {
-                        metaChip("Prep \(prepTime)", icon: "clock")
-                    }
-                    if let cookTime = recipe.cookTime {
-                        metaChip("Cook \(cookTime)", icon: "clock")
-                    }
-                    if let totalTime = recipe.totalTime {
-                        metaChip("Total \(totalTime)", icon: "clock")
-                    }
-                }
-
-                if !recipe.ingredients.isEmpty {
-                    Text("Ingredients").font(.headline)
-                    ForEach(recipe.ingredients, id: \.self) { item in
-                        Text("• \(item)")
-                            .padding(.vertical, 4)
-                    }
-                }
-
-                if !recipe.directions.isEmpty {
-                    Text("Directions").font(.headline)
-                    ForEach(Array(recipe.directions.enumerated()), id: \.offset) { index, step in
-                        Text("\(index + 1). \(step)")
-                            .padding(.vertical, 4)
-                    }
-                }
-
-                if let nutrition = recipe.nutrition, !nutrition.isEmpty {
-                    Text("Nutrition").font(.headline)
-                    ForEach(nutrition.keys.sorted(), id: \.self) { key in
-                        HStack {
-                            Text(key).font(.subheadline.weight(.bold))
-                            Spacer()
-                            Text(nutrition[key] ?? "")
+                        Text(recipe.title)
+                            .font(.title.weight(.semibold))
+                            .fixedSize(horizontal: false, vertical: true)
+                        if let description = recipe.description, !description.isEmpty {
+                            Text(description)
                                 .foregroundStyle(HubTheme.muted)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                    }
-                }
 
-                if let notes = recipe.notes, !notes.isEmpty {
-                    HubCard {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Notes").font(.headline)
-                            Text(notes)
+                        LazyVGrid(
+                            columns: [GridItem(.adaptive(minimum: 92), spacing: 8)],
+                            alignment: .leading,
+                            spacing: 8
+                        ) {
+                            if let servings = recipe.servings {
+                                metaChip(servings, icon: "person.2")
+                            }
+                            if let prepTime = recipe.prepTime {
+                                metaChip("Prep \(prepTime)", icon: "clock")
+                            }
+                            if let cookTime = recipe.cookTime {
+                                metaChip("Cook \(cookTime)", icon: "clock")
+                            }
+                            if let totalTime = recipe.totalTime {
+                                metaChip("Total \(totalTime)", icon: "clock")
+                            }
+                        }
+
+                        if !recipe.ingredients.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Ingredients").font(.headline)
+                                Button {
+                                    Task { await viewModel.addIngredientsToGroceryList(recipe) }
+                                } label: {
+                                    Label("Add to list", systemImage: "cart.badge.plus")
+                                }
+                                .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
+                                .disabled(viewModel.isWorking)
+                            }
+                            ForEach(recipe.ingredients, id: \.self) { item in
+                                Text("• \(item)")
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .padding(.vertical, 4)
+                            }
+                        }
+
+                        if !recipe.directions.isEmpty {
+                            Text("Directions").font(.headline)
+                            ForEach(Array(recipe.directions.enumerated()), id: \.offset) { index, step in
+                                Text("\(index + 1). \(step)")
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .padding(.vertical, 4)
+                            }
+                        }
+
+                        if let nutrition = recipe.nutrition, !nutrition.isEmpty {
+                            Text("Nutrition").font(.headline)
+                            ForEach(nutrition.keys.sorted(), id: \.self) { key in
+                                HStack(alignment: .top, spacing: 12) {
+                                    Text(key).font(.subheadline.weight(.bold))
+                                    Spacer(minLength: 8)
+                                    Text(nutrition[key] ?? "")
+                                        .foregroundStyle(HubTheme.muted)
+                                        .multilineTextAlignment(.trailing)
+                                }
+                            }
+                        }
+
+                        if let notes = recipe.notes, !notes.isEmpty {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Notes").font(.headline)
+                                Text(notes)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 if viewModel.canManage {
-                    DisclosureGroup("Edit recipe", isExpanded: $showEditForm) {
-                        RecipeFormView(
-                            recipe: recipe,
-                            submitLabel: "Save changes",
-                            onSubmit: { input in
-                                await viewModel.updateRecipe(id: recipe.id, input: input)
-                            },
-                            onDelete: {
-                                await viewModel.deleteRecipe(id: recipe.id)
-                            }
-                        )
-                        .padding(.top, 8)
+                    Button(action: onEdit) {
+                        Label("Edit Recipe", systemImage: "pencil")
+                            .frame(maxWidth: .infinity)
                     }
-                    .font(.subheadline.weight(.bold))
+                    .buttonStyle(HubButtonStyle(emphasis: .secondary))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, horizontalSizeClass == .compact ? 16 : 0)
+            .padding(.vertical, horizontalSizeClass == .compact ? 14 : 0)
+        }
+        .contextMenu {
+            if viewModel.canManage {
+                Button(action: onEdit) {
+                    Label("Edit Recipe", systemImage: "pencil")
                 }
             }
         }
-        .frame(maxHeight: 520)
     }
 
     private func metaChip(_ text: String, icon: String) -> some View {
@@ -273,5 +361,144 @@ private struct RecipeDetailPanel: View {
             .padding(.vertical, 6)
             .background(HubTheme.tileQuiet)
             .clipShape(Capsule())
+    }
+}
+
+private enum RecipeSheetPresentation: Identifiable {
+    case add(UUID)
+    case edit(String)
+    case importRecipe(UUID)
+
+    var id: String {
+        switch self {
+        case .add(let id):
+            "add-\(id.uuidString)"
+        case .edit(let recipeId):
+            "edit-\(recipeId)"
+        case .importRecipe(let id):
+            "import-\(id.uuidString)"
+        }
+    }
+}
+
+private struct RecipeManagementSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let sheet: RecipeSheetPresentation
+    let recipes: [Recipe]
+    @ObservedObject var viewModel: RecipesViewModel
+
+    private var recipe: Recipe? {
+        guard case .edit(let recipeId) = sheet else { return nil }
+        return recipes.first { $0.id == recipeId }
+    }
+
+    private var title: String {
+        switch sheet {
+        case .add:
+            "Add Recipe"
+        case .edit:
+            "Edit Recipe"
+        case .importRecipe:
+            "Import Recipe"
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    switch sheet {
+                    case .add:
+                        RecipeFormView(submitLabel: "Save Recipe") { input in
+                            let saved = await viewModel.addRecipe(input)
+                            if saved {
+                                dismiss()
+                            }
+                            return saved
+                        }
+                    case .edit:
+                        if let recipe {
+                            RecipeFormView(
+                                recipe: recipe,
+                                submitLabel: "Save Changes",
+                                onSubmit: { input in
+                                    let saved = await viewModel.updateRecipe(id: recipe.id, input: input)
+                                    if saved {
+                                        dismiss()
+                                    }
+                                    return saved
+                                },
+                                onDelete: {
+                                    let deleted = await viewModel.deleteRecipe(id: recipe.id)
+                                    if deleted {
+                                        dismiss()
+                                    }
+                                    return deleted
+                                }
+                            )
+                        } else {
+                            ContentUnavailableView(
+                                "Recipe Missing",
+                                systemImage: "fork.knife.circle",
+                                description: Text("This recipe could not be found.")
+                            )
+                        }
+                    case .importRecipe:
+                        RecipeImportForm(viewModel: viewModel) {
+                            dismiss()
+                        }
+                    }
+                }
+                .padding()
+            }
+            .background(HubTheme.canvas)
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct RecipeImportForm: View {
+    @ObservedObject var viewModel: RecipesViewModel
+    let onImported: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Paste a recipe URL. Beacon will pull ingredients, directions, times, and nutrition from structured page data.")
+                .font(.footnote)
+                .foregroundStyle(HubTheme.muted)
+
+            TextField("https://example.com/recipe", text: $viewModel.importURL)
+                .textFieldStyle(.roundedBorder)
+                .textInputAutocapitalization(.never)
+                .keyboardType(.URL)
+                .submitLabel(.go)
+                .onSubmit {
+                    Task { await importRecipe() }
+                }
+
+            Button {
+                Task { await importRecipe() }
+            } label: {
+                Label("Import Recipe", systemImage: "arrow.down.circle")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(HubButtonStyle(emphasis: .primary))
+            .disabled(viewModel.isWorking || viewModel.importURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+    }
+
+    private func importRecipe() async {
+        let imported = await viewModel.importRecipe()
+        if imported {
+            onImported()
+        }
     }
 }

@@ -1,24 +1,159 @@
 import SwiftUI
 import UIKit
 
+enum AppearanceMode: String, CaseIterable, Identifiable, Sendable {
+    case system
+    case light
+    case dark
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .system: "System"
+        case .light: "Light"
+        case .dark: "Dark"
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+}
+
+enum AccentPalette: String, CaseIterable, Identifiable, Sendable {
+    case sage
+    case ocean
+    case clay
+    case plum
+    case slate
+    case forest
+    case teal
+    case indigo
+    case rose
+    case ochre
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .sage: "Sage"
+        case .ocean: "Ocean"
+        case .clay: "Clay"
+        case .plum: "Plum"
+        case .slate: "Slate"
+        case .forest: "Forest"
+        case .teal: "Teal"
+        case .indigo: "Indigo"
+        case .rose: "Rose"
+        case .ochre: "Ochre"
+        }
+    }
+
+    var accent: Color { Color(uiColor: accentUIColor) }
+    var soft: Color { Color(uiColor: softUIColor) }
+    var swatch: Color { Color(red: swatchRGB.0, green: swatchRGB.1, blue: swatchRGB.2) }
+    var swatchIcon: some View {
+        Circle()
+            .fill(swatch)
+            .frame(width: 14, height: 14)
+    }
+
+    private var swatchRGB: (Double, Double, Double) {
+        switch self {
+        case .sage: (0.31, 0.49, 0.43)
+        case .ocean: (0.25, 0.44, 0.56)
+        case .clay: (0.71, 0.42, 0.30)
+        case .plum: (0.48, 0.36, 0.49)
+        case .slate: (0.36, 0.42, 0.48)
+        case .forest: (0.22, 0.40, 0.25)
+        case .teal: (0.16, 0.48, 0.47)
+        case .indigo: (0.33, 0.37, 0.64)
+        case .rose: (0.63, 0.31, 0.41)
+        case .ochre: (0.54, 0.41, 0.15)
+        }
+    }
+
+    private var accentUIColor: UIColor {
+        UIColor { traits in
+            let dark = traits.userInterfaceStyle == .dark
+            switch self {
+            case .sage:
+                return dark
+                    ? UIColor(red: 0.44, green: 0.68, blue: 0.60, alpha: 1)
+                    : UIColor(red: 0.31, green: 0.49, blue: 0.43, alpha: 1)
+            case .ocean:
+                return dark
+                    ? UIColor(red: 0.48, green: 0.65, blue: 0.76, alpha: 1)
+                    : UIColor(red: 0.25, green: 0.44, blue: 0.56, alpha: 1)
+            case .clay:
+                return dark
+                    ? UIColor(red: 0.83, green: 0.55, blue: 0.43, alpha: 1)
+                    : UIColor(red: 0.71, green: 0.42, blue: 0.30, alpha: 1)
+            case .plum:
+                return dark
+                    ? UIColor(red: 0.69, green: 0.54, blue: 0.69, alpha: 1)
+                    : UIColor(red: 0.48, green: 0.36, blue: 0.49, alpha: 1)
+            case .slate:
+                return dark
+                    ? UIColor(red: 0.56, green: 0.63, blue: 0.69, alpha: 1)
+                    : UIColor(red: 0.36, green: 0.42, blue: 0.48, alpha: 1)
+            case .forest:
+                return dark
+                    ? UIColor(red: 0.44, green: 0.68, blue: 0.47, alpha: 1)
+                    : UIColor(red: 0.22, green: 0.40, blue: 0.25, alpha: 1)
+            case .teal:
+                return dark
+                    ? UIColor(red: 0.37, green: 0.69, blue: 0.67, alpha: 1)
+                    : UIColor(red: 0.16, green: 0.48, blue: 0.47, alpha: 1)
+            case .indigo:
+                return dark
+                    ? UIColor(red: 0.53, green: 0.57, blue: 0.82, alpha: 1)
+                    : UIColor(red: 0.33, green: 0.37, blue: 0.64, alpha: 1)
+            case .rose:
+                return dark
+                    ? UIColor(red: 0.82, green: 0.52, blue: 0.61, alpha: 1)
+                    : UIColor(red: 0.63, green: 0.31, blue: 0.41, alpha: 1)
+            case .ochre:
+                return dark
+                    ? UIColor(red: 0.77, green: 0.64, blue: 0.36, alpha: 1)
+                    : UIColor(red: 0.54, green: 0.41, blue: 0.15, alpha: 1)
+            }
+        }
+    }
+
+    private var softUIColor: UIColor {
+        UIColor { traits in
+            if traits.userInterfaceStyle == .dark {
+                return .tertiarySystemFill
+            }
+            switch self {
+            case .sage: return UIColor(red: 0.88, green: 0.93, blue: 0.90, alpha: 1)
+            case .ocean: return UIColor(red: 0.84, green: 0.89, blue: 0.93, alpha: 1)
+            case .clay: return UIColor(red: 0.95, green: 0.87, blue: 0.83, alpha: 1)
+            case .plum: return UIColor(red: 0.92, green: 0.86, blue: 0.93, alpha: 1)
+            case .slate: return UIColor(red: 0.86, green: 0.89, blue: 0.92, alpha: 1)
+            case .forest: return UIColor(red: 0.86, green: 0.91, blue: 0.87, alpha: 1)
+            case .teal: return UIColor(red: 0.84, green: 0.92, blue: 0.91, alpha: 1)
+            case .indigo: return UIColor(red: 0.88, green: 0.89, blue: 0.95, alpha: 1)
+            case .rose: return UIColor(red: 0.95, green: 0.86, blue: 0.89, alpha: 1)
+            case .ochre: return UIColor(red: 0.93, green: 0.90, blue: 0.80, alpha: 1)
+            }
+        }
+    }
+}
+
 enum HubTheme {
-    /// Brand accent — sage green in light mode, slightly brighter in dark for contrast.
-    static let accent = Color(UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 0.44, green: 0.68, blue: 0.60, alpha: 1)
-            : UIColor(red: 0.31, green: 0.49, blue: 0.43, alpha: 1)
-    })
+    static var currentAccent: AccentPalette = .sage
 
-    static let sage = accent
-
-    /// Selected nav rows, chips, etc. Light: soft sage tint. Dark: neutral grey fill.
-    static let selectionBackground = Color(UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor.tertiarySystemFill
-            : UIColor(red: 0.88, green: 0.93, blue: 0.90, alpha: 1)
-    })
-
-    static let sageSoft = selectionBackground
+    static var accent: Color { currentAccent.accent }
+    static var sage: Color { accent }
+    static var selectionBackground: Color { currentAccent.soft }
+    static var sageSoft: Color { selectionBackground }
 
     /// Warm highlight panels (calendar day, guest badge). Dark: neutral grey, not green/cream.
     static let sunSoft = Color(UIColor { traits in
@@ -36,12 +171,23 @@ enum HubTheme {
     static let muted = Color(.secondaryLabel)
 
     static func profileColor(_ hex: String?) -> Color {
-        guard let hex, hex.hasPrefix("#"), hex.count == 7 else { return sage }
+        guard let hex, hex.hasPrefix("#"), hex.count == 7 else { return accent }
         let start = hex.index(hex.startIndex, offsetBy: 1)
         let r = Int(hex[start..<hex.index(start, offsetBy: 2)], radix: 16) ?? 79
         let g = Int(hex[hex.index(start, offsetBy: 2)..<hex.index(start, offsetBy: 4)], radix: 16) ?? 124
         let b = Int(hex[hex.index(start, offsetBy: 4)..<hex.index(start, offsetBy: 6)], radix: 16) ?? 109
         return Color(red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255)
+    }
+}
+
+private struct OpenHubDestinationKey: EnvironmentKey {
+    static let defaultValue: (HubDestination) -> Void = { _ in }
+}
+
+extension EnvironmentValues {
+    var openHubDestination: (HubDestination) -> Void {
+        get { self[OpenHubDestinationKey.self] }
+        set { self[OpenHubDestinationKey.self] = newValue }
     }
 }
 
@@ -66,23 +212,38 @@ struct CardTitleView: View {
     let title: String
     var action: (() -> Void)?
 
+    @ViewBuilder
     var body: some View {
+        if let action {
+            Button(action: action) {
+                titleRow(showsArrow: true)
+            }
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .accessibilityLabel(title)
+            .accessibilityHint("Open \(title)")
+        } else {
+            titleRow(showsArrow: false)
+        }
+    }
+
+    private func titleRow(showsArrow: Bool) -> some View {
         HStack {
             Label(title, systemImage: systemImage)
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(HubTheme.sage)
             Spacer()
-            if let action {
-                Button(action: action) {
-                    Image(systemName: "arrow.right")
-                        .font(.footnote.weight(.bold))
-                        .frame(width: 36, height: 36)
-                        .background(HubTheme.tileQuiet)
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
+            if showsArrow {
+                Image(systemName: "arrow.right")
+                    .font(.footnote.weight(.bold))
+                    .frame(width: 36, height: 36)
+                    .background(HubTheme.tileQuiet)
+                    .clipShape(Circle())
+                    .foregroundStyle(.primary)
+                    .accessibilityHidden(true)
             }
         }
+        .contentShape(Rectangle())
     }
 }
 
@@ -192,6 +353,72 @@ struct ProfileAvatarView: View {
             .foregroundStyle(.white)
             .frame(width: size, height: size)
             .background(HubTheme.profileColor(color))
+    }
+}
+
+enum HouseholdNameHelpers {
+    private static let ignoredHouseholdWords: Set<String> = [
+        "the", "family", "household", "house", "home", "fam",
+    ]
+
+    static func initial(name: String?, ownerName: String?) -> String {
+        householdSurname(from: name)
+            ?? surname(from: ownerName)
+            ?? "H"
+    }
+
+    static func householdSurname(from name: String?) -> String? {
+        guard let name else { return nil }
+        let parts = name
+            .split { $0.isWhitespace || $0 == "/" }
+            .map(String.init)
+            .filter { !$0.isEmpty }
+            .filter { !ignoredHouseholdWords.contains($0.lowercased()) }
+
+        guard let last = parts.last, let initial = last.first else { return nil }
+        return String(initial).uppercased()
+    }
+
+    static func surname(from name: String?) -> String? {
+        guard let name else { return nil }
+        let parts = name.split { $0.isWhitespace }.map(String.init).filter { !$0.isEmpty }
+        guard let last = parts.last, let initial = last.first else { return nil }
+        return String(initial).uppercased()
+    }
+}
+
+struct HouseholdMarkView: View {
+    let name: String
+    var photo: String?
+    var ownerName: String?
+    var size: CGFloat = 56
+
+    var body: some View {
+        Group {
+            if ProfilePhotoHelpers.hasPhoto(photo), let photo, let url = URL(string: photo) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    default:
+                        initialView
+                    }
+                }
+            } else {
+                initialView
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.32, style: .continuous))
+        .accessibilityLabel("\(name) household")
+    }
+
+    private var initialView: some View {
+        Text(HouseholdNameHelpers.initial(name: name, ownerName: ownerName))
+            .font(.system(size: size * 0.5, weight: .bold, design: .rounded))
+            .foregroundStyle(.white)
+            .frame(width: size, height: size)
+            .background(HubTheme.sage)
     }
 }
 
@@ -314,4 +541,50 @@ extension HubTheme {
             ? UIColor(red: 0.87, green: 0.53, blue: 0.44, alpha: 1)
             : UIColor(red: 0.85, green: 0.47, blue: 0.38, alpha: 1)
     })
+}
+
+struct RoutineCelebrationBurst: View {
+    var tint: Color
+    var compact = false
+    @State private var burst = false
+
+    private var sparkles: [(String, CGFloat, CGFloat, Double)] {
+        let scale: CGFloat = compact ? 0.52 : 1
+        return [
+            ("⭐", -94 * scale, -48 * scale, 0.0),
+            ("✨", 0 * scale, -70 * scale, 0.06),
+            ("🎉", 93 * scale, -42 * scale, 0.12),
+            ("✨", -67 * scale, 58 * scale, 0.18),
+            ("⭐", 77 * scale, 54 * scale, 0.24),
+        ]
+    }
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(tint.opacity(burst ? 0 : 0.28))
+                .frame(width: compact ? 36 : 64, height: compact ? 36 : 64)
+                .scaleEffect(burst ? 2.4 : 0.12)
+
+            ForEach(Array(sparkles.enumerated()), id: \.offset) { _, sparkle in
+                Text(sparkle.0)
+                    .font(compact ? .body : .title2)
+                    .offset(x: burst ? sparkle.1 : 0, y: burst ? sparkle.2 : 0)
+                    .scaleEffect(burst ? 1.1 : 0.25)
+                    .opacity(burst ? 0 : 1)
+                    .rotationEffect(.degrees(burst ? 26 : 0))
+                    .animation(.easeOut(duration: 0.78).delay(sparkle.3), value: burst)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .allowsHitTesting(false)
+        .onAppear {
+            burst = false
+            DispatchQueue.main.async {
+                withAnimation(.easeOut(duration: 0.76)) {
+                    burst = true
+                }
+            }
+        }
+    }
 }

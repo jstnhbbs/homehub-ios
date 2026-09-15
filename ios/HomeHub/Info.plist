@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Home Hub</string>
+	<string>Beacon</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -29,6 +29,8 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>BEACON_WEATHERKIT_ENABLED</key>
+	<false/>
 	<key>HOMEHUB_API_URL</key>
 	<string>https://hobbshomehub.vercel.app</string>
 	<key>LSRequiresIPhoneOS</key>
@@ -38,8 +40,18 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Beacon uses your calendars to show your family's schedule on this device.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Beacon uses your calendars to show your family's schedule on this device.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Beacon uses this device's location to show local weather on the dashboard.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Home Hub uses your photo library so you can choose a family profile photo.</string>
+	<string>Beacon uses your photo library so you can choose a family profile photo.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Beacon uses Reminders to add items to your shared grocery list.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>Beacon uses Reminders to add items to your shared grocery list.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -47,8 +59,17 @@
 	</dict>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>

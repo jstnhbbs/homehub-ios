@@ -2,7 +2,6 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { households } from "@/db/schema";
-import { parseCalendarSyncIntervalMinutes } from "@/lib/calendar/sync-interval";
 import { parseWeekStartsOn } from "@/lib/calendar/week-start";
 import { getCurrentHousehold } from "@/lib/household";
 import {
@@ -19,18 +18,12 @@ export async function PATCH(request: Request) {
     const input = z
       .object({
         weekStartsOn: z.number().int().min(0).max(6).optional(),
-        calendarSyncIntervalMinutes: z.number().int().optional(),
       })
       .parse(await parseJsonBody(request));
 
     const updates: Partial<typeof households.$inferInsert> = {};
     if (input.weekStartsOn !== undefined) {
       updates.weekStartsOn = parseWeekStartsOn(input.weekStartsOn);
-    }
-    if (input.calendarSyncIntervalMinutes !== undefined) {
-      updates.calendarSyncIntervalMinutes = parseCalendarSyncIntervalMinutes(
-        input.calendarSyncIntervalMinutes,
-      );
     }
 
     if (Object.keys(updates).length === 0) {

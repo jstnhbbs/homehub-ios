@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db/client";
-import { householdMembers, households } from "@/db/schema";
+import { householdMembers, households, users } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { canManageHousehold } from "@/lib/household-roles";
 import { ensureMemberProfiles } from "@/lib/member-profiles";
@@ -34,6 +34,7 @@ export async function getCurrentHousehold() {
       weatherLocation: households.weatherLocation,
       weatherLatitude: households.weatherLatitude,
       weatherLongitude: households.weatherLongitude,
+      photo: households.photo,
       role: householdMembers.role,
     })
     .from(householdMembers)
@@ -41,7 +42,25 @@ export async function getCurrentHousehold() {
     .where(eq(householdMembers.userId, session.user.id))
     .limit(1);
 
-  return result[0] ?? null;
+  const household = result[0];
+  if (!household) return null;
+
+  const [owner] = await db
+    .select({ name: users.name })
+    .from(householdMembers)
+    .innerJoin(users, eq(householdMembers.userId, users.id))
+    .where(
+      and(
+        eq(householdMembers.householdId, household.id),
+        eq(householdMembers.role, "owner"),
+      ),
+    )
+    .limit(1);
+
+  return {
+    ...household,
+    ownerName: owner?.name ?? null,
+  };
 }
 
 export async function requireHousehold() {

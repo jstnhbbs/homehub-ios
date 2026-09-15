@@ -3,22 +3,21 @@ import { LegalPage, LegalSection } from "@/components/legal-page";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description: "How Home Hub collects, uses, and protects family data.",
+  description: "How Beacon collects, uses, and protects family data.",
 };
 
 export default function PrivacyPolicyPage() {
   return (
     <LegalPage title="Privacy Policy" updated="July 15, 2026">
       <p>
-        Home Hub is a family dashboard for calendars, routines, chores, meals,
+        Beacon is a family dashboard for calendars, routines, chores, meals,
         and recipes. This policy explains what information the app stores and
-        how it is used when you sign in or connect external services such as
-        Google Calendar or Apple iCloud.
+        how it is used when you sign in or grant device permissions.
       </p>
 
-      <LegalSection title="Who operates Home Hub">
+      <LegalSection title="Who operates Beacon">
         <p>
-          Home Hub is typically run by a parent or household administrator who
+          Beacon is typically run by a parent or household administrator who
           deploys and maintains the application. That operator controls the
           server, database, and environment configuration for their household.
         </p>
@@ -38,11 +37,9 @@ export default function PrivacyPolicyPage() {
         </p>
         <p>
           <strong className="text-[var(--foreground)]">Calendar data:</strong>{" "}
-          if you connect Apple Calendar, Home Hub stores your Apple Account
-          email and an encrypted app-specific password. If you connect Google
-          Calendar, Home Hub stores encrypted OAuth tokens and your Google
-          account email. Calendar events synced from connected providers are
-          cached so the hub can display and edit them.
+          Beacon reads calendar events from the calendars available on your
+          iPhone or iPad after you grant iOS calendar permission. Beacon does
+          not store Apple, Google, or other calendar-provider credentials.
         </p>
         <p>
           <strong className="text-[var(--foreground)]">Technical data:</strong>{" "}
@@ -54,64 +51,35 @@ export default function PrivacyPolicyPage() {
       <LegalSection title="How we use information">
         <p>
           Information is used only to operate the household hub: showing shared
-          schedules, managing family tasks and meals, syncing calendars both
-          ways, and authenticating parents who manage the household.
+          schedules, managing family tasks and meals, and authenticating
+          parents who manage the household.
         </p>
         <p>
-          Home Hub does not sell personal information or use household calendar
+          Beacon does not sell personal information or use household calendar
           data for advertising.
-        </p>
-      </LegalSection>
-
-      <LegalSection title="Google Calendar access">
-        <p>
-          When you choose to connect Google Calendar, Home Hub requests access
-          to read and manage calendar events so they can appear on the family
-          dashboard and stay in sync with Google. Home Hub also reads your
-          Google account email to display which account is connected.
-        </p>
-        <p>
-          You can disconnect Google Calendar at any time from Settings →
-          Calendars. Disconnecting removes the stored connection and associated
-          synced calendar data from Home Hub.
-        </p>
-        <p>
-          Home Hub&apos;s use of information received from Google APIs follows
-          the{" "}
-          <a
-            href="https://developers.google.com/terms/api-services-user-data-policy"
-            className="font-bold text-[var(--sage)]"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Google API Services User Data Policy
-          </a>
-          , including the Limited Use requirements.
         </p>
       </LegalSection>
 
       <LegalSection title="How information is protected">
         <p>
-          Calendar credentials and Google OAuth tokens are encrypted before
-          storage. Access to household data is limited to signed-in parents who
-          belong to that household. Child profiles do not require their own
-          accounts.
+          Access to household data is limited to signed-in parents who belong
+          to that household. Child profiles do not require their own accounts.
         </p>
       </LegalSection>
 
       <LegalSection title="Data retention and deletion">
         <p>
-          Data remains available while your household uses Home Hub. You can
+          Data remains available while your household uses Beacon. You can
           delete recipes, meals, chores, routines, and profile information
           through the app. Disconnecting a calendar removes that provider&apos;s
           connection and synced events. To remove all household data, contact
-          the person who operates your Home Hub deployment.
+          the person who operates your Beacon deployment.
         </p>
       </LegalSection>
 
       <LegalSection title="Children">
         <p>
-          Home Hub is designed for family use under parent supervision. Children
+          Beacon is designed for family use under parent supervision. Children
           are represented as household profiles and do not create separate login
           accounts.
         </p>
@@ -119,7 +87,7 @@ export default function PrivacyPolicyPage() {
 
       <LegalSection title="Contact">
         <p>
-          For privacy questions about a specific Home Hub deployment, contact the
+          For privacy questions about a specific Beacon deployment, contact the
           parent or administrator who runs that instance of the application.
         </p>
       </LegalSection>

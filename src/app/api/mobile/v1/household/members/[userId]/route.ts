@@ -2,14 +2,42 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { householdMembers } from "@/db/schema";
-import { isGuest } from "@/lib/household-roles";
+import { updateHouseholdMemberRole } from "@/lib/household-members";
+import { householdRoles, isGuest } from "@/lib/household-roles";
 import {
   handleMobileError,
   mobileJson,
+  parseJsonBody,
   requireMobileParentHousehold,
+  requireMobileUser,
 } from "@/lib/mobile/http";
 
 type RouteContext = { params: Promise<{ userId: string }> };
+
+export async function PATCH(request: Request, context: RouteContext) {
+  try {
+    const user = await requireMobileUser();
+    const household = await requireMobileParentHousehold();
+    const userId = z.string().parse((await context.params).userId);
+    const input = z
+      .object({
+        role: z.enum(householdRoles),
+      })
+      .parse(await parseJsonBody(request));
+
+    const role = await updateHouseholdMemberRole({
+      householdId: household.id,
+      actorUserId: user.id,
+      actorRole: household.role,
+      targetUserId: userId,
+      nextRole: input.role,
+    });
+
+    return mobileJson({ ok: true, role });
+  } catch (error) {
+    return handleMobileError(error);
+  }
+}
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {

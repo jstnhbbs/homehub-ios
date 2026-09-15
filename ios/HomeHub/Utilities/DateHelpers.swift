@@ -47,8 +47,10 @@ enum DateHelpers {
     static func formatLocalDate(_ localDate: String, timezone: TimeZone, style: DateFormatter.Style = .medium) -> String {
         guard let date = dateFromLocalDate(localDate, timezone: timezone) else { return localDate }
         let formatter = DateFormatter()
+        formatter.locale = .autoupdatingCurrent
         formatter.timeZone = timezone
         formatter.dateStyle = style
+        formatter.timeStyle = .none
         return formatter.string(from: date)
     }
 

@@ -2,9 +2,40 @@ import SwiftUI
 
 struct ChoresView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @StateObject private var viewModel = ChoresViewModel()
+    @State private var activeChoreEditor: ChoreEditorPresentation?
 
     var body: some View {
+        Group {
+            if horizontalSizeClass == .compact {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        header
+                        if let error = viewModel.errorMessage {
+                            Text(error).font(.footnote).foregroundStyle(.red)
+                        }
+                        choresContent(columns: [GridItem(.flexible())])
+                    }
+                }
+            } else {
+                wideContent
+            }
+        }
+        .sheet(item: $activeChoreEditor) { editor in
+            ChoreEditorSheet(
+                editor: editor,
+                chores: viewModel.chores,
+                profiles: viewModel.profiles,
+                viewModel: viewModel
+            )
+        }
+        .onAppear { viewModel.bind(to: appState) }
+        .task { await viewModel.load() }
+        .refreshable { await viewModel.load() }
+    }
+
+    private var wideContent: some View {
         HStack(alignment: .top, spacing: 20) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
@@ -12,61 +43,42 @@ struct ChoresView: View {
                     if let error = viewModel.errorMessage {
                         Text(error).font(.footnote).foregroundStyle(.red)
                     }
-                    if viewModel.isLoading && viewModel.chores.isEmpty {
-                        ProgressView().frame(maxWidth: .infinity, minHeight: 240)
-                    } else {
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                            ForEach(viewModel.groups) { group in
-                                ChoreGroupCard(group: group, viewModel: viewModel)
-                            }
-                        }
-                    }
+                    choresContent(columns: [GridItem(.flexible()), GridItem(.flexible())])
                 }
             }
             .frame(maxWidth: .infinity)
+        }
+    }
 
-            if viewModel.canManage {
-                addPanel
-                    .frame(width: 330)
+    @ViewBuilder
+    private func choresContent(columns: [GridItem]) -> some View {
+        if viewModel.isLoading && viewModel.chores.isEmpty {
+            ProgressView().frame(maxWidth: .infinity, minHeight: 240)
+        } else {
+            LazyVGrid(columns: columns, spacing: 16) {
+                ForEach(viewModel.groups) { group in
+                    ChoreGroupCard(group: group, viewModel: viewModel) { chore in
+                        activeChoreEditor = .edit(chore.id)
+                    }
+                }
             }
         }
-        .onAppear { viewModel.bind(to: appState) }
-        .task { await viewModel.load() }
-        .refreshable { await viewModel.load() }
     }
 
     private var header: some View {
         HStack(alignment: .bottom) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Pitch in together")
-                    .font(.caption.weight(.bold))
-                    .textCase(.uppercase)
-                    .foregroundStyle(HubTheme.sage)
+            if horizontalSizeClass != .compact {
                 Text("Chore chart")
                     .font(.system(size: 34, weight: .semibold, design: .rounded))
             }
             Spacer()
-            Label("Every check helps", systemImage: "sparkles")
-                .font(.caption.weight(.bold))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(HubTheme.sunSoft)
-                .clipShape(Capsule())
-        }
-    }
-
-    private var addPanel: some View {
-        HubCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Label("Add a chore", systemImage: "plus")
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(HubTheme.sage)
-                ChoreFormView(
-                    profiles: viewModel.profiles,
-                    submitLabel: "Add chore"
-                ) { input in
-                    await viewModel.createChore(input)
+            if viewModel.canManage {
+                Button {
+                    activeChoreEditor = .add(UUID())
+                } label: {
+                    Label("Add Chore", systemImage: "plus")
                 }
+                .buttonStyle(HubButtonStyle(emphasis: .primary))
             }
         }
     }
@@ -75,6 +87,7 @@ struct ChoresView: View {
 private struct ChoreGroupCard: View {
     let group: ChoreGroup
     @ObservedObject var viewModel: ChoresViewModel
+    let onEdit: (ChoreRow) -> Void
 
     var body: some View {
         HubCard {
@@ -103,7 +116,9 @@ private struct ChoreGroupCard: View {
                         )
                 } else {
                     ForEach(group.chores) { chore in
-                        ChoreItemRow(chore: chore, groupColor: group.color, viewModel: viewModel)
+                        ChoreItemRow(chore: chore, groupColor: group.color, viewModel: viewModel) {
+                            onEdit(chore)
+                        }
                     }
                 }
             }
@@ -115,13 +130,15 @@ private struct ChoreItemRow: View {
     let chore: ChoreRow
     let groupColor: String
     @ObservedObject var viewModel: ChoresViewModel
+    let onEdit: () -> Void
 
     @State private var isChecked: Bool
 
-    init(chore: ChoreRow, groupColor: String, viewModel: ChoresViewModel) {
+    init(chore: ChoreRow, groupColor: String, viewModel: ChoresViewModel, onEdit: @escaping () -> Void) {
         self.chore = chore
         self.groupColor = groupColor
         self.viewModel = viewModel
+        self.onEdit = onEdit
         _isChecked = State(initialValue: chore.completed)
     }
 
@@ -147,28 +164,115 @@ private struct ChoreItemRow: View {
             }
 
             if viewModel.canManage {
-                DisclosureGroup(
-                    "Edit \(chore.title)",
-                    isExpanded: Binding(
-                        get: { viewModel.editingChoreId == chore.id },
-                        set: { viewModel.editingChoreId = $0 ? chore.id : nil }
-                    )
-                ) {
-                    ChoreFormView(
-                        profiles: viewModel.profiles,
-                        chore: chore,
-                        submitLabel: "Save chore",
-                        onSubmit: { input in
-                            await viewModel.updateChore(id: chore.id, input: input)
-                        },
-                        onDelete: {
-                            await viewModel.deleteChore(id: chore.id)
-                        }
-                    )
-                    .padding(.top, 8)
+                Button(action: onEdit) {
+                    Label("Edit Chore", systemImage: "pencil")
+                        .frame(maxWidth: .infinity)
                 }
-                .font(.caption.weight(.bold))
-                .foregroundStyle(HubTheme.muted)
+                .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
+            }
+        }
+        .contextMenu {
+            if viewModel.canManage {
+                Button(action: onEdit) {
+                    Label("Edit Chore", systemImage: "pencil")
+                }
+            }
+        }
+    }
+}
+
+private enum ChoreEditorPresentation: Identifiable {
+    case add(UUID)
+    case edit(String)
+
+    var id: String {
+        switch self {
+        case .add(let id):
+            "add-\(id.uuidString)"
+        case .edit(let choreId):
+            "edit-\(choreId)"
+        }
+    }
+}
+
+private struct ChoreEditorSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let editor: ChoreEditorPresentation
+    let chores: [ChoreRow]
+    let profiles: [Profile]
+    @ObservedObject var viewModel: ChoresViewModel
+
+    private var chore: ChoreRow? {
+        guard case .edit(let choreId) = editor else { return nil }
+        return chores.first { $0.id == choreId }
+    }
+
+    private var title: String {
+        switch editor {
+        case .add:
+            "Add Chore"
+        case .edit:
+            "Edit Chore"
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    switch editor {
+                    case .add:
+                        ChoreFormView(
+                            profiles: profiles,
+                            submitLabel: "Add Chore"
+                        ) { input in
+                            let saved = await viewModel.createChore(input)
+                            if saved {
+                                dismiss()
+                            }
+                            return saved
+                        }
+                    case .edit:
+                        if let chore {
+                            ChoreFormView(
+                                profiles: profiles,
+                                chore: chore,
+                                submitLabel: "Save Chore",
+                                onSubmit: { input in
+                                    let saved = await viewModel.updateChore(id: chore.id, input: input)
+                                    if saved {
+                                        dismiss()
+                                    }
+                                    return saved
+                                },
+                                onDelete: {
+                                    let deleted = await viewModel.deleteChore(id: chore.id)
+                                    if deleted {
+                                        dismiss()
+                                    }
+                                    return deleted
+                                }
+                            )
+                        } else {
+                            ContentUnavailableView(
+                                "Chore Missing",
+                                systemImage: "checklist",
+                                description: Text("This chore could not be found.")
+                            )
+                        }
+                    }
+                }
+                .padding()
+            }
+            .background(HubTheme.canvas)
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
             }
         }
     }

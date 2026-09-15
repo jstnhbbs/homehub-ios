@@ -1,10 +1,42 @@
 import SwiftUI
+import UIKit
 
 struct RoutinesView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @StateObject private var viewModel = RoutinesViewModel()
+    @State private var activeRoutineEditor: RoutineEditorPresentation?
 
     var body: some View {
+        Group {
+            if horizontalSizeClass == .compact {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        header
+                        if let error = viewModel.errorMessage {
+                            Text(error).font(.footnote).foregroundStyle(.red)
+                        }
+                        routinesContent(columns: [GridItem(.flexible(), alignment: .top)])
+                    }
+                }
+            } else {
+                wideContent
+            }
+        }
+        .sheet(item: $activeRoutineEditor) { editor in
+            RoutineEditorSheet(
+                editor: editor,
+                routines: viewModel.routines,
+                profiles: viewModel.profiles,
+                viewModel: viewModel
+            )
+        }
+        .onAppear { viewModel.bind(to: appState) }
+        .task { await viewModel.load() }
+        .refreshable { await viewModel.load() }
+    }
+
+    private var wideContent: some View {
         HStack(alignment: .top, spacing: 20) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
@@ -12,54 +44,47 @@ struct RoutinesView: View {
                     if let error = viewModel.errorMessage {
                         Text(error).font(.footnote).foregroundStyle(.red)
                     }
-                    if viewModel.isLoading && viewModel.routines.isEmpty {
-                        ProgressView().frame(maxWidth: .infinity, minHeight: 240)
-                    } else if viewModel.routines.isEmpty {
-                        EmptyStateView(text: "Your first routine will appear here.")
-                    } else {
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                            ForEach(viewModel.routines) { routine in
-                                RoutineCard(routine: routine, viewModel: viewModel)
-                            }
-                        }
-                    }
+                    routinesContent(columns: [
+                        GridItem(.flexible(), alignment: .top),
+                        GridItem(.flexible(), alignment: .top)
+                    ])
                 }
             }
             .frame(maxWidth: .infinity)
+        }
+    }
 
-            if viewModel.canManage {
-                addPanel
-                    .frame(width: 330)
+    @ViewBuilder
+    private func routinesContent(columns: [GridItem]) -> some View {
+        if viewModel.isLoading && viewModel.routines.isEmpty {
+            ProgressView().frame(maxWidth: .infinity, minHeight: 240)
+        } else if viewModel.routines.isEmpty {
+            EmptyStateView(text: "Your first routine will appear here.")
+        } else {
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
+                ForEach(viewModel.routines) { routine in
+                    RoutineCard(routine: routine, viewModel: viewModel) {
+                        activeRoutineEditor = .edit(routine.id)
+                    }
+                }
             }
         }
-        .onAppear { viewModel.bind(to: appState) }
-        .task { await viewModel.load() }
-        .refreshable { await viewModel.load() }
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Small steps, smoother days")
-                .font(.caption.weight(.bold))
-                .textCase(.uppercase)
-                .foregroundStyle(HubTheme.sage)
-            Text("Routines")
-                .font(.system(size: 34, weight: .semibold, design: .rounded))
-        }
-    }
-
-    private var addPanel: some View {
-        HubCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Label("New routine", systemImage: "plus")
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(HubTheme.sage)
-                RoutineFormView(
-                    profiles: viewModel.profiles,
-                    submitLabel: "Add routine"
-                ) { input in
-                    await viewModel.createRoutine(input)
+        HStack(alignment: .bottom) {
+            if horizontalSizeClass != .compact {
+                Text("Routines")
+                    .font(.system(size: 34, weight: .semibold, design: .rounded))
+            }
+            Spacer()
+            if viewModel.canManage {
+                Button {
+                    activeRoutineEditor = .add(UUID())
+                } label: {
+                    Label("Add Routine", systemImage: "plus")
                 }
+                .buttonStyle(HubButtonStyle(emphasis: .primary))
             }
         }
     }
@@ -68,6 +93,7 @@ struct RoutinesView: View {
 private struct RoutineCard: View {
     let routine: Routine
     @ObservedObject var viewModel: RoutinesViewModel
+    let onEdit: () -> Void
 
     private var meta: (label: String, icon: String, color: Color) {
         switch routine.period {
@@ -111,33 +137,122 @@ private struct RoutineCard: View {
                     ForEach(pending) { step in
                         RoutineStepCheckRow(step: step, color: profile?.color) {
                             await viewModel.toggleStep(step.id)
+                        } onFinished: {
+                            viewModel.markStepCompleted(step.id)
                         }
                     }
                 }
 
                 if viewModel.canManage {
-                    DisclosureGroup(
-                        "Edit \(routine.name)",
-                        isExpanded: Binding(
-                            get: { viewModel.editingRoutineId == routine.id },
-                            set: { viewModel.editingRoutineId = $0 ? routine.id : nil }
-                        )
-                    ) {
-                        RoutineFormView(
-                            profiles: viewModel.profiles,
-                            routine: routine,
-                            submitLabel: "Save routine",
-                            onSubmit: { input in
-                                await viewModel.updateRoutine(id: routine.id, input: input)
-                            },
-                            onDelete: {
-                                await viewModel.deleteRoutine(id: routine.id)
-                            }
-                        )
-                        .padding(.top, 8)
+                    Button(action: onEdit) {
+                        Label("Edit Routine", systemImage: "pencil")
+                            .frame(maxWidth: .infinity)
                     }
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(HubTheme.muted)
+                    .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
+                }
+            }
+        }
+        .contextMenu {
+            if viewModel.canManage {
+                Button(action: onEdit) {
+                    Label("Edit Routine", systemImage: "pencil")
+                }
+            }
+        }
+    }
+}
+
+private enum RoutineEditorPresentation: Identifiable {
+    case add(UUID)
+    case edit(String)
+
+    var id: String {
+        switch self {
+        case .add(let id):
+            "add-\(id.uuidString)"
+        case .edit(let routineId):
+            "edit-\(routineId)"
+        }
+    }
+}
+
+private struct RoutineEditorSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let editor: RoutineEditorPresentation
+    let routines: [Routine]
+    let profiles: [Profile]
+    @ObservedObject var viewModel: RoutinesViewModel
+
+    private var routine: Routine? {
+        guard case .edit(let routineId) = editor else { return nil }
+        return routines.first { $0.id == routineId }
+    }
+
+    private var title: String {
+        switch editor {
+        case .add:
+            "Add Routine"
+        case .edit:
+            "Edit Routine"
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    switch editor {
+                    case .add:
+                        RoutineFormView(
+                            profiles: profiles,
+                            submitLabel: "Add Routine"
+                        ) { input in
+                            let saved = await viewModel.createRoutine(input)
+                            if saved {
+                                dismiss()
+                            }
+                            return saved
+                        }
+                    case .edit:
+                        if let routine {
+                            RoutineFormView(
+                                profiles: profiles,
+                                routine: routine,
+                                submitLabel: "Save Routine",
+                                onSubmit: { input in
+                                    let saved = await viewModel.updateRoutine(id: routine.id, input: input)
+                                    if saved {
+                                        dismiss()
+                                    }
+                                    return saved
+                                },
+                                onDelete: {
+                                    let deleted = await viewModel.deleteRoutine(id: routine.id)
+                                    if deleted {
+                                        dismiss()
+                                    }
+                                    return deleted
+                                }
+                            )
+                        } else {
+                            ContentUnavailableView(
+                                "Routine Missing",
+                                systemImage: "list.bullet.clipboard",
+                                description: Text("This routine could not be found.")
+                            )
+                        }
+                    }
+                }
+                .padding()
+            }
+            .background(HubTheme.canvas)
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
                 }
             }
         }
@@ -147,42 +262,99 @@ private struct RoutineCard: View {
 private struct RoutineStepCheckRow: View {
     let step: RoutineStep
     var color: String?
-    let onToggle: () async -> Void
+    let onToggle: () async -> Bool
+    let onFinished: () -> Void
 
-    @State private var isChecked = false
     @State private var isHidden = false
+    @State private var isCelebrating = false
+    @State private var isWorking = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var display: RoutineStepDisplay {
+        RoutineGlyphs.display(for: step.label)
+    }
+
+    private var tint: Color {
+        HubTheme.profileColor(color)
+    }
 
     var body: some View {
         if !isHidden {
             Button {
                 Task {
-                    isChecked = true
-                    await onToggle()
-                    withAnimation { isHidden = true }
+                    guard !isWorking else { return }
+                    isWorking = true
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    withAnimation(.spring(response: 0.34, dampingFraction: 0.56)) {
+                        isCelebrating = true
+                    }
+                    let succeeded = await onToggle()
+                    guard succeeded else {
+                        withAnimation {
+                            isCelebrating = false
+                        }
+                        isWorking = false
+                        return
+                    }
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    let delay = reduceMotion ? 180_000_000 : 900_000_000
+                    try? await Task.sleep(nanoseconds: UInt64(delay))
+                    withAnimation(.easeInOut(duration: 0.22)) {
+                        isHidden = true
+                    }
+                    onFinished()
                 }
             } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "circle")
-                        .foregroundStyle(HubTheme.muted)
-                    Text(step.label)
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.primary)
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(HubTheme.tileQuiet)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay(alignment: .leading) {
-                    if let color {
-                        Circle()
-                            .fill(HubTheme.profileColor(color))
-                            .frame(width: 8, height: 8)
-                            .padding(.leading, 6)
+                ZStack {
+                    HStack(spacing: 16) {
+                        Text(display.glyph)
+                            .font(.system(size: 46))
+                            .frame(width: 76, height: 76)
+                            .background(tint.opacity(0.18))
+                            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                            .scaleEffect(isCelebrating && !reduceMotion ? 1.12 : 1)
+                            .rotationEffect(.degrees(isCelebrating && !reduceMotion ? -6 : 0))
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(display.label)
+                                .font(.system(size: 24, weight: .heavy, design: .rounded))
+                                .foregroundStyle(.primary)
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.78)
+
+                            Label(
+                                isCelebrating ? "Great job!" : "Tap when done",
+                                systemImage: isCelebrating ? "checkmark.circle.fill" : "hand.tap.fill"
+                            )
+                            .font(.caption.weight(.heavy))
+                            .textCase(.uppercase)
+                            .foregroundStyle(isCelebrating ? .white : tint)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(isCelebrating ? tint : tint.opacity(0.14))
+                            .clipShape(Capsule())
+                        }
+
+                        Spacer(minLength: 0)
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, minHeight: 116, alignment: .leading)
+                    .background(tint.opacity(isCelebrating ? 0.22 : 0.10))
+                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .stroke(tint.opacity(isCelebrating ? 0.78 : 0.28), lineWidth: 2)
+                    )
+                    .overlay {
+                        if isCelebrating && !reduceMotion {
+                            RoutineCelebrationBurst(tint: tint)
+                        }
                     }
                 }
+                .shadow(color: tint.opacity(isCelebrating && !reduceMotion ? 0.22 : 0), radius: 12, y: 6)
             }
             .buttonStyle(.plain)
+            .disabled(isWorking)
         }
     }
 }

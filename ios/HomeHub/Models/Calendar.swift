@@ -1,9 +1,9 @@
 import Foundation
 
 enum CalendarViewMode: String, CaseIterable, Identifiable {
-    case month
-    case week
     case day
+    case week
+    case month
 
     var id: String { rawValue }
 
@@ -21,6 +21,17 @@ struct CalendarPickerOption: Codable, Identifiable, Sendable {
     var displayName: String
     var color: String
     var provider: CalendarProvider
+    var accountName: String = ""
+
+    static func groupedByAccount(
+        _ calendars: [CalendarPickerOption]
+    ) -> [(account: String, calendars: [CalendarPickerOption])] {
+        Dictionary(grouping: calendars, by: \.accountName)
+            .map { (account: $0.key, calendars: $0.value) }
+            .sorted {
+                $0.account.localizedCaseInsensitiveCompare($1.account) == .orderedAscending
+            }
+    }
 }
 
 struct CalendarOccurrence: Codable, Identifiable, Sendable {
@@ -50,19 +61,6 @@ struct CalendarEventFormInput: Codable, Sendable {
     var description: String?
 }
 
-struct CalendarConnection: Codable, Identifiable, Sendable {
-    let id: String
-    let householdId: String
-    var provider: CalendarProvider
-    var accountEmail: String
-    var appleId: String?
-    var status: CalendarConnectionStatus
-    var errorMessage: String?
-    var lastSyncedAt: Date?
-    var createdAt: Date?
-    var updatedAt: Date?
-}
-
 struct HouseholdCalendar: Codable, Identifiable, Sendable {
     let id: String
     let connectionId: String
@@ -89,33 +87,74 @@ struct CalendarSyncStatus: Codable, Sendable {
     var lastSyncedAt: Date?
 }
 
-struct ConnectICloudRequest: Codable, Sendable {
-    var username: String
-    var password: String
+enum NativeCalendarAccessStatus: String, Sendable {
+    case notDetermined
+    case authorized
+    case denied
+    case restricted
+
+    var settingsLabel: String {
+        switch self {
+        case .authorized: "Full Access"
+        case .notDetermined: "Not Enabled"
+        case .denied, .restricted: "Off"
+        }
+    }
 }
 
-struct UpdateCalendarSelectionRequest: Codable, Sendable {
-    var calendarIds: [String]
+enum NativeNewItemKind: String, CaseIterable, Identifiable {
+    case event
+    case reminder
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .event: "Event"
+        case .reminder: "Reminder"
+        }
+    }
+}
+
+enum NativeAlertOffset: Int, CaseIterable, Identifiable {
+    case none = -1
+    case atTime = 0
+    case fiveMinutes = 5
+    case fifteenMinutes = 15
+    case thirtyMinutes = 30
+    case oneHour = 60
+    case oneDay = 1440
+
+    var id: Int { rawValue }
+
+    var label: String {
+        switch self {
+        case .none: "None"
+        case .atTime: "At time"
+        case .fiveMinutes: "5 minutes before"
+        case .fifteenMinutes: "15 minutes before"
+        case .thirtyMinutes: "30 minutes before"
+        case .oneHour: "1 hour before"
+        case .oneDay: "1 day before"
+        }
+    }
+}
+
+enum NativeCalendarPreferenceKeys {
+    static let defaultCalendarId = "beacon.nativeCalendar.defaultCalendarId"
+    static let defaultNewItem = "beacon.nativeCalendar.defaultNewItem"
+    static let eventAlert = "beacon.nativeCalendar.eventAlertMinutes"
+    static let reminderAlert = "beacon.nativeCalendar.reminderAlertMinutes"
+    static let agendaFontSize = "beacon.nativeCalendar.agendaFontSize"
+    static let useSystemAgendaFont = "beacon.nativeCalendar.useSystemAgendaFont"
+    static let automaticId = "automatic"
 }
 
 struct UpdateCalendarSettingsRequest: Codable, Sendable {
     var weekStartsOn: Int?
-    var calendarSyncIntervalMinutes: Int?
-}
-
-struct HouseholdCalendarOption: Codable, Identifiable, Sendable {
-    let id: String
-    let connectionId: String
-    var displayName: String
-    var color: String
-    var enabled: Bool
-    var provider: CalendarProvider
-}
-
-struct GoogleConnectURLResponse: Codable, Sendable {
-    let url: String
 }
 
 struct OkResponse: Codable, Sendable {
-    let ok: Bool
+    var ok: Bool?
+    var id: String?
 }

@@ -4,14 +4,14 @@ import { expandIcalEvent, makeIcalEvent, parseIcalEvent } from "./ical";
 describe("iCalendar normalization", () => {
   it("creates and parses an event", () => {
     const raw = makeIcalEvent({
-      uid: "family-event@homehub",
+      uid: "family-event@beacon",
       title: "Soccer practice",
       startsAt: new Date("2026-07-14T22:00:00.000Z"),
       endsAt: new Date("2026-07-14T23:00:00.000Z"),
       location: "Community field",
     });
     const event = parseIcalEvent(raw);
-    expect(event.uid).toBe("family-event@homehub");
+    expect(event.uid).toBe("family-event@beacon");
     expect(event.title).toBe("Soccer practice");
     expect(event.location).toBe("Community field");
   });
@@ -21,7 +21,7 @@ describe("iCalendar normalization", () => {
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
       "BEGIN:VEVENT",
-      "UID:repeat@homehub",
+      "UID:repeat@beacon",
       "DTSTART:20260713T130000Z",
       "DTEND:20260713T133000Z",
       "RRULE:FREQ=DAILY;COUNT=5",
@@ -43,7 +43,7 @@ describe("iCalendar normalization", () => {
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
       "BEGIN:VEVENT",
-      "UID:floating@homehub",
+      "UID:floating@beacon",
       "DTSTART:20260715T180000",
       "DTEND:20260715T193000",
       "SUMMARY:Evening event",

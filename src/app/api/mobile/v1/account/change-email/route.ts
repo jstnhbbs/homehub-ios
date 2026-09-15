@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const result = await auth.api.changeEmail({
       body: {
         newEmail: input.newEmail,
-        callbackURL: "/dashboard",
+        callbackURL: "/settings",
       },
       headers: await headers(),
     });

@@ -27,7 +27,28 @@ final class HouseholdMembersViewModel: ObservableObject {
         do {
             members = try await appState.api.fetchHouseholdMembers()
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
+        }
+    }
+
+    func updateRole(userId: String, role: HouseholdRole) async {
+        guard let appState else { return }
+        isWorking = true
+        errorMessage = nil
+        successMessage = nil
+        defer { isWorking = false }
+
+        do {
+            try await appState.api.updateHouseholdMemberRole(userId: userId, role: role)
+            await load()
+            await appState.refreshHousehold()
+            successMessage = "Role updated."
+        } catch {
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
         }
     }
 
@@ -43,7 +64,9 @@ final class HouseholdMembersViewModel: ObservableObject {
             await load()
             successMessage = "Guest removed."
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
         }
     }
 }

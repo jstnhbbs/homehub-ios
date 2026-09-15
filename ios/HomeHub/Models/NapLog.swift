@@ -31,6 +31,19 @@ struct NapsPayload: Codable, Sendable {
     let childProfiles: [Profile]
     let naps: [NapLog]
     let weekLogs: [NapLog]
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        localDate = try container.decode(String.self, forKey: .localDate)
+        weekDates = try container.decodeIfPresent([String].self, forKey: .weekDates) ?? []
+        childProfiles = try container.decodeIfPresent([Profile].self, forKey: .childProfiles) ?? []
+        naps = try container.decodeIfPresent([NapLog].self, forKey: .naps) ?? []
+        weekLogs = try container.decodeIfPresent([NapLog].self, forKey: .weekLogs) ?? naps
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case localDate, weekDates, childProfiles, naps, weekLogs
+    }
 }
 
 struct NapActionRequest: Encodable, Sendable {

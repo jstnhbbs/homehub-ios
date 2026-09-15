@@ -3,6 +3,7 @@ import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import {
   type HubModules,
+  type HubModulesInput,
   mergeHubModules,
   parseHubModules,
   serializeHubModules,
@@ -20,7 +21,7 @@ export async function getUserHubModules(userId: string): Promise<HubModules> {
 
 export async function saveUserHubModules(
   userId: string,
-  modules: Partial<HubModules>,
+  modules: HubModulesInput,
 ): Promise<HubModules> {
   const current = await getUserHubModules(userId);
   const next = mergeHubModules({ ...current, ...modules });

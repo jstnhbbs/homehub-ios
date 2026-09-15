@@ -1,11 +1,9 @@
-import { Bell } from "lucide-react";
-import { HubNav } from "@/components/hub-nav";
+import { HouseholdMark } from "@/components/household-mark";
 import { LiveClock } from "@/components/live-clock";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { requireHousehold, requireUser } from "@/lib/household";
-import { canManageHousehold, isGuest } from "@/lib/household-roles";
-import { getUserHubModules } from "@/lib/hub-modules-store";
+import { requireHousehold } from "@/lib/household";
+import { isGuest } from "@/lib/household-roles";
 
 export default async function HubLayout({
   children,
@@ -13,9 +11,6 @@ export default async function HubLayout({
   children: React.ReactNode;
 }) {
   const household = await requireHousehold();
-  const user = await requireUser();
-  const hubModules = await getUserHubModules(user.id);
-  const showSettings = canManageHousehold(household.role);
   const dateLabel = new Intl.DateTimeFormat("en-US", {
     timeZone: household.timezone,
     weekday: "long",
@@ -25,21 +20,27 @@ export default async function HubLayout({
 
   return (
     <div className="flex h-dvh min-h-[600px] overflow-hidden max-md:min-h-0 max-md:flex-col">
-      <HubNav showSettings={showSettings} modules={hubModules} />
-      <div className="flex min-w-0 flex-1 flex-col max-md:min-h-0 max-md:order-1">
+      <div className="flex min-w-0 flex-1 flex-col max-md:min-h-0">
         <header className="flex h-[78px] shrink-0 items-center justify-between border-b border-[var(--line)] bg-[var(--background)] px-7 max-md:h-[64px] max-md:px-4">
-          <div className="min-w-0">
-            <p className="truncate text-xs font-bold uppercase tracking-[0.16em] text-[var(--muted)] max-md:text-[10px]">
-              {household.name}
-              {isGuest(household.role) && (
-                <span className="ml-2 rounded-full bg-[var(--sun-soft)] px-2 py-0.5 text-[10px] text-[var(--foreground)]">
-                  Guest
-                </span>
-              )}
-            </p>
-            <p className="font-display truncate text-xl font-semibold max-md:text-base">
-              {dateLabel}
-            </p>
+          <div className="flex min-w-0 items-center gap-3">
+            <HouseholdMark
+              name={household.name}
+              photo={household.photo}
+              size={44}
+            />
+            <div className="min-w-0">
+              <p className="truncate text-xs font-bold uppercase tracking-[0.16em] text-[var(--muted)] max-md:text-[10px]">
+                {household.name}
+                {isGuest(household.role) && (
+                  <span className="ml-2 rounded-full bg-[var(--sun-soft)] px-2 py-0.5 text-[10px] text-[var(--foreground)]">
+                    Guest
+                  </span>
+                )}
+              </p>
+              <p className="font-display truncate text-xl font-semibold max-md:text-base">
+                {dateLabel}
+              </p>
+            </div>
           </div>
           <div className="ml-3 flex shrink-0 items-center gap-4 max-md:gap-2">
             <div className="font-display text-3xl font-semibold max-md:text-2xl">
@@ -49,13 +50,11 @@ export default async function HubLayout({
               <SignOutButton className="hub-button secondary sm" />
             )}
             <ThemeToggle />
-            <button
-              type="button"
-              aria-label="Notifications"
-              className="flex h-12 w-12 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface)] max-md:hidden"
-            >
-              <Bell size={21} />
-            </button>
+            {!isGuest(household.role) && (
+              <a href="/settings" className="hub-button secondary sm">
+                Settings
+              </a>
+            )}
           </div>
         </header>
         <main className="min-h-0 flex-1 overflow-auto p-6 max-md:p-3">

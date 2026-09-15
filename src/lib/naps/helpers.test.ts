@@ -5,7 +5,6 @@ import {
   formatChildDaySummary,
   formatChildTodaySleepSummary,
   formatDashboardSleepSecondary,
-  formatSleepDuration,
   getChildDashboardSleepStatus,
   napDurationMinutes,
 } from "./helpers";
@@ -155,5 +154,30 @@ describe("childWeekSleepStats", () => {
     expect(stats.elapsedDays).toBe(2);
     expect(stats.avgSessionsPerDay).toBe(1.5);
     expect(stats.avgMinutesPerDay).toBe(90);
+  });
+
+  it("counts overnight sleep minutes only on the hours that fall in each day", () => {
+    const logs = [
+      {
+        profileId: "child-1",
+        kind: "night" as const,
+        localDate: "2026-07-28",
+        startedAt: new Date("2026-07-27T20:00:00.000Z"),
+        endedAt: new Date("2026-07-28T07:00:00.000Z"),
+      },
+    ];
+
+    const stats = childWeekSleepStats(
+      logs,
+      "child-1",
+      ["2026-07-27", "2026-07-28"],
+      "2026-07-28",
+      "UTC",
+    );
+
+    expect(stats.totalNights).toBe(1);
+    expect(stats.totalMinutes).toBe(11 * 60);
+    expect(stats.days[0]?.totalMinutes).toBe(4 * 60);
+    expect(stats.days[1]?.totalMinutes).toBe(7 * 60);
   });
 });

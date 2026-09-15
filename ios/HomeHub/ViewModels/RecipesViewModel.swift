@@ -7,6 +7,7 @@ final class RecipesViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var isWorking = false
     @Published var errorMessage: String?
+    @Published var successMessage: String?
     @Published var showAddForm = false
     @Published var importURL = ""
 
@@ -39,7 +40,9 @@ final class RecipesViewModel: ObservableObject {
                 selectedRecipeId = recipes.first?.id
             }
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
         }
     }
 
@@ -57,7 +60,9 @@ final class RecipesViewModel: ObservableObject {
             selectedRecipeId = recipe.id
             return true
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
             return false
         }
     }
@@ -73,7 +78,9 @@ final class RecipesViewModel: ObservableObject {
             selectedRecipeId = recipe.id
             return true
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
             return false
         }
     }
@@ -88,7 +95,9 @@ final class RecipesViewModel: ObservableObject {
             selectedRecipeId = recipe.id
             return true
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
             return false
         }
     }
@@ -103,7 +112,42 @@ final class RecipesViewModel: ObservableObject {
             await load()
             return true
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
+            return false
+        }
+    }
+
+    func addIngredientsToGroceryList(_ recipe: Recipe) async -> Bool {
+        guard let appState else { return false }
+        let ingredients = recipe.ingredients
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        guard !ingredients.isEmpty else {
+            errorMessage = "This recipe does not have ingredients to add."
+            return false
+        }
+
+        appState.nativeReminders.refreshAccessStatus()
+        guard appState.nativeReminders.hasFullAccess else {
+            errorMessage = "Allow Reminders access from Groceries before adding ingredients."
+            return false
+        }
+
+        isWorking = true
+        errorMessage = nil
+        successMessage = nil
+        defer { isWorking = false }
+
+        do {
+            let count = try appState.nativeReminders.addItems(ingredients)
+            successMessage = "Added \(count) ingredient\(count == 1 ? "" : "s") to Reminders."
+            return true
+        } catch {
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
             return false
         }
     }

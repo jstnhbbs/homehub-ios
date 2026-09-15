@@ -26,8 +26,29 @@ final class HomeHubAPI: ObservableObject {
         try await client.request("/api/mobile/v1/household/join-guest", method: "POST", body: input)
     }
 
+    func uploadHouseholdPhoto(data: Data, fileName: String, mimeType: String) async throws -> Household {
+        try await client.uploadMultipart(
+            "/api/mobile/v1/household/photo",
+            fileData: data,
+            fileName: fileName,
+            mimeType: mimeType
+        )
+    }
+
+    func removeHouseholdPhoto() async throws -> Household {
+        try await client.request("/api/mobile/v1/household/photo", method: "DELETE")
+    }
+
     func fetchHouseholdMembers() async throws -> [HouseholdMemberSummary] {
         try await client.request("/api/mobile/v1/household/members")
+    }
+
+    func updateHouseholdMemberRole(userId: String, role: HouseholdRole) async throws {
+        try await client.requestVoid(
+            "/api/mobile/v1/household/members/\(userId)",
+            method: "PATCH",
+            body: UpdateHouseholdMemberRoleRequest(role: role)
+        )
     }
 
     func removeGuestMember(userId: String) async throws {
@@ -161,8 +182,8 @@ final class HomeHubAPI: ObservableObject {
         try await client.request("/api/mobile/v1/meals?weekStart=\(weekStart)")
     }
 
-    func saveMeal(_ input: SaveMealRequest) async throws -> Meal {
-        try await client.request("/api/mobile/v1/meals", method: "POST", body: input)
+    func saveMeal(_ input: SaveMealRequest) async throws {
+        try await client.requestVoid("/api/mobile/v1/meals", method: "POST", body: input)
     }
 
     func clearMealWeek(weekStart: String) async throws {
@@ -185,6 +206,60 @@ final class HomeHubAPI: ObservableObject {
 
     func resetSnackChecklist(localDate: String) async throws {
         try await client.requestVoid("/api/mobile/v1/snacks/reset", method: "POST", body: LocalDateRequest(localDate: localDate))
+    }
+
+    // MARK: - Groceries
+
+    func fetchGroceryItems() async throws -> [GroceryItem] {
+        try await client.request("/api/mobile/v1/groceries")
+    }
+
+    func addGroceryItem(_ input: GroceryItemInput) async throws -> GroceryItem {
+        try await client.request("/api/mobile/v1/groceries", method: "POST", body: input)
+    }
+
+    func toggleGroceryItem(id: String, checked: Bool) async throws -> GroceryItem {
+        try await client.request(
+            "/api/mobile/v1/groceries/\(id)",
+            method: "PATCH",
+            body: ToggleGroceryItemRequest(checked: checked)
+        )
+    }
+
+    func deleteGroceryItem(id: String) async throws {
+        try await client.requestVoid("/api/mobile/v1/groceries/\(id)", method: "DELETE")
+    }
+
+    func clearCheckedGroceryItems() async throws {
+        try await client.requestVoid("/api/mobile/v1/groceries/clear-checked", method: "POST")
+    }
+
+    // MARK: - Notes
+
+    func addHouseholdNote(_ input: HouseholdNoteInput) async throws -> HouseholdNote {
+        try await client.request("/api/mobile/v1/notes", method: "POST", body: input)
+    }
+
+    func deleteHouseholdNote(id: String) async throws {
+        try await client.requestVoid("/api/mobile/v1/notes/\(id)", method: "DELETE")
+    }
+
+    // MARK: - Birthdays
+
+    func fetchBirthdays() async throws -> BirthdaysPayload {
+        try await client.request("/api/mobile/v1/birthdays")
+    }
+
+    func addBirthday(_ input: BirthdayWriteInput) async throws -> BirthdayCreateResponse {
+        try await client.request("/api/mobile/v1/birthdays", method: "POST", body: input)
+    }
+
+    func updateBirthday(id: String, input: BirthdayWriteInput) async throws {
+        try await client.requestVoid("/api/mobile/v1/birthdays/\(id)", method: "PATCH", body: input)
+    }
+
+    func deleteBirthday(id: String) async throws {
+        try await client.requestVoid("/api/mobile/v1/birthdays/\(id)", method: "DELETE")
     }
 
     // MARK: - Recipes
@@ -283,37 +358,6 @@ final class HomeHubAPI: ObservableObject {
 
     // MARK: - Calendar
 
-    func fetchCalendarOccurrences(start: String, end: String, query: String = "") async throws -> [CalendarOccurrence] {
-        var path = "/api/mobile/v1/calendar/events?start=\(start)&end=\(end)"
-        if !query.isEmpty, let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
-            path += "&q=\(encoded)"
-        }
-        return try await client.request(path)
-    }
-
-    func fetchCalendarPickerOptions() async throws -> [CalendarPickerOption] {
-        try await client.request("/api/mobile/v1/calendar/calendars")
-    }
-
-    func fetchCalendarEvents(start: String, end: String) async throws -> [ScheduleEvent] {
-        try await fetchCalendarOccurrences(start: start, end: end).map {
-            ScheduleEvent(
-                eventId: $0.eventId,
-                title: $0.title,
-                startsAt: $0.startsAt,
-                endsAt: $0.endsAt,
-                allDay: $0.allDay,
-                color: $0.color,
-                calendarName: $0.calendarName
-            )
-        }
-    }
-
-    func syncCalendar(force: Bool = false) async throws {
-        let path = force ? "/api/calendar/sync?force=true" : "/api/calendar/sync"
-        try await client.requestVoid(path, method: "POST")
-    }
-
     func createCalendarEvent(_ input: CalendarEventFormInput) async throws {
         try await client.requestVoid("/api/mobile/v1/calendar/events", method: "POST", body: input)
     }
@@ -326,44 +370,8 @@ final class HomeHubAPI: ObservableObject {
         try await client.requestVoid("/api/mobile/v1/calendar/events/\(id)", method: "DELETE")
     }
 
-    func fetchCalendarConnections() async throws -> [CalendarConnection] {
-        try await client.request("/api/mobile/v1/calendar/connections")
-    }
-
-    func fetchHouseholdCalendars() async throws -> [HouseholdCalendarOption] {
-        try await client.request("/api/mobile/v1/calendar/calendar-list")
-    }
-
-    func updateCalendarSelection(calendarIds: [String]) async throws -> [HouseholdCalendarOption] {
-        try await client.request(
-            "/api/mobile/v1/calendar/calendar-list",
-            method: "PATCH",
-            body: UpdateCalendarSelectionRequest(calendarIds: calendarIds)
-        )
-    }
-
     func updateCalendarSettings(_ input: UpdateCalendarSettingsRequest) async throws -> Household {
         try await client.request("/api/mobile/v1/calendar/settings", method: "PATCH", body: input)
-    }
-
-    func connectICloudCalendar(_ input: ConnectICloudRequest) async throws {
-        let _: OkResponse = try await client.request(
-            "/api/mobile/v1/calendar/connect/icloud",
-            method: "POST",
-            body: input
-        )
-    }
-
-    func disconnectCalendar(provider: CalendarProvider) async throws {
-        try await client.requestVoid("/api/mobile/v1/calendar/connect/\(provider.rawValue)", method: "DELETE")
-    }
-
-    func fetchGoogleCalendarConnectURL() async throws -> URL {
-        let response: GoogleConnectURLResponse = try await client.request("/api/mobile/v1/calendar/google/connect-url")
-        guard let url = URL(string: response.url) else {
-            throw APIError.invalidURL
-        }
-        return url
     }
 }
 

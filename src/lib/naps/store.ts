@@ -120,8 +120,10 @@ export async function fetchSleepLogsInRange(
     .where(
       and(
         eq(napLogs.householdId, household.id),
-        gte(napLogs.localDate, queryStart),
-        lte(napLogs.localDate, endLocalDate),
+        or(
+          and(gte(napLogs.localDate, queryStart), lte(napLogs.localDate, endLocalDate)),
+          isNull(napLogs.endedAt),
+        ),
       ),
     )
     .orderBy(asc(napLogs.startedAt));

@@ -10,6 +10,31 @@ struct Meal: Codable, Identifiable, Sendable {
     var notes: String?
     var createdAt: Date?
     var updatedAt: Date?
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case householdId
+        case localDate
+        case slot
+        case title
+        case recipeId
+        case notes
+        case createdAt
+        case updatedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        localDate = try container.decode(String.self, forKey: .localDate)
+        slot = try container.decode(MealSlot.self, forKey: .slot)
+        id = try container.decodeIfPresent(String.self, forKey: .id) ?? "\(localDate)-\(slot.rawValue)"
+        householdId = try container.decodeIfPresent(String.self, forKey: .householdId) ?? ""
+        title = try container.decode(String.self, forKey: .title)
+        recipeId = try container.decodeIfPresent(String.self, forKey: .recipeId)
+        notes = try container.decodeIfPresent(String.self, forKey: .notes)
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
+    }
 }
 
 struct SaveMealRequest: Codable, Sendable {

@@ -4,11 +4,12 @@ struct Household: Codable, Identifiable, Sendable {
     let id: String
     var name: String
     var timezone: String
-    var calendarSyncIntervalMinutes: Int
     var weekStartsOn: Int
     var inviteCode: String
     var guestInviteCode: String
     var snackOptions: String
+    var ownerName: String?
+    var photo: String?
     var role: HouseholdRole
     var createdAt: Date?
     var updatedAt: Date?
@@ -33,6 +34,7 @@ struct HouseholdMemberSummary: Codable, Identifiable, Sendable {
 
 struct CreateHouseholdRequest: Codable, Sendable {
     var name: String
+    var ownerLastName: String
     var childName: String?
     var timezone: String
 }
@@ -43,4 +45,8 @@ struct JoinHouseholdRequest: Codable, Sendable {
 
 struct JoinGuestHouseholdRequest: Codable, Sendable {
     var guestInviteCode: String
+}
+
+struct UpdateHouseholdMemberRoleRequest: Codable, Sendable {
+    var role: HouseholdRole
 }

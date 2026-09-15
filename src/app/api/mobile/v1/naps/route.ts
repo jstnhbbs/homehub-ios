@@ -70,12 +70,12 @@ export async function POST(request: Request) {
 
     if (input.action === "start") {
       const id = await startNap(household, input.profileId);
-      return mobileJson({ id });
+      return mobileJson({ ok: true, id });
     }
 
     if (input.action === "startNight") {
       const id = await startNightSleep(household, input.profileId);
-      return mobileJson({ id });
+      return mobileJson({ ok: true, id });
     }
 
     if (input.action === "create") {
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
         new Date(input.startedAt),
         input.endedAt ? new Date(input.endedAt) : null,
       );
-      return mobileJson({ id });
+      return mobileJson({ ok: true, id });
     }
 
     if (input.action === "createNight") {
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
         new Date(input.fellAsleepAt),
         input.wokeUpAt ? new Date(input.wokeUpAt) : null,
       );
-      return mobileJson({ id });
+      return mobileJson({ ok: true, id });
     }
 
     if (input.napId) {

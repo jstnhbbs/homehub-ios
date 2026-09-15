@@ -6,7 +6,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Cursor Cloud specific instructions
 
-Home Hub is a single Next.js 16 (App Router) app backed by libSQL/SQLite. Standard commands live in `package.json` and `README.md` ("Checks" section); the notes below only cover non-obvious setup for running it in this VM.
+Beacon is a single Next.js 16 (App Router) app backed by libSQL/SQLite. Standard commands live in `package.json` and `README.md` ("Checks" section); the notes below only cover non-obvious setup for running it in this VM.
 
 - `.env.local` is gitignored, so it does not persist across fresh VMs. Create it before running the dev server: `cp .env.example .env.local`. `TURSO_DATABASE_URL` defaults to `file:local.db` and `BETTER_AUTH_SECRET`/`CALENDAR_ENCRYPTION_KEY` have dev fallbacks, so the app boots even with empty secrets, but a real `.env.local` avoids surprises.
 - The local SQLite DB (`local.db`) is gitignored and not created by `npm install`. Run `npm run db:migrate` once before `npm run dev` (migrations are intentionally kept out of the startup update script).
