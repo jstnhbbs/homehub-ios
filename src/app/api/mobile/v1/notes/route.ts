@@ -13,6 +13,8 @@ import {
 
 const noteInputSchema = z.object({
   title: z.string().trim().min(1).max(160),
+  body: z.string().trim().max(2000).optional(),
+  pinned: z.boolean().optional(),
 });
 
 export async function GET() {
@@ -42,8 +44,9 @@ export async function POST(request: Request) {
       householdId: household.id,
       createdByUserId: user.id,
       title: input.title,
-      body: "",
+      body: input.body ?? "",
       color: "#f8e8bf",
+      pinned: input.pinned ?? false,
     });
 
     const created = await db

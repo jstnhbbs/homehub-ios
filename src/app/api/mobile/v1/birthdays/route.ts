@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       throw new Error("Birthday cannot be in the future.");
     }
 
-    let profileId: string | null = input.profileId ?? null;
+    const profileId: string | null = input.profileId ?? null;
     if (profileId) {
       const profile = await db
         .select({ id: profiles.id })

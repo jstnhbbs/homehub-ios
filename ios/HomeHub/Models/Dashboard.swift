@@ -9,7 +9,6 @@ struct DashboardData: Codable, Sendable {
     var chores: [ChoreRow]
     var meals: [Meal]
     var scheduleEvents: [ScheduleEvent]
-    var calendarStatus: CalendarSyncStatus
     var snackOptions: [String]
     var snackEaten: [String]
     var naps: [NapLog]
@@ -26,7 +25,6 @@ struct DashboardData: Codable, Sendable {
         case chores
         case meals
         case scheduleEvents
-        case calendarStatus
         case snackOptions
         case snackEaten
         case naps
@@ -45,8 +43,6 @@ struct DashboardData: Codable, Sendable {
         chores = try container.decodeIfPresent([ChoreRow].self, forKey: .chores) ?? []
         meals = try container.decodeIfPresent([Meal].self, forKey: .meals) ?? []
         scheduleEvents = try container.decodeIfPresent([ScheduleEvent].self, forKey: .scheduleEvents) ?? []
-        calendarStatus = try container.decodeIfPresent(CalendarSyncStatus.self, forKey: .calendarStatus)
-            ?? CalendarSyncStatus(connected: false, updatedLabel: nil, lastSyncedAt: nil)
         snackOptions = try container.decodeIfPresent([String].self, forKey: .snackOptions) ?? []
         snackEaten = try container.decodeIfPresent([String].self, forKey: .snackEaten) ?? []
         naps = try container.decodeIfPresent([NapLog].self, forKey: .naps) ?? []
@@ -65,7 +61,6 @@ struct DashboardData: Codable, Sendable {
         try container.encode(chores, forKey: .chores)
         try container.encode(meals, forKey: .meals)
         try container.encode(scheduleEvents, forKey: .scheduleEvents)
-        try container.encode(calendarStatus, forKey: .calendarStatus)
         try container.encode(snackOptions, forKey: .snackOptions)
         try container.encode(snackEaten, forKey: .snackEaten)
         try container.encode(naps, forKey: .naps)
@@ -87,4 +82,12 @@ struct HouseholdNote: Codable, Identifiable, Sendable {
 
 struct HouseholdNoteInput: Codable, Sendable {
     var title: String
+    var body: String? = nil
+    var pinned: Bool? = nil
+}
+
+struct HouseholdNoteUpdateInput: Codable, Sendable {
+    var title: String?
+    var body: String?
+    var pinned: Bool?
 }

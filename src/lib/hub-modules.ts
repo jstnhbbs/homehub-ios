@@ -1,4 +1,5 @@
 export const HUB_MODULE_IDS = [
+  "notes",
   "calendar",
   "groceries",
   "routines",
@@ -27,21 +28,28 @@ export const DASHBOARD_CARD_IDS = [
 
 export type DashboardCardId = (typeof DASHBOARD_CARD_IDS)[number];
 
+export const DASHBOARD_CARD_SIZES = ["compact", "standard", "expanded"] as const;
+
+export type DashboardCardSize = (typeof DASHBOARD_CARD_SIZES)[number];
+
 export type HubModuleToggles = Record<HubModuleId, boolean>;
 
 export type HubModules = HubModuleToggles & {
   sidebarOrder: HubModuleId[];
   dashboardCards: Record<DashboardCardId, boolean>;
+  dashboardCardSizes: Record<DashboardCardId, DashboardCardSize>;
   dashboardOrder: DashboardCardId[];
 };
 
 export type HubModulesInput = Partial<HubModuleToggles> & {
   sidebarOrder?: HubModuleId[];
   dashboardCards?: Partial<Record<DashboardCardId, boolean>>;
+  dashboardCardSizes?: Partial<Record<DashboardCardId, DashboardCardSize>>;
   dashboardOrder?: DashboardCardId[];
 };
 
 export const DEFAULT_HUB_MODULES: HubModules = {
+  notes: true,
   calendar: true,
   groceries: true,
   routines: true,
@@ -51,7 +59,7 @@ export const DEFAULT_HUB_MODULES: HubModules = {
   birthdays: true,
   snacks: true,
   recipes: true,
-  sidebarOrder: ["calendar", "groceries", "routines", "chores", "meals", "sleep", "birthdays"],
+  sidebarOrder: ["notes", "calendar", "groceries", "routines", "chores", "meals", "sleep", "birthdays"],
   dashboardCards: {
     weather: true,
     schedule: true,
@@ -63,6 +71,18 @@ export const DEFAULT_HUB_MODULES: HubModules = {
     groceries: true,
     notes: true,
     birthdays: true,
+  },
+  dashboardCardSizes: {
+    weather: "standard",
+    schedule: "standard",
+    routines: "standard",
+    chores: "standard",
+    meals: "standard",
+    snacks: "standard",
+    sleep: "standard",
+    groceries: "standard",
+    notes: "standard",
+    birthdays: "standard",
   },
   dashboardOrder: [
     "weather",
@@ -79,6 +99,7 @@ export const DEFAULT_HUB_MODULES: HubModules = {
 };
 
 export const HUB_MODULE_LABELS: Record<HubModuleId, string> = {
+  notes: "Notes",
   calendar: "Calendar",
   groceries: "Groceries",
   routines: "Routines",
@@ -104,6 +125,7 @@ export const DASHBOARD_CARD_LABELS: Record<DashboardCardId, string> = {
 };
 
 export const SIDEBAR_HUB_MODULES: HubModuleId[] = [
+  "notes",
   "calendar",
   "groceries",
   "routines",
@@ -139,6 +161,14 @@ function migrateLegacyPartial(partial: LegacyHubModulesInput): HubModulesInput {
           ]),
         )
       : undefined,
+    dashboardCardSizes: partial.dashboardCardSizes
+      ? Object.fromEntries(
+          Object.entries(partial.dashboardCardSizes).map(([key, value]) => [
+            migrateLegacyId(key),
+            value,
+          ]),
+        )
+      : undefined,
   };
 }
 
@@ -169,6 +199,7 @@ export function mergeHubModules(partial: HubModulesInput | LegacyHubModulesInput
   );
 
   return {
+    notes: migrated.notes ?? DEFAULT_HUB_MODULES.notes,
     calendar: migrated.calendar ?? DEFAULT_HUB_MODULES.calendar,
     groceries: migrated.groceries ?? DEFAULT_HUB_MODULES.groceries,
     routines: migrated.routines ?? DEFAULT_HUB_MODULES.routines,
@@ -182,6 +213,10 @@ export function mergeHubModules(partial: HubModulesInput | LegacyHubModulesInput
     dashboardCards: {
       ...DEFAULT_HUB_MODULES.dashboardCards,
       ...migrated.dashboardCards,
+    },
+    dashboardCardSizes: {
+      ...DEFAULT_HUB_MODULES.dashboardCardSizes,
+      ...migrated.dashboardCardSizes,
     },
     dashboardOrder,
   };

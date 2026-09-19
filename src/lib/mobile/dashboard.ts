@@ -1,10 +1,7 @@
-import { and, asc, desc, eq, gte, isNotNull, lte, or } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { fromZonedTime } from "date-fns-tz";
 import { db } from "@/db/client";
 import {
-  calendarConnections,
-  calendarEvents,
-  calendars,
   choreCompletions,
   chores,
   householdNotes,
@@ -19,7 +16,6 @@ import {
 } from "@/db/schema";
 import { birthdayEventsInRange } from "@/lib/birthdays";
 import { listHouseholdBirthdays } from "@/lib/family-birthdays";
-import { expandIcalEvent } from "@/lib/caldav/ical";
 import { isChoreDueOnDate } from "@/lib/chores";
 import { localDateIn, weekKey } from "@/lib/dates";
 import { parseSnackOptions } from "@/lib/meals/snacks";
@@ -211,72 +207,4 @@ export async function buildDashboardPayload(
     notes: noteRows,
     upcomingBirthdays,
   };
-}
-
-export async function buildCalendarEvents(
-  household: Household,
-  start: string,
-  end: string,
-) {
-  const dayStart = fromZonedTime(`${start}T00:00:00`, household.timezone);
-  const dayEnd = fromZonedTime(`${end}T23:59:59`, household.timezone);
-  const familyProfiles = await db
-    .select()
-    .from(profiles)
-    .where(eq(profiles.householdId, household.id))
-    .orderBy(asc(profiles.sortOrder));
-
-  const eventRows = await db
-    .select({
-      id: calendarEvents.id,
-      rawIcal: calendarEvents.rawIcal,
-      color: calendars.color,
-      calendarName: calendars.displayName,
-    })
-    .from(calendarEvents)
-    .innerJoin(calendars, eq(calendarEvents.calendarId, calendars.id))
-    .innerJoin(
-      calendarConnections,
-      eq(calendars.connectionId, calendarConnections.id),
-    )
-    .where(
-      and(
-        eq(calendarConnections.householdId, household.id),
-        eq(calendars.enabled, true),
-        or(
-          isNotNull(calendarEvents.recurrenceRule),
-          and(
-            lte(calendarEvents.startsAt, dayEnd),
-            gte(calendarEvents.endsAt, dayStart),
-          ),
-        ),
-      ),
-    );
-
-  const schedule = [
-    ...eventRows.flatMap((event) =>
-      expandIcalEvent(
-        event.rawIcal,
-        dayStart,
-        dayEnd,
-        household.timezone,
-      ).map((occurrence) => ({
-        ...occurrence,
-        eventId: event.id,
-        color: event.color,
-        calendarName: event.calendarName,
-      })),
-    ),
-    ...birthdayEventsInRange(familyProfiles, start, end, household.timezone),
-  ].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
-
-  return schedule.map((event) => ({
-    eventId: event.eventId,
-    title: event.title,
-    startsAt: event.startsAt.toISOString(),
-    endsAt: event.endsAt.toISOString(),
-    allDay: event.allDay,
-    color: event.color,
-    calendarName: event.calendarName,
-  }));
 }

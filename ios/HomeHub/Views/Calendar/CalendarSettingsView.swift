@@ -142,7 +142,7 @@ struct CalendarSettingsView: View {
                     Text(list.title).tag(list.id)
                 }
             }
-            .disabled(!viewModel.hasRemindersAccess)
+            .disabled(!viewModel.hasRemindersAccess || !viewModel.canManageReminderList)
             .onChange(of: viewModel.defaultReminderListId) { _, _ in
                 viewModel.saveDefaultReminderList()
             }
@@ -159,14 +159,16 @@ struct CalendarSettingsView: View {
                 }
             }
         } footer: {
-            Text("Automatic uses this device’s default Calendar and Reminders destinations. Alerts apply to new items created in Beacon.")
+            Text(viewModel.canManageReminderList
+                ? "Automatic uses this device’s default Calendar and Reminders destinations. Alerts apply to new items created in Beacon."
+                : "Owners and parents can choose the Reminders list used for groceries. Alerts apply to new items created in Beacon.")
         }
     }
 
     private var agendaFontSection: some View {
         Section {
             HStack {
-                Text("Agenda Font Size")
+                Text("Event Font Size")
                 Spacer()
                 Text("\(Int(agendaFontSize.rounded())) pt")
                     .foregroundStyle(.secondary)
@@ -192,7 +194,7 @@ struct CalendarSettingsView: View {
 
             Toggle("Use System Size", isOn: $useSystemAgendaFont)
         } footer: {
-            Text("Controls event text in the calendar agenda. System size follows Dynamic Type.")
+            Text("Controls event text in Day view. System size follows Dynamic Type.")
         }
     }
 

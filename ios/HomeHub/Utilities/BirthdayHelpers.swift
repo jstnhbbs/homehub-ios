@@ -94,50 +94,38 @@ enum BirthdayHelpers {
     }
 
     static func monthTitle(index: Int, timezone: TimeZone) -> String {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = timezone
-        var components = DateComponents()
-        components.year = 2000
-        components.month = index + 1
-        components.day = 1
-        guard let date = calendar.date(from: components) else { return "" }
-        let formatter = DateFormatter()
-        formatter.locale = .autoupdatingCurrent
-        formatter.timeZone = timezone
-        formatter.setLocalizedDateFormatFromTemplate("MMMM")
-        return formatter.string(from: date)
+        let symbols = Calendar.autoupdatingCurrent.monthSymbols
+        guard symbols.indices.contains(index) else { return "" }
+        return symbols[index]
     }
 
     static func monthShortTitle(index: Int, timezone: TimeZone) -> String {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = timezone
-        var components = DateComponents()
-        components.year = 2000
-        components.month = index + 1
-        components.day = 1
-        guard let date = calendar.date(from: components) else { return "" }
-        let formatter = DateFormatter()
-        formatter.locale = .autoupdatingCurrent
-        formatter.timeZone = timezone
-        formatter.setLocalizedDateFormatFromTemplate("MMM")
-        return formatter.string(from: date)
+        let symbols = Calendar.autoupdatingCurrent.shortMonthSymbols
+        guard symbols.indices.contains(index) else { return "" }
+        return symbols[index]
     }
 
     static func monthGroups(from items: [BirthdayItem], timezone: TimeZone, today: String) -> [BirthdayMonthGroup] {
-        let currentMonth = monthIndex(from: today) ?? 0
         var buckets: [Int: [BirthdayItem]] = [:]
         for item in items {
             guard let month = monthIndex(from: item.nextDate) else { continue }
             buckets[month, default: []].append(item)
         }
-        return (0..<12).compactMap { offset -> BirthdayMonthGroup? in
-            let month = (currentMonth + offset) % 12
-            guard let grouped = buckets[month], !grouped.isEmpty else { return nil }
+        return buckets
+            .sorted { lhs, rhs in
+                let lhsSoonest = lhs.value.map(\.daysUntil).min() ?? Int.max
+                let rhsSoonest = rhs.value.map(\.daysUntil).min() ?? Int.max
+                return lhsSoonest == rhsSoonest ? lhs.key < rhs.key : lhsSoonest < rhsSoonest
+            }
+            .map { month, grouped in
+            let sortedItems = grouped.sorted {
+                $0.daysUntil == $1.daysUntil ? $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending : $0.daysUntil < $1.daysUntil
+            }
             return BirthdayMonthGroup(
                 id: month,
                 month: month,
                 title: monthTitle(index: month, timezone: timezone),
-                items: grouped
+                items: sortedItems
             )
         }
     }

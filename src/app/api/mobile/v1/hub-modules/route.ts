@@ -7,6 +7,7 @@ import {
 } from "@/lib/mobile/http";
 import {
   DASHBOARD_CARD_IDS,
+  DASHBOARD_CARD_SIZES,
   HUB_MODULE_IDS,
   type HubModulesInput,
   mergeHubModules,
@@ -21,7 +22,13 @@ const dashboardCardsSchema = z.partialRecord(
   z.boolean(),
 );
 
+const dashboardCardSizesSchema = z.partialRecord(
+  z.enum(DASHBOARD_CARD_IDS),
+  z.enum(DASHBOARD_CARD_SIZES),
+);
+
 const hubModulesSchema = z.object({
+  notes: z.boolean().optional(),
   calendar: z.boolean().optional(),
   groceries: z.boolean().optional(),
   routines: z.boolean().optional(),
@@ -33,6 +40,7 @@ const hubModulesSchema = z.object({
   recipes: z.boolean().optional(),
   sidebarOrder: z.array(z.enum(HUB_MODULE_IDS)).optional(),
   dashboardCards: dashboardCardsSchema.optional(),
+  dashboardCardSizes: dashboardCardSizesSchema.optional(),
   dashboardOrder: z.array(z.enum(DASHBOARD_CARD_IDS)).optional(),
 });
 

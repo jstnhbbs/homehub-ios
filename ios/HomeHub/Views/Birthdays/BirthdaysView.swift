@@ -39,9 +39,14 @@ struct BirthdaysView: View {
         .sheet(item: $editor) { editor in
             BirthdayEditorSheet(editor: editor, viewModel: viewModel)
         }
-        .onAppear { viewModel.bind(to: appState) }
-        .task { await viewModel.load() }
-        .refreshable { await viewModel.load() }
+        .task(id: appState.household?.id) {
+            viewModel.bind(to: appState)
+            await viewModel.load()
+        }
+        .refreshable {
+            viewModel.bind(to: appState)
+            await viewModel.load()
+        }
     }
 
     private var header: some View {
@@ -178,10 +183,11 @@ struct BirthdaysView: View {
 
     private func heroDetail(_ item: BirthdayItem) -> String {
         let date = BirthdayHelpers.dateLabel(item.nextDate, timezone: viewModel.timezone)
+        let source = sourceLabel(item)
         if item.upcomingAge > 0 {
-            return "\(date) · turns \(item.upcomingAge)"
+            return "\(date) · turns \(item.upcomingAge) · \(source)"
         }
-        return date
+        return "\(date) · \(source)"
     }
 
     private var ringCard: some View {
@@ -191,7 +197,7 @@ struct BirthdaysView: View {
                 today: viewModel.today,
                 timezone: viewModel.timezone,
                 next: viewModel.nextBirthday,
-                size: horizontalSizeClass == .compact ? 280 : 320
+                size: horizontalSizeClass == .compact ? 320 : 380
             )
         }
     }
@@ -261,10 +267,18 @@ struct BirthdaysView: View {
 
     private func rowDetail(_ item: BirthdayItem) -> String {
         let date = BirthdayHelpers.dateLabel(item.nextDate, timezone: viewModel.timezone)
+        let source = sourceLabel(item)
         if item.upcomingAge > 0 {
-            return "\(date) · turns \(item.upcomingAge)"
+            return "\(date) · turns \(item.upcomingAge) · \(source)"
         }
-        return date
+        return "\(date) · \(source)"
+    }
+
+    private func sourceLabel(_ item: BirthdayItem) -> String {
+        switch item.source {
+        case .profile: "Profile"
+        case .family: "Extra person"
+        }
     }
 }
 
@@ -375,7 +389,7 @@ private struct BirthdayFormView: View {
 
             if !isProfileBirthday {
                 FormField(label: "Name") {
-                    TextField("Grandma Eve", text: $name)
+                    TextField("Justin Hobbs", text: $name)
                         .textFieldStyle(.roundedBorder)
                 }
             } else if let profile = selectedProfile ?? linkedProfile {
@@ -383,6 +397,10 @@ private struct BirthdayFormView: View {
                     .font(.title3.weight(.semibold))
                 Text("Saved on their household profile.")
                     .font(.caption)
+                    .foregroundStyle(HubTheme.muted)
+            } else if editingItem?.source == .family {
+                Label("Extra person", systemImage: "person.crop.circle.badge.plus")
+                    .font(.caption.weight(.bold))
                     .foregroundStyle(HubTheme.muted)
             }
 

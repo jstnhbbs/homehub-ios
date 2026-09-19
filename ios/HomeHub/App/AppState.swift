@@ -51,6 +51,7 @@ final class AppState: ObservableObject {
     private var eventKitRefreshTask: Task<Void, Never>?
     private var hubModulesSaveVersion = 0
     private var pendingHubModulesSave: HubModules?
+    private var locallySavedHubModules: HubModules?
 
     init(baseURL: URL = AppConfig.baseURL) {
         self.auth = AuthService(baseURL: baseURL)
@@ -67,6 +68,13 @@ final class AppState: ObservableObject {
         let storedMode = UserDefaults.standard.string(forKey: Self.appearanceStorageKey) ?? ""
         self.appearanceMode = AppearanceMode(rawValue: storedMode) ?? .system
         observeEventKitChanges()
+    }
+
+    deinit {
+        eventKitRefreshTask?.cancel()
+        if let eventKitObserver {
+            NotificationCenter.default.removeObserver(eventKitObserver)
+        }
     }
 
     var needsOnboarding: Bool {
@@ -114,7 +122,6 @@ final class AppState: ObservableObject {
 
     func bootstrap() async {
         isBootstrapping = true
-        defer { isBootstrapping = false }
         await auth.restoreSession()
         guard auth.isSignedIn else {
             household = nil
@@ -127,10 +134,21 @@ final class AppState: ObservableObject {
             localStore.clear()
             HomeHubWidgetStore.clear()
             WidgetCenter.shared.reloadAllTimelines()
+            isBootstrapping = false
             return
         }
+
         hydrateFromLocalStore()
+        let hasCachedLaunchData = household != nil || dashboard != nil
+        if hasCachedLaunchData {
+            isBootstrapping = false
+        }
+
         await refreshHousehold()
+
+        if !hasCachedLaunchData {
+            isBootstrapping = false
+        }
     }
 
     func refreshHousehold() async {
@@ -155,7 +173,7 @@ final class AppState: ObservableObject {
             household = dashboard?.household
             localStore.saveDashboard(dashboard)
             if let modules = dashboard?.hubModules {
-                applyHubModules(pendingHubModulesSave ?? modules)
+                applyHubModules(preferredHubModules(for: modules))
             }
             await refreshNativeTodaySchedule()
             await refreshNativeGroceryItems()
@@ -243,6 +261,7 @@ final class AppState: ObservableObject {
         hubModulesSaveVersion += 1
         let saveVersion = hubModulesSaveVersion
         pendingHubModulesSave = modules
+        locallySavedHubModules = modules
         applyHubModules(modules)
         do {
             let savedModules = try await api.saveHubModules(modules)
@@ -277,6 +296,7 @@ final class AppState: ObservableObject {
         dashboard = nil
         hubModules = .defaults
         pendingHubModulesSave = nil
+        locallySavedHubModules = nil
         localStore.clear()
         HomeHubWidgetStore.clear()
         WidgetCenter.shared.reloadAllTimelines()
@@ -295,6 +315,23 @@ final class AppState: ObservableObject {
         } else if household == nil, let cachedHousehold = localStore.loadHousehold() {
             household = cachedHousehold
         }
+    }
+
+    private func preferredHubModules(for incoming: HubModules) -> HubModules {
+        if let pendingHubModulesSave {
+            return pendingHubModulesSave
+        }
+
+        guard let locallySavedHubModules else {
+            return incoming
+        }
+
+        if incoming == locallySavedHubModules {
+            self.locallySavedHubModules = nil
+            return incoming
+        }
+
+        return locallySavedHubModules
     }
 
     private func publishWidgetSummary() {

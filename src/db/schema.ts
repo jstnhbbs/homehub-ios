@@ -88,9 +88,6 @@ export const households = sqliteTable("households", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   timezone: text("timezone").notNull().default("America/Chicago"),
-  calendarSyncIntervalMinutes: integer("calendar_sync_interval_minutes")
-    .notNull()
-    .default(15),
   weekStartsOn: integer("week_starts_on").notNull().default(1),
   inviteCode: text("invite_code").notNull().unique(),
   guestInviteCode: text("guest_invite_code").notNull().unique(),

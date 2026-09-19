@@ -48,7 +48,7 @@ calendar access in the iOS app and choose which device calendars to show.
 
 ## Install on iPhone or iPad
 
-Open the deployed site in Safari, tap **Share → Add to Home Screen**, then launch Beacon from its icon. Landscape orientation is recommended for shared iPad display use. Auto-lock behavior is controlled by the device’s Display & Brightness settings.
+Install the native app through Xcode or TestFlight. See [the iOS setup guide](ios/README.md) for build and backend configuration. The website provides account and household management; the family dashboard runs in the native app.
 
 ## Checks
 

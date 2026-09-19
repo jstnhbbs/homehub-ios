@@ -7,7 +7,7 @@ struct RootView: View {
     var body: some View {
         Group {
             if appState.isBootstrapping || appState.auth.isLoading {
-                BeaconLoadingMark()
+                BeaconLoadingIndicator()
                     .accessibilityLabel("Beacon is loading")
             } else if !appState.auth.isSignedIn {
                 SignInView()
@@ -20,7 +20,6 @@ struct RootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(HubTheme.canvas)
         .tint(appState.accentPalette.accent)
-        .preferredColorScheme(appState.appearanceMode.colorScheme)
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active, appState.auth.isSignedIn else { return }
             Task { await appState.refreshHousehold() }
@@ -36,23 +35,11 @@ struct RootView: View {
     }
 }
 
-private struct BeaconLoadingMark: View {
+private struct BeaconLoadingIndicator: View {
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(Color(uiColor: .secondarySystemBackground))
-                .shadow(color: .black.opacity(0.08), radius: 12, y: 6)
-
-            Image(systemName: "house.fill")
-                .font(.system(size: 54, weight: .semibold))
-                .foregroundStyle(HubTheme.sage)
-                .offset(y: -2)
-
-            Image(systemName: "checkmark")
-                .font(.system(size: 25, weight: .black, design: .rounded))
-                .foregroundStyle(Color(red: 0.89, green: 0.66, blue: 0.29))
-                .offset(x: -8, y: 10)
-        }
-        .frame(width: 96, height: 96)
+        ProgressView()
+            .controlSize(.regular)
+            .tint(HubTheme.sage)
+            .frame(width: 44, height: 44)
     }
 }

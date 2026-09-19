@@ -88,8 +88,14 @@ enum CalendarHelpers {
     }
 
     static func eventsForDate(_ events: [CalendarOccurrence], on targetLocalDate: String, timezone: TimeZone) -> [CalendarOccurrence] {
-        events
-            .filter { localDate(for: $0.startsAt, timezone: timezone) == targetLocalDate }
+        let cal = calendar(timezone: timezone, weekStartsOn: 1)
+        guard let date = parseLocalDate(targetLocalDate, timezone: timezone) else { return [] }
+        let dayStart = cal.startOfDay(for: date)
+        guard let dayEnd = cal.date(byAdding: .day, value: 1, to: dayStart) else { return [] }
+        return events
+            .filter {
+                $0.startsAt < dayEnd && ($0.endsAt > dayStart || ($0.startsAt >= dayStart && $0.endsAt == $0.startsAt))
+            }
             .sorted { $0.startsAt < $1.startsAt }
     }
 
@@ -100,44 +106,12 @@ enum CalendarHelpers {
         return d.year == a.year && d.month == a.month
     }
 
-    static func formatFormDate(_ date: Date, allDay: Bool, timezone: TimeZone) -> String {
-        if allDay {
-            return localDate(for: date, timezone: timezone)
+    static func timelineEvents(_ events: [CalendarOccurrence], on localDate: String, timezone: TimeZone, now: Date) -> [CalendarOccurrence] {
+        let dayEvents = eventsForDate(events, on: localDate, timezone: timezone)
+        guard localDate == DateHelpers.localDateIn(timezone: timezone, date: now) else { return dayEvents }
+        return dayEvents.filter {
+            $0.allDay || $0.endsAt > now || ($0.endsAt == $0.startsAt && $0.startsAt >= now)
         }
-        let formatter = DateFormatter()
-        formatter.timeZone = timezone
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
-        return formatter.string(from: date)
-    }
-
-    static func parseFormDate(_ value: String, timezone: TimeZone) -> Date? {
-        if value.contains("T") {
-            let formatter = DateFormatter()
-            formatter.timeZone = timezone
-            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
-            if let date = formatter.date(from: value) {
-                return date
-            }
-        }
-        return parseLocalDate(value, timezone: timezone)
-    }
-
-    static func defaultTimedFields(selectedDate: String, timezone: TimeZone) -> (startsAt: String, endsAt: String) {
-        ("\(selectedDate)T09:00", "\(selectedDate)T10:00")
-    }
-
-    static func fieldValues(for event: CalendarOccurrence, timezone: TimeZone) -> (startsAt: String, endsAt: String) {
-        if event.allDay {
-            let start = localDate(for: event.startsAt, timezone: timezone)
-            let inclusiveEnd = event.endsAt.timeIntervalSince(event.startsAt) <= 86_400
-                ? start
-                : localDate(for: event.endsAt.addingTimeInterval(-86_400), timezone: timezone)
-            return (start, inclusiveEnd)
-        }
-        let formatter = DateFormatter()
-        formatter.timeZone = timezone
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
-        return (formatter.string(from: event.startsAt), formatter.string(from: event.endsAt))
     }
 
     static func hourLabel(_ hour: Int, selectedDate: String, timezone: TimeZone) -> String {
@@ -153,8 +127,4 @@ enum CalendarHelpers {
         return formatter.string(from: value)
     }
 
-    static func eventHour(_ event: CalendarOccurrence, timezone: TimeZone) -> Int {
-        let cal = calendar(timezone: timezone, weekStartsOn: 1)
-        return cal.component(.hour, from: event.startsAt)
-    }
 }

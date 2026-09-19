@@ -42,8 +42,6 @@ enum MealSlot: String, Codable, Sendable, CaseIterable {
 }
 
 enum CalendarProvider: String, Codable, Sendable {
-    case icloud
-    case google
     case local
 }
 
@@ -67,6 +65,7 @@ enum FoodHubSection: String, Hashable {
 }
 
 enum HubModuleId: String, Codable, Sendable, CaseIterable, Hashable {
+    case notes
     case calendar
     case groceries
     case routines
@@ -79,6 +78,7 @@ enum HubModuleId: String, Codable, Sendable, CaseIterable, Hashable {
 
     var label: String {
         switch self {
+        case .notes: "Notes"
         case .calendar: "Calendar"
         case .groceries: "Groceries"
         case .routines: "Routines"
@@ -93,6 +93,7 @@ enum HubModuleId: String, Codable, Sendable, CaseIterable, Hashable {
 
     var systemImage: String {
         switch self {
+        case .notes: "note.text"
         case .calendar: "calendar"
         case .groceries: "list.bullet.clipboard.fill"
         case .routines: "checklist"
@@ -110,6 +111,8 @@ enum HubModuleId: String, Codable, Sendable, CaseIterable, Hashable {
         switch raw {
         case "shopping", "groceries":
             self = .groceries
+        case "notes":
+            self = .notes
         case "calendar":
             self = .calendar
         case "routines":
@@ -208,16 +211,16 @@ enum DashboardCardId: String, Codable, Sendable, CaseIterable, Hashable, Identif
         }
     }
 
-    var destination: HubDestination {
+    var destination: HubDestination? {
         switch self {
-        case .weather: .dashboard
+        case .weather: nil
         case .schedule: .calendar
         case .routines: .routines
         case .chores: .chores
         case .meals, .snacks: .meals
         case .sleep: .sleep
         case .groceries: .groceries
-        case .notes: .dashboard
+        case .notes: .notes
         case .birthdays: .birthdays
         }
     }
@@ -232,13 +235,33 @@ enum DashboardCardId: String, Codable, Sendable, CaseIterable, Hashable, Identif
         case .snacks: .snacks
         case .sleep: .sleep
         case .groceries: .groceries
-        case .notes: nil
+        case .notes: .notes
         case .birthdays: .birthdays
         }
     }
 }
 
+enum DashboardCardSize: String, Codable, Sendable, CaseIterable, Hashable, Identifiable {
+    case compact
+    case standard
+    case expanded
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .compact: "Standard"
+        case .standard: "Standard"
+        case .expanded: "Expanded"
+        }
+    }
+
+    static let layoutOptions: [DashboardCardSize] = [.standard, .expanded]
+
+}
+
 struct HubModules: Codable, Sendable, Equatable {
+    var notes: Bool
     var calendar: Bool
     var groceries: Bool
     var routines: Bool
@@ -250,9 +273,11 @@ struct HubModules: Codable, Sendable, Equatable {
     var recipes: Bool
     var sidebarOrder: [HubModuleId]
     var dashboardCards: [DashboardCardId: Bool]
+    var dashboardCardSizes: [DashboardCardId: DashboardCardSize]
     var dashboardOrder: [DashboardCardId]
 
     static let defaults = HubModules(
+        notes: true,
         calendar: true,
         groceries: true,
         routines: true,
@@ -262,12 +287,14 @@ struct HubModules: Codable, Sendable, Equatable {
         birthdays: true,
         snacks: true,
         recipes: true,
-        sidebarOrder: [.calendar, .groceries, .routines, .chores, .meals, .sleep, .birthdays],
+        sidebarOrder: [.notes, .calendar, .groceries, .routines, .chores, .meals, .sleep, .birthdays],
         dashboardCards: Dictionary(uniqueKeysWithValues: DashboardCardId.allCases.map { ($0, true) }),
+        dashboardCardSizes: Dictionary(uniqueKeysWithValues: DashboardCardId.allCases.map { ($0, .standard) }),
         dashboardOrder: [.weather, .schedule, .routines, .chores, .meals, .snacks, .sleep, .groceries, .notes, .birthdays]
     )
 
     private enum CodingKeys: String, CodingKey {
+        case notes
         case calendar
         case groceries
         case shopping
@@ -280,10 +307,12 @@ struct HubModules: Codable, Sendable, Equatable {
         case recipes
         case sidebarOrder
         case dashboardCards
+        case dashboardCardSizes
         case dashboardOrder
     }
 
     init(
+        notes: Bool,
         calendar: Bool,
         groceries: Bool,
         routines: Bool,
@@ -295,8 +324,10 @@ struct HubModules: Codable, Sendable, Equatable {
         recipes: Bool,
         sidebarOrder: [HubModuleId],
         dashboardCards: [DashboardCardId: Bool],
+        dashboardCardSizes: [DashboardCardId: DashboardCardSize],
         dashboardOrder: [DashboardCardId]
     ) {
+        self.notes = notes
         self.calendar = calendar
         self.groceries = groceries
         self.routines = routines
@@ -312,6 +343,7 @@ struct HubModules: Codable, Sendable, Equatable {
             allowed: Self.sidebarModules
         )
         self.dashboardCards = Self.normalizedDashboardCards(dashboardCards)
+        self.dashboardCardSizes = Self.normalizedDashboardCardSizes(dashboardCardSizes)
         self.dashboardOrder = Self.normalizedOrder(
             dashboardOrder,
             fallback: Self.defaultsDashboardOrder,
@@ -325,11 +357,16 @@ struct HubModules: Codable, Sendable, Equatable {
             [String: Bool].self,
             forKey: .dashboardCards
         ) ?? Dictionary(uniqueKeysWithValues: Self.defaults.dashboardCards.map { ($0.key.rawValue, $0.value) })
+        let dashboardCardSizeValues = try container.decodeIfPresent(
+            [String: String].self,
+            forKey: .dashboardCardSizes
+        ) ?? Dictionary(uniqueKeysWithValues: Self.defaults.dashboardCardSizes.map { ($0.key.rawValue, $0.value.rawValue) })
         let groceriesEnabled =
             try container.decodeIfPresent(Bool.self, forKey: .groceries)
             ?? container.decodeIfPresent(Bool.self, forKey: .shopping)
             ?? Self.defaults.groceries
         self.init(
+            notes: try container.decodeIfPresent(Bool.self, forKey: .notes) ?? Self.defaults.notes,
             calendar: try container.decodeIfPresent(Bool.self, forKey: .calendar) ?? Self.defaults.calendar,
             groceries: groceriesEnabled,
             routines: try container.decodeIfPresent(Bool.self, forKey: .routines) ?? Self.defaults.routines,
@@ -346,12 +383,23 @@ struct HubModules: Codable, Sendable, Equatable {
                     return DashboardCardId(rawValue: normalizedKey).map { ($0, value) }
                 }
             ),
+            dashboardCardSizes: Dictionary(
+                uniqueKeysWithValues: dashboardCardSizeValues.compactMap { key, value in
+                    let normalizedKey = key == "shopping" ? "groceries" : key
+                    guard let card = DashboardCardId(rawValue: normalizedKey),
+                          let size = DashboardCardSize(rawValue: value) else {
+                        return nil
+                    }
+                    return (card, size)
+                }
+            ),
             dashboardOrder: try container.decodeIfPresent([DashboardCardId].self, forKey: .dashboardOrder) ?? Self.defaultsDashboardOrder
         )
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(notes, forKey: .notes)
         try container.encode(calendar, forKey: .calendar)
         try container.encode(groceries, forKey: .groceries)
         try container.encode(routines, forKey: .routines)
@@ -366,16 +414,21 @@ struct HubModules: Codable, Sendable, Equatable {
             Dictionary(uniqueKeysWithValues: dashboardCards.map { ($0.key.rawValue, $0.value) }),
             forKey: .dashboardCards
         )
+        try container.encode(
+            Dictionary(uniqueKeysWithValues: dashboardCardSizes.map { ($0.key.rawValue, $0.value.rawValue) }),
+            forKey: .dashboardCardSizes
+        )
         try container.encode(dashboardOrder, forKey: .dashboardOrder)
     }
 
-    static let sidebarModules: [HubModuleId] = [.calendar, .groceries, .routines, .chores, .meals, .sleep, .birthdays]
+    static let sidebarModules: [HubModuleId] = [.notes, .calendar, .groceries, .routines, .chores, .meals, .sleep, .birthdays]
     static let foodModules: [HubModuleId] = [.snacks, .recipes]
-    private static let defaultsSidebarOrder: [HubModuleId] = [.calendar, .groceries, .routines, .chores, .meals, .sleep, .birthdays]
+    private static let defaultsSidebarOrder: [HubModuleId] = [.notes, .calendar, .groceries, .routines, .chores, .meals, .sleep, .birthdays]
     private static let defaultsDashboardOrder: [DashboardCardId] = [.weather, .schedule, .routines, .chores, .meals, .snacks, .sleep, .groceries, .notes, .birthdays]
 
     func isEnabled(_ module: HubModuleId) -> Bool {
         switch module {
+        case .notes: notes
         case .calendar: calendar
         case .groceries: groceries
         case .routines: routines
@@ -398,6 +451,7 @@ struct HubModules: Codable, Sendable, Equatable {
     func updating(_ module: HubModuleId, enabled: Bool) -> HubModules {
         var copy = self
         switch module {
+        case .notes: copy.notes = enabled
         case .calendar: copy.calendar = enabled
         case .groceries: copy.groceries = enabled
         case .routines: copy.routines = enabled
@@ -417,6 +471,16 @@ struct HubModules: Codable, Sendable, Equatable {
         return copy
     }
 
+    func updatingDashboardCardSize(_ card: DashboardCardId, size: DashboardCardSize) -> HubModules {
+        var copy = self
+        copy.dashboardCardSizes[card] = size
+        return copy
+    }
+
+    func dashboardCardSize(_ card: DashboardCardId) -> DashboardCardSize {
+        dashboardCardSizes[card, default: .standard]
+    }
+
     func movingSidebarModule(_ module: HubModuleId, by offset: Int) -> HubModules {
         var copy = self
         copy.sidebarOrder = Self.moving(module, in: sidebarOrder, by: offset)
@@ -434,6 +498,16 @@ struct HubModules: Codable, Sendable, Equatable {
         for card in DashboardCardId.allCases {
             if let enabled = cards[card] {
                 normalized[card] = enabled
+            }
+        }
+        return normalized
+    }
+
+    private static func normalizedDashboardCardSizes(_ sizes: [DashboardCardId: DashboardCardSize]) -> [DashboardCardId: DashboardCardSize] {
+        var normalized = Dictionary(uniqueKeysWithValues: DashboardCardId.allCases.map { ($0, DashboardCardSize.standard) })
+        for card in DashboardCardId.allCases {
+            if let size = sizes[card] {
+                normalized[card] = size
             }
         }
         return normalized
@@ -472,6 +546,7 @@ enum HubDestination: String, Hashable, CaseIterable, Identifiable {
     case meals
     case sleep
     case birthdays
+    case notes
     case profile
     case settings
     case more
@@ -480,6 +555,8 @@ enum HubDestination: String, Hashable, CaseIterable, Identifiable {
 
     init?(module: HubModuleId) {
         switch module {
+        case .notes:
+            self = .notes
         case .calendar:
             self = .calendar
         case .groceries:
@@ -509,6 +586,7 @@ enum HubDestination: String, Hashable, CaseIterable, Identifiable {
         case .meals: "Food"
         case .sleep: "Sleep"
         case .birthdays: "Birthdays"
+        case .notes: "Notes"
         case .profile: "Profile"
         case .settings: "Settings"
         case .more: "More"
@@ -525,6 +603,7 @@ enum HubDestination: String, Hashable, CaseIterable, Identifiable {
         case .meals: "fork.knife"
         case .sleep: "moon.fill"
         case .birthdays: "gift.fill"
+        case .notes: "note.text"
         case .profile: "person.crop.circle"
         case .settings: "gearshape.fill"
         case .more: "ellipsis"
@@ -537,6 +616,7 @@ enum HubDestination: String, Hashable, CaseIterable, Identifiable {
 
     var optionalModule: HubModuleId? {
         switch self {
+        case .notes: .notes
         case .calendar: .calendar
         case .groceries: .groceries
         case .routines: .routines

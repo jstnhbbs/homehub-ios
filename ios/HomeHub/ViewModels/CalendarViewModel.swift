@@ -7,11 +7,9 @@ final class CalendarViewModel: ObservableObject {
     @Published var selectedDate = ""
     @Published var searchQuery = ""
     @Published var occurrences: [CalendarOccurrence] = []
-    @Published var calendars: [CalendarPickerOption] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var editingEvent: CalendarOccurrence?
-    @Published var showAddEvent = false
     @Published var nativeAccessStatus: NativeCalendarAccessStatus = .notDetermined
 
     private var appState: AppState?
@@ -35,32 +33,12 @@ final class CalendarViewModel: ObservableObject {
         DateHelpers.localDateIn(timezone: timezone)
     }
 
-    var canManage: Bool {
-        appState?.canManageHousehold ?? false
-    }
-
-    var isConnected: Bool {
-        usesNativeCalendar
-    }
-
-    var usesNativeCalendar: Bool {
-        appState?.nativeCalendar.hasFullAccess ?? false
-    }
-
-    var calendarSourceLabel: String {
-        usesNativeCalendar ? "Device Calendars" : "Calendar access needed"
-    }
-
     var needsNativeCalendarPermission: Bool {
         nativeAccessStatus == .notDetermined
     }
 
     var nativeCalendarDenied: Bool {
         nativeAccessStatus == .denied || nativeAccessStatus == .restricted
-    }
-
-    var supportsServerEventEditing: Bool {
-        false
     }
 
     var headerTitle: String {
@@ -124,14 +102,12 @@ final class CalendarViewModel: ObservableObject {
               let startDate = CalendarHelpers.parseLocalDate(start, timezone: timezone),
               let endDate = CalendarHelpers.parseLocalDate(end, timezone: timezone) else {
             occurrences = []
-            calendars = []
             return
         }
         let calendar = CalendarHelpers.calendar(timezone: timezone, weekStartsOn: weekStartsOn)
         let startOfRange = calendar.startOfDay(for: startDate)
         let endOfRange = calendar.date(byAdding: DateComponents(day: 1, second: -1), to: calendar.startOfDay(for: endDate)) ?? endDate
         occurrences = appState.nativeCalendar.occurrences(start: startOfRange, end: endOfRange, query: searchQuery)
-        calendars = appState.nativeCalendar.pickerOptions()
         await appState.refreshNativeTodaySchedule()
     }
 
@@ -141,25 +117,6 @@ final class CalendarViewModel: ObservableObject {
         nativeAccessStatus = appState.nativeCalendar.accessStatus
         await load()
         await appState.refreshNativeTodaySchedule()
-    }
-
-    func syncCalendars() async {
-        guard let appState else { return }
-        await appState.nativeCalendar.requestFullAccess()
-        nativeAccessStatus = appState.nativeCalendar.accessStatus
-        await load()
-        await appState.refreshNativeTodaySchedule()
-    }
-
-    func startAutoSync(appState: AppState) {
-        self.appState = appState
-    }
-
-    func stopAutoSync() {
-    }
-
-    private func performAutoSync() async {
-        await load()
     }
 
     func goToToday() {
@@ -189,60 +146,6 @@ final class CalendarViewModel: ObservableObject {
         viewMode = mode
         if mode == .day, let date = CalendarHelpers.parseLocalDate(selectedDate, timezone: timezone) {
             anchorDate = date
-        }
-    }
-
-    func editableCalendars(for event: CalendarOccurrence) -> [CalendarPickerOption] {
-        guard let provider = event.provider else { return [] }
-        guard provider != .local else { return [] }
-        return calendars.filter { $0.provider == provider }
-    }
-
-    func createEvent(_ input: CalendarEventFormInput) async -> Bool {
-        guard let appState else { return false }
-        do {
-            try await appState.api.createCalendarEvent(input)
-            showAddEvent = false
-            await load()
-            await appState.refreshDashboard()
-            return true
-        } catch {
-            if let message = error.userFacingMessage {
-                errorMessage = message
-            }
-            return false
-        }
-    }
-
-    func updateEvent(id: String, input: CalendarEventFormInput) async -> Bool {
-        guard let appState else { return false }
-        do {
-            try await appState.api.updateCalendarEvent(id: id, input: input)
-            editingEvent = nil
-            await load()
-            await appState.refreshDashboard()
-            return true
-        } catch {
-            if let message = error.userFacingMessage {
-                errorMessage = message
-            }
-            return false
-        }
-    }
-
-    func deleteEvent(id: String) async -> Bool {
-        guard let appState else { return false }
-        do {
-            try await appState.api.deleteCalendarEvent(id: id)
-            editingEvent = nil
-            await load()
-            await appState.refreshDashboard()
-            return true
-        } catch {
-            if let message = error.userFacingMessage {
-                errorMessage = message
-            }
-            return false
         }
     }
 

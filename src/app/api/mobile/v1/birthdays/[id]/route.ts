@@ -80,6 +80,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       .where(eq(familyBirthdays.id, id))
       .returning();
 
+    if (!updated[0]) throw new Error("Birthday not found.");
     return mobileJson(updated[0]);
   } catch (error) {
     return handleMobileError(error);

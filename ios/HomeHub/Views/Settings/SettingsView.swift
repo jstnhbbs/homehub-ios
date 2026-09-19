@@ -68,6 +68,7 @@ struct SettingsView: View {
     private var settingsIndex: some View {
         List {
             accountHeader
+            permissionsSummarySection
             statusMessagesSection
 
             Section {
@@ -78,6 +79,7 @@ struct SettingsView: View {
             }
 
             Section {
+                settingsRow(.appearance)
                 settingsRow(.calendar)
                 settingsRow(.notifications)
                 settingsRow(.layout)
@@ -86,6 +88,7 @@ struct SettingsView: View {
             }
 
             Section {
+                settingsRow(.faq)
                 settingsRow(.data)
                 settingsRow(.about)
             } header: {
@@ -136,6 +139,16 @@ struct SettingsView: View {
         }
     }
 
+    private var permissionsSummarySection: some View {
+        Section {
+            LabeledContent("Role", value: appState.household.map { HouseholdRoles.roleLabel($0.role) } ?? "Signed out")
+            LabeledContent("Household setup", value: appState.canManageHousehold ? "Can manage" : "View only")
+            LabeledContent("Calendar & Reminders", value: appState.canManageHousehold ? "Can configure" : "Can use")
+        } footer: {
+            Text("Owners and parents manage shared household setup. Guests can use the household views without changing global settings.")
+        }
+    }
+
     private func settingsRow(_ tab: SettingsTab) -> some View {
         NavigationLink(value: tab) {
             HStack(spacing: 14) {
@@ -166,7 +179,9 @@ struct SettingsView: View {
     private func trailingValue(for tab: SettingsTab) -> String? {
         switch tab {
         case .general:
-            appState.appearanceMode.label
+            nil
+        case .appearance:
+            appState.accentPalette.label
         case .family:
             "\(viewModel.profiles.count)"
         case .calendar:
@@ -190,6 +205,8 @@ struct SettingsView: View {
             "\(appState.hubModules.dashboardOrder.count)"
         case .data:
             appState.household == nil ? "Offline" : "Signed in"
+        case .faq:
+            nil
         case .about:
             appVersionLabel
         }
@@ -228,6 +245,8 @@ struct SettingsView: View {
         switch tab {
         case .general:
             generalTab
+        case .appearance:
+            appearanceTab
         case .family:
             usersTab
         case .calendar:
@@ -235,13 +254,11 @@ struct SettingsView: View {
         case .notifications:
             NativeNotificationsSettingView(service: appState.nativeNotifications)
         case .layout:
-            ScrollView {
-                HubModulesSettingView()
-                    .padding()
-            }
-            .background(HubTheme.canvas)
+            HubModulesSettingView()
         case .data:
             dataTab
+        case .faq:
+            SettingsFAQView()
         case .about:
             aboutTab
         }
@@ -256,7 +273,6 @@ struct SettingsView: View {
             if appState.household != nil {
                 dateSection
             }
-            ThemeSettingView()
 
             Section {
                 Button("Sign Out", role: .destructive) {
@@ -271,6 +287,23 @@ struct SettingsView: View {
                 weekStartsOn = WeekStart.parseWeekStartsOn(household.weekStartsOn)
             }
         }
+    }
+
+    private var appearanceTab: some View {
+        Form {
+            ThemeSettingView()
+
+            Section {
+                LabeledContent("Launch Loading", value: "Native spinner")
+                LabeledContent("App Icon Picker", value: "This device")
+            } header: {
+                Text("Icon Behavior")
+            } footer: {
+                Text("Beacon shows cached app content as soon as possible. Alternate app icons only affect the Home Screen icon after iOS applies the change.")
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
     }
 
     private var dateSection: some View {
@@ -604,13 +637,123 @@ struct SettingsView: View {
     }
 }
 
+private struct SettingsFAQView: View {
+    @State private var searchText = ""
+    @State private var expandedQuestions: Set<String> = []
+
+    private var filteredSections: [FAQSection] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return Self.sections }
+        return Self.sections.compactMap { section in
+            let questions = section.questions.filter {
+                "\(section.title) \($0.question) \($0.answer)".localizedStandardContains(query)
+            }
+            return questions.isEmpty ? nil : FAQSection(title: section.title, questions: questions)
+        }
+    }
+
+    var body: some View {
+        List {
+            ForEach(filteredSections) { section in
+                Section(section.title) {
+                    ForEach(section.questions) { item in
+                        DisclosureGroup(isExpanded: Binding(
+                            get: { expandedQuestions.contains(item.id) },
+                            set: { expanded in
+                                if expanded {
+                                    expandedQuestions.insert(item.id)
+                                } else {
+                                    expandedQuestions.remove(item.id)
+                                }
+                            }
+                        )) {
+                            Text(item.answer)
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .textSelection(.enabled)
+                                .padding(.vertical, 6)
+                        } label: {
+                            Text(item.question)
+                                .foregroundStyle(.primary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .searchable(text: $searchText, prompt: "Search questions")
+        .overlay {
+            if filteredSections.isEmpty {
+                ContentUnavailableView.search(text: searchText)
+            }
+        }
+    }
+
+    private struct FAQSection: Identifiable {
+        let title: String
+        let questions: [FAQItem]
+        var id: String { title }
+    }
+
+    private struct FAQItem: Identifiable {
+        let question: String
+        let answer: String
+        var id: String { question }
+
+        init(_ question: String, _ answer: String) {
+            self.question = question
+            self.answer = answer
+        }
+    }
+
+    private static let sections: [FAQSection] = [
+        FAQSection(title: "Getting Started", questions: [
+            FAQItem("How do I use Beacon on more than one device?", "Install Beacon on each device and sign in. Use the same account, or have another parent create an account and join your household with the parent invite code in Settings > Family. Shared household information comes from the same backend on your phone and larger display."),
+            FAQItem("What is the difference between an account and a family profile?", "An account is a sign-in for someone using Beacon. A family profile represents a person in your household, including children who do not need their own sign-in. Profiles let you assign routines and chores and keep birthdays together."),
+            FAQItem("How do I invite a parent or helper?", "Find the invite codes in Settings > Family. Share the parent code with another parent, or the guest code with a helper. They create an account and join with that code. Treat invite codes as private household information."),
+            FAQItem("What can owners, parents, and guests do?", "Owners and parents manage household setup and family information. Guests can use household views without changing global settings. Your role and available permissions appear at the top of Settings.")
+        ]),
+        FAQSection(title: "Today & Layout", questions: [
+            FAQItem("How do I choose and arrange Today cards?", "Open Settings > Layout > Today Cards. Toggle the cards you want to see and use the reorder controls to arrange them. Your card choices and order are saved for your signed-in user."),
+            FAQItem("What do Standard and Expanded mean?", "On larger layouts, Standard uses one column and Expanded uses two columns when space allows. Expanded changes width rather than making a whole row taller. On iPhone, cards stay in a single column; the size preference is for larger layouts."),
+            FAQItem("Do my layout choices follow me between iPhone and iPad?", "Yes. Layout preferences are saved to your account, so the same user can use them on iPhone and iPad. Another parent has their own layout preferences. Each device adapts the arrangement to its available space."),
+            FAQItem("Where are the sections I cannot see in navigation?", "Tap More to see overflow sections. Larger screens show more sections directly when space allows. Open Settings > Layout > Navigation to choose and reorder optional sections; Today stays available.")
+        ]),
+        FAQSection(title: "Calendars & Reminders", questions: [
+            FAQItem("How do I connect my calendar?", "Open Settings > Calendar & Reminders and allow native calendar access. Beacon reads the calendars available in Apple Calendar on that device. Add iCloud, Google, or other accounts to the device's Calendar settings first; you do not sign in to those providers inside Beacon."),
+            FAQItem("How do I choose which calendars appear?", "In Settings > Calendar & Reminders, open the calendar selection and choose from the accessible device calendars. Save your selection, or select all calendars. Configure calendar access and selection separately on each device."),
+            FAQItem("Why are events different on my phone and iPad?", "Calendars are read locally through Apple Calendar. Check that both devices have the same calendar accounts, that the calendars are syncing in Apple Calendar, and that Beacon has access and the intended calendars selected on each device. Joining the same Beacon household does not share a calendar account."),
+            FAQItem("How do I switch between day, week, and month?", "Open Calendar and select Day, Week, or Month. Tap a date in the grid to open Day view, or tap an event to see its details. Use the previous and next controls to move through dates, or Today to return to the current date. Search filters the events in the current calendar range."),
+            FAQItem("How do groceries work with Apple Reminders?", "Allow Reminders access in Settings > Calendar & Reminders and choose a list. Beacon uses that device's selected Reminders list. To see the same items elsewhere, share or sync the list through Apple Reminders and select it on each device. Without Reminders access, Beacon uses the household grocery list on the backend; these are separate lists."),
+            FAQItem("What if I denied Calendar or Reminders access?", "Open the permission settings from Beacon's Calendar & Reminders page, or open iOS Settings and find Beacon. Enable access, then return to Beacon and refresh. Calendars and lists must also be available in the Apple apps on that device.")
+        ]),
+        FAQSection(title: "Routines, Chores & Food", questions: [
+            FAQItem("How do I organize routines by child?", "Create or edit a routine in Routines and assign it to the child's family profile. Add the steps and choose a period. The Today routines card groups assigned steps by person and shows completion progress with a ring and count."),
+            FAQItem("How do I complete a routine or chore?", "Open Routines or Chores and tap the completion control beside the step or chore. Tap it again to undo. Routine completion is tracked by date; chore completion follows its daily or weekly cadence."),
+            FAQItem("How do I plan meals and use recipes?", "Open Food to plan meals for the week. Choose a meal slot and enter a meal or select a saved recipe. Recipes supports adding a recipe manually or importing from a URL. If a site cannot be imported, enter the recipe manually."),
+            FAQItem("How do I change the snack checklist?", "Open Snacks to edit the snack options if you are an owner or parent. Tap the checklist controls to record snacks for the day. Reset the day's checklist when you need to clear those selections.")
+        ]),
+        FAQSection(title: "Sync & Troubleshooting", questions: [
+            FAQItem("When does shared information refresh?", "Beacon loads shared data when it starts and when screens load or refresh. Edits refresh the relevant data on the device making the change. Other devices receive changes when they fetch fresh data; this is not a continuous live connection. Use Settings > Data & Sync > Refresh Now if a device looks out of date."),
+            FAQItem("Can I use Beacon offline?", "Beacon can show cached household and Today content when it is available. Shared household edits need a working connection to the backend; do not assume offline edits will be queued and uploaded later. Native calendars and Reminders depend on what is available locally on your device."),
+            FAQItem("Why is weather unavailable?", "Weather needs device location access and an available weather service. Allow location access when prompted, check Beacon's permissions in system settings, and make sure the device has a connection. Weather may be unavailable on some devices or environments."),
+            FAQItem("Why am I not receiving reminders?", "Open Settings > Notifications in Beacon, allow notifications, and enable the reminders and times you want. Also check the device's notification settings, Focus modes, and Scheduled Summary. Beacon's reminder preferences and notification permission are configured on each device."),
+            FAQItem("How do I change colors or light and dark mode?", "Choose a theme color or app icon in Settings > Appearance. Beacon follows your device's system light or dark appearance. Theme and icon choices apply locally to that device.")
+        ])
+    ]
+}
+
 private enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
     case general
+    case appearance
     case family
     case calendar
     case notifications
     case layout
     case data
+    case faq
     case about
 
     var id: String { rawValue }
@@ -618,23 +761,27 @@ private enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
     var label: String {
         switch self {
         case .general: "General"
+        case .appearance: "Appearance"
         case .family: "Family"
         case .calendar: "Calendar & Reminders"
         case .notifications: "Notifications"
         case .layout: "Layout"
         case .data: "Data & Sync"
+        case .faq: "FAQ & Help"
         case .about: "About Beacon"
         }
     }
 
     var description: String {
         switch self {
-        case .general: "Household details, date, appearance, and sign out."
+        case .general: "Household details, date, and sign out."
+        case .appearance: "Theme, mode, and app icon."
         case .family: "Manage members and family profiles."
         case .calendar: "Access, defaults, alerts, and calendars on this device."
         case .notifications: "Configure native reminder times."
         case .layout: "Choose and arrange hub sections."
         case .data: "Check backend status and refresh local data."
+        case .faq: "Getting started, everyday use, and troubleshooting."
         case .about: "Version, privacy, and terms."
         }
     }
@@ -642,11 +789,13 @@ private enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
     var systemImage: String {
         switch self {
         case .general: "gearshape"
+        case .appearance: "paintpalette"
         case .family: "person.2"
         case .calendar: "calendar"
         case .notifications: "bell.badge"
         case .layout: "rectangle.3.group"
         case .data: "arrow.triangle.2.circlepath"
+        case .faq: "questionmark.circle"
         case .about: "info.circle"
         }
     }
@@ -654,11 +803,13 @@ private enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
     var tint: Color {
         switch self {
         case .general: HubTheme.sage
+        case .appearance: Color.pink
         case .family: Color.blue
         case .calendar: Color.indigo
         case .notifications: Color.orange
         case .layout: Color.purple
         case .data: Color.green
+        case .faq: Color.teal
         case .about: Color.gray
         }
     }
@@ -919,79 +1070,213 @@ private struct HubModulesSettingView: View {
     @State private var saveTask: Task<Void, Never>?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HubCard {
-                VStack(alignment: .leading, spacing: 10) {
-                    Label("Layout", systemImage: "rectangle.3.group")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(HubTheme.sage)
-
-                    Text("Choose which sections appear, then arrange the order used by the sidebar and dashboard. The sidebar automatically moves extra buttons into More on smaller screens.")
-                        .font(.footnote)
-                        .foregroundStyle(HubTheme.muted)
+        layoutRoot
+            .onAppear {
+                modules = appState.hubModules
+            }
+            .onChange(of: appState.hubModules) { _, newValue in
+                if !isSaving {
+                    modules = newValue
                 }
             }
+    }
 
-            layoutGroup(
-                title: "Sidebar sections",
-                description: "Today and Settings stay fixed. These sections can be hidden or reordered.",
-                items: modules.sidebarOrder,
-                isEnabled: { modules.isEnabled($0) },
-                label: { $0.label },
-                systemImage: { $0.systemImage },
-                toggle: { module, enabled in
-                    var next = modules.updating(module, enabled: enabled)
-                    if module == .meals && !enabled {
-                        next = next.updating(.snacks, enabled: false).updating(.recipes, enabled: false)
+    private var layoutRoot: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                HubCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("Layout", systemImage: "rectangle.3.group")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(HubTheme.sage)
+
+                        Text("Fine-tune what appears in Today, the sidebar, and Food. Your changes save automatically.")
+                            .font(.footnote)
+                            .foregroundStyle(HubTheme.muted)
                     }
-                    updateModules(next)
-                },
-                moveBefore: reorderSidebarModule,
-                moveBy: moveSidebarModule
-            )
+                }
 
-            layoutGroup(
-                title: "Food tabs",
-                description: "Weekly meals stays inside Food. Snacks and Recipes can be hidden.",
-                items: HubModules.foodModules,
-                isEnabled: { modules.isEnabled($0) },
-                label: { $0.label },
-                systemImage: { $0.systemImage },
-                toggle: { module, enabled in
-                    let next = modules.updating(module, enabled: enabled)
-                    updateModules(next)
-                },
-                moveBefore: nil,
-                moveBy: nil
-            )
+                HubCard {
+                    VStack(spacing: 0) {
+                        layoutSectionLink(.todayCards)
+                        Divider().padding(.leading, 50)
+                        layoutSectionLink(.navigation)
+                        Divider().padding(.leading, 50)
+                        layoutSectionLink(.food)
+                    }
+                }
 
-            layoutGroup(
-                title: "Dashboard cards",
-                description: "Cards follow this order and wrap to fit the device.",
-                items: modules.dashboardOrder,
-                isEnabled: { modules.dashboardCards[$0, default: true] },
-                label: { $0.label },
-                systemImage: { $0.systemImage },
-                toggle: { card, enabled in
-                    let next = modules.updatingDashboardCard(card, enabled: enabled)
-                    updateModules(next)
-                },
-                moveBefore: reorderDashboardCard,
-                moveBy: moveDashboardCard
-            )
-
-            Button("Reset layout") {
-                updateModules(.defaults)
+                Button("Reset layout") {
+                    updateModules(.defaults)
+                }
+                .buttonStyle(HubButtonStyle(emphasis: .secondary))
+                .disabled(isSaving)
             }
-            .buttonStyle(HubButtonStyle(emphasis: .secondary))
-            .disabled(isSaving)
+            .padding()
         }
-        .onAppear {
-            modules = appState.hubModules
+        .background(HubTheme.canvas)
+        .navigationDestination(for: LayoutSettingsSection.self) { section in
+            layoutSectionPage(section)
+                .navigationTitle(section.title)
+                .navigationBarTitleDisplayMode(.inline)
+                .background(HubTheme.canvas)
         }
-        .onChange(of: appState.hubModules) { _, newValue in
-            if !isSaving {
-                modules = newValue
+    }
+
+    private func layoutSectionLink(_ section: LayoutSettingsSection) -> some View {
+        NavigationLink(value: section) {
+            HStack(spacing: 14) {
+                Image(systemName: section.systemImage)
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(HubTheme.sage)
+                    .frame(width: 34, height: 34)
+                    .background(HubTheme.sageSoft)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(section.title)
+                        .font(.body.weight(.semibold))
+                    Text(section.description)
+                        .font(.caption)
+                        .foregroundStyle(HubTheme.muted)
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 8)
+
+                Text(section.summary(modules))
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(HubTheme.muted)
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.vertical, 11)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func layoutSectionPage(_ section: LayoutSettingsSection) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                switch section {
+                case .todayCards:
+                    dashboardCardsGroup
+                case .navigation:
+                    sidebarSectionsGroup
+                case .food:
+                    foodTabsGroup
+                }
+            }
+            .padding()
+        }
+    }
+
+    private var sidebarSectionsGroup: some View {
+        layoutGroup(
+            title: "Sidebar sections",
+            description: "Today stays fixed. These sections can be hidden or reordered, and Settings moves into More when space is tight.",
+            items: modules.sidebarOrder,
+            isEnabled: { modules.isEnabled($0) },
+            label: { $0.label },
+            systemImage: { $0.systemImage },
+            toggle: { module, enabled in
+                var next = modules.updating(module, enabled: enabled)
+                if module == .meals && !enabled {
+                    next = next.updating(.snacks, enabled: false).updating(.recipes, enabled: false)
+                }
+                updateModules(next)
+            },
+            moveBefore: reorderSidebarModule,
+            moveBy: moveSidebarModule
+        )
+    }
+
+    private var foodTabsGroup: some View {
+        layoutGroup(
+            title: "Food tabs",
+            description: "Weekly meals stays inside Food. Snacks and Recipes can be hidden.",
+            items: HubModules.foodModules,
+            isEnabled: { modules.isEnabled($0) },
+            label: { $0.label },
+            systemImage: { $0.systemImage },
+            toggle: { module, enabled in
+                let next = modules.updating(module, enabled: enabled)
+                updateModules(next)
+            },
+            moveBefore: nil,
+            moveBy: nil
+        )
+    }
+
+    private var dashboardCardsGroup: some View {
+        HubCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Dashboard cards")
+                    .font(.headline)
+                Text("Choose what appears in Today, arrange the order, and set each card’s size.")
+                    .font(.caption)
+                    .foregroundStyle(HubTheme.muted)
+
+                ForEach(Array(modules.dashboardOrder.enumerated()), id: \.element) { index, card in
+                    DashboardCardLayoutOptionRow(
+                        title: card.label,
+                        systemImage: card.systemImage,
+                        isOn: Binding(
+                            get: { modules.dashboardCards[card, default: true] },
+                            set: { enabled in
+                                let next = modules.updatingDashboardCard(card, enabled: enabled)
+                                updateModules(next)
+                            }
+                        ),
+                        size: Binding(
+                            get: {
+                                let size = modules.dashboardCardSize(card)
+                                return size == .compact ? .standard : size
+                            },
+                            set: { size in
+                                let next = modules.updatingDashboardCardSize(card, size: size)
+                                updateModules(next)
+                            }
+                        ),
+                        isDragging: draggedLayoutItem == rawValue(card),
+                        isDropTarget: dropTargetItem == rawValue(card),
+                        canMoveUp: index > 0,
+                        canMoveDown: index < modules.dashboardOrder.count - 1,
+                        moveUp: { moveDashboardCard(card, by: -1) },
+                        moveDown: { moveDashboardCard(card, by: 1) },
+                        dragProvider: {
+                            draggedLayoutItem = rawValue(card)
+                            return NSItemProvider(object: rawValue(card) as NSString)
+                        }
+                    )
+                    .onDrop(
+                        of: [UTType.plainText.identifier],
+                        delegate: LayoutReorderDropDelegate(
+                            targetValue: rawValue(card),
+                            draggedValue: $draggedLayoutItem,
+                            dropTargetValue: $dropTargetItem,
+                            onMoveBefore: { draggedValue, targetValue in
+                                guard draggedValue != targetValue,
+                                      let draggedCard = modules.dashboardOrder.first(where: { rawValue($0) == draggedValue }),
+                                      let targetCard = modules.dashboardOrder.first(where: { rawValue($0) == targetValue }) else {
+                                    return
+                                }
+                                if let next = reorderDashboardCard(draggedCard, before: targetCard) {
+                                    pendingDraggedModules = next
+                                }
+                            },
+                            onCommit: {
+                                let next = pendingDraggedModules ?? modules
+                                pendingDraggedModules = nil
+                                updateModules(next)
+                            }
+                        )
+                    )
+                }
             }
         }
     }
@@ -1134,6 +1419,52 @@ private struct HubModulesSettingView: View {
     }
 }
 
+private enum LayoutSettingsSection: String, Hashable, Identifiable {
+    case todayCards
+    case navigation
+    case food
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .todayCards: "Today Cards"
+        case .navigation: "Navigation"
+        case .food: "Food"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .todayCards: "Choose cards, order, and size."
+        case .navigation: "Choose sidebar sections and order."
+        case .food: "Choose optional Food tabs."
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .todayCards: "rectangle.3.group.fill"
+        case .navigation: "sidebar.left"
+        case .food: "fork.knife"
+        }
+    }
+
+    func summary(_ modules: HubModules) -> String {
+        switch self {
+        case .todayCards:
+            let enabledCount = modules.dashboardOrder.filter { modules.isDashboardCardEnabled($0) }.count
+            return "\(enabledCount)"
+        case .navigation:
+            let enabledCount = modules.sidebarOrder.filter { modules.isEnabled($0) }.count
+            return "\(enabledCount)"
+        case .food:
+            let enabledCount = HubModules.foodModules.filter { modules.isEnabled($0) }.count
+            return "\(enabledCount)/\(HubModules.foodModules.count)"
+        }
+    }
+}
+
 private struct LayoutOptionRow: View {
     let title: String
     let systemImage: String
@@ -1209,6 +1540,129 @@ private struct LayoutOptionRow: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .frame(width: 280, alignment: .leading)
+        .background(HubTheme.tile)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(HubTheme.line, lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.18), radius: 12, y: 6)
+    }
+}
+
+private struct DashboardCardLayoutOptionRow: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    let title: String
+    let systemImage: String
+    @Binding var isOn: Bool
+    @Binding var size: DashboardCardSize
+    var isDragging = false
+    var isDropTarget = false
+    var canMoveUp = false
+    var canMoveDown = false
+    var moveUp: (() -> Void)?
+    var moveDown: (() -> Void)?
+    var dragProvider: (() -> NSItemProvider)?
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.headline)
+                .foregroundStyle(HubTheme.sage)
+                .frame(width: 30, height: 30)
+                .background(HubTheme.sageSoft)
+                .clipShape(Circle())
+
+            Toggle(title, isOn: $isOn)
+                .font(.subheadline.weight(.semibold))
+
+            sizeMenu
+            dragHandle
+        }
+        .padding(12)
+        .background(HubTheme.tileQuiet)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(isDropTarget ? HubTheme.sage.opacity(0.55) : Color.clear, lineWidth: 1.5)
+        )
+        .opacity(isDragging ? 0.42 : 1)
+        .scaleEffect(isDragging ? 0.98 : 1)
+        .shadow(color: isDragging ? HubTheme.sage.opacity(0.18) : .clear, radius: 10, y: 4)
+        .accessibilityAction(named: Text("Move \(title) up")) { if canMoveUp { moveUp?() } }
+        .accessibilityAction(named: Text("Move \(title) down")) { if canMoveDown { moveDown?() } }
+    }
+
+    private var sizeMenu: some View {
+        Menu {
+            ForEach(DashboardCardSize.layoutOptions) { option in
+                Button {
+                    size = option
+                } label: {
+                    if size == option {
+                        Label(option.label, systemImage: "checkmark")
+                    } else {
+                        Text(option.label)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(sizeLabel)
+                    .font(.caption.weight(.bold))
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2.weight(.bold))
+            }
+            .foregroundStyle(HubTheme.muted)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 6)
+            .background(HubTheme.tile)
+            .clipShape(Capsule())
+        }
+        .disabled(!isOn)
+        .accessibilityLabel("\(title) iPad card size")
+    }
+
+    private var sizeLabel: String {
+        horizontalSizeClass == .compact ? "iPad \(size.label)" : size.label
+    }
+
+    private var dragHandle: some View {
+        Image(systemName: "line.3.horizontal")
+            .font(.body.weight(.bold))
+            .foregroundStyle(HubTheme.muted)
+            .frame(width: 36, height: 36)
+            .contentShape(Rectangle())
+            .onDrag {
+                dragProvider?() ?? NSItemProvider()
+            } preview: {
+                dragPreview
+            }
+            .accessibilityLabel("Reorder \(title)")
+            .accessibilityHint("Drag to change the order.")
+    }
+
+    private var dragPreview: some View {
+        HStack(spacing: 10) {
+            Image(systemName: systemImage)
+                .font(.headline)
+                .foregroundStyle(HubTheme.sage)
+                .frame(width: 28, height: 28)
+                .background(HubTheme.sageSoft)
+                .clipShape(Circle())
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+            Spacer(minLength: 0)
+            Text(size.label)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(HubTheme.muted)
+            Image(systemName: "line.3.horizontal")
+                .foregroundStyle(HubTheme.muted)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(width: 300, alignment: .leading)
         .background(HubTheme.tile)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(

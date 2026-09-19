@@ -9,7 +9,6 @@ struct HomeHubApp: App {
             RootView()
                 .environmentObject(appState)
                 .tint(appState.accentPalette.accent)
-                .preferredColorScheme(appState.appearanceMode.colorScheme)
                 .task {
                     await appState.bootstrap()
                 }

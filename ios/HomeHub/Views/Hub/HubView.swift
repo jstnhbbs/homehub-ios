@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 struct HubView: View {
     @EnvironmentObject private var appState: AppState
@@ -35,20 +34,13 @@ struct HubView: View {
                 .id(compactTabLayoutID)
                 .tint(HubTheme.sage)
                 .background(HubTheme.surface)
-                .background {
-                    if !compactOverflowDestinations.isEmpty {
-                        MoreTabReselectMonitor {
-                            showMoreMenu.toggle()
-                        }
-                    }
-                }
                 .overlay {
                     if showMoreMenu {
                         GeometryReader { proxy in
                             let layout = moreMenuLayout(in: proxy)
 
                             ZStack(alignment: .bottomTrailing) {
-                                Color.black.opacity(0.16)
+                                Color.black.opacity(0.08)
                                     .ignoresSafeArea(edges: .top)
                                     .padding(.bottom, layout.tabBarHeight)
                                     .onTapGesture {
@@ -63,10 +55,10 @@ struct HubView: View {
                             }
                             .frame(width: proxy.size.width, height: proxy.size.height)
                         }
-                        .transition(.scale(scale: 0.84, anchor: UnitPoint(x: 0.92, y: 1)).combined(with: .opacity))
+                        .transition(.scale(scale: 0.92, anchor: UnitPoint(x: 0.86, y: 1)).combined(with: .opacity))
                     }
                 }
-                .animation(.snappy(duration: 0.22), value: showMoreMenu)
+                .animation(.snappy(duration: 0.2), value: showMoreMenu)
                 .onAppear {
                     if compactPrimaryDestinations.contains(appState.selectedDestination) {
                         lastPrimaryDestination = appState.selectedDestination
@@ -83,6 +75,11 @@ struct HubView: View {
                     VStack(spacing: 0) {
                         HubHeaderView()
                         content(for: appState.selectedDestination)
+                            .frame(
+                                maxWidth: regularContentMaxWidth(for: appState.selectedDestination),
+                                maxHeight: .infinity,
+                                alignment: .topLeading
+                            )
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                             .padding(24)
                     }
@@ -161,9 +158,8 @@ struct HubView: View {
     }
 
     private var moreMenuCard: some View {
-        let destinations = Array(compactOverflowDestinations.reversed())
-        return VStack(spacing: 0) {
-            ForEach(Array(destinations.enumerated()), id: \.element.id) { index, destination in
+        VStack(spacing: 0) {
+            ForEach(Array(compactOverflowDestinations.reversed().enumerated()), id: \.element.id) { index, destination in
                 Button {
                     appState.selectedDestination = destination
                     showMoreMenu = false
@@ -186,7 +182,7 @@ struct HubView: View {
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(appState.selectedDestination == destination ? .isSelected : [])
 
-                if index < destinations.count - 1 {
+                if index < compactOverflowDestinations.count - 1 {
                     Rectangle()
                         .fill(HubTheme.line.opacity(0.55))
                         .frame(height: 1)
@@ -195,7 +191,7 @@ struct HubView: View {
             }
         }
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
+        .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("More")
     }
@@ -208,13 +204,11 @@ struct HubView: View {
     ) {
         let tabCount = CGFloat(compactTabBarDestinations.count)
         let tabWidth = proxy.size.width / max(tabCount, 1)
-        let menuWidth: CGFloat = min(176, max(148, tabWidth + 72))
-        let trailingInset = max(6, (tabWidth - menuWidth) / 2)
-        let tabBarHeight: CGFloat = 49
-        let gap: CGFloat = 8
         let safeBottom = proxy.safeAreaInsets.bottom
-        let tabBarOffset = safeBottom > tabBarHeight ? safeBottom : safeBottom + tabBarHeight
-        return (menuWidth, trailingInset, tabBarOffset + gap, tabBarOffset)
+        let tabBarHeight = safeBottom + 49
+        let menuWidth = min(188, max(156, tabWidth + 86))
+        let trailingInset = max(8, (tabWidth - menuWidth) / 2)
+        return (menuWidth, trailingInset, max(10, tabBarHeight - 4), tabBarHeight)
     }
 
     private func compactPage(for destination: HubDestination) -> some View {
@@ -229,6 +223,19 @@ struct HubView: View {
     @ViewBuilder
     private func content(for destination: HubDestination) -> some View {
         HubDestinationContent(destination: destination)
+    }
+
+    private func regularContentMaxWidth(for destination: HubDestination) -> CGFloat? {
+        switch destination {
+        case .dashboard:
+            nil
+        case .settings:
+            900
+        case .calendar:
+            1180
+        default:
+            1040
+        }
     }
 
     private var compactDestinations: [HubDestination] {
@@ -257,20 +264,28 @@ struct HubView: View {
 
 struct HubNavView: View {
     @EnvironmentObject private var appState: AppState
+    private let sidebarVerticalPadding: CGFloat = 40
+    private let sidebarItemHeight: CGFloat = 68
+    private let sidebarItemSpacing: CGFloat = 8
+    private let householdMarkHeight: CGFloat = 68
 
     private var items: [HubDestination] {
         let ordered = appState.hubModules.sidebarOrder.compactMap { HubDestination(module: $0) }
-        return ([.dashboard] + ordered).filter { destination in
+        var destinations = ([.dashboard] + ordered).filter { destination in
             destination.isVisible(in: appState.hubModules)
         }
+        if appState.canManageHousehold {
+            destinations.append(.settings)
+        }
+        return destinations
     }
 
     var body: some View {
         GeometryReader { proxy in
-            let parentItems = appState.canManageHousehold ? [HubDestination.settings] : []
-            let availableSlots = max(2, Int((proxy.size.height - 128 - CGFloat(parentItems.count * 76)) / 76))
-            let primaryItems = Array(items.prefix(availableSlots))
-            let overflowItems = Array(items.dropFirst(availableSlots))
+            let layout = sidebarLayout(for: proxy.size.height)
+            let primaryItems = Array(items.prefix(layout.primaryCount))
+            let overflowItems = layout.showsMore ? Array(items.dropFirst(layout.primaryCount)) : []
+            let moreIsSelected = overflowItems.contains(appState.selectedDestination)
 
             VStack(spacing: 8) {
                 HouseholdMarkView(
@@ -302,16 +317,15 @@ struct HubNavView: View {
                                 .font(.caption2.weight(.bold))
                         }
                         .frame(maxWidth: .infinity, minHeight: 68)
-                        .foregroundStyle(HubTheme.muted)
+                        .foregroundStyle(moreIsSelected ? HubTheme.sage : HubTheme.muted)
+                        .background(moreIsSelected ? HubTheme.sageSoft : Color.clear)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityAddTraits(moreIsSelected ? .isSelected : [])
                 }
 
                 Spacer()
-
-                ForEach(parentItems) { destination in
-                    sidebarButton(destination)
-                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 20)
@@ -347,6 +361,24 @@ struct HubNavView: View {
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
+    }
+
+    private func sidebarLayout(for height: CGFloat) -> (primaryCount: Int, showsMore: Bool) {
+        let availableItemSlots = max(
+            2,
+            Int(
+                floor(
+                    (height - sidebarVerticalPadding - householdMarkHeight)
+                        / (sidebarItemHeight + sidebarItemSpacing)
+                )
+            )
+        )
+
+        guard items.count > availableItemSlots else {
+            return (items.count, false)
+        }
+
+        return (max(1, availableItemSlots - 1), true)
     }
 }
 
@@ -417,116 +449,14 @@ struct HubDestinationContent: View {
             NapsView(embeddedInHub: true)
         case .birthdays:
             BirthdaysView()
+        case .notes:
+            NotesView()
         case .profile:
             MyProfileView()
         case .settings:
             SettingsView(presentation: presentation)
         case .more:
             EmptyView()
-        }
-    }
-}
-
-private final class WindowAwareView: UIView {
-    var onMovedToWindow: ((UIView) -> Void)?
-
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        guard window != nil else { return }
-        onMovedToWindow?(self)
-    }
-}
-
-private struct MoreTabReselectMonitor: UIViewRepresentable {
-    var onReselect: () -> Void
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onReselect: onReselect)
-    }
-
-    func makeUIView(context: Context) -> WindowAwareView {
-        let view = WindowAwareView()
-        view.isUserInteractionEnabled = false
-        view.backgroundColor = .clear
-        view.onMovedToWindow = { [weak coordinator = context.coordinator] hosted in
-            coordinator?.attach(from: hosted)
-        }
-        return view
-    }
-
-    func updateUIView(_ uiView: WindowAwareView, context: Context) {
-        context.coordinator.onReselect = onReselect
-        uiView.onMovedToWindow = { [weak coordinator = context.coordinator] hosted in
-            coordinator?.attach(from: hosted)
-        }
-        if uiView.window != nil {
-            context.coordinator.attach(from: uiView)
-        }
-    }
-
-    final class Coordinator: NSObject {
-        var onReselect: () -> Void
-        private var recognizer: UITapGestureRecognizer?
-        private weak var button: UIView?
-
-        init(onReselect: @escaping () -> Void) {
-            self.onReselect = onReselect
-        }
-
-        func attach(from view: UIView) {
-            guard view.window != nil, let tabBar = Self.findTabBar(from: view) else { return }
-            let buttons = tabBar.subviews
-                .filter { String(describing: type(of: $0)).contains("TabBarButton") }
-                .sorted { $0.frame.minX < $1.frame.minX }
-            guard let moreButton = buttons.last else { return }
-            if button === moreButton, recognizer != nil { return }
-
-            if let recognizer {
-                button?.removeGestureRecognizer(recognizer)
-            }
-
-            let recognizer = UITapGestureRecognizer(target: self, action: #selector(handleTap))
-            recognizer.cancelsTouchesInView = false
-            moreButton.addGestureRecognizer(recognizer)
-            self.recognizer = recognizer
-            button = moreButton
-        }
-
-        @objc private func handleTap() {
-            guard let tabBar = button?.superview as? UITabBar,
-                  let items = tabBar.items,
-                  tabBar.selectedItem === items.last else {
-                return
-            }
-            onReselect()
-        }
-
-        private static func findTabBar(from view: UIView) -> UITabBar? {
-            var responder: UIResponder? = view
-            while let current = responder {
-                if let tabController = current as? UITabBarController {
-                    return tabController.tabBar
-                }
-                responder = current.next
-            }
-            return findTabBarController(from: view.window?.rootViewController)?.tabBar
-        }
-
-        private static func findTabBarController(from controller: UIViewController?) -> UITabBarController? {
-            guard let controller else { return nil }
-
-            if let tabController = controller as? UITabBarController {
-                return tabController
-            }
-            for child in controller.children {
-                if let found = findTabBarController(from: child) {
-                    return found
-                }
-            }
-            guard let presentedController = controller.presentedViewController else {
-                return nil
-            }
-            return findTabBarController(from: presentedController)
         }
     }
 }

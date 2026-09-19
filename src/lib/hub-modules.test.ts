@@ -67,6 +67,19 @@ describe("mergeHubModules", () => {
     });
   });
 
+  it("preserves dashboard card sizes", () => {
+    const serialized = serializeHubModules({
+      dashboardCardSizes: { snacks: "expanded", notes: "standard" },
+    });
+
+    expect(parseHubModules(serialized)).toMatchObject({
+      dashboardCardSizes: expect.objectContaining({
+        snacks: "expanded",
+        notes: "standard",
+      }),
+    });
+  });
+
   it("maps legacy shopping keys to groceries", () => {
     expect(
       mergeHubModules({

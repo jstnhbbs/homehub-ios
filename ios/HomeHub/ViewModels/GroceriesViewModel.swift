@@ -42,7 +42,7 @@ final class GroceriesViewModel: ObservableObject {
     }
 
     var canSelectReminderList: Bool {
-        appState?.isOwner ?? false
+        appState?.canManageHousehold ?? false
     }
 
     func load() async {
@@ -74,7 +74,7 @@ final class GroceriesViewModel: ObservableObject {
     }
 
     func selectReminderList(id: String?) {
-        guard let appState, appState.isOwner else { return }
+        guard let appState, appState.canManageHousehold else { return }
         appState.nativeReminders.selectedListId = id
         syncReminderState(from: appState)
         Task { await load() }

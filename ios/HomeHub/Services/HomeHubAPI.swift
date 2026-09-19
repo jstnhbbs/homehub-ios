@@ -240,6 +240,10 @@ final class HomeHubAPI: ObservableObject {
         try await client.request("/api/mobile/v1/notes", method: "POST", body: input)
     }
 
+    func updateHouseholdNote(id: String, input: HouseholdNoteUpdateInput) async throws -> HouseholdNote {
+        try await client.request("/api/mobile/v1/notes/\(id)", method: "PATCH", body: input)
+    }
+
     func deleteHouseholdNote(id: String) async throws {
         try await client.requestVoid("/api/mobile/v1/notes/\(id)", method: "DELETE")
     }
@@ -358,17 +362,6 @@ final class HomeHubAPI: ObservableObject {
 
     // MARK: - Calendar
 
-    func createCalendarEvent(_ input: CalendarEventFormInput) async throws {
-        try await client.requestVoid("/api/mobile/v1/calendar/events", method: "POST", body: input)
-    }
-
-    func updateCalendarEvent(id: String, input: CalendarEventFormInput) async throws {
-        try await client.requestVoid("/api/mobile/v1/calendar/events/\(id)", method: "PATCH", body: input)
-    }
-
-    func deleteCalendarEvent(id: String) async throws {
-        try await client.requestVoid("/api/mobile/v1/calendar/events/\(id)", method: "DELETE")
-    }
 
     func updateCalendarSettings(_ input: UpdateCalendarSettingsRequest) async throws -> Household {
         try await client.request("/api/mobile/v1/calendar/settings", method: "PATCH", body: input)

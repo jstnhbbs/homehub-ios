@@ -6,28 +6,53 @@ struct ThemeSettingView: View {
 
     var body: some View {
         Section {
-            Picker("Mode", selection: $appState.appearanceMode) {
-                ForEach(AppearanceMode.allCases) { mode in
-                    Text(mode.label).tag(mode)
-                }
-            }
-
-            Picker("Theme Color", selection: $appState.accentPalette) {
-                ForEach(AccentPalette.allCases) { palette in
-                    Label {
-                        Text(palette.label)
-                    } icon: {
-                        palette.swatchIcon
-                    }
-                    .tag(palette)
-                }
-            }
+            ThemeColorMenu(selection: $appState.accentPalette)
 
             AppIconPickerLink()
         } header: {
             Text("Appearance")
         } footer: {
-            Text("Mode, theme color, and app icon are saved on this device.")
+            Text("Beacon follows the system light and dark appearance. Theme color and app icon are saved on this device.")
+        }
+    }
+}
+
+private struct ThemeColorMenu: View {
+    @Binding var selection: AccentPalette
+
+    var body: some View {
+        Menu {
+            Picker("Theme Color", selection: $selection) {
+                ForEach(AccentPalette.allCases) { palette in
+                    Label {
+                        Text(palette.label)
+                    } icon: {
+                        Image(uiImage: palette.menuSwatchImage)
+                            .renderingMode(.original)
+                    }
+                    .tag(palette)
+                }
+            }
+        } label: {
+            HStack {
+                Text("Theme Color")
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                HStack(spacing: 6) {
+                    selection.swatchIcon
+                        .frame(width: 20, height: 20)
+
+                    Text(selection.label)
+                        .foregroundStyle(.secondary)
+
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .contentShape(Rectangle())
         }
     }
 }
@@ -154,6 +179,18 @@ private struct AppIconPreview: View {
 }
 
 private extension AccentPalette {
+    var menuSwatchImage: UIImage {
+        let size = CGSize(width: 24, height: 24)
+        return UIGraphicsImageRenderer(size: size).image { context in
+            let rect = CGRect(origin: .zero, size: size).insetBy(dx: 2, dy: 2)
+            context.cgContext.setFillColor(UIColor(swatch).cgColor)
+            context.cgContext.fillEllipse(in: rect)
+            context.cgContext.setStrokeColor(UIColor.black.withAlphaComponent(0.15).cgColor)
+            context.cgContext.setLineWidth(1)
+            context.cgContext.strokeEllipse(in: rect)
+        }.withRenderingMode(.alwaysOriginal)
+    }
+
     var alternateAppIconName: String? {
         switch self {
         case .sage: nil

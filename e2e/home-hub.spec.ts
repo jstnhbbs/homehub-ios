@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
-test("a parent can create a household and use the hub", async ({ page }) => {
+test("a parent can create a household and manage family profiles", async ({ page }) => {
   const birthdayParts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Chicago",
     month: "2-digit",
@@ -10,11 +10,6 @@ test("a parent can create a household and use the hub", async ({ page }) => {
   const birthdayMonth = birthdayParts.find((part) => part.type === "month")!.value;
   const birthdayDay = birthdayParts.find((part) => part.type === "day")!.value;
   const birthday = `2020-${birthdayMonth}-${birthdayDay}`;
-  const birthdayLabel = new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    day: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${birthday}T12:00:00Z`));
 
   await page.goto("/sign-in");
   await page.getByRole("button", { name: /create an account/i }).click();
@@ -30,9 +25,8 @@ test("a parent can create a household and use the hub", async ({ page }) => {
     .fill("Alex");
   await page.getByRole("button", { name: "Create our hub" }).click();
 
-  await expect(page).toHaveURL(/dashboard/);
-  await expect(page.getByText("Here’s what’s happening today.")).toBeVisible();
-  await expect(page.getByText("The Test Family")).toBeVisible();
+  await expect(page).toHaveURL(/settings$/);
+  await expect(page.getByText("The Test Family").first()).toBeVisible();
   expect(
     await page.evaluate(
       () =>
@@ -41,55 +35,21 @@ test("a parent can create a household and use the hub", async ({ page }) => {
     ),
   ).toBe(true);
 
-  await page.getByRole("link", { name: "Chores", exact: true }).click();
-  await page.getByPlaceholder("Feed the dog").fill("Set the table");
-  await page.getByRole("button", { name: "Add chore" }).click();
-  await page.getByText("Edit Set the table", { exact: true }).click();
-  await page.getByLabel("Chore title").fill("Clear the table");
-  await page.getByRole("button", { name: "Save chore" }).click();
-  await expect(
-    page.getByRole("button", { name: /Clear the table/ }),
-  ).toBeVisible();
-  const deleteChoreButton = page.getByRole("button", {
-    name: "Delete chore",
-  });
-  if (!(await deleteChoreButton.isVisible())) {
-    await page.getByText("Edit Clear the table", { exact: true }).click();
-  }
-  await deleteChoreButton.click();
-  await expect(
-    page.getByRole("button", { name: /Clear the table/ }),
-  ).toHaveCount(0);
-
-  await page.getByRole("link", { name: "Routines", exact: true }).click();
-  await page.getByPlaceholder("Bedtime routine").fill("Morning launch");
-  await page
-    .getByPlaceholder("Brush teeth\nPack backpack\nPut shoes by the door")
-    .fill("Brush teeth\nPack backpack");
-  await page.getByRole("button", { name: "Add routine" }).click();
-  await page.getByText("Edit Morning launch", { exact: true }).click();
-  await page.getByLabel("Routine name").fill("School morning");
-  await page.getByLabel("Routine steps").fill("Brush teeth\nGrab lunch");
-  await page.getByRole("button", { name: "Save routine" }).click();
-  await expect(
-    page.getByRole("heading", { name: "School morning" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: /Grab lunch/ }),
-  ).toBeVisible();
-
-  await page.getByRole("link", { name: "Settings", exact: true }).click();
-  await expect(
-    page.getByRole("button", { name: "Photo", exact: true }),
-  ).toHaveCount(2);
-  await expect(page.getByRole("link", { name: "Edit Jamie" })).toBeVisible();
+  await expect(page.getByText("Jamie", { exact: true }).first()).toBeVisible();
 
   await page.getByPlaceholder("Name").fill("Taylor");
-  await page.getByText("adult", { exact: true }).click();
+  await page.getByRole("group", { name: "Profile type", exact: true })
+    .getByText("adult", { exact: true }).click();
+  await expect(page.getByRole("radio", { name: "adult", exact: true })).toBeChecked();
   await page.getByRole("button", { name: "Add family member" }).click();
-  await expect(page.getByRole("link", { name: "Edit Taylor" })).toBeVisible();
+  await expect(page.getByText("Taylor", { exact: true })).toBeVisible();
 
-  await page.getByRole("link", { name: "Edit Alex" }).click();
+  const response = await page.request.get("/api/mobile/v1/profiles");
+  expect(response.ok()).toBe(true);
+  const profiles: { id: string; name: string }[] = await response.json();
+  const child = profiles.find((profile) => profile.name === "Alex");
+  expect(child).toBeDefined();
+  await page.goto(`/settings/profiles/${child!.id}`);
   await page.getByLabel("Name").fill("Avery");
   await page.getByLabel("Birthday").fill(birthday);
   await page.getByTitle("Lavender").click();
@@ -97,43 +57,9 @@ test("a parent can create a household and use the hub", async ({ page }) => {
 
   await expect(page).toHaveURL(/settings$/);
   await expect(page.getByText("Avery")).toBeVisible();
-  await expect(page.getByText(`Birthday: ${birthdayLabel}`)).toBeVisible();
 
-  await page.getByRole("link", { name: "Calendar", exact: true }).click();
-  await expect(
-    page.getByRole("link", { name: "Avery’s birthday" }),
-  ).toBeVisible();
-  await expect(page.getByText("Agenda", { exact: true })).toBeVisible();
-  await page.getByRole("link", { name: "Week", exact: true }).click();
-  await expect(page).toHaveURL(/view=week/);
-  await expect(page.getByText("Agenda", { exact: true })).toBeVisible();
-
-  await page.getByRole("link", { name: "Day", exact: true }).click();
-  await expect(page).toHaveURL(/view=day/);
-  await expect(page.getByText("All day", { exact: true })).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Avery’s birthday" }),
-  ).toBeVisible();
-
-  await page.getByRole("link", { name: "Recipes", exact: true }).click();
-  await page.getByPlaceholder("Recipe title").fill("Pancakes");
-  await page.getByPlaceholder("1 cup flour").fill("1 cup flour\n2 eggs");
-  await page.getByPlaceholder("Preheat the oven.").fill("Mix batter\nCook on griddle");
-  await page.getByRole("button", { name: "Save recipe" }).click();
-  await expect(page.getByRole("heading", { name: "Pancakes" })).toBeVisible();
-  await expect(page.getByRole("listitem").filter({ hasText: "1 cup flour" })).toBeVisible();
-
-  await page.getByRole("link", { name: "Food", exact: true }).click();
-  const dinnerMealForm = page.locator("form").filter({
-    has: page.locator('select[aria-label="Choose a saved recipe for dinner"]:visible'),
-  }).first();
-  await dinnerMealForm
-    .locator('select[aria-label="Choose a saved recipe for dinner"]')
-    .selectOption({ label: "Pancakes" });
-  await dinnerMealForm.getByRole("button", { name: "Save meal" }).click();
-  await expect(
-    page.getByRole("link", { name: "View recipe" }).first(),
-  ).toBeVisible();
+  await page.goto("/dashboard");
+  await expect(page.getByRole("heading", { name: "Today lives in the iOS app." })).toBeVisible();
 });
 
 test("the sign-in screen fits the active viewport", async ({ page }) => {

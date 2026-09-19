@@ -51,25 +51,6 @@ struct CalendarOccurrence: Codable, Identifiable, Sendable {
     var profileId: String?
 }
 
-struct CalendarEventFormInput: Codable, Sendable {
-    var calendarId: String
-    var title: String
-    var startsAt: String
-    var endsAt: String
-    var allDay: Bool
-    var location: String?
-    var description: String?
-}
-
-struct HouseholdCalendar: Codable, Identifiable, Sendable {
-    let id: String
-    let connectionId: String
-    var url: String
-    var displayName: String
-    var color: String
-    var enabled: Bool
-}
-
 struct ScheduleEvent: Codable, Identifiable, Sendable {
     var id: String { eventId }
     let eventId: String
@@ -79,12 +60,6 @@ struct ScheduleEvent: Codable, Identifiable, Sendable {
     var allDay: Bool
     var color: String?
     var calendarName: String?
-}
-
-struct CalendarSyncStatus: Codable, Sendable {
-    var connected: Bool
-    var updatedLabel: String?
-    var lastSyncedAt: Date?
 }
 
 enum NativeCalendarAccessStatus: String, Sendable {

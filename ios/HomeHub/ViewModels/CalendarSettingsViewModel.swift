@@ -51,6 +51,10 @@ final class CalendarSettingsViewModel: ObservableObject {
         remindersAccessStatus == .denied || remindersAccessStatus == .restricted
     }
 
+    var canManageReminderList: Bool {
+        appState?.canManageHousehold ?? false
+    }
+
     func load() async {
         guard appState != nil else { return }
         isLoading = true
@@ -109,7 +113,10 @@ final class CalendarSettingsViewModel: ObservableObject {
     }
 
     func saveDefaultReminderList() {
-        guard let appState else { return }
+        guard let appState, appState.canManageHousehold else {
+            refreshFromNativeServices()
+            return
+        }
         appState.nativeReminders.selectedListId = defaultReminderListId
         refreshFromNativeServices()
         Task { await appState.refreshNativeGroceryItems() }

@@ -14,9 +14,11 @@ struct DashboardView: View {
                     GeometryReader { proxy in
                         let cards = dashboardCards
                         let layout = DashboardCardLayout(
-                            cardCount: cards.count,
+                            cards: cards,
+                            cardSizes: appState.hubModules.dashboardCardSizes,
                             availableSize: proxy.size,
-                            isCompact: true
+                            isCompact: true,
+                            usesFlexibleMacLayout: false
                         )
                         dashboardContent(cards: cards, layout: layout, isCompact: true)
                             .padding(.horizontal, 16)
@@ -37,12 +39,15 @@ struct DashboardView: View {
                     let isCompact = proxy.size.width < 620
                     let cards = dashboardCards
                     let layout = DashboardCardLayout(
-                        cardCount: cards.count,
+                        cards: cards,
+                        cardSizes: appState.hubModules.dashboardCardSizes,
                         availableSize: proxy.size,
-                        isCompact: isCompact
+                        isCompact: isCompact,
+                        usesFlexibleMacLayout: isRunningAsIPadAppOnMac
                     )
+                    let contentMaxWidth: CGFloat? = isRunningAsIPadAppOnMac ? nil : 1_500
                     dashboardContent(cards: cards, layout: layout, isCompact: isCompact)
-                        .frame(maxWidth: 1500, maxHeight: .infinity, alignment: .topLeading)
+                        .frame(maxWidth: contentMaxWidth, maxHeight: .infinity, alignment: .topLeading)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
             }
@@ -58,6 +63,10 @@ struct DashboardView: View {
                 await appState.refreshNativeTodaySchedule()
             }
         }
+    }
+
+    private var isRunningAsIPadAppOnMac: Bool {
+        ProcessInfo.processInfo.isiOSAppOnMac
     }
 
     private func openDestination(_ destination: HubDestination) {
@@ -114,9 +123,9 @@ struct DashboardView: View {
                         VStack(spacing: 16) {
                             ForEach(Array(layout.rows(for: cards).enumerated()), id: \.offset) { _, row in
                                 HStack(alignment: .top, spacing: 16) {
-                                    ForEach(row) { card in
+                                    ForEach(row) { item in
                                         dashboardCard(
-                                            card,
+                                            item.card,
                                             dashboard: dashboard,
                                             rowHeight: layout.rowHeight,
                                             fillsHeight: !isCompact,
@@ -124,8 +133,10 @@ struct DashboardView: View {
                                             scheduleEvents: scheduleEvents,
                                             calendarConnected: calendarConnected
                                         )
+                                        .frame(width: layout.width(for: item))
                                     }
                                 }
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
                         }
                     }
@@ -192,17 +203,7 @@ struct DashboardView: View {
                 height: rowHeight,
                 fillsHeight: fillsHeight
             ) {
-                DashboardChecklistPanel(
-                    isEmpty: dashboard.routineSteps.filter { !$0.completed }.isEmpty,
-                    emptyTitle: dashboard.routineSteps.isEmpty
-                        ? "Add a morning or bedtime routine."
-                        : "All routines done for today!",
-                    emptyAction: { openDestination(.routines) }
-                ) {
-                    ForEach(dashboard.routineSteps.filter { !$0.completed }.prefix(5)) { step in
-                        RoutineCheckRow(step: step, localDate: dashboard.localDate)
-                    }
-                }
+                RoutinesDashboardPanel(dashboard: dashboard)
             }
         case .chores:
             DashboardPanel(
@@ -442,16 +443,36 @@ private struct WeatherDashboardPanel: View {
 // MARK: - Layout primitives
 
 private struct DashboardCardLayout {
-    let cardCount: Int
+    struct RowItem: Identifiable {
+        let card: DashboardCardId
+        let span: Int
+
+        var id: DashboardCardId { card }
+    }
+
+    let cards: [DashboardCardId]
+    let cardSizes: [DashboardCardId: DashboardCardSize]
     let availableSize: CGSize
     let isCompact: Bool
+    let usesFlexibleMacLayout: Bool
+
+    private var cardCount: Int { cards.count }
+    private var spacing: CGFloat { 16 }
+    private var contentWidth: CGFloat {
+        guard !isCompact else { return max(0, availableSize.width - 32) }
+        return usesFlexibleMacLayout ? availableSize.width : min(availableSize.width, 1_500)
+    }
 
     var columnCount: Int {
         guard !isCompact else { return 1 }
         guard cardCount > 0 else { return 1 }
 
         let widthCap: Int
-        if availableSize.width >= 1_060 {
+        if usesFlexibleMacLayout {
+            let minimumColumnWidth: CGFloat = 250
+            let columnsByWidth = Int(floor((contentWidth + spacing) / (minimumColumnWidth + spacing)))
+            widthCap = min(6, max(2, columnsByWidth))
+        } else if availableSize.width >= 1_060 {
             widthCap = 4
         } else if availableSize.width >= 720 {
             widthCap = 3
@@ -460,19 +481,23 @@ private struct DashboardCardLayout {
         }
 
         let preferred: Int
-        switch cardCount {
-        case 1:
-            preferred = 1
-        case 2:
-            preferred = 2
-        case 3:
-            preferred = 3
-        case 4:
-            preferred = 2
-        case 5...6:
-            preferred = 3
-        default:
-            preferred = 4
+        if usesFlexibleMacLayout {
+            preferred = flexiblePreferredColumnCount(widthCap: widthCap)
+        } else {
+            switch cardCount {
+            case 1:
+                preferred = 1
+            case 2:
+                preferred = 2
+            case 3:
+                preferred = 3
+            case 4:
+                preferred = 2
+            case 5...6:
+                preferred = 3
+            default:
+                preferred = 4
+            }
         }
 
         return max(1, min(preferred, widthCap))
@@ -482,21 +507,73 @@ private struct DashboardCardLayout {
         guard !isCompact else { return 300 }
 
         let rows = max(1, rowCount)
-        let rowSpacing = CGFloat(rows - 1) * 16
+        let rowSpacing = CGFloat(rows - 1) * spacing
         let availableHeight = max(360, availableSize.height - 72 - rowSpacing)
         return max(170, floor(availableHeight / CGFloat(rows)))
     }
 
     private var rowCount: Int {
-        guard cardCount > 0 else { return 1 }
-        return Int(ceil(Double(cardCount) / Double(columnCount)))
+        rows(for: cards).count
     }
 
-    func rows(for cards: [DashboardCardId]) -> [[DashboardCardId]] {
-        stride(from: 0, to: cards.count, by: columnCount).map { startIndex in
-            let endIndex = min(startIndex + columnCount, cards.count)
-            return Array(cards[startIndex..<endIndex])
+    func width(for item: RowItem) -> CGFloat? {
+        guard !isCompact else { return nil }
+        let totalSpacing = CGFloat(columnCount - 1) * spacing
+        let columnWidth = max(0, (contentWidth - totalSpacing) / CGFloat(columnCount))
+        return columnWidth * CGFloat(item.span) + spacing * CGFloat(item.span - 1)
+    }
+
+    func rows(for cards: [DashboardCardId]) -> [[RowItem]] {
+        var rows: [[RowItem]] = []
+        var currentRow: [RowItem] = []
+        var usedColumns = 0
+
+        for card in cards {
+            let span = span(for: card)
+            if !currentRow.isEmpty && usedColumns + span > columnCount {
+                rows.append(currentRow)
+                currentRow = []
+                usedColumns = 0
+            }
+
+            currentRow.append(RowItem(card: card, span: span))
+            usedColumns += span
         }
+
+        if !currentRow.isEmpty {
+            rows.append(currentRow)
+        }
+
+        return rows
+    }
+
+    private func span(for card: DashboardCardId) -> Int {
+        guard !isCompact else { return 1 }
+        let size = cardSizes[card, default: .standard]
+        return size == .expanded ? min(2, columnCount) : 1
+    }
+
+    private func flexiblePreferredColumnCount(widthCap: Int) -> Int {
+        guard cardCount > 0 else { return 1 }
+        guard cardCount > 3 else { return cardCount }
+
+        var bestColumns = min(cardCount, widthCap)
+        var bestScore = Int.max
+
+        for columns in 2...min(cardCount, widthCap) {
+            let rows = Int(ceil(Double(cardCount) / Double(columns)))
+            let lastRowCount = cardCount - (rows - 1) * columns
+            let raggedness = columns - lastRowCount
+            let rowPenalty = rows * 2
+            let score = raggedness * 3 + rowPenalty
+
+            if score < bestScore {
+                bestScore = score
+                bestColumns = columns
+            }
+        }
+
+        return bestColumns
     }
 }
 
@@ -505,7 +582,7 @@ private struct DashboardPanel<Content: View>: View {
 
     let systemImage: String
     let title: String
-    let destination: HubDestination
+    let destination: HubDestination?
     let height: CGFloat
     var fillsHeight = true
     var background: Color = HubTheme.tile
@@ -514,13 +591,7 @@ private struct DashboardPanel<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            CardTitleView(systemImage: systemImage, title: title) {
-                if let onNavigate {
-                    onNavigate()
-                } else {
-                    openHubDestination(destination)
-                }
-            }
+            CardTitleView(systemImage: systemImage, title: title, action: titleAction)
             content()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
@@ -532,6 +603,18 @@ private struct DashboardPanel<Content: View>: View {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(HubTheme.line, lineWidth: 1)
         )
+    }
+
+    private var titleAction: (() -> Void)? {
+        if let onNavigate {
+            return onNavigate
+        }
+
+        if let destination {
+            return { openHubDestination(destination) }
+        }
+
+        return nil
     }
 }
 
@@ -553,6 +636,192 @@ private struct DashboardChecklistPanel<Content: View>: View {
             }
             .scrollIndicators(.hidden)
         }
+    }
+}
+
+// MARK: - Routines
+
+private struct RoutinesDashboardPanel: View {
+    @Environment(\.openHubDestination) private var openHubDestination
+
+    let dashboard: DashboardData
+
+    private var groups: [RoutineProgressGroup] {
+        RoutineProgressGroup.groups(
+            profiles: dashboard.profiles,
+            steps: dashboard.routineSteps
+        )
+    }
+
+    var body: some View {
+        if dashboard.routineSteps.isEmpty {
+            EmptyStateView(
+                text: "Add a morning or bedtime routine.",
+                action: { openHubDestination(.routines) }
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if groups.allSatisfy({ $0.isComplete }) {
+            EmptyStateView(
+                text: "All routines done for today!",
+                action: { openHubDestination(.routines) }
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ScrollView {
+                VStack(spacing: 8) {
+                    ForEach(groups) { group in
+                        RoutineProgressRow(group: group)
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+        }
+    }
+}
+
+private struct RoutineProgressGroup: Identifiable {
+    let id: String
+    let name: String
+    let color: String
+    let avatar: String?
+    let steps: [RoutineStepRow]
+
+    var completedCount: Int {
+        steps.filter { $0.completed }.count
+    }
+
+    var totalCount: Int {
+        steps.count
+    }
+
+    var remainingSteps: [RoutineStepRow] {
+        steps.filter { !$0.completed }
+    }
+
+    var progress: Double {
+        guard totalCount > 0 else { return 0 }
+        return Double(completedCount) / Double(totalCount)
+    }
+
+    var isComplete: Bool {
+        totalCount > 0 && completedCount == totalCount
+    }
+
+    static func groups(profiles: [Profile], steps: [RoutineStepRow]) -> [RoutineProgressGroup] {
+        let childProfiles = profiles
+            .filter { $0.profileType == .child }
+            .sorted { $0.sortOrder < $1.sortOrder }
+
+        var groups = childProfiles.compactMap { profile -> RoutineProgressGroup? in
+            let profileSteps = steps.filter { $0.profileId == profile.id }
+            guard !profileSteps.isEmpty else { return nil }
+
+            return RoutineProgressGroup(
+                id: profile.id,
+                name: profile.name,
+                color: profile.color,
+                avatar: profile.avatar,
+                steps: profileSteps
+            )
+        }
+
+        let householdSteps = steps.filter { $0.profileId == nil }
+        if !householdSteps.isEmpty {
+            groups.append(
+                RoutineProgressGroup(
+                    id: "household",
+                    name: "Family",
+                    color: "#4f7c6d",
+                    avatar: nil,
+                    steps: householdSteps
+                )
+            )
+        }
+
+        return groups
+    }
+}
+
+private struct RoutineProgressRow: View {
+    let group: RoutineProgressGroup
+
+    private var tint: Color {
+        HubTheme.profileColor(group.color)
+    }
+
+    private var previewSteps: [RoutineStepRow] {
+        Array(group.remainingSteps.prefix(3))
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            progressAvatar
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(group.name)
+                        .font(.subheadline.weight(.heavy))
+                        .lineLimit(1)
+
+                    Text("\(group.completedCount)/\(group.totalCount)")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(tint)
+
+                    Spacer(minLength: 0)
+                }
+
+                if previewSteps.isEmpty {
+                    Text("All set")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(HubTheme.muted)
+                } else {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(previewSteps) { step in
+                            let display = RoutineGlyphs.display(for: step.label)
+
+                            HStack(spacing: 6) {
+                                Text(display.glyph)
+                                    .font(.caption)
+                                    .frame(width: 18, alignment: .leading)
+
+                                Text(display.label)
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .background(tint.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(tint.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(group.name), \(group.completedCount) of \(group.totalCount) routine steps complete")
+    }
+
+    private var progressAvatar: some View {
+        ZStack {
+            Circle()
+                .stroke(tint.opacity(0.18), lineWidth: 4)
+            Circle()
+                .trim(from: 0, to: group.progress)
+                .stroke(tint, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            ProfileAvatarView(
+                name: group.name,
+                avatar: group.avatar,
+                color: group.color,
+                size: 38
+            )
+            .padding(5)
+        }
+        .frame(width: 52, height: 52)
     }
 }
 
@@ -776,7 +1045,7 @@ private struct DashboardSleepRow: View {
         )
         let secondary = NapHelpers.dashboardSleepSecondary(for: status)
 
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .center, spacing: 10) {
             Circle()
                 .fill(HubTheme.profileColor(profile.color))
                 .frame(width: 10, height: 10)
@@ -1033,7 +1302,7 @@ private struct NoteRow: View {
     let onDelete: () async -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .center, spacing: 10) {
             Image(systemName: "note.text")
                 .font(.caption.weight(.bold))
                 .foregroundStyle(HubTheme.sage)
@@ -1052,8 +1321,8 @@ private struct NoteRow: View {
                         .lineLimit(2)
                 }
             }
-
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .offset(y: note.body.isEmpty ? 1 : 0)
 
             Button {
                 Task { await onDelete() }
@@ -1067,7 +1336,7 @@ private struct NoteRow: View {
             .disabled(isDeleting)
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 9)
+        .padding(.vertical, 8)
         .background(HubTheme.tileQuiet)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
