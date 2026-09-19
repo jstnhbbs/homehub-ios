@@ -118,6 +118,10 @@ final class HomeHubAPI: ObservableObject {
         )
     }
 
+    func exportHouseholdData() async throws -> Data {
+        try await client.requestData("/api/mobile/v1/household/export")
+    }
+
     // MARK: - Hub modules
 
     func fetchHubModules() async throws -> HubModules {

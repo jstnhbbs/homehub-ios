@@ -15,6 +15,9 @@ struct SettingsView: View {
     @State private var activeProfileEditor: ProfileEditorPresentation?
     @State private var weekStartsOn = WeekStart.defaultWeekStartsOn
     @State private var isSavingWeekStart = false
+    @State private var exportDocument: HouseholdExportDocument?
+    @State private var isPreparingExport = false
+    @State private var showExporter = false
 
     var body: some View {
         Group {
@@ -274,6 +277,10 @@ struct SettingsView: View {
                 dateSection
             }
 
+            if appState.canManageHousehold {
+                exportSection
+            }
+
             Section {
                 Button("Sign Out", role: .destructive) {
                     Task { await appState.signOut() }
@@ -282,6 +289,17 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+        .fileExporter(
+            isPresented: $showExporter,
+            document: exportDocument,
+            contentType: .json,
+            defaultFilename: "beacon-export-\(DateHelpers.localDateIn(timezone: .current))"
+        ) { result in
+            if case .failure(let error) = result {
+                appState.errorMessage = error.localizedDescription
+            }
+            exportDocument = nil
+        }
         .onAppear {
             if let household = appState.household {
                 weekStartsOn = WeekStart.parseWeekStartsOn(household.weekStartsOn)
@@ -440,6 +458,30 @@ struct SettingsView: View {
         viewModel.selectedProfileId = profileId
         activeProfileEditor = .edit(profileId)
         appState.pendingProfileEditId = nil
+    }
+
+    private var exportSection: some View {
+        Section {
+            Button {
+                Task { await prepareExport() }
+            } label: {
+                Label(isPreparingExport ? "Preparing Export" : "Export Household Data", systemImage: "square.and.arrow.up")
+            }
+            .disabled(isPreparingExport)
+        } footer: {
+            Text("Saves a JSON file with your profiles, routines, chores, meals, recipes, groceries, notes, birthdays, and sleep logs. Invite codes and email addresses are not included.")
+        }
+    }
+
+    private func prepareExport() async {
+        isPreparingExport = true
+        defer { isPreparingExport = false }
+        do {
+            exportDocument = HouseholdExportDocument(data: try await appState.api.exportHouseholdData())
+            showExporter = true
+        } catch {
+            appState.errorMessage = error.localizedDescription
+        }
     }
 
     private func householdSection(_ household: Household) -> some View {

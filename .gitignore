@@ -38,6 +38,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# database backups (contain password hashes and session tokens)
+/backups/
+
 # local Turso/libSQL databases
 *.db
 *.db-shm

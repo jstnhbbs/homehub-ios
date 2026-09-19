@@ -52,6 +52,18 @@ To see what a migration run would do against a database without changing it, run
 
 Install the native app through Xcode or TestFlight. See [the iOS setup guide](ios/README.md) for build and backend configuration. The website provides account and household management; the family dashboard runs in the native app.
 
+## Backups and data export
+
+- **Household export:** owners and parents can save a JSON copy of their household from the iOS app (Settings → General → Export Household Data). It leaves out invite codes and member email addresses.
+- **Database backup:** for a full copy of the production database, run this while signed in to the Turso CLI:
+
+  ```bash
+  mkdir -p backups && turso db shell homehub .dump > backups/homehub-$(date +%F).sql
+  ```
+
+  The `backups/` folder is gitignored. A dump contains password hashes and session tokens, so keep it private. To restore into a new database: `turso db create homehub-restored --from-dump backups/<file>.sql`.
+- **Point-in-time restore:** Turso can restore a database to an earlier moment, but how far back depends on your plan. Check the Turso dashboard for your window, and consider enabling delete protection on the production database (`turso db show homehub` reports its current state).
+
 ## Checks
 
 ```bash

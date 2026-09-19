@@ -86,6 +86,29 @@ struct APIClient: Sendable {
         }
     }
 
+    /// Fetches a raw response body, for file downloads such as the household export.
+    func requestData(_ path: String, timeout: TimeInterval = 60) async throws -> Data {
+        guard let url = URL(string: path, relativeTo: baseURL) else {
+            throw APIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
+        request.setValue("Beacon-iOS/1.0", forHTTPHeaderField: "User-Agent")
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+        if http.statusCode == 401 {
+            throw APIError.unauthorized
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw APIError.serverError(APIClient.serverErrorMessage(statusCode: http.statusCode, data: data))
+        }
+        return data
+    }
+
     func requestVoid(
         _ path: String,
         method: String = "POST",
