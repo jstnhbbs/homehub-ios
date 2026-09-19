@@ -28,6 +28,11 @@ final class RoutinesViewModel: ObservableObject {
         return DateHelpers.localDateIn(timezone: timezone)
     }
 
+    /// The streak for a routine's profile (nil for shared routines), from the latest dashboard load.
+    func streak(for profileId: String?) -> RoutineStreak? {
+        appState?.dashboard?.routineStreaks.first { $0.profileId == profileId }
+    }
+
     func profile(for id: String?) -> Profile? {
         guard let id else { return nil }
         return profiles.first { $0.id == id }

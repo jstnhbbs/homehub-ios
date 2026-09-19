@@ -180,6 +180,8 @@ export const routineSteps = sqliteTable(
       .references(() => routines.id, { onDelete: "cascade" }),
     label: text("label").notNull(),
     sortOrder: integer("sort_order").notNull().default(0),
+    // Null for steps created before streaks existed; see src/lib/streaks.ts for the fallback.
+    createdAt: integer("created_at", { mode: "timestamp" }),
   },
   (table) => [index("routine_steps_routine_idx").on(table.routineId)],
 );

@@ -15,6 +15,7 @@ struct DashboardData: Codable, Sendable {
     var groceryItems: [GroceryItem]
     var notes: [HouseholdNote]
     var upcomingBirthdays: [BirthdayItem]
+    var routineStreaks: [RoutineStreak]
 
     private enum CodingKeys: String, CodingKey {
         case household
@@ -31,6 +32,7 @@ struct DashboardData: Codable, Sendable {
         case groceryItems
         case notes
         case upcomingBirthdays
+        case routineStreaks
     }
 
     init(from decoder: Decoder) throws {
@@ -49,6 +51,7 @@ struct DashboardData: Codable, Sendable {
         groceryItems = try container.decodeIfPresent([GroceryItem].self, forKey: .groceryItems) ?? []
         notes = try container.decodeIfPresent([HouseholdNote].self, forKey: .notes) ?? []
         upcomingBirthdays = try container.decodeIfPresent([BirthdayItem].self, forKey: .upcomingBirthdays) ?? []
+        routineStreaks = try container.decodeIfPresent([RoutineStreak].self, forKey: .routineStreaks) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
@@ -67,6 +70,7 @@ struct DashboardData: Codable, Sendable {
         try container.encode(groceryItems, forKey: .groceryItems)
         try container.encode(notes, forKey: .notes)
         try container.encode(upcomingBirthdays, forKey: .upcomingBirthdays)
+        try container.encode(routineStreaks, forKey: .routineStreaks)
     }
 }
 
@@ -90,4 +94,14 @@ struct HouseholdNoteUpdateInput: Codable, Sendable {
     var title: String?
     var body: String?
     var pinned: Bool?
+}
+
+/// How many days in a row a child finished every routine step scheduled for them.
+/// `profileId` is nil for routines shared by the whole household.
+struct RoutineStreak: Codable, Equatable, Sendable {
+    let profileId: String?
+    let current: Int
+    let best: Int
+    let completedToday: Bool
+    let todayPending: Bool
 }

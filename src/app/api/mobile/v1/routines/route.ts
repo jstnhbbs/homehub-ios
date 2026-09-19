@@ -91,6 +91,7 @@ export async function POST(request: Request) {
           routineId,
           label,
           sortOrder: index,
+          createdAt: new Date(),
         })),
       );
     });

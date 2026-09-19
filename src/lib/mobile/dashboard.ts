@@ -22,6 +22,7 @@ import { parseSnackOptions } from "@/lib/meals/snacks";
 import { fetchNapsForDate, serializeNap } from "@/lib/naps/store";
 import type { getCurrentHousehold } from "@/lib/household";
 import { getUserHubModules } from "@/lib/hub-modules-store";
+import { loadRoutineStreaks } from "@/lib/streak-store";
 import { serializeHousehold } from "@/lib/mobile/http";
 
 type Household = NonNullable<Awaited<ReturnType<typeof getCurrentHousehold>>>;
@@ -46,6 +47,7 @@ export async function buildDashboardPayload(
     groceryRows,
     noteRows,
     familyBirthdayRows,
+    routineStreaks,
   ] = await Promise.all([
     db
       .select()
@@ -124,6 +126,7 @@ export async function buildDashboardPayload(
       .from(familyBirthdays)
       .where(eq(familyBirthdays.householdId, household.id))
       .orderBy(asc(familyBirthdays.name)),
+    loadRoutineStreaks(household.id, household.timezone, localDate),
   ]);
 
   const doneSteps = new Set(routineDone.map((item) => item.stepId));
@@ -206,5 +209,6 @@ export async function buildDashboardPayload(
     groceryItems: groceryRows,
     notes: noteRows,
     upcomingBirthdays,
+    routineStreaks,
   };
 }

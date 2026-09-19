@@ -78,6 +78,7 @@ export async function PATCH(request: Request, context: RouteContext) {
             routineId: id,
             label,
             sortOrder: index,
+            createdAt: new Date(),
           });
         }
       }

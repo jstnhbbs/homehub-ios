@@ -643,8 +643,11 @@ private struct DashboardChecklistPanel<Content: View>: View {
 
 private struct RoutinesDashboardPanel: View {
     @Environment(\.openHubDestination) private var openHubDestination
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let dashboard: DashboardData
+
+    @State private var celebration: String?
 
     private var groups: [RoutineProgressGroup] {
         RoutineProgressGroup.groups(
@@ -653,7 +656,26 @@ private struct RoutinesDashboardPanel: View {
         )
     }
 
+    private func streak(for group: RoutineProgressGroup) -> RoutineStreak? {
+        let profileId: String? = group.id == "household" ? nil : group.id
+        return dashboard.routineStreaks.first { $0.profileId == profileId }
+    }
+
     var body: some View {
+        content
+            .overlay(alignment: .top) {
+                if let celebration {
+                    StreakBanner(text: celebration)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .padding(.top, 4)
+                }
+            }
+            .onAppear { celebrateMilestones() }
+            .onChange(of: dashboard.routineStreaks) { _, _ in celebrateMilestones() }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         if dashboard.routineSteps.isEmpty {
             EmptyStateView(
                 text: "Add a morning or bedtime routine.",
@@ -661,21 +683,100 @@ private struct RoutinesDashboardPanel: View {
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if groups.allSatisfy({ $0.isComplete }) {
-            EmptyStateView(
-                text: "All routines done for today!",
-                action: { openHubDestination(.routines) }
-            )
+            VStack(spacing: 10) {
+                EmptyStateView(
+                    text: "All routines done for today!",
+                    action: { openHubDestination(.routines) }
+                )
+                streakSummary
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollView {
                 VStack(spacing: 8) {
                     ForEach(groups) { group in
-                        RoutineProgressRow(group: group)
+                        RoutineProgressRow(group: group, streak: streak(for: group))
                     }
                 }
             }
             .scrollIndicators(.hidden)
         }
+    }
+
+    /// Everyone's running streak, shown once the day's routines are finished.
+    @ViewBuilder
+    private var streakSummary: some View {
+        let running = groups.compactMap { group -> (String, Int)? in
+            guard let days = streak(for: group)?.current, days >= StreakHelpers.minimumToShow else { return nil }
+            return (group.name, days)
+        }
+        if !running.isEmpty {
+            HStack(spacing: 12) {
+                ForEach(running, id: \.0) { name, days in
+                    HStack(spacing: 4) {
+                        Text(name).font(.caption.weight(.bold))
+                        StreakChip(days: days)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Shows a banner the first time a child reaches a milestone on a given day.
+    private func celebrateMilestones() {
+        for group in groups {
+            guard let streak = streak(for: group),
+                  streak.completedToday,
+                  StreakHelpers.isMilestone(streak.current),
+                  !StreakHelpers.hasCelebrated(profileKey: group.id, localDate: dashboard.localDate) else { continue }
+            StreakHelpers.markCelebrated(profileKey: group.id, localDate: dashboard.localDate)
+            let message = StreakHelpers.celebrationMessage(name: group.name, days: streak.current)
+            withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.7)) {
+                celebration = message
+            }
+            Task {
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                withAnimation { if celebration == message { celebration = nil } }
+            }
+            return
+        }
+    }
+}
+
+/// A flame and a day count, shown next to a child's routine progress.
+struct StreakChip: View {
+    let days: Int
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "flame.fill")
+                .font(.caption2.weight(.bold))
+            Text("\(days)")
+                .font(.caption.weight(.heavy))
+        }
+        .foregroundStyle(.orange)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(Color.orange.opacity(0.14))
+        .clipShape(Capsule())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(StreakHelpers.label(days))
+    }
+}
+
+private struct StreakBanner: View {
+    let text: String
+
+    var body: some View {
+        Label(text, systemImage: "flame.fill")
+            .font(.subheadline.weight(.heavy))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(Color.orange)
+            .clipShape(Capsule())
+            .shadow(color: .black.opacity(0.15), radius: 8, y: 3)
+            .accessibilityAddTraits(.isStaticText)
     }
 }
 
@@ -744,6 +845,7 @@ private struct RoutineProgressGroup: Identifiable {
 
 private struct RoutineProgressRow: View {
     let group: RoutineProgressGroup
+    var streak: RoutineStreak?
 
     private var tint: Color {
         HubTheme.profileColor(group.color)
@@ -766,6 +868,10 @@ private struct RoutineProgressRow: View {
                     Text("\(group.completedCount)/\(group.totalCount)")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(tint)
+
+                    if let days = streak?.current, days >= StreakHelpers.minimumToShow {
+                        StreakChip(days: days)
+                    }
 
                     Spacer(minLength: 0)
                 }

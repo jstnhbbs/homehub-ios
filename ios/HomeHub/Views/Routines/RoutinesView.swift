@@ -126,9 +126,15 @@ private struct RoutineCard: View {
                 let profile = viewModel.profile(for: routine.profileId)
 
                 if pending.isEmpty, !(routine.steps ?? []).isEmpty {
-                    Text("All done for today!")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(HubTheme.muted)
+                    HStack(spacing: 8) {
+                        Text("All done for today!")
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(HubTheme.muted)
+                        if let days = viewModel.streak(for: routine.profileId)?.current,
+                           days >= StreakHelpers.minimumToShow {
+                            StreakChip(days: days)
+                        }
+                    }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
                         .background(HubTheme.tileQuiet)
