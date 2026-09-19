@@ -6,6 +6,9 @@ struct DashboardView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var compactNavigationPath = NavigationPath()
+    /// Ticks once a minute so the birthday banner appears (and goes away) at midnight on its own.
+    @State private var clock = Date()
+    private let minuteTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
     var body: some View {
         Group {
@@ -63,6 +66,15 @@ struct DashboardView: View {
                 await appState.refreshNativeTodaySchedule()
             }
         }
+        .onReceive(minuteTimer) { clock = $0 }
+    }
+
+    /// Birthdays that fall today in the household's time zone, if the Birthdays module is on.
+    private func birthdaysToday(_ dashboard: DashboardData) -> (items: [BirthdayItem], localDate: String) {
+        let timezone = TimeZone(identifier: dashboard.household.timezone) ?? .current
+        let today = DateHelpers.localDateIn(timezone: timezone, date: clock)
+        guard appState.hubModules.isEnabled(.birthdays) else { return ([], today) }
+        return (BirthdayToday.items(dashboard.upcomingBirthdays, today: today), today)
     }
 
     private var isRunningAsIPadAppOnMac: Bool {
@@ -110,6 +122,11 @@ struct DashboardView: View {
                     ? appState.nativeTodayScheduleEvents
                     : []
                 let calendarConnected = appState.nativeCalendar.hasFullAccess
+                let todaysBirthdays = birthdaysToday(dashboard)
+
+                if !todaysBirthdays.items.isEmpty {
+                    BirthdayTodayBanners(items: todaysBirthdays.items, localDate: todaysBirthdays.localDate)
+                }
 
                 if cards.isEmpty {
                     ContentUnavailableView(
@@ -1463,6 +1480,11 @@ private struct BirthdaysDashboardPanel: View {
         Array(dashboard.upcomingBirthdays.prefix(4))
     }
 
+    /// Today's date in the household's time zone, so a dashboard loaded yesterday still shows "today".
+    private var today: String {
+        DateHelpers.localDateIn(timezone: TimeZone(identifier: dashboard.household.timezone) ?? .current)
+    }
+
     var body: some View {
         if items.isEmpty {
             EmptyStateView(
@@ -1473,28 +1495,47 @@ private struct BirthdaysDashboardPanel: View {
         } else {
             VStack(spacing: 8) {
                 ForEach(items) { item in
-                    HStack(spacing: 10) {
-                        Circle()
-                            .fill(HubTheme.profileColor(item.color))
-                            .frame(width: 10, height: 10)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(item.name)
-                                .font(.subheadline.weight(.bold))
-                                .lineLimit(1)
-                            Text(BirthdayHelpers.countdownLabel(daysUntil: item.daysUntil))
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(HubTheme.muted)
-                        }
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(HubTheme.tileQuiet)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    row(item, isToday: item.nextDate == today)
                 }
                 Spacer(minLength: 0)
             }
         }
+    }
+
+    @ViewBuilder
+    private func row(_ item: BirthdayItem, isToday: Bool) -> some View {
+        HStack(spacing: 10) {
+            if isToday {
+                Image(systemName: "party.popper.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(.orange)
+            } else {
+                Circle()
+                    .fill(HubTheme.profileColor(item.color))
+                    .frame(width: 10, height: 10)
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(item.name)
+                    .font(.subheadline.weight(isToday ? .heavy : .bold))
+                    .lineLimit(1)
+                Text(isToday ? todayLabel(item) : BirthdayHelpers.countdownLabel(daysUntil: item.daysUntil))
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(isToday ? Color.orange : HubTheme.muted)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(isToday ? Color.orange.opacity(0.14) : HubTheme.tileQuiet)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.orange.opacity(isToday ? 0.5 : 0), lineWidth: 1.5)
+        )
+    }
+
+    private func todayLabel(_ item: BirthdayItem) -> String {
+        BirthdayToday.ageLine(item.upcomingAge) ?? "Today"
     }
 }
 
