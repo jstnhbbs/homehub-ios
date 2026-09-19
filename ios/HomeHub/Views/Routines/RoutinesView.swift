@@ -149,6 +149,31 @@ private struct RoutineCard: View {
                     }
                 }
 
+                let doneToday = viewModel.completedSteps(for: routine)
+                if !doneToday.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("DONE TODAY")
+                            .font(.caption2.weight(.heavy))
+                            .foregroundStyle(HubTheme.muted)
+                        ForEach(doneToday, id: \.step.id) { item in
+                            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(HubTheme.sage)
+                                Text(RoutineGlyphs.display(for: item.step.label).label)
+                                    .font(.caption.weight(.bold))
+                                if let caption = item.caption {
+                                    Text(caption)
+                                        .font(.caption)
+                                        .foregroundStyle(HubTheme.muted)
+                                }
+                                Spacer(minLength: 0)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
                 if viewModel.canManage {
                     Button(action: onEdit) {
                         Label("Edit Routine", systemImage: "pencil")

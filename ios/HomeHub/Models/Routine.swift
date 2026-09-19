@@ -33,6 +33,8 @@ struct RoutineStepRow: Codable, Identifiable, Sendable {
     var period: RoutinePeriod
     var profileId: String?
     var completed: Bool
+    var completedAt: Date?
+    var completedByName: String?
 }
 
 struct RoutineInput: Codable, Sendable {

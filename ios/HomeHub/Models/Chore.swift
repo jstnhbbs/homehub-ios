@@ -27,6 +27,8 @@ struct ChoreRow: Codable, Identifiable, Sendable {
     var sortOrder: Int?
     var periodKey: String
     var completed: Bool
+    var completedAt: Date?
+    var completedByName: String?
     var dueToday: Bool?
 }
 

@@ -74,7 +74,7 @@ To load `http://` during development, add a temporary ATS exception in Info.plis
 - **Calendar** (read-only): month/week/day views, agenda, search, native EventKit access, local calendar selection, week start
 - **Groceries** (synced with Apple Reminders), **Birthdays**, and pinned household **Notes**
 - **Routines**: checklist cards by period, daily step check-offs, add/edit/delete (parents), and **streaks**: a flame badge with the days in a row a child finished every step, and a once-a-day banner at 3, 7, 14, 30, 50, 100, 200, and 365 days
-- **Chores**: grouped by family profile, cadence-aware check-offs, add/edit/delete (parents)
+- **Chores**: grouped by family profile, cadence-aware check-offs, add/edit/delete (parents). Completed chores show who checked them off and when, and routines list what was done today the same way
 - **Meals**: week navigation, a day-by-day list on iPhone and a grid on iPad, tap-a-slot picker (saved recipes, recently used, custom text), automatic saving, swipe/context-menu/drag-and-drop to clear, copy, and move meals, copy/clear week, and "Add Week to Groceries" (parents). It merges the rest of the week's recipe ingredients into a preview, sums amounts only when units match, and adds the chosen items to Reminders or the household list.
 - **Recipes**: card grid, import URL, add/edit/delete (parents)
 - **Profiles**: family member CRUD in Settings (parents); **Profile** tab for account + self-edit (all members, including guests)
@@ -107,6 +107,7 @@ Ingredient parsing and merging (used by "Add Week to Groceries") has standalone 
 ios/checks/ingredient-merge/run.sh
 ios/checks/meal-plan/run.sh
 ios/checks/streak-helpers/run.sh
+ios/checks/completion-helpers/run.sh
 ```
 
 iOS (after opening in Xcode): **Product → Build** (⌘B), then run on iPhone and iPad simulators. Landscape remains recommended for a dedicated shared iPad display.

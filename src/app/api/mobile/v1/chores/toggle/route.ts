@@ -7,10 +7,12 @@ import {
   mobileJson,
   parseJsonBody,
   requireMobileHousehold,
+  requireMobileUser,
 } from "@/lib/mobile/http";
 
 export async function POST(request: Request) {
   try {
+    const user = await requireMobileUser();
     const household = await requireMobileHousehold();
     const input = z
       .object({
@@ -51,7 +53,11 @@ export async function POST(request: Request) {
     } else {
       await db
         .insert(choreCompletions)
-        .values({ choreId: input.choreId, periodKey: input.periodKey })
+        .values({
+          choreId: input.choreId,
+          periodKey: input.periodKey,
+          completedBy: user.id,
+        })
         .onConflictDoNothing();
     }
 

@@ -22,7 +22,8 @@ import { parseJsonArray } from "@/lib/recipes/store";
 
 /**
  * Everything a household owns, as plain JSON a family can keep or move elsewhere.
- * Deliberately left out: invite codes, member email addresses, passwords, and sessions.
+ * Deliberately left out: invite codes, member email addresses, who completed what, passwords,
+ * and sessions.
  */
 export async function buildHouseholdExport(householdId: string) {
   const [household] = await db
@@ -134,9 +135,9 @@ export async function buildHouseholdExport(householdId: string) {
         .filter((step) => step.routineId === row.id)
         .map((step) => omit(step, "routineId")),
     })),
-    routineCompletions: routineCompletionRows,
+    routineCompletions: routineCompletionRows.map((row) => omit(row, "completedBy")),
     chores: choreRows.map((row) => omit(row, "householdId")),
-    choreCompletions: choreCompletionRows,
+    choreCompletions: choreCompletionRows.map((row) => omit(row, "completedBy")),
     snackCompletions: snackRows.map((row) => omit(row, "householdId")),
     sleepLogs: sleepRows.map((row) => omit(row, "householdId")),
     recipes: recipeRows.map((row) => ({

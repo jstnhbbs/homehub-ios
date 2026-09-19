@@ -196,6 +196,10 @@ export const routineCompletions = sqliteTable(
     completedAt: integer("completed_at", { mode: "timestamp" })
       .$defaultFn(() => new Date())
       .notNull(),
+    // Who checked it off. Null for older completions and after that person deletes their account.
+    completedBy: text("completed_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
   },
   (table) => [
     primaryKey({ columns: [table.stepId, table.localDate] }),
@@ -234,6 +238,9 @@ export const choreCompletions = sqliteTable(
     completedAt: integer("completed_at", { mode: "timestamp" })
       .$defaultFn(() => new Date())
       .notNull(),
+    completedBy: text("completed_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
   },
   (table) => [
     primaryKey({ columns: [table.choreId, table.periodKey] }),

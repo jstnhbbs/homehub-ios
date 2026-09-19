@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
-import { choreCompletions, chores, profiles } from "@/db/schema";
+import { choreCompletions, chores, profiles, users } from "@/db/schema";
 import { choreDaysForCadence, isChoreDueOnDate } from "@/lib/chores";
 import { localDateIn, weekKey } from "@/lib/dates";
 import {
@@ -41,9 +41,12 @@ export async function GET(request: Request) {
       .select({
         choreId: choreCompletions.choreId,
         periodKey: choreCompletions.periodKey,
+        completedAt: choreCompletions.completedAt,
+        completedByName: users.name,
       })
       .from(choreCompletions)
       .innerJoin(chores, eq(choreCompletions.choreId, chores.id))
+      .leftJoin(users, eq(choreCompletions.completedBy, users.id))
       .where(eq(chores.householdId, household.id));
 
     const rows =
@@ -61,7 +64,7 @@ export async function GET(request: Request) {
     return mobileJson(
       rows.map((chore) => {
         const periodKey = chore.cadence === "weekly" ? weeklyKey : localDate;
-        const completed = choreDone.some(
+        const done = choreDone.find(
           (item) => item.choreId === chore.id && item.periodKey === periodKey,
         );
         const dueToday = isChoreDueOnDate(
@@ -78,7 +81,9 @@ export async function GET(request: Request) {
           days: chore.days,
           sortOrder: chore.sortOrder,
           periodKey,
-          completed,
+          completed: Boolean(done),
+          completedAt: done?.completedAt ?? null,
+          completedByName: done?.completedByName ?? null,
           dueToday,
         };
       }),

@@ -85,6 +85,23 @@ final class RoutinesViewModel: ObservableObject {
         }
     }
 
+    /// Steps already done today with who did them and when, for the "Done today" list.
+    func completedSteps(for routine: Routine) -> [(step: RoutineStep, caption: String?)] {
+        guard let appState else { return [] }
+        let timezone = appState.household.flatMap { TimeZone(identifier: $0.timezone) } ?? .current
+        let rows = Dictionary(
+            (appState.dashboard?.routineSteps ?? []).map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        return (routine.steps ?? []).compactMap { step in
+            guard let row = rows[step.id], row.completed else { return nil }
+            return (
+                step,
+                CompletionHelpers.caption(name: row.completedByName, completedAt: row.completedAt, timezone: timezone)
+            )
+        }
+    }
+
     func markStepCompleted(_ stepId: String) {
         completedStepIds.insert(stepId)
     }

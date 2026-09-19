@@ -163,6 +163,18 @@ private struct ChoreItemRow: View {
                     .padding(.leading, 8)
             }
 
+            if isChecked,
+               let caption = CompletionHelpers.caption(
+                   name: chore.completedByName,
+                   completedAt: chore.completedAt,
+                   timezone: viewModel.timezone
+               ) {
+                Label("Done by \(caption)", systemImage: "checkmark.circle")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(HubTheme.muted)
+                    .padding(.leading, 8)
+            }
+
             if viewModel.canManage {
                 Button(action: onEdit) {
                     Label("Edit Chore", systemImage: "pencil")

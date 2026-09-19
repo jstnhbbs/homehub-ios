@@ -27,6 +27,10 @@ final class ChoresViewModel: ObservableObject {
         appState?.canManageHousehold ?? false
     }
 
+    var timezone: TimeZone {
+        appState?.household.flatMap { TimeZone(identifier: $0.timezone) } ?? .current
+    }
+
     var localDate: String {
         guard let appState,
               let timezone = appState.household.flatMap({ TimeZone(identifier: $0.timezone) }) else {

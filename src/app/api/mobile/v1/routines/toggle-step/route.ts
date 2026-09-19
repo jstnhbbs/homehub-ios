@@ -11,10 +11,12 @@ import {
   mobileJson,
   parseJsonBody,
   requireMobileHousehold,
+  requireMobileUser,
 } from "@/lib/mobile/http";
 
 export async function POST(request: Request) {
   try {
+    const user = await requireMobileUser();
     const household = await requireMobileHousehold();
     const input = z
       .object({
@@ -59,7 +61,11 @@ export async function POST(request: Request) {
     } else {
       await db
         .insert(routineCompletions)
-        .values({ stepId: input.stepId, localDate: input.localDate })
+        .values({
+          stepId: input.stepId,
+          localDate: input.localDate,
+          completedBy: user.id,
+        })
         .onConflictDoNothing();
     }
 

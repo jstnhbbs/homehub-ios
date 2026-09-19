@@ -13,6 +13,7 @@ import {
   snackCompletions,
   familyBirthdays,
   groceryItems,
+  users,
 } from "@/db/schema";
 import { birthdayEventsInRange } from "@/lib/birthdays";
 import { listHouseholdBirthdays } from "@/lib/family-birthdays";
@@ -67,10 +68,15 @@ export async function buildDashboardPayload(
       .where(eq(routines.householdId, household.id))
       .orderBy(asc(routines.sortOrder), asc(routineSteps.sortOrder)),
     db
-      .select({ stepId: routineCompletions.stepId })
+      .select({
+        stepId: routineCompletions.stepId,
+        completedAt: routineCompletions.completedAt,
+        completedByName: users.name,
+      })
       .from(routineCompletions)
       .innerJoin(routineSteps, eq(routineCompletions.stepId, routineSteps.id))
       .innerJoin(routines, eq(routineSteps.routineId, routines.id))
+      .leftJoin(users, eq(routineCompletions.completedBy, users.id))
       .where(
         and(
           eq(routines.householdId, household.id),
@@ -86,9 +92,12 @@ export async function buildDashboardPayload(
       .select({
         choreId: choreCompletions.choreId,
         periodKey: choreCompletions.periodKey,
+        completedAt: choreCompletions.completedAt,
+        completedByName: users.name,
       })
       .from(choreCompletions)
       .innerJoin(chores, eq(choreCompletions.choreId, chores.id))
+      .leftJoin(users, eq(choreCompletions.completedBy, users.id))
       .where(eq(chores.householdId, household.id)),
     db
       .select()
@@ -129,7 +138,7 @@ export async function buildDashboardPayload(
     loadRoutineStreaks(household.id, household.timezone, localDate),
   ]);
 
-  const doneSteps = new Set(routineDone.map((item) => item.stepId));
+  const doneSteps = new Map(routineDone.map((item) => [item.stepId, item]));
   const dueChores = choreRows.filter((chore) =>
     isChoreDueOnDate(
       chore.cadence,
@@ -174,13 +183,18 @@ export async function buildDashboardPayload(
     hubModules,
     localDate,
     profiles: familyProfiles,
-    routineSteps: routineRows.map((step) => ({
-      ...step,
-      completed: doneSteps.has(step.id),
-    })),
+    routineSteps: routineRows.map((step) => {
+      const done = doneSteps.get(step.id);
+      return {
+        ...step,
+        completed: Boolean(done),
+        completedAt: done?.completedAt ?? null,
+        completedByName: done?.completedByName ?? null,
+      };
+    }),
     chores: dueChores.map((chore) => {
       const periodKey = chore.cadence === "weekly" ? weeklyKey : localDate;
-      const completed = choreDone.some(
+      const done = choreDone.find(
         (item) => item.choreId === chore.id && item.periodKey === periodKey,
       );
       return {
@@ -190,7 +204,9 @@ export async function buildDashboardPayload(
         cadence: chore.cadence,
         days: chore.days,
         periodKey,
-        completed,
+        completed: Boolean(done),
+        completedAt: done?.completedAt ?? null,
+        completedByName: done?.completedByName ?? null,
       };
     }),
     meals: todayMeals,
