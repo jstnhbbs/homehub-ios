@@ -75,7 +75,7 @@ To load `http://` during development, add a temporary ATS exception in Info.plis
 - **Groceries** (synced with Apple Reminders), **Birthdays**, and pinned household **Notes**
 - **Routines**: checklist cards by period, daily step check-offs, add/edit/delete (parents)
 - **Chores**: grouped by family profile, cadence-aware check-offs, add/edit/delete (parents)
-- **Meals**: weekly grid, recipe picker, copy/clear week (parents)
+- **Meals**: weekly grid, recipe picker, copy/clear week, and "Add Week to Groceries" (parents). It merges the rest of the week's recipe ingredients into a preview, sums amounts only when units match, and adds the chosen items to Reminders or the household list.
 - **Recipes**: card grid, import URL, add/edit/delete (parents)
 - **Profiles**: family member CRUD in Settings (parents); **Profile** tab for account + self-edit (all members, including guests)
 - **Settings**: household members list with guest removal (parents)
@@ -98,6 +98,12 @@ Backend:
 ```bash
 npm run typecheck
 npm run lint
+```
+
+Ingredient parsing and merging (used by "Add Week to Groceries") has standalone checks that need only the Swift toolchain:
+
+```bash
+ios/checks/ingredient-merge/run.sh
 ```
 
 iOS (after opening in Xcode): **Product → Build** (⌘B), then run on iPhone and iPad simulators. Landscape remains recommended for a dedicated shared iPad display.

@@ -88,6 +88,9 @@ struct MealsView: View {
             if let error = viewModel.errorMessage {
                 Text(error).font(.footnote).foregroundStyle(.red)
             }
+            if let success = viewModel.successMessage {
+                Text(success).font(.footnote.weight(.semibold)).foregroundStyle(HubTheme.sage)
+            }
             if viewModel.isLoading && viewModel.meals.isEmpty {
                 ProgressView().frame(maxWidth: .infinity, minHeight: 320)
             } else {
@@ -107,6 +110,11 @@ struct MealsView: View {
         .onAppear { viewModel.bind(to: appState) }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
+        .sheet(item: $viewModel.groceryPreview) { preview in
+            MealGroceryPreviewSheet(preview: preview) { titles in
+                await viewModel.addToGroceries(titles)
+            }
+        }
     }
 
     private var header: some View {
@@ -147,6 +155,12 @@ struct MealsView: View {
                 .disabled(viewModel.isWorking || !viewModel.hasUnsavedChanges)
 
                 Menu {
+                    Button {
+                        Task { await viewModel.prepareGroceryPreview() }
+                    } label: {
+                        Label("Add Week to Groceries", systemImage: "cart.badge.plus")
+                    }
+
                     Button {
                         Task { await viewModel.copyPreviousWeek() }
                     } label: {

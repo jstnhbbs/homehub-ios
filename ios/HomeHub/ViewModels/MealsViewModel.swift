@@ -8,9 +8,12 @@ final class MealsViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var isWorking = false
     @Published var errorMessage: String?
+    @Published var successMessage: String?
+    @Published var groceryPreview: MealGroceryPreview?
 
     private var appState: AppState?
     private var originalDrafts: [String: MealDraft] = [:]
+    private var recipeDetails: [String: Recipe] = [:]
 
     func bind(to appState: AppState) {
         self.appState = appState
@@ -104,7 +107,12 @@ final class MealsViewModel: ObservableObject {
             async let mealsTask = appState.api.fetchMeals(weekStart: weekStart)
             async let recipesTask = appState.api.fetchRecipes()
             meals = try await mealsTask
-            recipes = try await recipesTask.map(\.asOption)
+            let fetchedRecipes = try await recipesTask
+            recipeDetails = Dictionary(
+                fetchedRecipes.map { ($0.id, $0) },
+                uniquingKeysWith: { first, _ in first }
+            )
+            recipes = fetchedRecipes.map(\.asOption)
             resetDrafts()
         } catch {
             if let message = error.userFacingMessage {
@@ -180,6 +188,94 @@ final class MealsViewModel: ObservableObject {
         }
     }
 
+    /// Builds the "add to groceries" preview from the meals still ahead this week (today onward).
+    /// Uses the on-screen plan, so unsaved edits are included.
+    func prepareGroceryPreview() async {
+        guard let appState else { return }
+        errorMessage = nil
+        successMessage = nil
+
+        let today = DateHelpers.localDateIn(timezone: timezone)
+        var entries: [(source: String, ingredient: String)] = []
+        var mealsWithoutRecipe: [String] = []
+
+        for localDate in weekDateStrings where localDate >= today {
+            for slot in MealSlot.planningSlots {
+                let draft = mealDraft(localDate: localDate, slot: slot)
+                let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                if let recipeId = draft.recipeId, let recipe = recipeDetails[recipeId] {
+                    for ingredient in recipe.ingredients {
+                        entries.append((source: recipe.title, ingredient: ingredient))
+                    }
+                } else if !title.isEmpty, !mealsWithoutRecipe.contains(title) {
+                    mealsWithoutRecipe.append(title)
+                }
+            }
+        }
+
+        let merged = IngredientMerge.merge(entries)
+        guard !merged.isEmpty else {
+            errorMessage = mealsWithoutRecipe.isEmpty
+                ? "Nothing planned for the rest of this week."
+                : "None of the meals left this week use a saved recipe, so there are no ingredients to add."
+            return
+        }
+
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            appState.nativeReminders.refreshAccessStatus()
+            let usesReminders = appState.nativeReminders.hasFullAccess
+            let existing = usesReminders
+                ? try await appState.nativeReminders.loadItems()
+                : try await appState.api.fetchGroceryItems()
+            let onList = Set(existing.filter { !$0.checked }.map { IngredientMerge.matchKey(forTitle: $0.title) })
+
+            groceryPreview = MealGroceryPreview(
+                rows: merged.map { item in
+                    MealGroceryRow(
+                        id: item.id,
+                        text: item.displayText,
+                        sources: item.sources,
+                        alreadyOnList: onList.contains(item.key),
+                        isStaple: IngredientMerge.isCommonStaple(key: item.key)
+                    )
+                },
+                mealsWithoutRecipe: mealsWithoutRecipe,
+                usesReminders: usesReminders
+            )
+        } catch {
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
+        }
+    }
+
+    func addToGroceries(_ titles: [String]) async -> Bool {
+        guard let appState, !titles.isEmpty else { return false }
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            appState.nativeReminders.refreshAccessStatus()
+            if appState.nativeReminders.hasFullAccess {
+                _ = try appState.nativeReminders.addItems(titles)
+                await appState.refreshNativeGroceryItems()
+            } else {
+                for title in titles {
+                    _ = try await appState.api.addGroceryItem(GroceryItemInput(title: title, category: nil))
+                }
+            }
+            await appState.refreshDashboard()
+            successMessage = "Added \(titles.count) item\(titles.count == 1 ? "" : "s") to groceries."
+            return true
+        } catch {
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
+            return false
+        }
+    }
+
     private func resetDrafts() {
         var next: [String: MealDraft] = [:]
         for meal in meals {
@@ -202,6 +298,24 @@ struct MealDraft: Equatable, Sendable {
     var recipeId: String?
 
     static let empty = MealDraft(title: "", recipeId: nil)
+}
+
+struct MealGroceryRow: Identifiable, Equatable, Sendable {
+    let id: String
+    let text: String
+    let sources: [String]
+    let alreadyOnList: Bool
+    let isStaple: Bool
+
+    /// Already-listed items and pantry staples start unchecked.
+    var startsSelected: Bool { !alreadyOnList && !isStaple }
+}
+
+struct MealGroceryPreview: Identifiable, Sendable {
+    let id = UUID()
+    let rows: [MealGroceryRow]
+    let mealsWithoutRecipe: [String]
+    let usesReminders: Bool
 }
 
 private extension MealSlot {
