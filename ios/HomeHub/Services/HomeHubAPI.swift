@@ -296,6 +296,15 @@ final class HomeHubAPI: ObservableObject {
         try await client.request("/api/mobile/v1/recipes/import", method: "POST", body: input)
     }
 
+    func suggestRecipeTags(title: String, ingredients: [String]) async throws -> [String] {
+        let response: SuggestRecipeTagsResponse = try await client.request(
+            "/api/mobile/v1/recipes/suggest-tags",
+            method: "POST",
+            body: SuggestRecipeTagsRequest(title: title, ingredients: ingredients)
+        )
+        return response.tags
+    }
+
     func updateRecipe(id: String, input: RecipeInput) async throws -> Recipe {
         try await client.request("/api/mobile/v1/recipes/\(id)", method: "PATCH", body: input)
     }

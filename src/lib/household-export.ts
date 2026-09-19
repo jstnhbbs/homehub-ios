@@ -144,6 +144,7 @@ export async function buildHouseholdExport(householdId: string) {
       ...omit(row, "householdId"),
       ingredients: parseJsonArray(row.ingredients),
       directions: parseJsonArray(row.directions),
+      tags: parseJsonArray(row.tags),
     })),
     meals: mealRows.map((row) => omit(row, "householdId")),
     groceryItems: groceryRows.map((row) => omit(row, "householdId")),

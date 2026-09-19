@@ -3,11 +3,12 @@ import Foundation
 struct RecipeOption: Identifiable, Sendable {
     let id: String
     let title: String
+    var tags: [String] = []
 }
 
 extension Recipe {
     var asOption: RecipeOption {
-        RecipeOption(id: id, title: title)
+        RecipeOption(id: id, title: title, tags: tags)
     }
 
     func toInput() -> RecipeInput {
@@ -23,7 +24,8 @@ extension Recipe {
             nutrition: nutrition,
             sourceUrl: sourceUrl,
             imageUrl: imageUrl,
-            notes: notes
+            notes: notes,
+            tags: tags
         )
     }
 }
@@ -75,7 +77,8 @@ enum RecipeFormHelpers {
         nutritionText: String,
         sourceUrl: String,
         imageUrl: String,
-        notes: String
+        notes: String,
+        tags: [String]
     ) -> RecipeInput? {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let ingredients = parseLines(ingredientsText)
@@ -94,7 +97,8 @@ enum RecipeFormHelpers {
             nutrition: parseNutrition(nutritionText),
             sourceUrl: sourceUrl.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
             imageUrl: imageUrl.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
-            notes: notes.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            notes: notes.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+            tags: tags
         )
     }
 }

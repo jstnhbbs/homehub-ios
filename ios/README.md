@@ -76,7 +76,7 @@ To load `http://` during development, add a temporary ATS exception in Info.plis
 - **Routines**: checklist cards by period, daily step check-offs, add/edit/delete (parents), and **streaks**: a flame badge with the days in a row a child finished every step, and a once-a-day banner at 3, 7, 14, 30, 50, 100, 200, and 365 days
 - **Chores**: grouped by family profile, cadence-aware check-offs, add/edit/delete (parents). Completed chores show who checked them off and when, and routines list what was done today the same way
 - **Meals**: week navigation, a day-by-day list on iPhone and a grid on iPad, tap-a-slot picker (saved recipes, recently used, custom text), automatic saving, swipe/context-menu/drag-and-drop to clear, copy, and move meals, copy/clear week, and "Add Week to Groceries" (parents). It merges the rest of the week's recipe ingredients into a preview, sums amounts only when units match, and adds the chosen items to Reminders or the household list.
-- **Recipes**: card grid, import URL, add/edit/delete (parents)
+- **Recipes**: card grid, import URL, add/edit/delete (parents), and **tags**: meal types (Breakfast, Lunch, Dinner, Snack, Dessert), proteins (Chicken, Beef, Pork, Turkey, Fish, Seafood, Vegetarian), and your own. Imports suggest tags from the page's category and the ingredients, filter chips narrow the list (Dinner + Chicken), and the meal planner shows recipes tagged for the slot first
 - **Profiles**: family member CRUD in Settings (parents); **Profile** tab for account + self-edit (all members, including guests)
 - **Settings**: household members list with guest removal (parents), household data export to Files (parents)
 - **Account deletion** (Profile → Delete Account, password required): a sole member's household is deleted with them, the only owner of a shared household must transfer ownership first, and anyone else just leaves
@@ -108,6 +108,7 @@ ios/checks/ingredient-merge/run.sh
 ios/checks/meal-plan/run.sh
 ios/checks/streak-helpers/run.sh
 ios/checks/completion-helpers/run.sh
+ios/checks/recipe-tags/run.sh
 ```
 
 iOS (after opening in Xcode): **Product → Build** (⌘B), then run on iPhone and iPad simulators. Landscape remains recommended for a dedicated shared iPad display.

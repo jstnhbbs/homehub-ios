@@ -309,6 +309,8 @@ export const recipes = sqliteTable(
     totalTime: text("total_time"),
     ingredients: text("ingredients").notNull().default("[]"),
     directions: text("directions").notNull().default("[]"),
+    // JSON array of short labels such as "Dinner" or "Chicken"; see src/lib/recipes/tags.ts.
+    tags: text("tags").notNull().default("[]"),
     nutrition: text("nutrition"),
     sourceUrl: text("source_url"),
     imageUrl: text("image_url"),

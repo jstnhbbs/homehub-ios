@@ -63,6 +63,27 @@ struct RecipesView: View {
         }
     }
 
+    /// Tags in use across the household's recipes. Pick several to narrow down (Dinner + Chicken).
+    @ViewBuilder
+    private var tagFilterBar: some View {
+        if !viewModel.availableTags.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                TagFlowLayout(spacing: 8) {
+                    ForEach(viewModel.availableTags, id: \.self) { tag in
+                        TagChip(text: tag, isSelected: RecipeTagHelpers.contains(viewModel.tagFilters, tag)) {
+                            viewModel.toggleTagFilter(tag)
+                        }
+                    }
+                }
+                if !viewModel.tagFilters.isEmpty {
+                    Button("Clear filters") { viewModel.clearTagFilters() }
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(HubTheme.sage)
+                }
+            }
+        }
+    }
+
     @ViewBuilder
     private func recipesGrid(columns: [GridItem]) -> some View {
         if viewModel.isLoading && viewModel.recipes.isEmpty {
@@ -70,8 +91,16 @@ struct RecipesView: View {
         } else if viewModel.recipes.isEmpty {
             EmptyStateView(text: "Save your first recipe manually or import one from a website.")
         } else {
+            tagFilterBar
+            if viewModel.filteredRecipes.isEmpty {
+                VStack(spacing: 10) {
+                    EmptyStateView(text: "No recipes have all of those tags.")
+                    Button("Clear filters") { viewModel.clearTagFilters() }
+                        .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
+                }
+            }
             LazyVGrid(columns: columns, spacing: 16) {
-                ForEach(viewModel.recipes) { recipe in
+                ForEach(viewModel.filteredRecipes) { recipe in
                     if horizontalSizeClass == .compact {
                         NavigationLink(value: RecipeRoute(id: recipe.id)) {
                             RecipeCard(recipe: recipe, isSelected: false)
@@ -210,6 +239,13 @@ private struct RecipeCard: View {
                             .font(.caption2.weight(.bold))
                             .foregroundStyle(HubTheme.muted)
                     }
+                    if !recipe.tags.isEmpty {
+                        TagFlowLayout(spacing: 6) {
+                            ForEach(recipe.tags.prefix(4), id: \.self) { tag in
+                                TagPill(text: tag)
+                            }
+                        }
+                    }
                 }
                 .padding(14)
             }
@@ -279,6 +315,14 @@ private struct RecipeDetailPanel: View {
                             }
                             if let totalTime = recipe.totalTime {
                                 metaChip("Total \(totalTime)", icon: "clock")
+                            }
+                        }
+
+                        if !recipe.tags.isEmpty {
+                            TagFlowLayout(spacing: 6) {
+                                ForEach(recipe.tags, id: \.self) { tag in
+                                    TagPill(text: tag)
+                                }
                             }
                         }
 
@@ -409,13 +453,19 @@ private struct RecipeManagementSheet: View {
                 VStack(alignment: .leading, spacing: 16) {
                     switch sheet {
                     case .add:
-                        RecipeFormView(submitLabel: "Save Recipe") { input in
-                            let saved = await viewModel.addRecipe(input)
-                            if saved {
-                                dismiss()
+                        RecipeFormView(
+                            submitLabel: "Save Recipe",
+                            onSubmit: { input in
+                                let saved = await viewModel.addRecipe(input)
+                                if saved {
+                                    dismiss()
+                                }
+                                return saved
+                            },
+                            onSuggestTags: { title, ingredients in
+                                await viewModel.suggestTags(title: title, ingredients: ingredients)
                             }
-                            return saved
-                        }
+                        )
                     case .edit:
                         if let recipe {
                             RecipeFormView(
@@ -434,6 +484,9 @@ private struct RecipeManagementSheet: View {
                                         dismiss()
                                     }
                                     return deleted
+                                },
+                                onSuggestTags: { title, ingredients in
+                                    await viewModel.suggestTags(title: title, ingredients: ingredients)
                                 }
                             )
                         } else {

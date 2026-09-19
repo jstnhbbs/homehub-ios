@@ -36,9 +36,28 @@ struct MealPickerSheet: View {
         return viewModel.recentMeals.filter { $0.title.lowercased().contains(query) }
     }
 
+    /// Search matches a recipe's name or any of its tags ("chicken", "dinner").
     private var filteredRecipes: [RecipeOption] {
         guard !query.isEmpty else { return viewModel.recipes }
-        return viewModel.recipes.filter { $0.title.lowercased().contains(query) }
+        return viewModel.recipes.filter { recipe in
+            recipe.title.lowercased().contains(query) || recipe.tags.contains { $0.lowercased().contains(query) }
+        }
+    }
+
+    /// The meal-type tag for this slot, such as "Dinner".
+    private var slotTag: String? {
+        RecipeTagHelpers.mealTag(forSlot: ref.slot.rawValue)
+    }
+
+    /// Recipes tagged for this slot come first, so filling a dinner shows dinner recipes on top.
+    private var suggestedRecipes: [RecipeOption] {
+        guard let slotTag else { return [] }
+        return filteredRecipes.filter { RecipeTagHelpers.contains($0.tags, slotTag) }
+    }
+
+    private var otherRecipes: [RecipeOption] {
+        let suggestedIds = Set(suggestedRecipes.map(\.id))
+        return filteredRecipes.filter { !suggestedIds.contains($0.id) }
     }
 
     private var navigationTitle: String {
@@ -78,16 +97,22 @@ struct MealPickerSheet: View {
                     }
                 }
 
-                Section("Saved recipes") {
-                    if filteredRecipes.isEmpty {
+                if !suggestedRecipes.isEmpty, let slotTag {
+                    Section("\(slotTag) recipes") {
+                        ForEach(suggestedRecipes) { recipe in
+                            recipeRow(recipe)
+                        }
+                    }
+                }
+
+                Section(suggestedRecipes.isEmpty ? "Saved recipes" : "Other recipes") {
+                    if otherRecipes.isEmpty && suggestedRecipes.isEmpty {
                         Text(viewModel.recipes.isEmpty ? "No saved recipes yet." : "No recipes match your search.")
                             .font(.subheadline)
                             .foregroundStyle(HubTheme.muted)
                     } else {
-                        ForEach(filteredRecipes) { recipe in
-                            choiceRow(title: recipe.title, isRecipe: true) {
-                                choose(title: recipe.title, recipeId: recipe.id)
-                            }
+                        ForEach(otherRecipes) { recipe in
+                            recipeRow(recipe)
                         }
                     }
                 }
@@ -118,6 +143,12 @@ struct MealPickerSheet: View {
             .task { await viewModel.loadRecentMeals() }
         }
         .presentationDetents([.medium, .large])
+    }
+
+    private func recipeRow(_ recipe: RecipeOption) -> some View {
+        choiceRow(title: recipe.title, isRecipe: true) {
+            choose(title: recipe.title, recipeId: recipe.id)
+        }
     }
 
     private func choiceRow(title: String, isRecipe: Bool, action: @escaping () -> Void) -> some View {

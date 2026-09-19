@@ -10,6 +10,7 @@ final class RecipesViewModel: ObservableObject {
     @Published var successMessage: String?
     @Published var showAddForm = false
     @Published var importURL = ""
+    @Published var tagFilters: [String] = []
 
     private var appState: AppState?
 
@@ -34,6 +35,8 @@ final class RecipesViewModel: ObservableObject {
 
         do {
             recipes = try await appState.api.fetchRecipes()
+            // A filter for a tag no recipe has anymore would show an empty list with no way out.
+            tagFilters = tagFilters.filter { RecipeTagHelpers.contains(availableTags, $0) }
             if selectedRecipeId == nil {
                 selectedRecipeId = recipes.first?.id
             } else if !recipes.contains(where: { $0.id == selectedRecipeId }) {
@@ -44,6 +47,33 @@ final class RecipesViewModel: ObservableObject {
                 errorMessage = message
             }
         }
+    }
+
+    // MARK: - Tags
+
+    /// Every tag in use across the household's recipes, in a friendly order.
+    var availableTags: [String] {
+        RecipeTagHelpers.usedTags(in: recipes.map(\.tags))
+    }
+
+    /// Recipes that have every selected tag; all recipes when nothing is selected.
+    var filteredRecipes: [Recipe] {
+        guard !tagFilters.isEmpty else { return recipes }
+        return recipes.filter { RecipeTagHelpers.matches(recipeTags: $0.tags, selected: tagFilters) }
+    }
+
+    func toggleTagFilter(_ tag: String) {
+        tagFilters = RecipeTagHelpers.toggling(tag, in: tagFilters)
+    }
+
+    func clearTagFilters() {
+        tagFilters = []
+    }
+
+    /// Asks the server to guess tags from a recipe being edited. Returns nothing on failure.
+    func suggestTags(title: String, ingredients: [String]) async -> [String] {
+        guard let appState else { return [] }
+        return (try? await appState.api.suggestRecipeTags(title: title, ingredients: ingredients)) ?? []
     }
 
     func importRecipe() async -> Bool {

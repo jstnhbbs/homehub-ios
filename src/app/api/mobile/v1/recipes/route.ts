@@ -28,6 +28,7 @@ const recipeInputSchema = z.object({
   sourceUrl: z.string().url().optional(),
   imageUrl: z.string().url().optional(),
   notes: bodyText.optional(),
+  tags: z.array(z.string().trim().max(60)).max(30).optional(),
 });
 
 export async function GET() {

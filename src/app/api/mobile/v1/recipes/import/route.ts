@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { recipes } from "@/db/schema";
 import { importRecipeFromUrl } from "@/lib/recipes/import";
 import { recipeFromRow, serializeRecipeFields } from "@/lib/recipes/store";
+import { suggestTags } from "@/lib/recipes/tags";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   handleMobileError,
@@ -39,7 +40,14 @@ export async function POST(request: Request) {
       totalTime: parsed.totalTime ?? null,
       sourceUrl: parsed.sourceUrl ?? sourceUrl,
       imageUrl: parsed.imageUrl ?? null,
-      ...serializeRecipeFields(parsed),
+      ...serializeRecipeFields({
+        ...parsed,
+        tags: suggestTags({
+          title: parsed.title,
+          ingredients: parsed.ingredients,
+          categories: parsed.categories,
+        }),
+      }),
     });
     const row = await db
       .select()

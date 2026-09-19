@@ -27,6 +27,7 @@ const recipeInputSchema = z.object({
   sourceUrl: z.string().url().optional(),
   imageUrl: z.string().url().optional(),
   notes: bodyText.optional(),
+  tags: z.array(z.string().trim().max(60)).max(30).optional(),
 });
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -52,6 +53,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const household = await requireMobileParentHousehold();
     const id = z.string().uuid().parse((await context.params).id);
     const input = recipeInputSchema.parse(await parseJsonBody(request));
+    const fields = serializeRecipeFields(input);
     const updated = await db
       .update(recipes)
       .set({
@@ -64,7 +66,11 @@ export async function PATCH(request: Request, context: RouteContext) {
         sourceUrl: input.sourceUrl ?? null,
         imageUrl: input.imageUrl ?? null,
         notes: input.notes ?? null,
-        ...serializeRecipeFields(input),
+        ingredients: fields.ingredients,
+        directions: fields.directions,
+        nutrition: fields.nutrition,
+        // Older app versions do not send tags; editing a recipe there must not erase them.
+        tags: input.tags === undefined ? undefined : fields.tags,
         updatedAt: new Date(),
       })
       .where(and(eq(recipes.id, id), eq(recipes.householdId, household.id)))

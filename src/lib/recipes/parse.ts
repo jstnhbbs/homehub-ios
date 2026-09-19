@@ -179,6 +179,7 @@ export function parseRecipeFromJsonLd(
     nutrition: parseNutrition(recipe.nutrition),
     imageUrl: parseImage(recipe.image),
     sourceUrl,
+    categories: asStringList(recipe.recipeCategory).filter(Boolean),
   };
 }
 

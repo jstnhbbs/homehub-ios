@@ -15,6 +15,7 @@ struct Recipe: Codable, Identifiable, Sendable {
     var sourceUrl: String?
     var imageUrl: String?
     var notes: String?
+    var tags: [String]
     var createdAt: Date?
     var updatedAt: Date?
 
@@ -33,6 +34,7 @@ struct Recipe: Codable, Identifiable, Sendable {
         case sourceUrl
         case imageUrl
         case notes
+        case tags
         case createdAt
         case updatedAt
     }
@@ -53,6 +55,7 @@ struct Recipe: Codable, Identifiable, Sendable {
         sourceUrl = try container.decodeIfPresent(String.self, forKey: .sourceUrl)
         imageUrl = try container.decodeIfPresent(String.self, forKey: .imageUrl)
         notes = try container.decodeIfPresent(String.self, forKey: .notes)
+        tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []
         createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
     }
@@ -71,6 +74,16 @@ struct RecipeInput: Codable, Sendable {
     var sourceUrl: String?
     var imageUrl: String?
     var notes: String?
+    var tags: [String]
+}
+
+struct SuggestRecipeTagsRequest: Codable, Sendable {
+    var title: String
+    var ingredients: [String]
+}
+
+struct SuggestRecipeTagsResponse: Codable, Sendable {
+    var tags: [String]
 }
 
 struct ImportRecipeRequest: Codable, Sendable {

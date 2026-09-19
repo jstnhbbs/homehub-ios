@@ -1,4 +1,5 @@
 import type { recipes } from "@/db/schema";
+import { normalizeTags } from "./tags";
 import type { ParsedRecipe, StoredRecipe } from "./types";
 
 export function parseJsonArray(value: string) {
@@ -33,10 +34,12 @@ export function serializeRecipeFields(input: {
   ingredients: string[];
   directions: string[];
   nutrition?: Record<string, string>;
+  tags?: string[];
 }) {
   return {
     ingredients: JSON.stringify(input.ingredients),
     directions: JSON.stringify(input.directions),
+    tags: JSON.stringify(normalizeTags(input.tags ?? [])),
     nutrition: input.nutrition ? JSON.stringify(input.nutrition) : null,
   };
 }
@@ -57,6 +60,7 @@ export function recipeFromRow(row: typeof recipes.$inferSelect): StoredRecipe {
     sourceUrl: row.sourceUrl ?? undefined,
     imageUrl: row.imageUrl ?? undefined,
     notes: row.notes,
+    tags: parseJsonArray(row.tags),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

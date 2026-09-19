@@ -5,6 +5,7 @@ struct RecipeFormView: View {
     let submitLabel: String
     var onSubmit: (RecipeInput) async -> Bool
     var onDelete: (() async -> Bool)?
+    var onSuggestTags: ((String, [String]) async -> [String])?
 
     @State private var title = ""
     @State private var description = ""
@@ -18,6 +19,9 @@ struct RecipeFormView: View {
     @State private var sourceUrl = ""
     @State private var imageUrl = ""
     @State private var notes = ""
+    @State private var tags: [String] = []
+    @State private var newTag = ""
+    @State private var isSuggestingTags = false
     @State private var isSaving = false
 
     var body: some View {
@@ -85,6 +89,38 @@ struct RecipeFormView: View {
                     .keyboardType(.URL)
             }
 
+            FormField(label: "Tags") {
+                VStack(alignment: .leading, spacing: 10) {
+                    TagFlowLayout(spacing: 8) {
+                        ForEach(tagChoices, id: \.self) { tag in
+                            TagChip(text: tag, isSelected: RecipeTagHelpers.contains(tags, tag)) {
+                                tags = RecipeTagHelpers.toggling(tag, in: tags)
+                            }
+                        }
+                    }
+
+                    HStack(spacing: 8) {
+                        TextField("Add your own tag", text: $newTag)
+                            .textFieldStyle(.roundedBorder)
+                            .submitLabel(.done)
+                            .onSubmit(addNewTag)
+                        Button("Add", action: addNewTag)
+                            .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
+                            .disabled(newTag.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+
+                    if onSuggestTags != nil {
+                        Button {
+                            Task { await suggestTags() }
+                        } label: {
+                            Label(isSuggestingTags ? "Looking" : "Suggest from ingredients", systemImage: "wand.and.stars")
+                        }
+                        .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
+                        .disabled(isSuggestingTags || ingredientsText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+            }
+
             FormField(label: "Family notes") {
                 TextField("Optional", text: $notes, axis: .vertical)
                     .lineLimit(2...4)
@@ -105,7 +141,8 @@ struct RecipeFormView: View {
                         nutritionText: nutritionText,
                         sourceUrl: sourceUrl,
                         imageUrl: imageUrl,
-                        notes: notes
+                        notes: notes,
+                        tags: tags
                     ) else { return }
                     isSaving = true
                     defer { isSaving = false }
@@ -144,5 +181,28 @@ struct RecipeFormView: View {
         sourceUrl = recipe.sourceUrl ?? ""
         imageUrl = recipe.imageUrl ?? ""
         notes = recipe.notes ?? ""
+        tags = recipe.tags
+    }
+
+    /// The presets, then any custom tags this recipe already has.
+    private var tagChoices: [String] {
+        RecipeTagHelpers.presets + tags.filter { tag in
+            !RecipeTagHelpers.presets.contains { $0.caseInsensitiveCompare(tag) == .orderedSame }
+        }
+    }
+
+    private func addNewTag() {
+        tags = RecipeTagHelpers.adding(newTag, to: tags)
+        newTag = ""
+    }
+
+    private func suggestTags() async {
+        guard let onSuggestTags else { return }
+        isSuggestingTags = true
+        defer { isSuggestingTags = false }
+        let suggested = await onSuggestTags(title, RecipeFormHelpers.parseLines(ingredientsText))
+        for tag in suggested {
+            tags = RecipeTagHelpers.adding(tag, to: tags)
+        }
     }
 }
