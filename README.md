@@ -62,7 +62,7 @@ Install the native app through Xcode or TestFlight. See [the iOS setup guide](io
   ```
 
   The `backups/` folder is gitignored. A dump contains password hashes and session tokens, so keep it private. To restore into a new database: `turso db create homehub-restored --from-dump backups/<file>.sql`.
-- **Point-in-time restore:** Turso can restore a database to an earlier moment, but how far back depends on your plan. Check the Turso dashboard for your window, and consider enabling delete protection on the production database (`turso db show homehub` reports its current state).
+- **Point-in-time restore:** Turso can restore a database to an earlier moment, but how far back depends on your plan. Check the Turso dashboard for your window, and note that delete protection is enabled on the production database, so removing it requires running `turso db config delete-protection disable homehub` first.
 
 ## Checks
 
