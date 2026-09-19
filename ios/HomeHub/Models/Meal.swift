@@ -23,6 +23,19 @@ struct Meal: Codable, Identifiable, Sendable {
         case updatedAt
     }
 
+    /// A meal created on the device before the server confirms it (optimistic updates).
+    init(localDate: String, slot: MealSlot, title: String, recipeId: String? = nil, notes: String? = nil) {
+        self.id = "\(localDate)-\(slot.rawValue)"
+        self.householdId = ""
+        self.localDate = localDate
+        self.slot = slot
+        self.title = title
+        self.recipeId = recipeId
+        self.notes = notes
+        self.createdAt = nil
+        self.updatedAt = nil
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         localDate = try container.decode(String.self, forKey: .localDate)

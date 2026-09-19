@@ -34,7 +34,7 @@ struct MealGroceryPreviewSheet: View {
                         }
                     }
                 } header: {
-                    Text("Ingredients for the rest of this week")
+                    Text(preview.heading)
                 } footer: {
                     Text(footerText)
                 }

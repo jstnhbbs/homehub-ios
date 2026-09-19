@@ -75,7 +75,7 @@ To load `http://` during development, add a temporary ATS exception in Info.plis
 - **Groceries** (synced with Apple Reminders), **Birthdays**, and pinned household **Notes**
 - **Routines**: checklist cards by period, daily step check-offs, add/edit/delete (parents)
 - **Chores**: grouped by family profile, cadence-aware check-offs, add/edit/delete (parents)
-- **Meals**: weekly grid, recipe picker, copy/clear week, and "Add Week to Groceries" (parents). It merges the rest of the week's recipe ingredients into a preview, sums amounts only when units match, and adds the chosen items to Reminders or the household list.
+- **Meals**: week navigation, a day-by-day list on iPhone and a grid on iPad, tap-a-slot picker (saved recipes, recently used, custom text), automatic saving, swipe/context-menu/drag-and-drop to clear, copy, and move meals, copy/clear week, and "Add Week to Groceries" (parents). It merges the rest of the week's recipe ingredients into a preview, sums amounts only when units match, and adds the chosen items to Reminders or the household list.
 - **Recipes**: card grid, import URL, add/edit/delete (parents)
 - **Profiles**: family member CRUD in Settings (parents); **Profile** tab for account + self-edit (all members, including guests)
 - **Settings**: household members list with guest removal (parents), household data export to Files (parents)

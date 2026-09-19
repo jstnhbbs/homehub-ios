@@ -5,29 +5,23 @@ struct MealsView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @StateObject private var viewModel = MealsViewModel()
     @State private var section: FoodHubSection = .week
-
-    private let mealSlots: [MealSlot] = [.breakfast, .lunch, .dinner]
+    @State private var pickerTarget: MealSlotRef?
+    @State private var dropTarget: MealSlotRef?
+    @State private var confirmClearWeek = false
+    @State private var scrolledWeekOffset: Int?
 
     var body: some View {
-        Group {
-            if horizontalSizeClass == .compact, section == .week {
-                ScrollView {
-                    foodContent
-                }
-            } else {
-                foodContent
+        foodContent
+            .onAppear {
+                normalizeSection()
+                applyPendingFoodSection()
             }
-        }
-        .onAppear {
-            normalizeSection()
-            applyPendingFoodSection()
-        }
-        .onChange(of: appState.pendingFoodSection) { _, _ in
-            applyPendingFoodSection()
-        }
-        .onChange(of: appState.hubModules) { _, _ in
-            normalizeSection()
-        }
+            .onChange(of: appState.pendingFoodSection) { _, _ in
+                applyPendingFoodSection()
+            }
+            .onChange(of: appState.hubModules) { _, _ in
+                normalizeSection()
+            }
     }
 
     private var foodContent: some View {
@@ -82,37 +76,35 @@ struct MealsView: View {
         appState.pendingFoodSection = nil
     }
 
+    // MARK: - Week
+
     private var weekContent: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             header
-            if let error = viewModel.errorMessage {
-                Text(error).font(.footnote).foregroundStyle(.red)
-            }
-            if let success = viewModel.successMessage {
-                Text(success).font(.footnote.weight(.semibold)).foregroundStyle(HubTheme.sage)
-            }
-            if viewModel.isLoading && viewModel.meals.isEmpty {
-                ProgressView().frame(maxWidth: .infinity, minHeight: 320)
+            weekNavigator
+            messages
+            if horizontalSizeClass == .compact {
+                compactDayList
             } else {
-                if horizontalSizeClass == .compact {
-                    compactWeeklyGrid
-                } else {
-                    weeklyGrid
-                }
-                if viewModel.canManage {
-                    Text("Pick a saved recipe or type a meal name. Put each item on its own line to add sides. Leave blank to clear that slot.")
-                        .font(.footnote)
-                        .foregroundStyle(HubTheme.muted)
-                        .frame(maxWidth: .infinity)
-                }
+                weeklyGrid
             }
         }
         .onAppear { viewModel.bind(to: appState) }
-        .task { await viewModel.load() }
-        .refreshable { await viewModel.load() }
+        .task {
+            viewModel.bind(to: appState)
+            await viewModel.load(refreshRecipes: true)
+        }
         .sheet(item: $viewModel.groceryPreview) { preview in
             MealGroceryPreviewSheet(preview: preview) { titles in
                 await viewModel.addToGroceries(titles)
+            }
+        }
+        .sheet(item: $pickerTarget) { ref in
+            MealPickerSheet(viewModel: viewModel, ref: ref)
+        }
+        .confirmationDialog("Clear every meal this week?", isPresented: $confirmClearWeek, titleVisibility: .visible) {
+            Button("Clear Week", role: .destructive) {
+                Task { await viewModel.clearWeek() }
             }
         }
     }
@@ -145,41 +137,206 @@ struct MealsView: View {
     @ViewBuilder
     private var mealActions: some View {
         if viewModel.canManage {
-            HStack(spacing: 8) {
+            Menu {
                 Button {
-                    Task { await viewModel.saveMealPlan() }
+                    Task { await viewModel.prepareGroceryPreview() }
                 } label: {
-                    Label("Save meal plan", systemImage: "tray.and.arrow.down.fill")
+                    Label("Add Week to Groceries", systemImage: "cart.badge.plus")
                 }
-                .buttonStyle(HubButtonStyle(emphasis: .primary))
-                .disabled(viewModel.isWorking || !viewModel.hasUnsavedChanges)
 
-                Menu {
-                    Button {
-                        Task { await viewModel.prepareGroceryPreview() }
-                    } label: {
-                        Label("Add Week to Groceries", systemImage: "cart.badge.plus")
-                    }
-
-                    Button {
-                        Task { await viewModel.copyPreviousWeek() }
-                    } label: {
-                        Label("Copy Last Week", systemImage: "doc.on.doc")
-                    }
-
-                    Button(role: .destructive) {
-                        Task { await viewModel.clearWeek() }
-                    } label: {
-                        Label("Clear Week", systemImage: "trash")
-                    }
+                Button {
+                    Task { await viewModel.copyPreviousWeek() }
                 } label: {
-                    Label("More", systemImage: "ellipsis.circle")
+                    Label("Copy Last Week", systemImage: "doc.on.doc")
                 }
-                .buttonStyle(HubButtonStyle(emphasis: .secondary))
-                .disabled(viewModel.isWorking)
+
+                Button(role: .destructive) {
+                    confirmClearWeek = true
+                } label: {
+                    Label("Clear Week", systemImage: "trash")
+                }
+            } label: {
+                Label("More", systemImage: "ellipsis.circle")
+            }
+            .buttonStyle(HubButtonStyle(emphasis: .secondary))
+            .disabled(viewModel.isWorking)
+        }
+    }
+
+    private var weekNavigator: some View {
+        HStack(spacing: 10) {
+            weekArrow("chevron.left", label: "Previous week") {
+                await viewModel.changeWeek(by: -1)
+            }
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(viewModel.weekRangeLabel)
+                    .font(.headline)
+                if let subtitle = viewModel.weekSubtitle {
+                    Text(subtitle)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(HubTheme.muted)
+                }
+            }
+            .frame(minWidth: 110, alignment: .leading)
+
+            weekArrow("chevron.right", label: "Next week") {
+                await viewModel.changeWeek(by: 1)
+            }
+
+            Spacer()
+
+            if viewModel.isLoading {
+                ProgressView()
+            }
+
+            if !viewModel.isCurrentWeek {
+                Button("Today") {
+                    Task { await viewModel.goToThisWeek() }
+                }
+                .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
             }
         }
     }
+
+    private func weekArrow(_ systemImage: String, label: String, action: @escaping () async -> Void) -> some View {
+        Button {
+            Task { await action() }
+        } label: {
+            Image(systemName: systemImage)
+                .font(.subheadline.weight(.bold))
+                .frame(width: 36, height: 36)
+                .background(HubTheme.tileQuiet)
+                .clipShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
+    @ViewBuilder
+    private var messages: some View {
+        if let error = viewModel.errorMessage {
+            Text(error).font(.footnote).foregroundStyle(.red)
+        }
+        if let success = viewModel.successMessage {
+            Text(success)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(HubTheme.sage)
+                .task(id: success) {
+                    try? await Task.sleep(for: .seconds(3))
+                    if viewModel.successMessage == success {
+                        viewModel.successMessage = nil
+                    }
+                }
+        }
+    }
+
+    // MARK: - iPhone: one section per day
+
+    private var compactDayList: some View {
+        ScrollViewReader { proxy in
+            List {
+                ForEach(Array(zip(viewModel.weekDates, viewModel.weekDateStrings)), id: \.1) { day, localDate in
+                    Section {
+                        ForEach(MealSlot.planningSlots, id: \.self) { slot in
+                            slotRow(localDate: localDate, slot: slot)
+                                .id(slot == .breakfast ? "day-\(localDate)" : "\(localDate)-\(slot.rawValue)")
+                        }
+                    } header: {
+                        dayHeaderRow(day, localDate: localDate)
+                    }
+                }
+
+                if viewModel.canManage {
+                    Text("Tap a meal to change it. Swipe to clear or copy to tomorrow, or press and hold to drag it to another slot.")
+                        .font(.footnote)
+                        .foregroundStyle(HubTheme.muted)
+                        .listRowBackground(Color.clear)
+                }
+            }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .refreshable { await viewModel.load(refreshRecipes: true) }
+            .onChange(of: viewModel.isLoading) { _, loading in
+                // Jump to today (or the first day) when a week appears, not on every refresh.
+                guard !loading, scrolledWeekOffset != viewModel.weekOffset else { return }
+                scrolledWeekOffset = viewModel.weekOffset
+                let target = viewModel.isCurrentWeek ? viewModel.todayString : viewModel.weekStart
+                withAnimation { proxy.scrollTo("day-\(target)", anchor: .top) }
+            }
+        }
+    }
+
+    private func slotRow(localDate: String, slot: MealSlot) -> some View {
+        let ref = MealSlotRef(localDate: localDate, slot: slot)
+        let meal = viewModel.meal(ref)
+        return HStack(alignment: .top, spacing: 12) {
+            Text(slot.label.uppercased())
+                .font(.caption2.weight(.heavy))
+                .foregroundStyle(HubTheme.muted)
+                .frame(width: 78, alignment: .leading)
+                .padding(.top, 3)
+            MealTitleLabel(meal: meal, canManage: viewModel.canManage)
+            Spacer(minLength: 0)
+            if meal?.recipeId != nil {
+                Image(systemName: "book.closed")
+                    .font(.caption)
+                    .foregroundStyle(HubTheme.sage)
+                    .padding(.top, 3)
+            }
+        }
+        .padding(.vertical, 4)
+        .frame(minHeight: 36)
+        .listRowBackground(dropTarget == ref ? HubTheme.sage.opacity(0.18) : HubTheme.tile)
+        .modifier(interactions(ref: ref, meal: meal))
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            if viewModel.canManage, meal != nil {
+                Button(role: .destructive) {
+                    Task { await viewModel.clearMeal(ref) }
+                } label: {
+                    Label("Clear", systemImage: "xmark.circle")
+                }
+            }
+        }
+        .swipeActions(edge: .leading) {
+            if viewModel.canManage, meal != nil {
+                Button {
+                    Task { await viewModel.copyMeal(from: ref, daysAhead: 1) }
+                } label: {
+                    Label("Tomorrow", systemImage: "arrow.turn.down.right")
+                }
+                .tint(HubTheme.sage)
+            }
+        }
+    }
+
+    private func dayHeaderRow(_ day: Date, localDate: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(DateHelpers.weekdayShort(day, timezone: viewModel.timezone).uppercased())
+                .font(.caption2.weight(.heavy))
+                .foregroundStyle(HubTheme.muted)
+            Text(DateHelpers.dayNumber(day, timezone: viewModel.timezone))
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.primary)
+            if localDate == viewModel.todayString {
+                todayBadge
+            }
+            Spacer()
+        }
+        .textCase(nil)
+    }
+
+    private var todayBadge: some View {
+        Text("Today")
+            .font(.caption2.weight(.heavy))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(HubTheme.sage)
+            .clipShape(Capsule())
+    }
+
+    // MARK: - iPad: week grid
 
     private var weeklyGrid: some View {
         HubCard {
@@ -189,68 +346,51 @@ struct MealsView: View {
 
                     ForEach(Array(zip(viewModel.weekDates, viewModel.weekDateStrings)), id: \.1) { day, localDate in
                         HStack(alignment: .top, spacing: 0) {
-                            dayHeader(day)
+                            gridDayHeader(day, localDate: localDate)
 
-                            ForEach(mealSlots, id: \.self) { slot in
-                                MealInputView(
-                                    recipes: viewModel.recipes,
-                                    readOnly: !viewModel.canManage,
-                                    title: draftTitleBinding(localDate: localDate, slot: slot),
-                                    recipeId: draftRecipeBinding(localDate: localDate, slot: slot),
-                                    onTitleChanged: {
-                                        viewModel.clearDraftRecipeIfTitleChanged(localDate: localDate, slot: slot)
-                                    }
-                                )
-                                .frame(maxWidth: .infinity, minHeight: 112, alignment: .top)
-                                .padding(8)
-                                .overlay(alignment: .trailing) {
-                                    Rectangle().fill(HubTheme.line).frame(width: 1)
-                                }
+                            ForEach(MealSlot.planningSlots, id: \.self) { slot in
+                                gridCell(localDate: localDate, slot: slot)
                             }
                         }
                         .overlay(alignment: .bottom) {
                             Rectangle().fill(HubTheme.line).frame(height: 1)
                         }
                     }
-                }
-            }
-            .scrollIndicators(.hidden)
-        }
-    }
 
-    private var compactWeeklyGrid: some View {
-        VStack(spacing: 14) {
-            ForEach(Array(zip(viewModel.weekDates, viewModel.weekDateStrings)), id: \.1) { day, localDate in
-                HubCard {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack(alignment: .firstTextBaseline) {
-                            Text(DateHelpers.weekdayShort(day, timezone: viewModel.timezone).uppercased())
-                                .font(.caption2.weight(.heavy))
-                                .foregroundStyle(HubTheme.muted)
-                            Text(DateHelpers.dayNumber(day, timezone: viewModel.timezone))
-                                .font(.title3.weight(.semibold))
-                            Spacer()
-                        }
-
-                        ForEach(mealSlots, id: \.self) { slot in
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(slot.label.uppercased())
-                                    .font(.caption2.weight(.heavy))
-                                    .foregroundStyle(HubTheme.muted)
-                                MealInputView(
-                                    recipes: viewModel.recipes,
-                                    readOnly: !viewModel.canManage,
-                                    title: draftTitleBinding(localDate: localDate, slot: slot),
-                                    recipeId: draftRecipeBinding(localDate: localDate, slot: slot),
-                                    onTitleChanged: {
-                                        viewModel.clearDraftRecipeIfTitleChanged(localDate: localDate, slot: slot)
-                                    }
-                                )
-                            }
-                        }
+                    if viewModel.canManage {
+                        Text("Tap a meal to change it, press and hold to drag it to another slot, or use the context menu to copy it.")
+                            .font(.footnote)
+                            .foregroundStyle(HubTheme.muted)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 14)
                     }
                 }
             }
+            .scrollIndicators(.hidden)
+            .refreshable { await viewModel.load(refreshRecipes: true) }
+        }
+    }
+
+    private func gridCell(localDate: String, slot: MealSlot) -> some View {
+        let ref = MealSlotRef(localDate: localDate, slot: slot)
+        let meal = viewModel.meal(ref)
+        return HStack(alignment: .top, spacing: 6) {
+            MealTitleLabel(meal: meal, canManage: viewModel.canManage)
+            Spacer(minLength: 0)
+            if meal?.recipeId != nil {
+                Image(systemName: "book.closed")
+                    .font(.caption)
+                    .foregroundStyle(HubTheme.sage)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 88, alignment: .topLeading)
+        .background(dropTarget == ref ? HubTheme.sage.opacity(0.2) : HubTheme.tileQuiet)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .modifier(interactions(ref: ref, meal: meal))
+        .padding(8)
+        .overlay(alignment: .trailing) {
+            Rectangle().fill(HubTheme.line).frame(width: 1)
         }
     }
 
@@ -258,7 +398,7 @@ struct MealsView: View {
         HStack(spacing: 0) {
             Color.clear.frame(width: 96, height: 1)
 
-            ForEach(mealSlots, id: \.self) { slot in
+            ForEach(MealSlot.planningSlots, id: \.self) { slot in
                 Text(slot.label.uppercased())
                     .font(.caption2.weight(.heavy))
                     .foregroundStyle(HubTheme.muted)
@@ -274,30 +414,128 @@ struct MealsView: View {
         }
     }
 
-    private func dayHeader(_ day: Date) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+    private func gridDayHeader(_ day: Date, localDate: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
             Text(DateHelpers.weekdayShort(day, timezone: viewModel.timezone).uppercased())
                 .font(.caption2.weight(.heavy))
                 .foregroundStyle(HubTheme.muted)
             Text(DateHelpers.dayNumber(day, timezone: viewModel.timezone))
                 .font(.title2.weight(.semibold))
+            if localDate == viewModel.todayString {
+                todayBadge
+            }
         }
         .frame(width: 96, alignment: .leading)
         .padding(.top, 16)
         .padding(.leading, 10)
     }
 
-    private func draftTitleBinding(localDate: String, slot: MealSlot) -> Binding<String> {
-        Binding(
-            get: { viewModel.mealDraft(localDate: localDate, slot: slot).title },
-            set: { viewModel.updateDraftTitle(localDate: localDate, slot: slot, title: $0) }
+    // MARK: - Shared slot behavior
+
+    private func interactions(ref: MealSlotRef, meal: Meal?) -> MealSlotInteractions {
+        MealSlotInteractions(
+            ref: ref,
+            meal: meal,
+            canManage: viewModel.canManage,
+            dropTarget: $dropTarget,
+            onEdit: { pickerTarget = ref },
+            onDrop: { token in
+                Task { await viewModel.moveMeal(fromToken: token, to: ref) }
+            },
+            onClear: {
+                Task { await viewModel.clearMeal(ref) }
+            },
+            onCopy: { days in
+                Task { await viewModel.copyMeal(from: ref, daysAhead: days) }
+            }
         )
     }
+}
 
-    private func draftRecipeBinding(localDate: String, slot: MealSlot) -> Binding<String?> {
-        Binding(
-            get: { viewModel.mealDraft(localDate: localDate, slot: slot).recipeId },
-            set: { viewModel.updateDraftRecipe(localDate: localDate, slot: slot, recipeId: $0) }
-        )
+/// What a planned (or empty) slot shows.
+private struct MealTitleLabel: View {
+    let meal: Meal?
+    let canManage: Bool
+
+    var body: some View {
+        if let meal {
+            Text(meal.title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(4)
+                .multilineTextAlignment(.leading)
+        } else if canManage {
+            Label("Add meal", systemImage: "plus")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(HubTheme.muted.opacity(0.8))
+        } else {
+            Text("Not planned")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(HubTheme.muted)
+        }
+    }
+}
+
+/// Tap to edit, a context menu, and drag and drop. Read-only viewers get none of it.
+private struct MealSlotInteractions: ViewModifier {
+    let ref: MealSlotRef
+    let meal: Meal?
+    let canManage: Bool
+    @Binding var dropTarget: MealSlotRef?
+    let onEdit: () -> Void
+    let onDrop: (String) -> Void
+    let onClear: () -> Void
+    let onCopy: (Int) -> Void
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if canManage {
+            let interactive = content
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onEdit)
+                .accessibilityAddTraits(.isButton)
+                .contextMenu {
+                    Button(action: onEdit) {
+                        Label(meal == nil ? "Add Meal" : "Change Meal", systemImage: "pencil")
+                    }
+                    if meal != nil {
+                        Button {
+                            onCopy(1)
+                        } label: {
+                            Label("Copy to Tomorrow", systemImage: "arrow.turn.down.right")
+                        }
+                        Button {
+                            onCopy(7)
+                        } label: {
+                            Label("Repeat Next Week", systemImage: "repeat")
+                        }
+                        Divider()
+                        Button(role: .destructive, action: onClear) {
+                            Label("Clear", systemImage: "xmark.circle")
+                        }
+                    }
+                }
+                .dropDestination(for: String.self) { items, _ in
+                    guard let token = items.first(where: { $0.hasPrefix(MealSlotRef.tokenPrefix) }) else {
+                        return false
+                    }
+                    onDrop(token)
+                    return true
+                } isTargeted: { targeted in
+                    if targeted {
+                        dropTarget = ref
+                    } else if dropTarget == ref {
+                        dropTarget = nil
+                    }
+                }
+
+            if meal != nil {
+                interactive.draggable(ref.token)
+            } else {
+                interactive
+            }
+        } else {
+            content
+        }
     }
 }
