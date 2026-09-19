@@ -6,12 +6,12 @@ import { groceryItems, recycleBinItems } from "@/db/schema";
 import {
   handleMobileError,
   mobileJson,
-  requireMobileHousehold,
+  requireMobileParentHousehold,
 } from "@/lib/mobile/http";
 
 export async function POST() {
   try {
-    const household = await requireMobileHousehold();
+    const household = await requireMobileParentHousehold();
     const items = await db
       .select()
       .from(groceryItems)

@@ -8,14 +8,14 @@ import {
   handleMobileError,
   mobileJson,
   parseJsonBody,
-  requireMobileHousehold,
+  requireMobileParentHousehold,
 } from "@/lib/mobile/http";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    const household = await requireMobileHousehold();
+    const household = await requireMobileParentHousehold();
     const id = z.string().uuid().parse((await context.params).id);
     const input = z
       .object({
@@ -44,7 +44,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
-    const household = await requireMobileHousehold();
+    const household = await requireMobileParentHousehold();
     const id = z.string().uuid().parse((await context.params).id);
     const item = await db
       .select()

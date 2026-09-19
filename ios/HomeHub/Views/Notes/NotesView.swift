@@ -13,6 +13,10 @@ struct NotesView: View {
         appState.dashboard?.notes ?? []
     }
 
+    private var canManage: Bool {
+        appState.canManageHousehold
+    }
+
     private var trimmedDraft: String {
         draft.trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -108,7 +112,7 @@ struct NotesView: View {
         } else {
             VStack(spacing: 10) {
                 ForEach(notes) { note in
-                    NotesPageRow(note: note, isDeleting: deletingId == note.id) {
+                    NotesPageRow(note: note, canEdit: canManage, isDeleting: deletingId == note.id) {
                         editingNote = note
                     } onDelete: {
                         await delete(note)
@@ -147,6 +151,7 @@ struct NotesView: View {
 
 private struct NotesPageRow: View {
     let note: HouseholdNote
+    let canEdit: Bool
     let isDeleting: Bool
     let onOpen: () -> Void
     let onDelete: () async -> Void
@@ -174,16 +179,18 @@ private struct NotesPageRow: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                Button {
-                    Task { await onDelete() }
-                } label: {
-                    Image(systemName: isDeleting ? "hourglass" : "trash")
-                        .font(.subheadline.weight(.bold))
-                        .frame(width: 36, height: 36)
+                if canEdit {
+                    Button {
+                        Task { await onDelete() }
+                    } label: {
+                        Image(systemName: isDeleting ? "hourglass" : "trash")
+                            .font(.subheadline.weight(.bold))
+                            .frame(width: 36, height: 36)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(HubTheme.muted)
+                    .disabled(isDeleting)
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(HubTheme.muted)
-                .disabled(isDeleting)
             }
             .padding(14)
             .background(HubTheme.tile)
@@ -194,6 +201,7 @@ private struct NotesPageRow: View {
             )
         }
         .buttonStyle(.plain)
+        .allowsHitTesting(canEdit)
     }
 }
 

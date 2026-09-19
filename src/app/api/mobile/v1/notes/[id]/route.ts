@@ -6,7 +6,7 @@ import {
   handleMobileError,
   mobileJson,
   parseJsonBody,
-  requireMobileHousehold,
+  requireMobileParentHousehold,
 } from "@/lib/mobile/http";
 
 const noteUpdateSchema = z.object({
@@ -20,7 +20,7 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const household = await requireMobileHousehold();
+    const household = await requireMobileParentHousehold();
     const { id } = await context.params;
     const input = noteUpdateSchema.parse(await parseJsonBody(request));
 
@@ -62,7 +62,7 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const household = await requireMobileHousehold();
+    const household = await requireMobileParentHousehold();
     const { id } = await context.params;
 
     const deleted = await db

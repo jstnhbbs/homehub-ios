@@ -9,6 +9,7 @@ import {
   mobileJson,
   parseJsonBody,
   requireMobileHousehold,
+  requireMobileParentHousehold,
 } from "@/lib/mobile/http";
 
 const shortText = z.string().trim().min(1).max(120);
@@ -39,7 +40,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const household = await requireMobileHousehold();
+    const household = await requireMobileParentHousehold();
     const input = groceryInputSchema.parse(await parseJsonBody(request));
     const parsed = parseGroceryTitle(input.title);
     const category = input.category || categorizeGroceryItem(parsed.title);

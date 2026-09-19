@@ -1258,7 +1258,11 @@ private struct NotesDashboardPanel: View {
                 ScrollView {
                     VStack(spacing: 8) {
                         ForEach(dashboard.notes.prefix(5)) { note in
-                            NoteRow(note: note, isDeleting: deletingId == note.id) {
+                            NoteRow(
+                                note: note,
+                                canDelete: appState.canManageHousehold,
+                                isDeleting: deletingId == note.id
+                            ) {
                                 await delete(note)
                             }
                         }
@@ -1298,6 +1302,7 @@ private struct NotesDashboardPanel: View {
 
 private struct NoteRow: View {
     let note: HouseholdNote
+    let canDelete: Bool
     let isDeleting: Bool
     let onDelete: () async -> Void
 
@@ -1324,16 +1329,18 @@ private struct NoteRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .offset(y: note.body.isEmpty ? 1 : 0)
 
-            Button {
-                Task { await onDelete() }
-            } label: {
-                Image(systemName: isDeleting ? "hourglass" : "xmark")
-                    .font(.caption.weight(.bold))
-                    .frame(width: 24, height: 24)
+            if canDelete {
+                Button {
+                    Task { await onDelete() }
+                } label: {
+                    Image(systemName: isDeleting ? "hourglass" : "xmark")
+                        .font(.caption.weight(.bold))
+                        .frame(width: 24, height: 24)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(HubTheme.muted)
+                .disabled(isDeleting)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(HubTheme.muted)
-            .disabled(isDeleting)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
@@ -1634,7 +1641,7 @@ private struct DashboardGroceryItemRow: View {
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
             .buttonStyle(.plain)
-            .disabled(isWorking)
+            .disabled(isWorking || !appState.canManageHousehold)
         }
     }
 }
