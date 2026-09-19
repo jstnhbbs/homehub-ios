@@ -59,6 +59,7 @@ To load `http://` during development, add a temporary ATS exception in Info.plis
 | `/naps` | `NapsView` (sheet from dashboard; not in sidebar) |
 | `/calendar` | `CalendarView` (native calendar read + local calendar selection) |
 | `/routines`, `/chores`, `/meals` (weekly plan + recipes), `/snacks` | Matching SwiftUI views |
+| `/groceries`, `/birthdays`, `/notes` | `GroceriesView`, `BirthdaysView`, `NotesView` |
 | `/settings` | `SettingsView` |
 
 ## What's implemented vs. next steps
@@ -70,7 +71,8 @@ To load `http://` during development, add a temporary ATS exception in Info.plis
 - Auth (sign in / sign up / session restore via Better Auth cookies)
 - Household onboarding (create / join / guest join)
 - Dashboard with schedule, routines, chores, meals, **snacks** (checklist + parent snack list editing)
-- **Full calendar**: month/week/day views, agenda, search, native calendar access, local calendar selection, week start
+- **Calendar** (read-only): month/week/day views, agenda, search, native EventKit access, local calendar selection, week start
+- **Groceries** (synced with Apple Reminders), **Birthdays**, and pinned household **Notes**
 - **Routines**: checklist cards by period, daily step check-offs, add/edit/delete (parents)
 - **Chores**: grouped by family profile, cadence-aware check-offs, add/edit/delete (parents)
 - **Meals**: weekly grid, recipe picker, copy/clear week (parents)
@@ -80,12 +82,14 @@ To load `http://` during development, add a temporary ATS exception in Info.plis
 - **Profile photos**: pick from library, upload, replace, remove (parents for any profile; guests for own)
 - Local snapshot cache for the last household/dashboard load
 - Local notifications for routines, chores, and sleep reminders
+- Per-user hub module toggles, sidebar order, and dashboard card order and size
 - Mobile REST API under `src/app/api/mobile/v1/`
 - Adaptive iPhone layouts for parent editing flows, with the same backend data refreshing on larger display clients.
 
 **Still to build in Swift**
 
-- Full widget target integration in the generated Xcode project
+- Widget target integration: `HomeHubWidget/` exists but the generated Xcode project has only the `HomeHub` app target
+- Creating and editing calendar events (the server-side event API was removed; the "default calendar for new events" setting is currently unused)
 
 ## Run checks
 

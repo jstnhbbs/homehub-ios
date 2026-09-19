@@ -4,12 +4,25 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+## Project map
+
+Beacon is a family household dashboard (routines, chores, meals/recipes, groceries, sleep logs, birthdays, notes, calendar, weather). It is **iOS-first**: the SwiftUI app in `ios/` is the product, and the Next.js app is its backend plus a thin web shell.
+
+- **Backend** (`src/`): Next.js 16 App Router, Drizzle on Turso/libSQL (`src/db/schema.ts`), Better Auth (`src/lib/auth.ts`). Roles are `owner`, `parent`, `guest` (`src/lib/household-roles.ts`).
+- **Mobile API** (`src/app/api/mobile/v1/*`): one route folder per module. Routes use the helpers in `src/lib/mobile/http.ts` (`requireMobileHousehold`, `requireMobileParentHousehold`, `handleMobileError`). `src/lib/mobile/dashboard.ts` builds the dashboard payload.
+- **Web** (`src/app/`): every `(hub)/*` page except `settings` is an `IOSOnlyPage` stub. Real web pages are sign-in, onboarding, settings (household, profiles, members, photos), privacy, and terms. Server actions in `src/app/actions.ts` cover only household, profile, and photo management.
+- **iOS** (`ios/HomeHub/`): `Models` mirror the schema, `Utilities` port logic from `src/lib`, `Services` hold the API client and on-device integrations (EventKit calendars, Reminders for groceries, WeatherKit, local notifications), `ViewModels` and `Views` are per module. There is also a widget under `ios/HomeHubWidget/`. The Xcode project is generated: after adding or removing Swift files, run `python3 ios/generate-xcode-project.py`. See `ios/README.md`.
+- **Calendars are on-device only.** The server stores no calendar credentials or events. Anything named `calendarConnections`, `calendars`, or `calendarEvents` in the schema is unused legacy.
+- **Schema changes:** Vercel skips `db:migrate`, so migrations 0017 and 0018 are applied at runtime by `src/lib/ensure-schema.ts` (also `scripts/apply-pending-schema.mjs`). A new migration needs the same treatment or a change to how migrations are deployed.
+
+Checks: `npm run typecheck`, `npm run lint`, `npm test`, and an Xcode build of the `HomeHub` scheme for any iOS change.
+
 ## Cursor Cloud specific instructions
 
-Beacon is a single Next.js 16 (App Router) app backed by libSQL/SQLite. Standard commands live in `package.json` and `README.md` ("Checks" section); the notes below only cover non-obvious setup for running it in this VM.
+Standard commands live in `package.json` and `README.md` ("Checks" section); the notes below only cover non-obvious setup for running the backend in this VM.
 
-- `.env.local` is gitignored, so it does not persist across fresh VMs. Create it before running the dev server: `cp .env.example .env.local`. `TURSO_DATABASE_URL` defaults to `file:local.db` and `BETTER_AUTH_SECRET`/`CALENDAR_ENCRYPTION_KEY` have dev fallbacks, so the app boots even with empty secrets, but a real `.env.local` avoids surprises.
+- `.env.local` is gitignored, so it does not persist across fresh VMs. Create it before running the dev server: `cp .env.example .env.local`. `TURSO_DATABASE_URL` defaults to `file:local.db` and `BETTER_AUTH_SECRET` has a dev fallback, so the app boots even with empty secrets, but a real `.env.local` avoids surprises.
 - The local SQLite DB (`local.db`) is gitignored and not created by `npm install`. Run `npm run db:migrate` once before `npm run dev` (migrations are intentionally kept out of the startup update script).
-- Run the dev server with `npm run dev` (Turbopack) on port 3000. Do not use `npm run build`/`npm start` for development — `npm run build` also re-runs `db:migrate`.
+- Run the dev server with `npm run dev` (Turbopack) on port 3000. Do not use `npm start` for development. `npm run build:with-migrate` runs `db:migrate` first; plain `npm run build` does not.
 - E2E tests (`npm run test:e2e`) use Playwright and need browsers installed first (`npx playwright install`, and `npx playwright install-deps` if system libs are missing). The Playwright config auto-starts its own dev server against `file:e2e.db`, so no manual server is needed for e2e.
-- Core hello-world flow: open `http://localhost:3000` → Sign in → "Create an account" → complete `/onboarding` by creating a household → lands on `/dashboard`. Calendar (Apple/Google), Vercel Blob photo upload, and cron sync are optional integrations needing external credentials and are not required for local core testing.
+- Core hello-world flow: open `http://localhost:3000` → Sign in → "Create an account" → complete `/onboarding` by creating a household → lands on `/settings`. Vercel Blob photo upload is an optional integration needing external credentials and is not required for local core testing.
