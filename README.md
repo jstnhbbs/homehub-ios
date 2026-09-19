@@ -44,7 +44,9 @@ calendar access in the iOS app and choose which device calendars to show.
 3. Import the repository in Vercel.
 4. In the Vercel project, create a Blob store and connect it to the project. Vercel adds `BLOB_READ_WRITE_TOKEN` automatically.
 5. Add every remaining variable from `.env.example` to Vercel. Set `BETTER_AUTH_URL` and trusted origins to the production HTTPS URL.
-6. Deploy.
+6. Deploy. `vercel.json` runs `npm run db:migrate` before the build for production deployments only, so `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` must be set for the Production environment. Preview deployments skip migrations.
+
+To see what a migration run would do against a database without changing it, run `node scripts/check-migrations.mjs` with `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` set.
 
 ## Install on iPhone or iPad
 

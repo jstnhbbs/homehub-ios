@@ -1,6 +1,6 @@
-ALTER TABLE `households` ADD `weather_location` text DEFAULT 'Chicago, IL' NOT NULL;
-ALTER TABLE `households` ADD `weather_latitude` text DEFAULT '41.8781' NOT NULL;
-ALTER TABLE `households` ADD `weather_longitude` text DEFAULT '-87.6298' NOT NULL;
+ALTER TABLE `households` ADD `weather_location` text DEFAULT 'Chicago, IL' NOT NULL;--> statement-breakpoint
+ALTER TABLE `households` ADD `weather_latitude` text DEFAULT '41.8781' NOT NULL;--> statement-breakpoint
+ALTER TABLE `households` ADD `weather_longitude` text DEFAULT '-87.6298' NOT NULL;--> statement-breakpoint
 
 CREATE TABLE `shopping_items` (
   `id` text PRIMARY KEY NOT NULL,
@@ -14,9 +14,9 @@ CREATE TABLE `shopping_items` (
   `created_at` integer NOT NULL,
   `updated_at` integer NOT NULL,
   FOREIGN KEY (`household_id`) REFERENCES `households`(`id`) ON UPDATE no action ON DELETE cascade
-);
-CREATE INDEX `shopping_items_household_idx` ON `shopping_items` (`household_id`);
-CREATE INDEX `shopping_items_checked_idx` ON `shopping_items` (`household_id`,`checked`);
+);--> statement-breakpoint
+CREATE INDEX `shopping_items_household_idx` ON `shopping_items` (`household_id`);--> statement-breakpoint
+CREATE INDEX `shopping_items_checked_idx` ON `shopping_items` (`household_id`,`checked`);--> statement-breakpoint
 
 CREATE TABLE `household_notes` (
   `id` text PRIMARY KEY NOT NULL,
@@ -30,9 +30,9 @@ CREATE TABLE `household_notes` (
   `updated_at` integer NOT NULL,
   FOREIGN KEY (`household_id`) REFERENCES `households`(`id`) ON UPDATE no action ON DELETE cascade,
   FOREIGN KEY (`created_by_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null
-);
-CREATE INDEX `household_notes_household_idx` ON `household_notes` (`household_id`);
-CREATE INDEX `household_notes_pinned_idx` ON `household_notes` (`household_id`,`pinned`);
+);--> statement-breakpoint
+CREATE INDEX `household_notes_household_idx` ON `household_notes` (`household_id`);--> statement-breakpoint
+CREATE INDEX `household_notes_pinned_idx` ON `household_notes` (`household_id`,`pinned`);--> statement-breakpoint
 
 CREATE TABLE `family_birthdays` (
   `id` text PRIMARY KEY NOT NULL,
@@ -47,9 +47,9 @@ CREATE TABLE `family_birthdays` (
   `updated_at` integer NOT NULL,
   FOREIGN KEY (`household_id`) REFERENCES `households`(`id`) ON UPDATE no action ON DELETE cascade,
   FOREIGN KEY (`profile_id`) REFERENCES `profiles`(`id`) ON UPDATE no action ON DELETE cascade
-);
-CREATE INDEX `family_birthdays_household_idx` ON `family_birthdays` (`household_id`);
-CREATE INDEX `family_birthdays_profile_idx` ON `family_birthdays` (`profile_id`);
+);--> statement-breakpoint
+CREATE INDEX `family_birthdays_household_idx` ON `family_birthdays` (`household_id`);--> statement-breakpoint
+CREATE INDEX `family_birthdays_profile_idx` ON `family_birthdays` (`profile_id`);--> statement-breakpoint
 
 CREATE TABLE `school_subjects` (
   `id` text PRIMARY KEY NOT NULL,
@@ -61,8 +61,8 @@ CREATE TABLE `school_subjects` (
   `created_at` integer NOT NULL,
   `updated_at` integer NOT NULL,
   FOREIGN KEY (`household_id`) REFERENCES `households`(`id`) ON UPDATE no action ON DELETE cascade
-);
-CREATE INDEX `school_subjects_household_idx` ON `school_subjects` (`household_id`);
+);--> statement-breakpoint
+CREATE INDEX `school_subjects_household_idx` ON `school_subjects` (`household_id`);--> statement-breakpoint
 
 CREATE TABLE `school_periods` (
   `id` text PRIMARY KEY NOT NULL,
@@ -74,8 +74,8 @@ CREATE TABLE `school_periods` (
   `created_at` integer NOT NULL,
   `updated_at` integer NOT NULL,
   FOREIGN KEY (`household_id`) REFERENCES `households`(`id`) ON UPDATE no action ON DELETE cascade
-);
-CREATE INDEX `school_periods_household_idx` ON `school_periods` (`household_id`);
+);--> statement-breakpoint
+CREATE INDEX `school_periods_household_idx` ON `school_periods` (`household_id`);--> statement-breakpoint
 
 CREATE TABLE `school_schedule_entries` (
   `id` text PRIMARY KEY NOT NULL,
@@ -92,9 +92,9 @@ CREATE TABLE `school_schedule_entries` (
   FOREIGN KEY (`profile_id`) REFERENCES `profiles`(`id`) ON UPDATE no action ON DELETE cascade,
   FOREIGN KEY (`subject_id`) REFERENCES `school_subjects`(`id`) ON UPDATE no action ON DELETE cascade,
   FOREIGN KEY (`period_id`) REFERENCES `school_periods`(`id`) ON UPDATE no action ON DELETE cascade
-);
-CREATE INDEX `school_schedule_household_day_idx` ON `school_schedule_entries` (`household_id`,`weekday`);
-CREATE UNIQUE INDEX `school_schedule_slot_idx` ON `school_schedule_entries` (`household_id`,`profile_id`,`period_id`,`weekday`);
+);--> statement-breakpoint
+CREATE INDEX `school_schedule_household_day_idx` ON `school_schedule_entries` (`household_id`,`weekday`);--> statement-breakpoint
+CREATE UNIQUE INDEX `school_schedule_slot_idx` ON `school_schedule_entries` (`household_id`,`profile_id`,`period_id`,`weekday`);--> statement-breakpoint
 
 CREATE TABLE `notification_preferences` (
   `id` text PRIMARY KEY NOT NULL,
@@ -110,8 +110,8 @@ CREATE TABLE `notification_preferences` (
   `updated_at` integer NOT NULL,
   FOREIGN KEY (`household_id`) REFERENCES `households`(`id`) ON UPDATE no action ON DELETE cascade,
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
-);
-CREATE UNIQUE INDEX `notification_preferences_user_household_idx` ON `notification_preferences` (`household_id`,`user_id`);
+);--> statement-breakpoint
+CREATE UNIQUE INDEX `notification_preferences_user_household_idx` ON `notification_preferences` (`household_id`,`user_id`);--> statement-breakpoint
 
 CREATE TABLE `recycle_bin_items` (
   `id` text PRIMARY KEY NOT NULL,
@@ -123,6 +123,6 @@ CREATE TABLE `recycle_bin_items` (
   `deleted_at` integer NOT NULL,
   `restore_by` integer,
   FOREIGN KEY (`household_id`) REFERENCES `households`(`id`) ON UPDATE no action ON DELETE cascade
-);
-CREATE INDEX `recycle_bin_household_idx` ON `recycle_bin_items` (`household_id`);
+);--> statement-breakpoint
+CREATE INDEX `recycle_bin_household_idx` ON `recycle_bin_items` (`household_id`);--> statement-breakpoint
 CREATE INDEX `recycle_bin_type_idx` ON `recycle_bin_items` (`household_id`,`item_type`);
