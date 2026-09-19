@@ -71,9 +71,13 @@ export default function PrivacyPolicyPage() {
         <p>
           Data remains available while your household uses Beacon. You can
           delete recipes, meals, chores, routines, and profile information
-          through the app. Disconnecting a calendar removes that provider&apos;s
-          connection and synced events. To remove all household data, contact
-          the person who operates your Beacon deployment.
+          through the app. Owners and parents can save a JSON copy of their
+          household data from Settings. You can delete your account at any time
+          from the Profile screen in the app. If you are the only member of a
+          household, deleting your account also permanently deletes that
+          household and everything in it. If others share the household, you
+          leave it and your profile is removed; the household&apos;s only owner
+          must first make another member an owner.
         </p>
       </LegalSection>
 

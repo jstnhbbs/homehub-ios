@@ -1,7 +1,12 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
 import { db } from "@/db/client";
 import * as schema from "@/db/schema";
+import {
+  AccountDeletionBlockedError,
+  detachUserFromHouseholds,
+} from "@/lib/account-deletion";
 
 export const auth = betterAuth({
   appName: "Beacon",
@@ -21,6 +26,21 @@ export const auth = betterAuth({
       enabled: true,
       updateEmailWithoutVerification:
         process.env.NODE_ENV === "development",
+    },
+    // Requires the account password. beforeDelete can veto (sole owner of a shared household)
+    // and removes the user's household data before the user record itself goes.
+    deleteUser: {
+      enabled: true,
+      beforeDelete: async (user) => {
+        try {
+          await detachUserFromHouseholds(user.id);
+        } catch (error) {
+          if (error instanceof AccountDeletionBlockedError) {
+            throw new APIError("BAD_REQUEST", { message: error.message });
+          }
+          throw error;
+        }
+      },
     },
   },
   emailAndPassword: {

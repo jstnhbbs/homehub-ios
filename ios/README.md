@@ -78,7 +78,8 @@ To load `http://` during development, add a temporary ATS exception in Info.plis
 - **Meals**: weekly grid, recipe picker, copy/clear week, and "Add Week to Groceries" (parents). It merges the rest of the week's recipe ingredients into a preview, sums amounts only when units match, and adds the chosen items to Reminders or the household list.
 - **Recipes**: card grid, import URL, add/edit/delete (parents)
 - **Profiles**: family member CRUD in Settings (parents); **Profile** tab for account + self-edit (all members, including guests)
-- **Settings**: household members list with guest removal (parents)
+- **Settings**: household members list with guest removal (parents), household data export to Files (parents)
+- **Account deletion** (Profile → Delete Account, password required): a sole member's household is deleted with them, the only owner of a shared household must transfer ownership first, and anyone else just leaves
 - **Profile photos**: pick from library, upload, replace, remove (parents for any profile; guests for own)
 - Local snapshot cache for the last household/dashboard load
 - Local notifications for routines, chores, and sleep reminders

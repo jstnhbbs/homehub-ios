@@ -9,6 +9,7 @@ struct MyProfileView: View {
     @State private var currentPassword = ""
     @State private var newPassword = ""
     @State private var confirmPassword = ""
+    @State private var showDeleteAccount = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -39,9 +40,23 @@ struct MyProfileView: View {
                         Task { await appState.signOut() }
                     }
                 }
+
+                if viewModel.account != nil {
+                    Section {
+                        Button("Delete Account…", role: .destructive) {
+                            showDeleteAccount = true
+                        }
+                    } footer: {
+                        Text("Permanently removes your account. You'll be asked to confirm with your password.")
+                    }
+                }
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
+            .sheet(isPresented: $showDeleteAccount) {
+                DeleteAccountSheet()
+                    .environmentObject(appState)
+            }
         }
         .onAppear {
             viewModel.bind(to: appState)

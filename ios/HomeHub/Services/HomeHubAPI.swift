@@ -98,6 +98,14 @@ final class HomeHubAPI: ObservableObject {
         try await client.request("/api/mobile/v1/account", method: "PATCH", body: UpdateAccountRequest(name: name))
     }
 
+    func deleteAccount(password: String) async throws {
+        try await client.requestVoid(
+            "/api/mobile/v1/account",
+            method: "DELETE",
+            body: DeleteAccountRequest(password: password)
+        )
+    }
+
     func changePassword(currentPassword: String, newPassword: String) async throws -> ChangePasswordResponse {
         try await client.request(
             "/api/mobile/v1/account/change-password",

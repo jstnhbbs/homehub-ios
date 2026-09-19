@@ -9,6 +9,10 @@ struct UpdateAccountRequest: Codable, Sendable {
     let name: String
 }
 
+struct DeleteAccountRequest: Codable, Sendable {
+    let password: String
+}
+
 struct ChangePasswordRequest: Codable, Sendable {
     let currentPassword: String
     let newPassword: String
