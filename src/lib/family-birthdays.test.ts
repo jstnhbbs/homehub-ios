@@ -86,4 +86,71 @@ describe("family birthdays", () => {
     expect(items[0]).toMatchObject({ daysUntil: 3, source: "profile" });
     expect(items[1]?.daysUntil).toBeGreaterThan(3);
   });
+
+  it("marks profile birthdays and rows without a kind as birthdays", () => {
+    const items = combineBirthdaySources(
+      [jamie],
+      [
+        {
+          id: "family-1",
+          profileId: null,
+          name: "Grandma Eve",
+          birthDate: "1948-08-20",
+          notes: null,
+          giftIdeas: null,
+          notifyDaysBefore: 7,
+        },
+      ],
+    );
+    expect(items.map((item) => item.kind)).toEqual(["birthday", "birthday"]);
+  });
+
+  it("carries an anniversary through and counts its years", () => {
+    const items = listHouseholdBirthdays(
+      [],
+      [
+        {
+          id: "family-3",
+          profileId: null,
+          name: "Alex & Sam",
+          birthDate: "2016-09-25",
+          kind: "anniversary",
+          notes: null,
+          giftIdeas: null,
+          notifyDaysBefore: 7,
+        },
+      ],
+      "2026-09-25",
+    );
+    expect(items[0]).toMatchObject({ kind: "anniversary", daysUntil: 0, upcomingAge: 10, source: "family" });
+  });
+
+  it("does not let a profile's birthday hide an anniversary linked to that profile", () => {
+    const items = combineBirthdaySources(
+      [jamie],
+      [
+        {
+          id: "family-4",
+          profileId: "profile-1",
+          name: "Jamie's anniversary",
+          birthDate: "2015-06-01",
+          kind: "anniversary",
+          notes: null,
+          giftIdeas: null,
+          notifyDaysBefore: 7,
+        },
+        {
+          id: "family-5",
+          profileId: "profile-1",
+          name: "Jamie duplicate",
+          birthDate: "2019-01-01",
+          kind: "birthday",
+          notes: null,
+          giftIdeas: null,
+          notifyDaysBefore: 7,
+        },
+      ],
+    );
+    expect(items.map((item) => item.id)).toEqual(["profile-1", "family-4"]);
+  });
 });

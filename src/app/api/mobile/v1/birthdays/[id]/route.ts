@@ -16,6 +16,7 @@ const optionalText = z.string().trim().max(2000).nullable().optional();
 const birthdayUpdateSchema = z.object({
   name: shortText.optional(),
   birthDate: z.string().date().optional(),
+  kind: z.enum(["birthday", "anniversary"]).optional(),
   profileId: z.string().uuid().nullable().optional(),
   notes: optionalText,
   giftIdeas: optionalText,
@@ -42,13 +43,20 @@ export async function PATCH(request: Request, context: RouteContext) {
       .limit(1);
     if (!existing[0]) throw new Error("Birthday not found.");
 
+    const kind = input.kind ?? existing[0].kind;
     const birthDate = input.birthDate ?? existing[0].birthDate;
     if (birthDate > localDateIn(household.timezone)) {
-      throw new Error("Birthday cannot be in the future.");
+      throw new Error(
+        kind === "anniversary"
+          ? "The anniversary date cannot be in the future."
+          : "Birthday cannot be in the future.",
+      );
     }
 
     let profileId = existing[0].profileId;
-    if (input.profileId !== undefined) {
+    if (kind === "anniversary") {
+      profileId = null;
+    } else if (input.profileId !== undefined) {
       profileId = input.profileId;
       if (profileId) {
         const profile = await db
@@ -70,6 +78,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       .set({
         name: input.name ?? existing[0].name,
         birthDate,
+        kind,
         profileId,
         notes: input.notes === undefined ? existing[0].notes : input.notes,
         giftIdeas:

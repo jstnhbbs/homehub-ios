@@ -6,6 +6,8 @@ type BirthdayProfile = {
   name: string;
   color: string;
   birthday: string | null;
+  /** Defaults to a birthday. */
+  kind?: "birthday" | "anniversary";
 };
 
 export function birthdayDateInYear(birthday: string, year: number) {
@@ -46,7 +48,7 @@ export function birthdayEventsInRange(
       const nextLocalDate = nextDate.toISOString().slice(0, 10);
 
       events.push({
-        title: `${profile.name}’s birthday`,
+        title: `${profile.name}’s ${profile.kind === "anniversary" ? "anniversary" : "birthday"}`,
         description: null,
         location: null,
         startsAt: fromZonedTime(`${localDate}T00:00:00`, timezone),
@@ -56,7 +58,7 @@ export function birthdayEventsInRange(
         eventId: `birthday-${profile.id}-${year}`,
         calendarId: "",
         color: profile.color,
-        calendarName: "Family birthdays",
+        calendarName: profile.kind === "anniversary" ? "Family anniversaries" : "Family birthdays",
         isBirthday: true as const,
         profileId: profile.id,
       });

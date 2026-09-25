@@ -36,6 +36,21 @@ describe("birthdays", () => {
     expect(events[0].startsAt.toISOString()).toBe("2026-07-18T05:00:00.000Z");
   });
 
+  it("words an anniversary's calendar event as an anniversary", () => {
+    const events = birthdayEventsInRange(
+      [{ id: "a-1", name: "Alex & Sam", color: "#4f7c6d", birthday: "2016-07-18", kind: "anniversary" }],
+      "2026-07-13",
+      "2026-07-19",
+      "America/Chicago",
+    );
+
+    expect(events[0]).toMatchObject({
+      title: "Alex & Sam’s anniversary",
+      calendarName: "Family anniversaries",
+      allDay: true,
+    });
+  });
+
   it("returns birthdays within the reminder window", () => {
     expect(upcomingBirthdays([profile], "2026-07-15")).toMatchObject([
       { daysUntil: 3, localDate: "2026-07-18" },

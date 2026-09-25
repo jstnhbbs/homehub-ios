@@ -156,6 +156,7 @@ export async function buildDashboardPayload(
       profileId: row.profileId,
       name: row.name,
       birthDate: row.birthDate,
+      kind: row.kind,
       notes: row.notes,
       giftIdeas: row.giftIdeas,
       notifyDaysBefore: row.notifyDaysBefore,
@@ -171,6 +172,7 @@ export async function buildDashboardPayload(
         name: item.name,
         color: item.color,
         birthday: item.birthDate,
+        kind: item.kind,
       })),
       localDate,
       localDate,
@@ -225,6 +227,9 @@ export async function buildDashboardPayload(
     groceryItems: groceryRows,
     notes: noteRows,
     upcomingBirthdays,
+    // Says whether any anniversary exists at all, not just within the next 45 days, so the app can
+    // name the module consistently ("Birthdays" or "Celebrations").
+    hasAnniversaries: familyBirthdayRows.some((row) => row.kind === "anniversary"),
     routineStreaks,
   };
 }

@@ -4,6 +4,9 @@ import { PROFILE_COLORS } from "@/lib/profile-colors";
 
 export type BirthdaySource = "profile" | "family";
 
+/** Birthdays and anniversaries are counted the same way; only the wording differs. */
+export type CelebrationKind = "birthday" | "anniversary";
+
 export type BirthdayLike = {
   id: string;
   name: string;
@@ -27,6 +30,8 @@ export type BirthdayFamilySource = {
   profileId: string | null;
   name: string;
   birthDate: string;
+  /** Defaults to a birthday when missing. */
+  kind?: CelebrationKind;
   notes: string | null;
   giftIdeas: string | null;
   notifyDaysBefore: number;
@@ -35,6 +40,7 @@ export type BirthdayFamilySource = {
 export type BirthdayItem = {
   id: string;
   source: BirthdaySource;
+  kind: CelebrationKind;
   profileId: string | null;
   name: string;
   birthDate: string;
@@ -45,6 +51,7 @@ export type BirthdayItem = {
   notifyDaysBefore: number;
   nextDate: string;
   daysUntil: number;
+  /** The age they turn, or for an anniversary the number of years it marks. */
   upcomingAge: number;
 };
 
@@ -92,6 +99,7 @@ export function combineBirthdaySources(
       {
         id: profile.id,
         source: "profile" as const,
+        kind: "birthday" as const,
         profileId: profile.id,
         name: profile.name,
         birthDate: profile.birthday,
@@ -106,7 +114,10 @@ export function combineBirthdaySources(
 
   const profileIdsWithBirthday = new Set(profileItems.map((item) => item.profileId));
   const familyItems = familyRows.flatMap((row) => {
-    if (row.profileId && profileIdsWithBirthday.has(row.profileId)) {
+    const kind = row.kind ?? "birthday";
+    // A profile's own birthday wins over an extra birthday row linked to it. Anniversaries are
+    // a different occasion, so a linked profile's birthday never hides them.
+    if (kind === "birthday" && row.profileId && profileIdsWithBirthday.has(row.profileId)) {
       return [];
     }
     const linked = row.profileId
@@ -116,6 +127,7 @@ export function combineBirthdaySources(
       {
         id: row.id,
         source: "family" as const,
+        kind,
         profileId: row.profileId,
         name: row.name,
         birthDate: row.birthDate,

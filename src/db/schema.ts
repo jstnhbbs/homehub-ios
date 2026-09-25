@@ -402,6 +402,11 @@ export const familyBirthdays = sqliteTable(
     }),
     name: text("name").notNull(),
     birthDate: text("birth_date").notNull(),
+    // Birthdays and anniversaries share this table; the date column is the birth date or the
+    // date the anniversary began.
+    kind: text("kind", { enum: ["birthday", "anniversary"] })
+      .notNull()
+      .default("birthday"),
     notes: text("notes"),
     giftIdeas: text("gift_ideas"),
     notifyDaysBefore: integer("notify_days_before").notNull().default(7),

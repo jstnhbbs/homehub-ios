@@ -19,6 +19,7 @@ const optionalText = z.string().trim().max(2000).optional();
 const birthdayInputSchema = z.object({
   name: shortText,
   birthDate: z.string().date(),
+  kind: z.enum(["birthday", "anniversary"]).default("birthday"),
   profileId: z.string().uuid().nullable().optional(),
   notes: optionalText,
   giftIdeas: optionalText,
@@ -52,6 +53,7 @@ async function loadBirthdayItems(householdId: string, timezone: string) {
       profileId: row.profileId,
       name: row.name,
       birthDate: row.birthDate,
+      kind: row.kind,
       notes: row.notes,
       giftIdeas: row.giftIdeas,
       notifyDaysBefore: row.notifyDaysBefore,
@@ -77,10 +79,16 @@ export async function POST(request: Request) {
     const input = birthdayInputSchema.parse(await parseJsonBody(request));
     const today = localDateIn(household.timezone);
     if (input.birthDate > today) {
-      throw new Error("Birthday cannot be in the future.");
+      throw new Error(
+        input.kind === "anniversary"
+          ? "The anniversary date cannot be in the future."
+          : "Birthday cannot be in the future.",
+      );
     }
 
-    const profileId: string | null = input.profileId ?? null;
+    // An anniversary belongs to a couple or a group, not to one profile.
+    const profileId: string | null =
+      input.kind === "anniversary" ? null : (input.profileId ?? null);
     if (profileId) {
       const profile = await db
         .select({ id: profiles.id })
@@ -99,6 +107,7 @@ export async function POST(request: Request) {
       profileId,
       name: input.name,
       birthDate: input.birthDate,
+      kind: input.kind,
       notes: input.notes?.trim() ? input.notes : null,
       giftIdeas: input.giftIdeas?.trim() ? input.giftIdeas : null,
       notifyDaysBefore: input.notifyDaysBefore ?? 7,
