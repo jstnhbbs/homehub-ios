@@ -75,7 +75,7 @@ struct RoutinesView: View {
         HStack(alignment: .bottom) {
             if horizontalSizeClass != .compact {
                 Text("Routines")
-                    .font(.system(size: 34, weight: .semibold, design: .rounded))
+                    .font(HubTheme.pageTitle)
             }
             Spacer()
             if viewModel.canManage {
@@ -300,6 +300,11 @@ private struct RoutineStepCheckRow: View {
     @State private var isCelebrating = false
     @State private var isWorking = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    // Glyph and its tile scale together, or the emoji clips its container at
+    // larger text sizes.
+    @ScaledMetric(relativeTo: .largeTitle) private var glyphSize: CGFloat = 46
+    @ScaledMetric(relativeTo: .largeTitle) private var glyphTileSize: CGFloat = 76
+    @ScaledMetric(relativeTo: .title) private var stepLabelSize: CGFloat = 24
 
     private var display: RoutineStepDisplay {
         RoutineGlyphs.display(for: step.label)
@@ -339,8 +344,8 @@ private struct RoutineStepCheckRow: View {
                 ZStack {
                     HStack(spacing: 16) {
                         Text(display.glyph)
-                            .font(.system(size: 46))
-                            .frame(width: 76, height: 76)
+                            .font(.system(size: glyphSize))
+                            .frame(width: glyphTileSize, height: glyphTileSize)
                             .background(tint.opacity(0.18))
                             .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                             .scaleEffect(isCelebrating && !reduceMotion ? 1.12 : 1)
@@ -348,7 +353,7 @@ private struct RoutineStepCheckRow: View {
 
                         VStack(alignment: .leading, spacing: 8) {
                             Text(display.label)
-                                .font(.system(size: 24, weight: .heavy, design: .rounded))
+                                .font(.system(size: stepLabelSize, weight: .heavy, design: .rounded))
                                 .foregroundStyle(.primary)
                                 .lineLimit(2)
                                 .minimumScaleFactor(0.78)

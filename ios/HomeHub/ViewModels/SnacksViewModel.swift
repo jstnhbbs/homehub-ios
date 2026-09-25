@@ -51,17 +51,15 @@ final class SnacksViewModel: ObservableObject {
     func toggleSnack(_ label: String) async {
         guard let appState else { return }
         do {
-            try await appState.api.toggleSnack(
-                ToggleSnackRequest(localDate: localDate, snackLabel: label)
-            )
-            if eaten.contains(label) {
+            try await appState.toggleSnack(localDate: localDate, label: label)
+            // Prefer the refreshed server state; fall back to a local flip if the
+            // dashboard isn't loaded for some reason.
+            if let dashboard = appState.dashboard {
+                eaten = Set(dashboard.snackEaten)
+            } else if eaten.contains(label) {
                 eaten.remove(label)
             } else {
                 eaten.insert(label)
-            }
-            await appState.refreshDashboard()
-            if let dashboard = appState.dashboard {
-                eaten = Set(dashboard.snackEaten)
             }
         } catch {
             if let message = error.userFacingMessage {

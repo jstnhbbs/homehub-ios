@@ -50,6 +50,8 @@ info_ref = uid()
 entitlements_ref = uid()
 assets_ref = uid()
 assets_build = uid()
+privacy_manifest_ref = uid()
+privacy_manifest_build = uid()
 icon_refs = {name: uid() for name in ICON_COMPOSER_NAMES}
 icon_builds = {name: uid() for name in ICON_COMPOSER_NAMES}
 
@@ -72,6 +74,7 @@ lines.extend(
         f'\t\t{info_ref} /* Info.plist */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = {PROJECT}/Info.plist; sourceTree = SOURCE_ROOT; }};',
         f'\t\t{entitlements_ref} /* {PROJECT}.entitlements */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = {PROJECT}/{PROJECT}.entitlements; sourceTree = SOURCE_ROOT; }};',
         f'\t\t{assets_ref} /* Assets.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = {PROJECT}/Assets.xcassets; sourceTree = SOURCE_ROOT; }};',
+        f'\t\t{privacy_manifest_ref} /* PrivacyInfo.xcprivacy */ = {{isa = PBXFileReference; lastKnownFileType = text.xml; path = {PROJECT}/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; }};',
         f'\t\t{product_ref} /* {PROJECT}.app */ = {{isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = {PROJECT}.app; sourceTree = BUILT_PRODUCTS_DIR; }};',
     ]
 )
@@ -86,6 +89,9 @@ for path, ref in build_files.items():
     )
 lines.append(
     f'\t\t{assets_build} /* Assets.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {assets_ref} /* Assets.xcassets */; }};'
+)
+lines.append(
+    f'\t\t{privacy_manifest_build} /* PrivacyInfo.xcprivacy in Resources */ = {{isa = PBXBuildFile; fileRef = {privacy_manifest_ref} /* PrivacyInfo.xcprivacy */; }};'
 )
 for name in ICON_COMPOSER_NAMES:
     lines.append(
@@ -105,11 +111,11 @@ alternate_icon_names = ", ".join(ALTERNATE_APP_ICON_NAMES)
 lines.extend(
     [
         f'\t\t{products_group} /* Products */ = {{isa = PBXGroup; children = ({product_ref} /* {PROJECT}.app */); name = Products; sourceTree = "<group>"; }};',
-        f'\t\t{app_group} /* {PROJECT} */ = {{isa = PBXGroup; children = ({swift_ref_list}, {info_ref} /* Info.plist */, {entitlements_ref} /* {PROJECT}.entitlements */, {assets_ref} /* Assets.xcassets */); name = {PROJECT}; sourceTree = "<group>"; }};',
+        f'\t\t{app_group} /* {PROJECT} */ = {{isa = PBXGroup; children = ({swift_ref_list}, {info_ref} /* Info.plist */, {entitlements_ref} /* {PROJECT}.entitlements */, {assets_ref} /* Assets.xcassets */, {privacy_manifest_ref} /* PrivacyInfo.xcprivacy */); name = {PROJECT}; sourceTree = "<group>"; }};',
         f'\t\t{main_group} = {{isa = PBXGroup; children = ({app_group} /* {PROJECT} */, {icon_ref_list}, {products_group} /* Products */); sourceTree = "<group>"; }};',
         f'\t\t{frameworks_phase} /* Frameworks */ = {{isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; }};',
         f'\t\t{sources_phase} /* Sources */ = {{isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = ({build_ref_list}); runOnlyForDeploymentPostprocessing = 0; }};',
-        f'\t\t{resources_phase} /* Resources */ = {{isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = ({assets_build} /* Assets.xcassets in Resources */, {icon_build_list}); runOnlyForDeploymentPostprocessing = 0; }};',
+        f'\t\t{resources_phase} /* Resources */ = {{isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = ({assets_build} /* Assets.xcassets in Resources */, {privacy_manifest_build} /* PrivacyInfo.xcprivacy in Resources */, {icon_build_list}); runOnlyForDeploymentPostprocessing = 0; }};',
         f'\t\t{target_uid} /* {PROJECT} */ = {{isa = PBXNativeTarget; buildConfigurationList = {target_config_list}; buildPhases = ({sources_phase} /* Sources */, {frameworks_phase} /* Frameworks */, {resources_phase} /* Resources */); buildRules = (); dependencies = (); name = {PROJECT}; productName = {PROJECT}; productReference = {product_ref}; productType = "com.apple.product-type.application"; }};',
         f'\t\t{project_uid} /* Project object */ = {{isa = PBXProject; attributes = {{BuildIndependentTargetsInParallel = 1; LastUpgradeCheck = 1600;}}; buildConfigurationList = {project_config_list}; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = {main_group}; productRefGroup = {products_group}; projectDirPath = ""; projectRoot = ""; targets = ({target_uid}); }};',
         f'\t\t{debug_config} /* Debug */ = {{isa = XCBuildConfiguration; buildSettings = {{IPHONEOS_DEPLOYMENT_TARGET = 17.0; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }}; name = Debug; }};',

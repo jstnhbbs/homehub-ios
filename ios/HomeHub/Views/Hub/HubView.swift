@@ -408,8 +408,11 @@ struct HubHeaderView: View {
                 }
             }
             Spacer()
+            // Ambient readouts sit together on the trailing edge: temperature, then time.
+            WeatherHeaderReadout()
             if let timezone = appState.household.flatMap({ TimeZone(identifier: $0.timezone) }) {
                 LiveClockView(timezone: timezone)
+                    .padding(.leading, 4)
             }
             if let role = appState.household?.role, HouseholdRoles.isGuest(role: role) {
                 Button("Sign Out") {

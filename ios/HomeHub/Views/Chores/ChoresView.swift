@@ -69,7 +69,7 @@ struct ChoresView: View {
         HStack(alignment: .bottom) {
             if horizontalSizeClass != .compact {
                 Text("Chore chart")
-                    .font(.system(size: 34, weight: .semibold, design: .rounded))
+                    .font(HubTheme.pageTitle)
             }
             Spacer()
             if viewModel.canManage {

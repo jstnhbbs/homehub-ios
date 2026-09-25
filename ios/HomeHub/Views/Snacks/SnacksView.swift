@@ -33,7 +33,7 @@ struct SnacksView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     if horizontalSizeClass != .compact {
                         Text("Today's snacks")
-                            .font(.system(size: 28, weight: .semibold, design: .rounded))
+                            .font(HubTheme.sectionTitle)
                     }
                     if !viewModel.dateLabel.isEmpty {
                         Text(viewModel.dateLabel)

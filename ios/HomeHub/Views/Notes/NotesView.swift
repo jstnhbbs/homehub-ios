@@ -53,7 +53,7 @@ struct NotesView: View {
         VStack(alignment: .leading, spacing: 4) {
             if horizontalSizeClass != .compact {
                 Text("Notes")
-                    .font(.system(size: 34, weight: .semibold, design: .rounded))
+                    .font(HubTheme.pageTitle)
             }
             Text("Household scratchpad")
                 .font(.subheadline.weight(.bold))

@@ -17,6 +17,8 @@ struct CalendarView: View {
         ScrollView {
             content
         }
+        // Matches the system search behaviour of dropping the keyboard on scroll.
+        .scrollDismissesKeyboard(.immediately)
         .onAppear {
             viewModel.bind(to: appState)
             applyCompactDefaultViewMode()
@@ -118,7 +120,7 @@ struct CalendarView: View {
     private var headerTitle: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Family calendar")
-                .font(.system(size: 34, weight: .semibold, design: .rounded))
+                .font(HubTheme.pageTitle)
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
         }
@@ -130,8 +132,9 @@ struct CalendarView: View {
                 showCalendarSettings = true
             } label: {
                 Image(systemName: "gearshape")
-                    .font(.body.weight(.semibold))
-                    .frame(width: 44, height: 44)
+                    .font(.title2.weight(.semibold))
+                    .frame(width: 52, height: 52)
+                    .background(HubTheme.sageSoft, in: Circle())
             }
             .buttonStyle(.plain)
             .foregroundStyle(HubTheme.sage)
@@ -216,17 +219,38 @@ struct CalendarView: View {
         .pickerStyle(.segmented)
     }
 
+    // Hand-rolled rather than `.searchable` because this screen has no navigation
+    // bar for the system field to render into. These modifiers reproduce the parts
+    // of a system search field that affect behaviour rather than appearance.
     private var calendarSearchField: some View {
-        HStack {
+        HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(HubTheme.muted)
+                .accessibilityHidden(true)
+
             TextField("Search events…", text: $viewModel.searchQuery)
                 .textFieldStyle(.plain)
+                .submitLabel(.search)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .accessibilityAddTraits(.isSearchField)
+
+            if !viewModel.searchQuery.isEmpty {
+                Button {
+                    viewModel.searchQuery = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(HubTheme.muted)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(HubTheme.tileQuiet)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .animation(.snappy(duration: 0.15), value: viewModel.searchQuery.isEmpty)
     }
 
     private var calendarNavigationControls: some View {

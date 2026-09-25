@@ -45,12 +45,7 @@ final class NativeRemindersService: ObservableObject {
 
     func requestFullAccess() async {
         do {
-            let granted: Bool
-            if #available(iOS 17.0, *) {
-                granted = try await eventStore.requestFullAccessToReminders()
-            } else {
-                granted = try await eventStore.requestAccess(to: .reminder)
-            }
+            let granted = try await eventStore.requestFullAccessToReminders()
             accessStatus = granted ? .authorized : Self.currentAccessStatus()
             if granted {
                 eventStore.reset()

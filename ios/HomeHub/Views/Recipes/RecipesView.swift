@@ -154,7 +154,7 @@ struct RecipesView: View {
             HStack(alignment: .bottom) {
                 if horizontalSizeClass != .compact {
                     Text("Recipes")
-                        .font(.system(size: 34, weight: .semibold, design: .rounded))
+                        .font(HubTheme.pageTitle)
                 }
                 Spacer()
                 if viewModel.canManage {

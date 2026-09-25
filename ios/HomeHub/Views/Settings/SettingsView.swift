@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 enum SettingsPresentation {
@@ -71,7 +72,6 @@ struct SettingsView: View {
     private var settingsIndex: some View {
         List {
             accountHeader
-            permissionsSummarySection
             statusMessagesSection
 
             Section {
@@ -82,10 +82,11 @@ struct SettingsView: View {
             }
 
             Section {
-                settingsRow(.appearance)
-                settingsRow(.calendar)
                 settingsRow(.notifications)
                 settingsRow(.layout)
+                settingsRow(.calendar)
+                settingsRow(.appearance)
+                settingsRow(.privacyAccess)
             } header: {
                 Text("Beacon")
             }
@@ -185,6 +186,8 @@ struct SettingsView: View {
             nil
         case .appearance:
             appState.accentPalette.label
+        case .privacyAccess:
+            permissionSummaryLabel
         case .family:
             "\(viewModel.profiles.count)"
         case .calendar:
@@ -205,7 +208,7 @@ struct SettingsView: View {
                 "Ask"
             }
         case .layout:
-            "\(appState.hubModules.dashboardOrder.count)"
+            "\(appState.hubModules.dashboardOrder.filter { $0 != .weather }.count)"
         case .data:
             appState.household == nil ? "Offline" : "Signed in"
         case .faq:
@@ -250,6 +253,13 @@ struct SettingsView: View {
             generalTab
         case .appearance:
             appearanceTab
+        case .privacyAccess:
+            PrivacyAccessSettingsView(
+                calendar: appState.nativeCalendar,
+                reminders: appState.nativeReminders,
+                notifications: appState.nativeNotifications,
+                weather: appState.nativeWeather
+            )
         case .family:
             usersTab
         case .calendar:
@@ -269,6 +279,8 @@ struct SettingsView: View {
 
     private var generalTab: some View {
         Form {
+            permissionsSummarySection
+
             if let household = appState.household {
                 householdSection(household)
             }
@@ -305,6 +317,16 @@ struct SettingsView: View {
                 weekStartsOn = WeekStart.parseWeekStartsOn(household.weekStartsOn)
             }
         }
+    }
+
+    private var permissionSummaryLabel: String {
+        let enabledCount = [
+            appState.nativeCalendar.hasFullAccess,
+            appState.nativeReminders.hasFullAccess,
+            appState.nativeNotifications.canSchedule,
+            appState.nativeWeather.accessStatus == .authorized
+        ].filter { $0 }.count
+        return "\(enabledCount) of 4"
     }
 
     private var appearanceTab: some View {
@@ -755,7 +777,7 @@ private struct SettingsFAQView: View {
             FAQItem("How do I use Beacon on more than one device?", "Install Beacon on each device and sign in. Use the same account, or have another parent create an account and join your household with the parent invite code in Settings > Family. Shared household information comes from the same backend on your phone and larger display."),
             FAQItem("What is the difference between an account and a family profile?", "An account is a sign-in for someone using Beacon. A family profile represents a person in your household, including children who do not need their own sign-in. Profiles let you assign routines and chores and keep birthdays together."),
             FAQItem("How do I invite a parent or helper?", "Find the invite codes in Settings > Family. Share the parent code with another parent, or the guest code with a helper. They create an account and join with that code. Treat invite codes as private household information."),
-            FAQItem("What can owners, parents, and guests do?", "Owners and parents manage household setup and family information. Guests can use household views without changing global settings. Your role and available permissions appear at the top of Settings.")
+            FAQItem("What can owners, parents, and guests do?", "Owners and parents manage household setup and family information. Guests can use household views without changing global settings. Your role and available permissions appear in Settings > General.")
         ]),
         FAQSection(title: "Today & Layout", questions: [
             FAQItem("How do I choose and arrange Today cards?", "Open Settings > Layout > Today Cards. Toggle the cards you want to see and use the reorder controls to arrange them. Your card choices and order are saved for your signed-in user."),
@@ -787,9 +809,252 @@ private struct SettingsFAQView: View {
     ]
 }
 
+private struct PrivacyAccessSettingsView: View {
+    @Environment(\.scenePhase) private var scenePhase
+    @ObservedObject var calendar: NativeCalendarService
+    @ObservedObject var reminders: NativeRemindersService
+    @ObservedObject var notifications: NativeNotificationService
+    @ObservedObject var weather: NativeWeatherService
+
+    var body: some View {
+        Form {
+            Section {
+                PermissionAccessRow(
+                    title: "Calendars",
+                    detail: "Shows events from calendars available on this device.",
+                    systemImage: "calendar",
+                    state: calendarPermissionState,
+                    actionTitle: actionTitle(for: calendarPermissionState)
+                ) {
+                    if calendar.accessStatus == .notDetermined {
+                        await calendar.requestFullAccess()
+                    } else {
+                        openSystemSettings()
+                    }
+                }
+
+                PermissionAccessRow(
+                    title: "Reminders",
+                    detail: "Adds grocery items to an Apple Reminders list.",
+                    systemImage: "checklist",
+                    state: remindersPermissionState,
+                    actionTitle: actionTitle(for: remindersPermissionState)
+                ) {
+                    if reminders.accessStatus == .notDetermined {
+                        await reminders.requestFullAccess()
+                    } else {
+                        openSystemSettings()
+                    }
+                }
+
+                PermissionAccessRow(
+                    title: "Notifications",
+                    detail: "Delivers routine, chore, bedtime, and nap reminders.",
+                    systemImage: "bell.badge",
+                    state: notificationPermissionState,
+                    actionTitle: actionTitle(for: notificationPermissionState)
+                ) {
+                    if notifications.accessStatus == .notDetermined {
+                        await notifications.requestAuthorization()
+                    } else {
+                        openSystemSettings()
+                    }
+                }
+
+                PermissionAccessRow(
+                    title: "Location",
+                    detail: "Uses approximate device location to show local weather.",
+                    systemImage: "location.fill",
+                    state: locationPermissionState,
+                    actionTitle: actionTitle(for: locationPermissionState)
+                ) {
+                    if weather.accessStatus == .notDetermined {
+                        await weather.requestAccessAndRefresh()
+                    } else {
+                        openSystemSettings()
+                    }
+                }
+            } header: {
+                Text("Device Access")
+            } footer: {
+                Text("These permissions apply only to this device. Beacon does not upload calendar or reminder contents to the household backend.")
+            }
+
+            Section {
+                Button {
+                    openSystemSettings()
+                } label: {
+                    Label("Open Beacon in iOS Settings", systemImage: "gearshape")
+                }
+            } footer: {
+                Text("Use iOS Settings to restore access after a permission has been denied or to change an existing choice.")
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .task {
+            await refreshPermissionStatuses()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await refreshPermissionStatuses() }
+        }
+    }
+
+    private var calendarPermissionState: DevicePermissionState {
+        switch calendar.accessStatus {
+        case .authorized: .allowed
+        case .notDetermined: .notRequested
+        case .denied: .denied
+        case .restricted: .restricted
+        }
+    }
+
+    private var remindersPermissionState: DevicePermissionState {
+        switch reminders.accessStatus {
+        case .authorized: .allowed
+        case .notDetermined: .notRequested
+        case .denied: .denied
+        case .restricted: .restricted
+        }
+    }
+
+    private var notificationPermissionState: DevicePermissionState {
+        switch notifications.accessStatus {
+        case .authorized, .provisional, .ephemeral: .allowed
+        case .notDetermined: .notRequested
+        case .denied: .denied
+        }
+    }
+
+    private var locationPermissionState: DevicePermissionState {
+        switch weather.accessStatus {
+        case .authorized: .allowed
+        case .notDetermined: .notRequested
+        case .denied: .denied
+        case .restricted: .restricted
+        case .unavailable: .unavailable
+        }
+    }
+
+    private func actionTitle(for state: DevicePermissionState) -> String? {
+        switch state {
+        case .notRequested: "Allow"
+        case .allowed, .denied, .restricted: "Open Settings"
+        case .unavailable: nil
+        }
+    }
+
+    private func refreshPermissionStatuses() async {
+        calendar.refreshAccessStatus()
+        reminders.refreshAccessStatus()
+        await notifications.refreshAccessStatus()
+        await weather.activateIfAuthorized()
+    }
+
+    private func openSystemSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
+    }
+}
+
+private struct PermissionAccessRow: View {
+    let title: String
+    let detail: String
+    let systemImage: String
+    let state: DevicePermissionState
+    let actionTitle: String?
+    let action: () async -> Void
+
+    @State private var isWorking = false
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(HubTheme.sage)
+                .frame(width: 34, height: 34)
+                .background(HubTheme.sageSoft, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.body.weight(.semibold))
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 8)
+
+            VStack(alignment: .trailing, spacing: 8) {
+                Text(state.label)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(state.foregroundStyle)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(state.backgroundStyle, in: Capsule())
+
+                if let actionTitle {
+                    Button(actionTitle) {
+                        Task {
+                            isWorking = true
+                            await action()
+                            isWorking = false
+                        }
+                    }
+                    .font(.caption.weight(.semibold))
+                    .buttonStyle(.bordered)
+                    .disabled(isWorking)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+private enum DevicePermissionState {
+    case allowed
+    case notRequested
+    case denied
+    case restricted
+    case unavailable
+
+    var label: String {
+        switch self {
+        case .allowed: "Allowed"
+        case .notRequested: "Not Asked"
+        case .denied: "Off"
+        case .restricted: "Restricted"
+        case .unavailable: "Unavailable"
+        }
+    }
+
+    var foregroundStyle: Color {
+        switch self {
+        case .allowed: HubTheme.sage
+        case .notRequested: .orange
+        case .denied, .restricted: .red
+        case .unavailable: .secondary
+        }
+    }
+
+    var backgroundStyle: Color {
+        switch self {
+        case .allowed: HubTheme.sageSoft
+        case .notRequested: Color.orange.opacity(0.14)
+        case .denied, .restricted: Color.red.opacity(0.12)
+        case .unavailable: Color.secondary.opacity(0.12)
+        }
+    }
+}
+
 private enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
     case general
     case appearance
+    case privacyAccess
     case family
     case calendar
     case notifications
@@ -804,6 +1069,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .general: "General"
         case .appearance: "Appearance"
+        case .privacyAccess: "Privacy & Access"
         case .family: "Family"
         case .calendar: "Calendar & Reminders"
         case .notifications: "Notifications"
@@ -818,6 +1084,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .general: "Household details, date, and sign out."
         case .appearance: "Theme, mode, and app icon."
+        case .privacyAccess: "Review permissions used on this device."
         case .family: "Manage members and family profiles."
         case .calendar: "Access, defaults, alerts, and calendars on this device."
         case .notifications: "Configure native reminder times."
@@ -832,6 +1099,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .general: "gearshape"
         case .appearance: "paintpalette"
+        case .privacyAccess: "hand.raised"
         case .family: "person.2"
         case .calendar: "calendar"
         case .notifications: "bell.badge"
@@ -846,6 +1114,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .general: HubTheme.sage
         case .appearance: Color.pink
+        case .privacyAccess: Color.cyan
         case .family: Color.blue
         case .calendar: Color.indigo
         case .notifications: Color.orange
@@ -1105,9 +1374,6 @@ private struct NativeNotificationsSettingView: View {
 private struct HubModulesSettingView: View {
     @EnvironmentObject private var appState: AppState
     @State private var modules = HubModules.defaults
-    @State private var draggedLayoutItem: String?
-    @State private var dropTargetItem: String?
-    @State private var pendingDraggedModules: HubModules?
     @State private var isSaving = false
     @State private var saveTask: Task<Void, Never>?
 
@@ -1202,24 +1468,34 @@ private struct HubModulesSettingView: View {
 
     @ViewBuilder
     private func layoutSectionPage(_ section: LayoutSettingsSection) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                switch section {
-                case .todayCards:
-                    dashboardCardsGroup
-                case .navigation:
-                    sidebarSectionsGroup
-                case .food:
-                    foodTabsGroup
+        // A real List so reordering is the system's own: grabbers, lift, live gap
+        // animation and edge auto-scroll. The Edit button matters because each row's
+        // Toggle fills the row and swallows the long-press, so without an explicit
+        // edit mode there is neither an affordance nor anywhere reliable to grab.
+        List {
+            switch section {
+            case .todayCards:
+                dashboardCardsSection
+            case .navigation:
+                sidebarSectionsSection
+            case .food:
+                foodTabsSection
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(HubTheme.canvas)
+        .toolbar {
+            if section.supportsReordering {
+                ToolbarItem(placement: .topBarTrailing) {
+                    EditButton()
                 }
             }
-            .padding()
         }
     }
 
-    private var sidebarSectionsGroup: some View {
-        layoutGroup(
-            title: "Sidebar sections",
+    private var sidebarSectionsSection: some View {
+        layoutSection(
             description: "Today stays fixed. These sections can be hidden or reordered, and Settings moves into More when space is tight.",
             items: modules.sidebarOrder,
             isEnabled: { modules.isEnabled($0) },
@@ -1232,14 +1508,13 @@ private struct HubModulesSettingView: View {
                 }
                 updateModules(next)
             },
-            moveBefore: reorderSidebarModule,
-            moveBy: moveSidebarModule
+            moveBy: moveSidebarModule,
+            onMove: moveSidebarModules
         )
     }
 
-    private var foodTabsGroup: some View {
-        layoutGroup(
-            title: "Food tabs",
+    private var foodTabsSection: some View {
+        layoutSection(
             description: "Weekly meals stays inside Food. Snacks and Recipes can be hidden.",
             items: HubModules.foodModules,
             isEnabled: { modules.isEnabled($0) },
@@ -1249,171 +1524,125 @@ private struct HubModulesSettingView: View {
                 let next = modules.updating(module, enabled: enabled)
                 updateModules(next)
             },
-            moveBefore: nil,
-            moveBy: nil
+            moveBy: nil,
+            onMove: nil
         )
     }
 
-    private var dashboardCardsGroup: some View {
-        HubCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Dashboard cards")
-                    .font(.headline)
-                Text("Choose what appears in Today, arrange the order, and set each card’s size.")
-                    .font(.caption)
-                    .foregroundStyle(HubTheme.muted)
-
-                ForEach(Array(modules.dashboardOrder.enumerated()), id: \.element) { index, card in
-                    DashboardCardLayoutOptionRow(
-                        title: card.label,
-                        systemImage: card.systemImage,
-                        isOn: Binding(
-                            get: { modules.dashboardCards[card, default: true] },
-                            set: { enabled in
-                                let next = modules.updatingDashboardCard(card, enabled: enabled)
-                                updateModules(next)
-                            }
-                        ),
-                        size: Binding(
-                            get: {
-                                let size = modules.dashboardCardSize(card)
-                                return size == .compact ? .standard : size
-                            },
-                            set: { size in
-                                let next = modules.updatingDashboardCardSize(card, size: size)
-                                updateModules(next)
-                            }
-                        ),
-                        isDragging: draggedLayoutItem == rawValue(card),
-                        isDropTarget: dropTargetItem == rawValue(card),
-                        canMoveUp: index > 0,
-                        canMoveDown: index < modules.dashboardOrder.count - 1,
-                        moveUp: { moveDashboardCard(card, by: -1) },
-                        moveDown: { moveDashboardCard(card, by: 1) },
-                        dragProvider: {
-                            draggedLayoutItem = rawValue(card)
-                            return NSItemProvider(object: rawValue(card) as NSString)
+    private var dashboardCardsSection: some View {
+        Section {
+            // Weather is header chrome now, like the clock, so it isn't a card to
+            // configure. Filtered rather than removed from the model so existing
+            // stored orders still decode.
+            ForEach(Array(layoutCards.enumerated()), id: \.element) { index, card in
+                DashboardCardLayoutOptionRow(
+                    title: card.label,
+                    systemImage: card.systemImage,
+                    isOn: Binding(
+                        get: { modules.dashboardCards[card, default: true] },
+                        set: { enabled in
+                            let next = modules.updatingDashboardCard(card, enabled: enabled)
+                            updateModules(next)
                         }
-                    )
-                    .onDrop(
-                        of: [UTType.plainText.identifier],
-                        delegate: LayoutReorderDropDelegate(
-                            targetValue: rawValue(card),
-                            draggedValue: $draggedLayoutItem,
-                            dropTargetValue: $dropTargetItem,
-                            onMoveBefore: { draggedValue, targetValue in
-                                guard draggedValue != targetValue,
-                                      let draggedCard = modules.dashboardOrder.first(where: { rawValue($0) == draggedValue }),
-                                      let targetCard = modules.dashboardOrder.first(where: { rawValue($0) == targetValue }) else {
-                                    return
-                                }
-                                if let next = reorderDashboardCard(draggedCard, before: targetCard) {
-                                    pendingDraggedModules = next
-                                }
-                            },
-                            onCommit: {
-                                let next = pendingDraggedModules ?? modules
-                                pendingDraggedModules = nil
-                                updateModules(next)
-                            }
-                        )
-                    )
-                }
+                    ),
+                    size: Binding(
+                        get: {
+                            let size = modules.dashboardCardSize(card)
+                            return size == .compact ? .standard : size
+                        },
+                        set: { size in
+                            let next = modules.updatingDashboardCardSize(card, size: size)
+                            updateModules(next)
+                        }
+                    ),
+                    canMoveUp: index > 0,
+                    canMoveDown: index < layoutCards.count - 1,
+                    moveUp: { moveDashboardCard(card, by: -1) },
+                    moveDown: { moveDashboardCard(card, by: 1) }
+                )
+                .listRowBackground(HubTheme.tile)
             }
+            .onMove(perform: moveDashboardCards)
+        } header: {
+            Text("Choose what appears in Today, arrange the order, and set each card’s size. Tap Edit to reorder.")
+                .font(.caption)
+                .foregroundStyle(HubTheme.muted)
+                .textCase(nil)
         }
     }
 
-    private func layoutGroup<Item: Hashable & RawRepresentable>(
-        title: String,
+    private func layoutSection<Item: Hashable & RawRepresentable>(
         description: String,
         items: [Item],
         isEnabled: @escaping (Item) -> Bool,
         label: @escaping (Item) -> String,
         systemImage: @escaping (Item) -> String,
         toggle: @escaping (Item, Bool) -> Void,
-        moveBefore: ((Item, Item) -> HubModules?)?,
-        moveBy: ((Item, Int) -> Void)?
+        moveBy: ((Item, Int) -> Void)?,
+        onMove: ((IndexSet, Int) -> Void)?
     ) -> some View where Item.RawValue == String {
-        HubCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(title)
-                    .font(.headline)
-                Text(description)
-                    .font(.caption)
-                    .foregroundStyle(HubTheme.muted)
-
-                ForEach(Array(items.enumerated()), id: \.element) { index, item in
-                    LayoutOptionRow(
-                        title: label(item),
-                        systemImage: systemImage(item),
-                        isOn: Binding(
-                            get: { isEnabled(item) },
-                            set: { toggle(item, $0) }
-                        ),
-                        isDragging: draggedLayoutItem == rawValue(item),
-                        isDropTarget: dropTargetItem == rawValue(item),
-                        canReorder: moveBefore != nil,
-                        canMoveUp: index > 0,
-                        canMoveDown: index < items.count - 1,
-                        moveUp: { moveBy?(item, -1) },
-                        moveDown: { moveBy?(item, 1) },
-                        dragProvider: moveBefore == nil ? nil : {
-                            draggedLayoutItem = rawValue(item)
-                            return NSItemProvider(object: rawValue(item) as NSString)
-                        }
-                    )
-                    .onDrop(
-                        of: [UTType.plainText.identifier],
-                        delegate: LayoutReorderDropDelegate(
-                            targetValue: rawValue(item),
-                            draggedValue: $draggedLayoutItem,
-                            dropTargetValue: $dropTargetItem,
-                            onMoveBefore: { draggedValue, targetValue in
-                                guard draggedValue != targetValue,
-                                      let draggedItem = items.first(where: { rawValue($0) == draggedValue }),
-                                      let targetItem = items.first(where: { rawValue($0) == targetValue }) else {
-                                    return
-                                }
-                                if let next = moveBefore?(draggedItem, targetItem) {
-                                    pendingDraggedModules = next
-                                }
-                            },
-                            onCommit: {
-                                let next = pendingDraggedModules ?? modules
-                                pendingDraggedModules = nil
-                                updateModules(next)
-                            }
-                        )
-                    )
-                }
+        Section {
+            let rows = ForEach(Array(items.enumerated()), id: \.element) { index, item in
+                LayoutOptionRow(
+                    title: label(item),
+                    systemImage: systemImage(item),
+                    isOn: Binding(
+                        get: { isEnabled(item) },
+                        set: { toggle(item, $0) }
+                    ),
+                    canMoveUp: moveBy != nil && index > 0,
+                    canMoveDown: moveBy != nil && index < items.count - 1,
+                    moveUp: { moveBy?(item, -1) },
+                    moveDown: { moveBy?(item, 1) }
+                )
+                .listRowBackground(HubTheme.tile)
             }
+
+            // Food tabs have a fixed order, so they simply get no move action.
+            if let onMove {
+                rows.onMove(perform: onMove)
+            } else {
+                rows
+            }
+        } header: {
+            Text(onMove == nil ? description : "\(description) Tap Edit to reorder.")
+                .font(.caption)
+                .foregroundStyle(HubTheme.muted)
+                .textCase(nil)
         }
     }
 
-    private func rawValue<Item: RawRepresentable>(_ item: Item) -> String where Item.RawValue == String {
-        item.rawValue
-    }
-
-    private func reorderSidebarModule(_ dragged: HubModuleId, before target: HubModuleId) -> HubModules? {
-        let nextOrder = moving(dragged, before: target, in: modules.sidebarOrder)
-        guard nextOrder != modules.sidebarOrder else { return nil }
+    // The List calls these once, after the drop. It owns the interactive animation,
+    // so there is nothing to apply mid-gesture and nothing to clean up if the drag
+    // is abandoned — the whole class of stuck-state bugs goes away with it.
+    private func moveSidebarModules(from source: IndexSet, to destination: Int) {
         var next = modules
-        next.sidebarOrder = nextOrder
-        withAnimation(.snappy(duration: 0.22)) {
-            modules = next
-        }
+        next.sidebarOrder.move(fromOffsets: source, toOffset: destination)
+        guard next != modules else { return }
+        updateModules(next)
+    }
+
+    /// Cards the Layout screen lists. Weather is excluded because it renders in the
+    /// header rather than the grid.
+    private var layoutCards: [DashboardCardId] {
+        modules.dashboardOrder.filter { $0 != .weather }
+    }
+
+    /// Rebuilds the stored order from a reordered visible list. The move offsets index
+    /// `layoutCards`, not `dashboardOrder`, so they can't be applied directly — the
+    /// hidden entries are pinned to the front instead.
+    private func applyingLayoutOrder(_ visible: [DashboardCardId]) -> HubModules {
+        var next = modules
+        next.dashboardOrder = modules.dashboardOrder.filter { $0 == .weather } + visible
         return next
     }
 
-    private func reorderDashboardCard(_ dragged: DashboardCardId, before target: DashboardCardId) -> HubModules? {
-        let nextOrder = moving(dragged, before: target, in: modules.dashboardOrder)
-        guard nextOrder != modules.dashboardOrder else { return nil }
-        var next = modules
-        next.dashboardOrder = nextOrder
-        withAnimation(.snappy(duration: 0.22)) {
-            modules = next
-        }
-        return next
+    private func moveDashboardCards(from source: IndexSet, to destination: Int) {
+        var visible = layoutCards
+        visible.move(fromOffsets: source, toOffset: destination)
+        let next = applyingLayoutOrder(visible)
+        guard next != modules else { return }
+        updateModules(next)
     }
 
     private func moveSidebarModule(_ module: HubModuleId, by offset: Int) {
@@ -1425,26 +1654,20 @@ private struct HubModulesSettingView: View {
         updateModules(next)
     }
 
+    /// Accessibility move. Operates on the visible list so a step never lands on the
+    /// hidden Weather entry and appears to do nothing.
     private func moveDashboardCard(_ card: DashboardCardId, by offset: Int) {
-        let next = modules.movingDashboardCard(card, by: offset)
+        var visible = layoutCards
+        guard let from = visible.firstIndex(of: card) else { return }
+        let to = from + offset
+        guard visible.indices.contains(to) else { return }
+        visible.swapAt(from, to)
+        let next = applyingLayoutOrder(visible)
         guard next != modules else { return }
         withAnimation(.snappy(duration: 0.22)) {
             modules = next
         }
         updateModules(next)
-    }
-
-    private func moving<Item: Equatable>(_ dragged: Item, before target: Item, in order: [Item]) -> [Item] {
-        guard let sourceIndex = order.firstIndex(of: dragged),
-              let targetIndex = order.firstIndex(of: target),
-              sourceIndex != targetIndex else {
-            return order
-        }
-
-        var copy = order
-        let item = copy.remove(at: sourceIndex)
-        copy.insert(item, at: targetIndex)
-        return copy
     }
 
     @MainActor
@@ -1467,6 +1690,14 @@ private enum LayoutSettingsSection: String, Hashable, Identifiable {
     case food
 
     var id: String { rawValue }
+
+    /// Food tabs have a fixed order, so that page gets no Edit button.
+    var supportsReordering: Bool {
+        switch self {
+        case .todayCards, .navigation: true
+        case .food: false
+        }
+    }
 
     var title: String {
         switch self {
@@ -1495,7 +1726,9 @@ private enum LayoutSettingsSection: String, Hashable, Identifiable {
     func summary(_ modules: HubModules) -> String {
         switch self {
         case .todayCards:
-            let enabledCount = modules.dashboardOrder.filter { modules.isDashboardCardEnabled($0) }.count
+            let enabledCount = modules.dashboardOrder
+                .filter { $0 != .weather && modules.isDashboardCardEnabled($0) }
+                .count
             return "\(enabledCount)"
         case .navigation:
             let enabledCount = modules.sidebarOrder.filter { modules.isEnabled($0) }.count
@@ -1511,14 +1744,10 @@ private struct LayoutOptionRow: View {
     let title: String
     let systemImage: String
     @Binding var isOn: Bool
-    var isDragging = false
-    var isDropTarget = false
-    var canReorder = false
     var canMoveUp = false
     var canMoveDown = false
     var moveUp: (() -> Void)?
     var moveDown: (() -> Void)?
-    var dragProvider: (() -> NSItemProvider)?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -1531,64 +1760,11 @@ private struct LayoutOptionRow: View {
 
             Toggle(title, isOn: $isOn)
                 .font(.subheadline.weight(.semibold))
-
-            if canReorder {
-                dragHandle
-            }
         }
-        .padding(12)
-        .background(HubTheme.tileQuiet)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(isDropTarget ? HubTheme.sage.opacity(0.55) : Color.clear, lineWidth: 1.5)
-        )
-        .opacity(isDragging ? 0.42 : 1)
-        .scaleEffect(isDragging ? 0.98 : 1)
-        .shadow(color: isDragging ? HubTheme.sage.opacity(0.18) : .clear, radius: 10, y: 4)
+        // The List supplies the row background, lift, and drop animation.
+        // Reorder stays reachable without a drag for VoiceOver and Switch Control.
         .accessibilityAction(named: Text("Move \(title) up")) { if canMoveUp { moveUp?() } }
         .accessibilityAction(named: Text("Move \(title) down")) { if canMoveDown { moveDown?() } }
-    }
-
-    private var dragHandle: some View {
-        Image(systemName: "line.3.horizontal")
-            .font(.body.weight(.bold))
-            .foregroundStyle(HubTheme.muted)
-            .frame(width: 36, height: 36)
-            .contentShape(Rectangle())
-            .onDrag {
-                dragProvider?() ?? NSItemProvider()
-            } preview: {
-                dragPreview
-            }
-            .accessibilityLabel("Reorder \(title)")
-            .accessibilityHint("Drag to change the order.")
-    }
-
-    private var dragPreview: some View {
-        HStack(spacing: 10) {
-            Image(systemName: systemImage)
-                .font(.headline)
-                .foregroundStyle(HubTheme.sage)
-                .frame(width: 28, height: 28)
-                .background(HubTheme.sageSoft)
-                .clipShape(Circle())
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-            Spacer(minLength: 0)
-            Image(systemName: "line.3.horizontal")
-                .foregroundStyle(HubTheme.muted)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .frame(width: 280, alignment: .leading)
-        .background(HubTheme.tile)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(HubTheme.line, lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.18), radius: 12, y: 6)
     }
 }
 
@@ -1599,13 +1775,10 @@ private struct DashboardCardLayoutOptionRow: View {
     let systemImage: String
     @Binding var isOn: Bool
     @Binding var size: DashboardCardSize
-    var isDragging = false
-    var isDropTarget = false
     var canMoveUp = false
     var canMoveDown = false
     var moveUp: (() -> Void)?
     var moveDown: (() -> Void)?
-    var dragProvider: (() -> NSItemProvider)?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -1620,18 +1793,9 @@ private struct DashboardCardLayoutOptionRow: View {
                 .font(.subheadline.weight(.semibold))
 
             sizeMenu
-            dragHandle
         }
-        .padding(12)
-        .background(HubTheme.tileQuiet)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(isDropTarget ? HubTheme.sage.opacity(0.55) : Color.clear, lineWidth: 1.5)
-        )
-        .opacity(isDragging ? 0.42 : 1)
-        .scaleEffect(isDragging ? 0.98 : 1)
-        .shadow(color: isDragging ? HubTheme.sage.opacity(0.18) : .clear, radius: 10, y: 4)
+        // The List supplies the row background, lift, and drop animation.
+        // Reorder stays reachable without a drag for VoiceOver and Switch Control.
         .accessibilityAction(named: Text("Move \(title) up")) { if canMoveUp { moveUp?() } }
         .accessibilityAction(named: Text("Move \(title) down")) { if canMoveDown { moveDown?() } }
     }
@@ -1659,7 +1823,9 @@ private struct DashboardCardLayoutOptionRow: View {
             .foregroundStyle(HubTheme.muted)
             .padding(.horizontal, 9)
             .padding(.vertical, 6)
-            .background(HubTheme.tile)
+            // Row background is now HubTheme.tile, so the capsule needs the quieter
+            // fill to stay visible against it.
+            .background(HubTheme.tileQuiet)
             .clipShape(Capsule())
         }
         .disabled(!isOn)
@@ -1670,78 +1836,4 @@ private struct DashboardCardLayoutOptionRow: View {
         horizontalSizeClass == .compact ? "iPad \(size.label)" : size.label
     }
 
-    private var dragHandle: some View {
-        Image(systemName: "line.3.horizontal")
-            .font(.body.weight(.bold))
-            .foregroundStyle(HubTheme.muted)
-            .frame(width: 36, height: 36)
-            .contentShape(Rectangle())
-            .onDrag {
-                dragProvider?() ?? NSItemProvider()
-            } preview: {
-                dragPreview
-            }
-            .accessibilityLabel("Reorder \(title)")
-            .accessibilityHint("Drag to change the order.")
-    }
-
-    private var dragPreview: some View {
-        HStack(spacing: 10) {
-            Image(systemName: systemImage)
-                .font(.headline)
-                .foregroundStyle(HubTheme.sage)
-                .frame(width: 28, height: 28)
-                .background(HubTheme.sageSoft)
-                .clipShape(Circle())
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-            Spacer(minLength: 0)
-            Text(size.label)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(HubTheme.muted)
-            Image(systemName: "line.3.horizontal")
-                .foregroundStyle(HubTheme.muted)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .frame(width: 300, alignment: .leading)
-        .background(HubTheme.tile)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(HubTheme.line, lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.18), radius: 12, y: 6)
-    }
-}
-
-private struct LayoutReorderDropDelegate: DropDelegate {
-    let targetValue: String
-    @Binding var draggedValue: String?
-    @Binding var dropTargetValue: String?
-    let onMoveBefore: (String, String) -> Void
-    let onCommit: () -> Void
-
-    func dropEntered(info: DropInfo) {
-        guard let draggedValue, draggedValue != targetValue else { return }
-        dropTargetValue = targetValue
-        onMoveBefore(draggedValue, targetValue)
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        draggedValue = nil
-        dropTargetValue = nil
-        onCommit()
-        return true
-    }
-
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        DropProposal(operation: .move)
-    }
-
-    func dropExited(info: DropInfo) {
-        if dropTargetValue == targetValue {
-            dropTargetValue = nil
-        }
-    }
 }

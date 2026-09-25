@@ -128,7 +128,7 @@ struct MealsView: View {
     private var mealHeaderTitle: some View {
         if horizontalSizeClass != .compact {
             Text("Weekly meals")
-                .font(.system(size: 34, weight: .semibold, design: .rounded))
+                .font(HubTheme.pageTitle)
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
         }

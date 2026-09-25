@@ -15,6 +15,7 @@ struct RootView: View {
                 OnboardingView()
             } else {
                 HubView()
+                    .id(appState.accentPalette)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

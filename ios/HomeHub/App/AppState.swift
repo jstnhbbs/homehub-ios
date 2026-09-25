@@ -1,6 +1,5 @@
 import Foundation
 import SwiftUI
-import WidgetKit
 
 enum AppConfig {
     static var baseURL: URL {
@@ -133,7 +132,6 @@ final class AppState: ObservableObject {
             pendingProfileEditId = nil
             localStore.clear()
             HomeHubWidgetStore.clear()
-            WidgetCenter.shared.reloadAllTimelines()
             isBootstrapping = false
             return
         }
@@ -232,6 +230,56 @@ final class AppState: ObservableObject {
         }
     }
 
+    // MARK: - Completion actions
+    //
+    // One home for "what endpoint, what payload, and what to refresh afterwards" so the
+    // dashboard cards, the compact tiles, and the view models can't drift apart. These
+    // throw rather than swallowing, because each caller wants its own failure handling:
+    // view models surface `errorMessage`, tiles animate a checkmark back off.
+
+    /// `refreshingDashboard: false` lets a caller run its own completion animation
+    /// first and refresh afterwards, instead of re-rendering mid-animation.
+    func toggleRoutineStep(stepId: String, localDate: String, refreshingDashboard: Bool = true) async throws {
+        try await api.toggleRoutineStep(
+            ToggleRoutineStepRequest(stepId: stepId, localDate: localDate)
+        )
+        if refreshingDashboard {
+            await refreshDashboard()
+        }
+    }
+
+    func toggleChore(choreId: String, periodKey: String) async throws {
+        try await api.toggleChore(
+            ToggleChoreRequest(choreId: choreId, periodKey: periodKey)
+        )
+        await refreshDashboard()
+    }
+
+    func toggleSnack(localDate: String, label: String) async throws {
+        try await api.toggleSnack(
+            ToggleSnackRequest(localDate: localDate, snackLabel: label)
+        )
+        await refreshDashboard()
+    }
+
+    /// True when grocery writes should go to the device Reminders list instead of the API.
+    var groceriesUseNativeReminders: Bool {
+        nativeReminders.hasFullAccess && nativeReminders.selectedListId != nil
+    }
+
+    /// Routes to Reminders or the API depending on the household's grocery source. This
+    /// branch was previously copy-pasted at three call sites.
+    func setGroceryItemChecked(id: String, checked: Bool) async throws {
+        if groceriesUseNativeReminders {
+            try nativeReminders.setCompleted(itemId: id, completed: checked)
+            await refreshNativeGroceryItems()
+            await refreshDashboard()
+        } else {
+            _ = try await api.toggleGroceryItem(id: id, checked: checked)
+            await refreshDashboard()
+        }
+    }
+
     func refreshNativeDataFromEventKitChange() async {
         nativeCalendar.resetCachedData()
         nativeReminders.resetCachedData()
@@ -299,7 +347,6 @@ final class AppState: ObservableObject {
         locallySavedHubModules = nil
         localStore.clear()
         HomeHubWidgetStore.clear()
-        WidgetCenter.shared.reloadAllTimelines()
         pendingProfileEditId = nil
         selectedDestination = .dashboard
     }
@@ -361,7 +408,6 @@ final class AppState: ObservableObject {
         )
 
         HomeHubWidgetStore.save(summary)
-        WidgetCenter.shared.reloadAllTimelines()
     }
 
     private func observeEventKitChanges() {

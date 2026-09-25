@@ -71,7 +71,7 @@ struct MyProfileView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Profile")
-                .font(.system(size: 34, weight: .semibold, design: .rounded))
+                .font(HubTheme.pageTitle)
         }
     }
 

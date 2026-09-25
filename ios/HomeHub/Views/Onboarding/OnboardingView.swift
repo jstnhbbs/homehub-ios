@@ -11,6 +11,8 @@ struct OnboardingView: View {
     @State private var guestInviteCode = ""
     @State private var errorMessage: String?
     @State private var isSubmitting = false
+    /// Welcome heading, kept at 36pt but scaled against .largeTitle for Dynamic Type.
+    @ScaledMetric(relativeTo: .largeTitle) private var welcomeSize: CGFloat = 36
 
     enum OnboardingMode: String, CaseIterable, Identifiable {
         case create, join, guest
@@ -27,7 +29,7 @@ struct OnboardingView: View {
     var body: some View {
         VStack(spacing: 24) {
             Text("Welcome to Beacon")
-                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .font(.system(size: welcomeSize, weight: .bold, design: .rounded))
             Text("Create a household or join one with an invite code.")
                 .foregroundStyle(HubTheme.muted)
 

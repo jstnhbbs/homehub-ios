@@ -54,7 +54,7 @@ struct BirthdaysView: View {
             if horizontalSizeClass != .compact {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Birthdays")
-                        .font(.system(size: 34, weight: .semibold, design: .rounded))
+                        .font(HubTheme.pageTitle)
                     Text(subtitle)
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(HubTheme.muted)

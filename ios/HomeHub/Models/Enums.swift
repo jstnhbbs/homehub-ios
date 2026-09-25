@@ -289,8 +289,8 @@ struct HubModules: Codable, Sendable, Equatable {
         recipes: true,
         sidebarOrder: [.notes, .calendar, .groceries, .routines, .chores, .meals, .sleep, .birthdays],
         dashboardCards: Dictionary(uniqueKeysWithValues: DashboardCardId.allCases.map { ($0, true) }),
-        dashboardCardSizes: Dictionary(uniqueKeysWithValues: DashboardCardId.allCases.map { ($0, .standard) }),
-        dashboardOrder: [.weather, .schedule, .routines, .chores, .meals, .snacks, .sleep, .groceries, .notes, .birthdays]
+        dashboardCardSizes: Self.defaultsDashboardCardSizes,
+        dashboardOrder: Self.defaultsDashboardOrder
     )
 
     private enum CodingKeys: String, CodingKey {
@@ -424,7 +424,23 @@ struct HubModules: Codable, Sendable, Equatable {
     static let sidebarModules: [HubModuleId] = [.notes, .calendar, .groceries, .routines, .chores, .meals, .sleep, .birthdays]
     static let foodModules: [HubModuleId] = [.snacks, .recipes]
     private static let defaultsSidebarOrder: [HubModuleId] = [.notes, .calendar, .groceries, .routines, .chores, .meals, .sleep, .birthdays]
-    private static let defaultsDashboardOrder: [DashboardCardId] = [.weather, .schedule, .routines, .chores, .meals, .snacks, .sleep, .groceries, .notes, .birthdays]
+    /// Card size means "how many columns this card spans" — 1 for standard, 2 for
+    /// expanded. Schedule is a list of events and Notes hosts a text field, so both
+    /// need the extra column. Everything else is a single number or short phrase.
+    static let defaultsDashboardCardSizes: [DashboardCardId: DashboardCardSize] = Dictionary(
+        uniqueKeysWithValues: DashboardCardId.allCases.map { card in
+            switch card {
+            case .schedule, .notes: (card, DashboardCardSize.expanded)
+            default: (card, DashboardCardSize.standard)
+            }
+        }
+    )
+
+    /// Weather is deliberately absent: it renders in the app header, not as a card.
+    /// The enum case still exists so existing stored orders decode, and the views
+    /// filter it out. The two double-width cards (Schedule, Notes) sit at the ends so
+    /// the single-width cards stay contiguous and pair cleanly into rows on iPhone.
+    static let defaultsDashboardOrder: [DashboardCardId] = [.schedule, .routines, .chores, .meals, .snacks, .sleep, .groceries, .birthdays, .notes]
 
     func isEnabled(_ module: HubModuleId) -> Bool {
         switch module {

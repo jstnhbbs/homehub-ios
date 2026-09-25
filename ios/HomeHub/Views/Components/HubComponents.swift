@@ -170,6 +170,12 @@ enum HubTheme {
     static let line = Color(.separator)
     static let muted = Color(.secondaryLabel)
 
+    // Text styles rather than fixed point sizes, so everything scales with the
+    // reader's Dynamic Type setting. At the default size these render identically
+    // to the hardcoded sizes they replaced: .largeTitle is 34pt, .title is 28pt.
+    static let pageTitle = Font.system(.largeTitle, design: .rounded).weight(.semibold)
+    static let sectionTitle = Font.system(.title, design: .rounded).weight(.semibold)
+
     static func profileColor(_ hex: String?) -> Color {
         guard let hex, hex.hasPrefix("#"), hex.count == 7 else { return accent }
         let start = hex.index(hex.startIndex, offsetBy: 1)
@@ -302,23 +308,98 @@ struct CheckItemView: View {
     }
 }
 
-struct LiveClockView: View {
-    let timezone: TimeZone
-    @State private var now = Date.now
+/// Ambient temperature readout for the app headers. Weather is the only dashboard
+/// card with no destination and no quick action, so it reads better as chrome than
+/// as a tile. Renders nothing at all when there's nothing useful to say.
+struct WeatherHeaderReadout: View {
+    @EnvironmentObject private var appState: AppState
 
-    private var timeText: String {
-        DateHelpers.timeString(now, timezone: timezone)
-    }
+    private var service: NativeWeatherService { appState.nativeWeather }
 
     var body: some View {
-        Text(timeText)
-            .font(.system(size: 34, weight: .semibold, design: .rounded))
-            .monospacedDigit()
-            .onAppear {
-                Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
-                    now = .now
+        Group {
+            if let weather = service.snapshot {
+                // Shed detail as space tightens instead of truncating.
+                ViewThatFits(in: .horizontal) {
+                    readout(weather, showsCondition: true, showsRange: true)
+                    readout(weather, showsCondition: false, showsRange: true)
+                    readout(weather, showsCondition: false, showsRange: false)
+                }
+            } else if service.accessStatus == .notDetermined {
+                // The weather card used to be the only place to grant location, so the
+                // readout doubles as the prompt. Denied/unavailable render nothing and
+                // recovery lives in Settings, where a denied permission belongs.
+                Button {
+                    Task { await appState.requestNativeWeatherAccessAndRefresh() }
+                } label: {
+                    Label("Weather", systemImage: "location.circle")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(HubTheme.muted)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Show local weather")
+                .accessibilityHint("Asks for location access.")
+            }
+        }
+        .task { await service.activateIfAuthorized() }
+    }
+
+    private func readout(
+        _ weather: NativeWeatherSnapshot,
+        showsCondition: Bool,
+        showsRange: Bool
+    ) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: weather.symbolName)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(HubTheme.sage)
+
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Text("\(weather.temperature)°")
+                        .font(.title3.weight(.bold))
+                        .monospacedDigit()
+                    if showsCondition {
+                        Text(weather.condition)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(HubTheme.muted)
+                            .lineLimit(1)
+                    }
+                }
+                if showsRange, let high = weather.high, let low = weather.low {
+                    Text("H:\(high)°  L:\(low)°")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(HubTheme.muted)
+                        .monospacedDigit()
                 }
             }
+        }
+        .fixedSize(horizontal: true, vertical: false)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label(for: weather))
+    }
+
+    private func label(for weather: NativeWeatherSnapshot) -> String {
+        var parts = ["\(weather.temperature) degrees", weather.condition]
+        if let high = weather.high, let low = weather.low {
+            parts.append("High \(high), low \(low)")
+        }
+        return parts.joined(separator: ", ")
+    }
+}
+
+struct LiveClockView: View {
+    let timezone: TimeZone
+
+    var body: some View {
+        // TimelineView schedules its own updates and suspends them while the view is
+        // off screen, so there's no Timer to retain or invalidate. `.everyMinute`
+        // fires on the minute boundary, which matches the short time style shown here.
+        TimelineView(.everyMinute) { context in
+            Text(DateHelpers.timeString(context.date, timezone: timezone))
+                .font(HubTheme.pageTitle)
+                .monospacedDigit()
+        }
     }
 }
 

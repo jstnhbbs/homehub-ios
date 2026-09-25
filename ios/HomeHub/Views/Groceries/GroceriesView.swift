@@ -54,7 +54,7 @@ struct GroceriesView: View {
             VStack(alignment: .leading, spacing: 4) {
                 if horizontalSizeClass != .compact {
                     Text("Groceries")
-                        .font(.system(size: 34, weight: .semibold, design: .rounded))
+                        .font(HubTheme.pageTitle)
                 }
                 Text(viewModel.usesNativeReminders ? "Writing to Reminders" : "Using Beacon list")
                     .font(.subheadline.weight(.bold))

@@ -72,10 +72,7 @@ final class RoutinesViewModel: ObservableObject {
     func toggleStep(_ stepId: String) async -> Bool {
         guard let appState else { return false }
         do {
-            try await appState.api.toggleRoutineStep(
-                ToggleRoutineStepRequest(stepId: stepId, localDate: localDate)
-            )
-            await appState.refreshDashboard()
+            try await appState.toggleRoutineStep(stepId: stepId, localDate: localDate)
             return true
         } catch {
             if let message = error.userFacingMessage {

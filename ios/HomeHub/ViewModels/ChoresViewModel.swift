@@ -82,11 +82,9 @@ final class ChoresViewModel: ObservableObject {
     func toggleChore(_ chore: ChoreRow) async {
         guard let appState else { return }
         do {
-            try await appState.api.toggleChore(
-                ToggleChoreRequest(choreId: chore.id, periodKey: chore.periodKey)
-            )
+            // AppState refreshes the dashboard; `load()` then refreshes this screen's own list.
+            try await appState.toggleChore(choreId: chore.id, periodKey: chore.periodKey)
             await load()
-            await appState.refreshDashboard()
         } catch {
             guard !error.isCancellation else { return }
             errorMessage = error.localizedDescription
