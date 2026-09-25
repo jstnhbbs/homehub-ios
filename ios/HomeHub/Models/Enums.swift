@@ -85,7 +85,7 @@ enum HubModuleId: String, Codable, Sendable, CaseIterable, Hashable {
         case .chores: "Chores"
         case .meals: "Food"
         case .sleep: "Sleep"
-        case .birthdays: "Birthdays"
+        case .birthdays: CelebrationNaming.current
         case .snacks: "Snacks"
         case .recipes: "Recipes"
         }
@@ -162,7 +162,7 @@ enum DashboardCardId: String, Codable, Sendable, CaseIterable, Hashable, Identif
         case .sleep: "Sleep"
         case .groceries: "Groceries"
         case .notes: "Notes"
-        case .birthdays: "Birthdays"
+        case .birthdays: CelebrationNaming.current
         }
     }
 
@@ -601,7 +601,7 @@ enum HubDestination: String, Hashable, CaseIterable, Identifiable {
         case .chores: "Chores"
         case .meals: "Food"
         case .sleep: "Sleep"
-        case .birthdays: "Birthdays"
+        case .birthdays: CelebrationNaming.current
         case .notes: "Notes"
         case .profile: "Profile"
         case .settings: "Settings"

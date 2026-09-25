@@ -24,6 +24,10 @@ check("a stale dashboard rolls over at midnight", BirthdayToday.items(all, today
 check("yesterday's birthday is over", BirthdayToday.items(all, today: "2026-09-19").contains { $0.name == "Noah" } ? "shown" : "gone", "gone")
 
 check("headline", BirthdayToday.headline(name: "Emma"), "Happy birthday, Emma!")
+check("anniversary headline", BirthdayToday.headline(name: "Alex & Sam", kind: .anniversary), "Happy anniversary, Alex & Sam!")
+check("anniversary years", String(describing: BirthdayToday.ageLine(10, kind: .anniversary)), "Optional(\"10 years today\")")
+check("first anniversary", String(describing: BirthdayToday.ageLine(1, kind: .anniversary)), "Optional(\"1 year today\")")
+check("anniversary with no year", String(describing: BirthdayToday.ageLine(0, kind: .anniversary)), "nil")
 check("age line", String(describing: BirthdayToday.ageLine(6)), "Optional(\"Turning 6 today\")")
 check("age 1", String(describing: BirthdayToday.ageLine(1)), "Optional(\"Turning 1 today\")")
 check("no age when zero", String(describing: BirthdayToday.ageLine(0)), "nil")

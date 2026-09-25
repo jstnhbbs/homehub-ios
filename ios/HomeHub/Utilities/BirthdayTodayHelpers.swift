@@ -10,14 +10,21 @@ enum BirthdayToday {
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
-    static func headline(name: String) -> String {
-        "Happy birthday, \(name)!"
+    static func headline(name: String, kind: CelebrationKind = .birthday) -> String {
+        switch kind {
+        case .birthday: "Happy birthday, \(name)!"
+        case .anniversary: "Happy anniversary, \(name)!"
+        }
     }
 
-    /// "Turning 6 today", or nil when the age is missing or not believable (no birth year).
-    static func ageLine(_ age: Int) -> String? {
+    /// "Turning 6 today" or "10 years today", or nil when the number is missing or not believable
+    /// (no birth year).
+    static func ageLine(_ age: Int, kind: CelebrationKind = .birthday) -> String? {
         guard (1...120).contains(age) else { return nil }
-        return "Turning \(age) today"
+        switch kind {
+        case .birthday: return "Turning \(age) today"
+        case .anniversary: return age == 1 ? "1 year today" : "\(age) years today"
+        }
     }
 
     /// Confetti plays once per person per day, however often the dashboard refreshes.

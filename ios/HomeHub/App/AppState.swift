@@ -23,6 +23,9 @@ final class AppState: ObservableObject {
 
     @Published var household: Household?
     @Published var dashboard: DashboardData?
+    /// Whether the household has any anniversary. Views that show the module's name read
+    /// `CelebrationNaming.current`, and observing this makes them redraw when it changes.
+    @Published private(set) var hasAnniversaries = CelebrationNaming.hasAnniversaries()
     @Published var nativeTodayScheduleEvents: [ScheduleEvent] = []
     @Published var nativeGroceryItems: [GroceryItem] = []
     @Published var hubModules: HubModules = .defaults
@@ -169,6 +172,9 @@ final class AppState: ObservableObject {
         do {
             dashboard = try await api.fetchDashboard()
             household = dashboard?.household
+            if let dashboard {
+                setHasAnniversaries(dashboard.hasAnniversaries)
+            }
             localStore.saveDashboard(dashboard)
             if let modules = dashboard?.hubModules {
                 applyHubModules(preferredHubModules(for: modules))
@@ -187,6 +193,15 @@ final class AppState: ObservableObject {
             hydrateFromLocalStore()
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Remembers whether the household has an anniversary, which decides whether the module reads
+    /// "Birthdays" or "Celebrations". Only fresh server data should set this: a cached dashboard from
+    /// an older version has no such field and would wrongly say false.
+    func setHasAnniversaries(_ value: Bool) {
+        guard value != hasAnniversaries else { return }
+        CelebrationNaming.setHasAnniversaries(value)
+        hasAnniversaries = value
     }
 
     func rescheduleNativeNotifications() async {
@@ -356,6 +371,7 @@ final class AppState: ObservableObject {
         hubModules = .defaults
         pendingHubModulesSave = nil
         locallySavedHubModules = nil
+        setHasAnniversaries(false)
         localStore.clear()
         HomeHubWidgetStore.clear()
         pendingProfileEditId = nil

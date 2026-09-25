@@ -92,8 +92,8 @@ enum BirthdayNotificationPlanner {
 
     private static func title(for item: BirthdayItem, leadDays: Int) -> String {
         leadDays == 0
-            ? "\(item.name)'s birthday"
-            : "\(item.name)'s birthday is \(leadPhrase(leadDays))"
+            ? "\(item.name)'s \(item.kind.noun)"
+            : "\(item.name)'s \(item.kind.noun) is \(leadPhrase(leadDays))"
     }
 
     private static func body(
@@ -105,9 +105,14 @@ enum BirthdayNotificationPlanner {
     ) -> String {
         let hasAge = (1...120).contains(item.upcomingAge)
         if leadDays == 0 {
-            return hasAge
-                ? "\(item.name) turns \(item.upcomingAge) today."
-                : "It's \(item.name)'s birthday today."
+            guard hasAge else { return "It's \(item.name)'s \(item.kind.noun) today." }
+            switch item.kind {
+            case .birthday:
+                return "\(item.name) turns \(item.upcomingAge) today."
+            case .anniversary:
+                // The title already says whose anniversary it is, so the body needs no verb.
+                return "\(yearsPhrase(item.upcomingAge)) today."
+            }
         }
 
         let formatter = DateFormatter()
@@ -115,8 +120,16 @@ enum BirthdayNotificationPlanner {
         formatter.timeZone = timezone
         formatter.setLocalizedDateFormatFromTemplate("EEEEMMMd")
         let date = formatter.string(from: birthday)
-        return hasAge
-            ? "\(item.name) turns \(item.upcomingAge) on \(date)."
-            : "\(item.name)'s birthday is on \(date)."
+        guard hasAge else { return "\(item.name)'s \(item.kind.noun) is on \(date)." }
+        switch item.kind {
+        case .birthday:
+            return "\(item.name) turns \(item.upcomingAge) on \(date)."
+        case .anniversary:
+            return "\(yearsPhrase(item.upcomingAge)) on \(date)."
+        }
+    }
+
+    private static func yearsPhrase(_ years: Int) -> String {
+        years == 1 ? "1 year" : "\(years) years"
     }
 }

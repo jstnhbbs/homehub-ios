@@ -53,7 +53,7 @@ struct BirthdaysView: View {
         HStack(alignment: .bottom) {
             if horizontalSizeClass != .compact {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Birthdays")
+                    Text(CelebrationNaming.current)
                         .font(HubTheme.pageTitle)
                     Text(subtitle)
                         .font(.subheadline.weight(.bold))
@@ -96,7 +96,7 @@ struct BirthdaysView: View {
             ProgressView().frame(maxWidth: .infinity, minHeight: 240)
         } else if viewModel.items.isEmpty {
             EmptyStateView(
-                text: "Add a birthday to see who’s next and how far away they are.",
+                text: "Add a birthday or anniversary to see what’s next and how far away it is.",
                 action: viewModel.canManage ? { editor = .add } : nil
             )
         } else {
@@ -157,7 +157,7 @@ struct BirthdaysView: View {
             HStack(alignment: .center, spacing: 16) {
                 BirthdayCountdownBadge(days: item.daysUntil, color: item.color)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(item.daysUntil == 0 ? "Today" : "Next birthday")
+                    Text(item.daysUntil == 0 ? "Today" : "Next \(item.kind.noun)")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(HubTheme.muted)
                     Text(item.name)
@@ -167,7 +167,7 @@ struct BirthdaysView: View {
                         .foregroundStyle(HubTheme.muted)
                 }
                 Spacer(minLength: 0)
-                Image(systemName: item.daysUntil == 0 ? "party.popper.fill" : "gift.fill")
+                Image(systemName: item.daysUntil == 0 ? "party.popper.fill" : item.kind.systemImage)
                     .font(.title2)
                     .foregroundStyle(HubTheme.sage)
             }
@@ -182,12 +182,7 @@ struct BirthdaysView: View {
     }
 
     private func heroDetail(_ item: BirthdayItem) -> String {
-        let date = BirthdayHelpers.dateLabel(item.nextDate, timezone: viewModel.timezone)
-        let source = sourceLabel(item)
-        if item.upcomingAge > 0 {
-            return "\(date) · turns \(item.upcomingAge) · \(source)"
-        }
-        return "\(date) · \(source)"
+        detail(item)
     }
 
     private var ringCard: some View {
@@ -266,18 +261,24 @@ struct BirthdaysView: View {
     }
 
     private func rowDetail(_ item: BirthdayItem) -> String {
-        let date = BirthdayHelpers.dateLabel(item.nextDate, timezone: viewModel.timezone)
-        let source = sourceLabel(item)
-        if item.upcomingAge > 0 {
-            return "\(date) · turns \(item.upcomingAge) · \(source)"
+        detail(item)
+    }
+
+    /// "Sep 25 · turns 6 · Profile" or "Sep 25 · 10 years · Anniversary".
+    private func detail(_ item: BirthdayItem) -> String {
+        var parts = [BirthdayHelpers.dateLabel(item.nextDate, timezone: viewModel.timezone)]
+        if let age = item.kind.ageDetail(item.upcomingAge) {
+            parts.append(age)
         }
-        return "\(date) · \(source)"
+        parts.append(sourceLabel(item))
+        return parts.joined(separator: " · ")
     }
 
     private func sourceLabel(_ item: BirthdayItem) -> String {
+        if item.kind == .anniversary { return item.kind.capitalizedNoun }
         switch item.source {
-        case .profile: "Profile"
-        case .family: "Extra person"
+        case .profile: return "Profile"
+        case .family: return "Extra person"
         }
     }
 }
@@ -335,8 +336,8 @@ private struct BirthdayEditorSheet: View {
 
     private var title: String {
         switch editor {
-        case .add: "Add birthday"
-        case .edit: "Edit birthday"
+        case .add: "Add to \(CelebrationNaming.current)"
+        case .edit(let item): "Edit \(item.kind.noun)"
         }
     }
 }
@@ -347,6 +348,7 @@ private struct BirthdayFormView: View {
     var onFinished: () -> Void
 
     @State private var name = ""
+    @State private var kind: CelebrationKind = .birthday
     @State private var target: FormTarget = .newPerson
     @State private var birthdayDate = Date.now
     @State private var isSaving = false
@@ -370,12 +372,28 @@ private struct BirthdayFormView: View {
     }
 
     private var isProfileBirthday: Bool {
-        editingItem?.source == .profile || selectedProfile != nil
+        kind == .birthday && (editingItem?.source == .profile || selectedProfile != nil)
+    }
+
+    /// A household profile's birthday is stored on the profile, so it cannot become an anniversary.
+    private var canChooseKind: Bool {
+        editingItem?.source != .profile
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            if editorIsAdd {
+            if canChooseKind {
+                FormField(label: "Type") {
+                    Picker("Type", selection: $kind) {
+                        ForEach(CelebrationKind.allCases, id: \.self) { option in
+                            Text(option.capitalizedNoun).tag(option)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+            }
+
+            if editorIsAdd, kind == .birthday {
                 FormField(label: "Who") {
                     Picker("Who", selection: $target) {
                         Text("Someone else").tag(FormTarget.newPerson)
@@ -388,8 +406,8 @@ private struct BirthdayFormView: View {
             }
 
             if !isProfileBirthday {
-                FormField(label: "Name") {
-                    TextField("Justin Hobbs", text: $name)
+                FormField(label: kind == .anniversary ? "Names" : "Name") {
+                    TextField(kind == .anniversary ? "Alex & Sam" : "Justin Hobbs", text: $name)
                         .textFieldStyle(.roundedBorder)
                 }
             } else if let profile = selectedProfile ?? linkedProfile {
@@ -404,9 +422,9 @@ private struct BirthdayFormView: View {
                     .foregroundStyle(HubTheme.muted)
             }
 
-            FormField(label: "Birthday") {
+            FormField(label: kind == .anniversary ? "Anniversary" : "Birthday") {
                 DatePicker(
-                    "Birthday",
+                    kind.capitalizedNoun,
                     selection: $birthdayDate,
                     in: ...viewModel.maxBirthdayDate,
                     displayedComponents: .date
@@ -415,21 +433,21 @@ private struct BirthdayFormView: View {
                 .labelsHidden()
             }
 
-            Button(editorIsAdd ? "Add birthday" : "Save birthday") {
+            Button(editorIsAdd ? "Add \(kind.noun)" : "Save \(kind.noun)") {
                 Task { await save() }
             }
             .buttonStyle(HubButtonStyle(emphasis: .primary))
             .disabled(isSaving || (!isProfileBirthday && name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
 
             if editingItem != nil, viewModel.canManage || (editingItem.map(viewModel.canEdit) ?? false) {
-                Button(editingItem?.source == .profile ? "Remove birthday" : "Delete birthday", role: .destructive) {
+                Button(editingItem?.source == .profile ? "Remove \(kind.noun)" : "Delete \(kind.noun)", role: .destructive) {
                     confirmDelete = true
                 }
                 .disabled(isSaving)
             }
         }
         .onAppear(perform: populate)
-        .alert("Remove this birthday?", isPresented: $confirmDelete) {
+        .alert("Remove this \(kind.noun)?", isPresented: $confirmDelete) {
             Button("Cancel", role: .cancel) {}
             Button("Remove", role: .destructive) {
                 Task {
@@ -442,7 +460,7 @@ private struct BirthdayFormView: View {
                 }
             }
         } message: {
-            Text("Household members stay in the family list. Extra people are removed from Birthdays.")
+            Text("Household members stay in the family list. Extra entries are removed from \(CelebrationNaming.current).")
         }
     }
 
@@ -464,6 +482,7 @@ private struct BirthdayFormView: View {
             target = .newPerson
         case .edit(let item):
             name = item.name
+            kind = item.kind
             if item.source == .profile {
                 target = .profile(item.id)
             } else {
@@ -483,16 +502,16 @@ private struct BirthdayFormView: View {
         let saved: Bool
         switch editor {
         case .add:
-            if let profile = selectedProfile {
+            if kind == .birthday, let profile = selectedProfile {
                 saved = await viewModel.saveProfileBirthday(profile: profile, birthDate: birthDate)
             } else {
-                saved = await viewModel.createExtraPerson(name: trimmed, birthDate: birthDate)
+                saved = await viewModel.createExtraPerson(name: trimmed, birthDate: birthDate, kind: kind)
             }
         case .edit(let item):
             if item.source == .profile, let profile = viewModel.profiles.first(where: { $0.id == item.id }) {
                 saved = await viewModel.saveProfileBirthday(profile: profile, birthDate: birthDate)
             } else {
-                saved = await viewModel.updateExtraPerson(item, name: trimmed, birthDate: birthDate)
+                saved = await viewModel.updateExtraPerson(item, name: trimmed, birthDate: birthDate, kind: kind)
             }
         }
         if saved {

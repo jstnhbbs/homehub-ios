@@ -25,6 +25,13 @@ final class BirthdaysViewModel: ObservableObject {
         DateHelpers.localDateIn(timezone: timezone)
     }
 
+    /// Every path that changes the list goes through here, so the module's name ("Birthdays" or
+    /// "Celebrations") updates the moment the first anniversary is added or the last one removed.
+    private func apply(_ newItems: [BirthdayItem]) {
+        items = newItems
+        appState?.setHasAnniversaries(newItems.contains { $0.kind == .anniversary })
+    }
+
     var nextBirthday: BirthdayItem? {
         items.first
     }
@@ -69,7 +76,7 @@ final class BirthdaysViewModel: ObservableObject {
         do {
             async let birthdaysTask = appState.api.fetchBirthdays()
             async let profilesTask = appState.api.fetchProfiles()
-            items = try await birthdaysTask.items
+            apply(try await birthdaysTask.items)
             profiles = try await profilesTask
         } catch {
             if let message = error.userFacingMessage {
@@ -78,13 +85,13 @@ final class BirthdaysViewModel: ObservableObject {
         }
     }
 
-    func createExtraPerson(name: String, birthDate: String) async -> Bool {
+    func createExtraPerson(name: String, birthDate: String, kind: CelebrationKind = .birthday) async -> Bool {
         guard let appState else { return false }
         do {
             let response = try await appState.api.addBirthday(
-                BirthdayWriteInput(name: name, birthDate: birthDate)
+                BirthdayWriteInput(name: name, birthDate: birthDate, kind: kind)
             )
-            items = response.items
+            apply(response.items)
             await appState.refreshDashboard()
             return true
         } catch {
@@ -118,7 +125,12 @@ final class BirthdaysViewModel: ObservableObject {
         }
     }
 
-    func updateExtraPerson(_ item: BirthdayItem, name: String, birthDate: String) async -> Bool {
+    func updateExtraPerson(
+        _ item: BirthdayItem,
+        name: String,
+        birthDate: String,
+        kind: CelebrationKind
+    ) async -> Bool {
         guard let appState else { return false }
         do {
             try await appState.api.updateBirthday(
@@ -126,6 +138,7 @@ final class BirthdaysViewModel: ObservableObject {
                 input: BirthdayWriteInput(
                     name: name,
                     birthDate: birthDate,
+                    kind: kind,
                     profileId: item.profileId,
                     notes: item.notes,
                     giftIdeas: item.giftIdeas,

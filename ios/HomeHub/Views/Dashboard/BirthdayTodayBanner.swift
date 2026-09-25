@@ -19,7 +19,7 @@ struct BirthdayTodayBanners: View {
                 BirthdayBanner(item: item)
             }
             if items.count > shown.count {
-                Text("+\(items.count - shown.count) more birthday\(items.count - shown.count == 1 ? "" : "s") today")
+                Text("+\(items.count - shown.count) more today")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(HubTheme.muted)
             }
@@ -69,12 +69,12 @@ private struct BirthdayBanner: View {
                 .shadow(color: tint.opacity(0.35), radius: 6, y: 2)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(BirthdayToday.headline(name: item.name))
+                Text(BirthdayToday.headline(name: item.name, kind: item.kind))
                     .font(.title3.weight(.heavy))
                     .foregroundStyle(.primary)
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
-                if let age = BirthdayToday.ageLine(item.upcomingAge) {
+                if let age = BirthdayToday.ageLine(item.upcomingAge, kind: item.kind) {
                     Text(age)
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(HubTheme.muted)

@@ -1246,7 +1246,7 @@ private struct NativeNotificationsSettingView: View {
             } header: {
                 Text("Local Reminders")
             } footer: {
-                Text("Beacon can remind this device about routines, chores, bedtime, active naps, and birthdays without relying on server jobs.")
+                Text("Beacon can remind this device about routines, chores, bedtime, active naps, and birthdays and anniversaries without relying on server jobs.")
             }
 
             Section("Routines") {
@@ -1271,7 +1271,7 @@ private struct NativeNotificationsSettingView: View {
 
             if appState.hubModules.isEnabled(.birthdays) {
                 Section {
-                    Toggle("Birthday Reminders", isOn: boolBinding(\.birthdaysEnabled))
+                    Toggle(CelebrationNaming.currentRemindersTitle, isOn: boolBinding(\.birthdaysEnabled))
                     if service.settings.birthdaysEnabled {
                         Toggle("On the Day", isOn: boolBinding(\.birthdayOnTheDay))
                         ForEach(BirthdayNotificationPlanner.leadDayChoices, id: \.self) { days in
@@ -1280,7 +1280,7 @@ private struct NativeNotificationsSettingView: View {
                         timeRow("Send At", systemImage: "clock.fill", minute: \.birthdayMinute)
                     }
                 } header: {
-                    Text("Birthdays")
+                    Text(CelebrationNaming.current)
                 } footer: {
                     Text("Pick as many reminders as you like. Beacon plans them up to 45 days ahead, so they still arrive if you don't open the app, using the household's time zone.")
                 }

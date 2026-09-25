@@ -13,9 +13,9 @@ func local(_ date: Date, _ tz: TimeZone = chicago) -> String {
     let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.timeZone = tz; f.dateFormat = "yyyy-MM-dd HH:mm"
     return f.string(from: date)
 }
-func item(_ id: String, _ name: String, next: String, age: Int = 6) -> BirthdayItem {
+func item(_ id: String, _ name: String, next: String, age: Int = 6, kind: CelebrationKind = .birthday) -> BirthdayItem {
     BirthdayItem(id: id, source: .profile, profileId: nil, name: name, birthDate: "2020-09-25", color: "#4f7c6d",
-                 avatar: nil, notes: nil, giftIdeas: nil, notifyDaysBefore: 7, nextDate: next, daysUntil: 0, upcomingAge: age)
+                 avatar: nil, notes: nil, giftIdeas: nil, notifyDaysBefore: 7, nextDate: next, daysUntil: 0, upcomingAge: age, kind: kind)
 }
 func plan(_ items: [BirthdayItem], onTheDay: Bool = true, leads: [Int] = [], minute: Int = 480, now: String = "2026-09-20T12:00:00Z", limit: Int = 30) -> [PlannedBirthdayReminder] {
     BirthdayNotificationPlanner.plan(items: items, options: BirthdayReminderOptions(onTheDay: onTheDay, leadDays: leads, minuteOfDay: minute),
@@ -69,6 +69,19 @@ check("day after the switch is 8:00", local(dst[1].fireDate), "2026-11-02 08:00"
 let noAge = plan([item("z", "Sam", next: "2026-09-25", age: 0)], leads: [1])
 check("no age on the day", noAge[1].body, "It's Sam's birthday today.")
 check("no age in advance", noAge[0].body, "Sam's birthday is on Friday, Sep 25.")
+
+// Anniversaries
+let anniversary = item("a", "Alex & Sam", next: "2026-09-25", age: 10, kind: .anniversary)
+let annDay = plan([anniversary])
+check("anniversary title", annDay[0].title, "Alex & Sam's anniversary")
+check("anniversary body counts years", annDay[0].body, "10 years today.")
+let annLead = plan([anniversary], onTheDay: false, leads: [1])
+check("anniversary lead title", annLead[0].title, "Alex & Sam's anniversary is tomorrow")
+check("anniversary lead body", annLead[0].body, "10 years on Friday, Sep 25.")
+check("first anniversary is singular", plan([item("a", "Alex & Sam", next: "2026-09-25", age: 1, kind: .anniversary)])[0].body, "1 year today.")
+check("anniversary with no usable year", plan([item("a", "Alex & Sam", next: "2026-09-25", age: 0, kind: .anniversary)])[0].body, "It's Alex & Sam's anniversary today.")
+check("anniversary id matches the birthday scheme", annDay[0].id, "birthday.a.0")
+check("birthdays and anniversaries mix in one plan", plan([emma, anniversary]).map(\.title).sorted().joined(separator: " | "), "Alex & Sam's anniversary | Emma's birthday")
 
 // Robustness and limits
 check("unparseable date is skipped", String(plan([item("q", "Bad", next: "not-a-date")]).count), "0")

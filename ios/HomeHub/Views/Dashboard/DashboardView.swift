@@ -898,7 +898,7 @@ private struct CompactBirthdaysSummary: View {
             )
             CompactDetailChip(text: BirthdayHelpers.countdownLabel(daysUntil: birthday.daysUntil))
         } else {
-            CompactMetric(value: "0", detail: "upcoming birthdays")
+            CompactMetric(value: "0", detail: "coming up")
         }
     }
 }
@@ -2293,7 +2293,7 @@ private struct BirthdaysDashboardPanel: View {
     var body: some View {
         if items.isEmpty {
             EmptyStateView(
-                text: "Add a birthday to keep dates in view.",
+                text: "Add a birthday or anniversary to keep dates in view.",
                 action: { openHubDestination(.birthdays) }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -2340,7 +2340,7 @@ private struct BirthdaysDashboardPanel: View {
     }
 
     private func todayLabel(_ item: BirthdayItem) -> String {
-        BirthdayToday.ageLine(item.upcomingAge) ?? "Today"
+        BirthdayToday.ageLine(item.upcomingAge, kind: item.kind) ?? "Today"
     }
 }
 

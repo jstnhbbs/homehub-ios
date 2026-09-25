@@ -15,6 +15,8 @@ struct DashboardData: Codable, Sendable {
     var groceryItems: [GroceryItem]
     var notes: [HouseholdNote]
     var upcomingBirthdays: [BirthdayItem]
+    /// True when any anniversary exists, however far away, so the module can be named consistently.
+    var hasAnniversaries: Bool
     var routineStreaks: [RoutineStreak]
 
     private enum CodingKeys: String, CodingKey {
@@ -32,6 +34,7 @@ struct DashboardData: Codable, Sendable {
         case groceryItems
         case notes
         case upcomingBirthdays
+        case hasAnniversaries
         case routineStreaks
     }
 
@@ -51,6 +54,7 @@ struct DashboardData: Codable, Sendable {
         groceryItems = try container.decodeIfPresent([GroceryItem].self, forKey: .groceryItems) ?? []
         notes = try container.decodeIfPresent([HouseholdNote].self, forKey: .notes) ?? []
         upcomingBirthdays = try container.decodeIfPresent([BirthdayItem].self, forKey: .upcomingBirthdays) ?? []
+        hasAnniversaries = try container.decodeIfPresent(Bool.self, forKey: .hasAnniversaries) ?? false
         routineStreaks = try container.decodeIfPresent([RoutineStreak].self, forKey: .routineStreaks) ?? []
     }
 
@@ -70,6 +74,7 @@ struct DashboardData: Codable, Sendable {
         try container.encode(groceryItems, forKey: .groceryItems)
         try container.encode(notes, forKey: .notes)
         try container.encode(upcomingBirthdays, forKey: .upcomingBirthdays)
+        try container.encode(hasAnniversaries, forKey: .hasAnniversaries)
         try container.encode(routineStreaks, forKey: .routineStreaks)
     }
 }

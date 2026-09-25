@@ -4,5 +4,5 @@ set -e
 cd "$(dirname "$0")"
 app=../../HomeHub
 out="$(mktemp -d)"
-swiftc -O "$app/Utilities/MealPlanHelpers.swift" "$app/Utilities/DateHelpers.swift" "$app/Utilities/WeekStart.swift" "$app/Models/Meal.swift" "$app/Models/Enums.swift" main.swift -o "$out/checks"
+swiftc -O "$app/Utilities/MealPlanHelpers.swift" "$app/Utilities/DateHelpers.swift" "$app/Utilities/WeekStart.swift" "$app/Models/Meal.swift" "$app/Models/Enums.swift" "$app/Utilities/CelebrationText.swift" "$app/Models/Birthday.swift" main.swift -o "$out/checks"
 "$out/checks"

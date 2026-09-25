@@ -88,8 +88,8 @@ struct BirthdayYearRing: View {
                     Text(next.name)
                         .font(.headline.weight(.semibold))
                         .lineLimit(1)
-                    if next.upcomingAge > 0 {
-                        Text("turns \(next.upcomingAge)")
+                    if let detail = next.kind.ageDetail(next.upcomingAge) {
+                        Text(detail)
                             .font(.caption.weight(.bold))
                             .foregroundStyle(HubTheme.muted)
                     }
@@ -99,7 +99,7 @@ struct BirthdayYearRing: View {
                 } else {
                     Text("\(items.count)")
                         .font(.title2.weight(.semibold))
-                    Text("birthdays")
+                    Text(items.contains { $0.kind == .anniversary } ? "celebrations" : "birthdays")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(HubTheme.muted)
                 }
@@ -110,6 +110,6 @@ struct BirthdayYearRing: View {
         .frame(width: size, height: size)
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Year of birthdays")
+        .accessibilityLabel(items.contains { $0.kind == .anniversary } ? "Year of celebrations" : "Year of birthdays")
     }
 }
