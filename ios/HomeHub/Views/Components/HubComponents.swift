@@ -319,11 +319,10 @@ struct WeatherHeaderReadout: View {
     var body: some View {
         Group {
             if let weather = service.snapshot {
-                // Shed detail as space tightens instead of truncating.
+                // Shed the high/low stack as space tightens instead of truncating.
                 ViewThatFits(in: .horizontal) {
-                    readout(weather, showsCondition: true, showsRange: true)
-                    readout(weather, showsCondition: false, showsRange: true)
-                    readout(weather, showsCondition: false, showsRange: false)
+                    readout(weather, showsRange: true)
+                    readout(weather, showsRange: false)
                 }
             } else if service.accessStatus == .notDetermined {
                 // The weather card used to be the only place to grant location, so the
@@ -344,34 +343,26 @@ struct WeatherHeaderReadout: View {
         .task { await service.activateIfAuthorized() }
     }
 
-    private func readout(
-        _ weather: NativeWeatherSnapshot,
-        showsCondition: Bool,
-        showsRange: Bool
-    ) -> some View {
-        HStack(spacing: 7) {
+    /// Glyph and a large temperature, with the day's high over its low beside them. The condition
+    /// ("Partly Cloudy") is left out because the glyph already says it; VoiceOver still hears it.
+    private func readout(_ weather: NativeWeatherSnapshot, showsRange: Bool) -> some View {
+        HStack(spacing: 8) {
             Image(systemName: weather.symbolName)
-                .font(.title3.weight(.semibold))
+                .font(.title.weight(.semibold))
                 .foregroundStyle(HubTheme.sage)
 
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Text("\(weather.temperature)°")
-                        .font(.title3.weight(.bold))
-                        .monospacedDigit()
-                    if showsCondition {
-                        Text(weather.condition)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(HubTheme.muted)
-                            .lineLimit(1)
-                    }
+            Text("\(weather.temperature)°")
+                .font(.system(.title, design: .rounded).weight(.bold))
+                .monospacedDigit()
+
+            if showsRange, let high = weather.high, let low = weather.low {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("H:\(high)°")
+                    Text("L:\(low)°")
                 }
-                if showsRange, let high = weather.high, let low = weather.low {
-                    Text("H:\(high)°  L:\(low)°")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(HubTheme.muted)
-                        .monospacedDigit()
-                }
+                .font(.caption.weight(.bold))
+                .foregroundStyle(HubTheme.muted)
+                .monospacedDigit()
             }
         }
         .fixedSize(horizontal: true, vertical: false)
