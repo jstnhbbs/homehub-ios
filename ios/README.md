@@ -111,6 +111,7 @@ ios/checks/completion-helpers/run.sh
 ios/checks/recipe-tags/run.sh
 ios/checks/birthday-today/run.sh
 ios/checks/birthday-notifications/run.sh
+ios/checks/meal-slot-clock/run.sh
 ```
 
 iOS (after opening in Xcode): **Product → Build** (⌘B), then run on iPhone and iPad simulators. Landscape remains recommended for a dedicated shared iPad display.

@@ -66,9 +66,6 @@ struct DashboardView: View {
     private var compactDashboardContent: some View {
         if let dashboard = appState.dashboard {
             let cards = dashboardCards
-            let scheduleEvents = appState.nativeCalendar.hasFullAccess
-                ? appState.nativeTodayScheduleEvents
-                : []
             let todaysBirthdays = birthdaysToday(dashboard)
 
             ScrollView {
@@ -90,8 +87,6 @@ struct DashboardView: View {
                         CompactNextUpPanel(
                             dashboard: dashboard,
                             enabledCards: cards,
-                            scheduleEvents: scheduleEvents,
-                            calendarConnected: appState.nativeCalendar.hasFullAccess,
                             onNavigate: openDestination
                         )
 
@@ -103,6 +98,8 @@ struct DashboardView: View {
                             sizes: cardSizes
                         )
                         ForEach(Array(tileRows.enumerated()), id: \.offset) { _, row in
+                            // fixedSize makes the row as tall as its tallest tile; the tiles then
+                            // stretch to match, so a pair never ends up ragged.
                             HStack(alignment: .top, spacing: 10) {
                                 ForEach(row) { card in
                                     let span = card.compactSpan(size: cardSizes[card, default: .standard])
@@ -119,6 +116,7 @@ struct DashboardView: View {
                                     Color.clear.frame(maxWidth: .infinity)
                                 }
                             }
+                            .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
@@ -443,31 +441,22 @@ private struct CompactNextUpItem {
     let title: String
     let detail: String
     let systemImage: String
-    let destination: HubDestination?
-    /// e.g. "+2 more today" when the schedule has events beyond the one shown here.
-    var trailingHint: String?
+    let destination: HubDestination
 }
 
+/// The next thing that needs doing, drawn from routines and chores. Calendar events are left
+/// to the Schedule tile below, so the two never say the same thing. When nothing needs
+/// attention the card doesn't appear at all rather than spend space saying so.
 private struct CompactNextUpPanel: View {
     let dashboard: DashboardData
     let enabledCards: [DashboardCardId]
-    let scheduleEvents: [ScheduleEvent]
-    let calendarConnected: Bool
     let onNavigate: (HubDestination) -> Void
-
-    @State private var now = Date.now
-
-    private var timezone: TimeZone {
-        TimeZone(identifier: dashboard.household.timezone) ?? .current
-    }
 
     /// Checks each enabled module in the order the household arranged Today's cards, so
     /// reordering cards in Settings changes what surfaces here, not just the grid below.
-    private var item: CompactNextUpItem {
+    private var item: CompactNextUpItem? {
         for card in enabledCards {
             switch card {
-            case .schedule:
-                if let scheduleItem = nextScheduleItem { return scheduleItem }
             case .routines:
                 if let step = dashboard.routineSteps.first(where: { !$0.completed }) {
                     return CompactNextUpItem(
@@ -492,103 +481,53 @@ private struct CompactNextUpPanel: View {
                 continue
             }
         }
-
-        if enabledCards.contains(.schedule), !calendarConnected {
-            return CompactNextUpItem(
-                eyebrow: "NEXT UP",
-                title: "Connect your calendar",
-                detail: "See the rest of today's schedule here.",
-                systemImage: "calendar.badge.plus",
-                destination: .settings
-            )
-        }
-
-        return CompactNextUpItem(
-            eyebrow: "TODAY",
-            title: "You're caught up",
-            detail: "Nothing needs your attention right now.",
-            systemImage: "checkmark.circle.fill",
-            destination: nil
-        )
-    }
-
-    /// The soonest event, with a hint when there's more today than fits in one line.
-    private var nextScheduleItem: CompactNextUpItem? {
-        let upcoming = DashboardHelpers.upcomingScheduleEvents(scheduleEvents, now: now)
-            .sorted { $0.startsAt < $1.startsAt }
-        guard let event = upcoming.first else { return nil }
-
-        let isHappening = !event.allDay && event.startsAt <= now && event.endsAt > now
-        let timing = event.allDay
-            ? "All day"
-            : isHappening
-                ? "Happening now · ends \(DateHelpers.timeString(event.endsAt, timezone: timezone))"
-                : DateHelpers.timeString(event.startsAt, timezone: timezone)
-        let remaining = upcoming.count - 1
-
-        return CompactNextUpItem(
-            eyebrow: "NEXT UP",
-            title: event.title,
-            detail: timing,
-            systemImage: "calendar",
-            destination: .calendar,
-            trailingHint: remaining > 0 ? "+\(remaining) more today" : nil
-        )
+        return nil
     }
 
     var body: some View {
-        Button {
-            if let destination = item.destination {
-                onNavigate(destination)
-            }
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: item.systemImage)
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(HubTheme.sage)
-                    .frame(width: 38, height: 38)
-                    .background(HubTheme.sage.opacity(0.14))
-                    .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(item.eyebrow)
-                        .font(.caption2.weight(.heavy))
+        if let item {
+            Button {
+                onNavigate(item.destination)
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: item.systemImage)
+                        .font(.title3.weight(.bold))
                         .foregroundStyle(HubTheme.sage)
-                    Text(item.title)
-                        .font(.headline.weight(.bold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-                    Text(item.detail)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(HubTheme.muted)
-                        .lineLimit(1)
-                    if let hint = item.trailingHint {
-                        Text(hint)
-                            .font(.caption2.weight(.bold))
+                        .frame(width: 38, height: 38)
+                        .background(HubTheme.sage.opacity(0.14))
+                        .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(item.eyebrow)
+                            .font(.caption2.weight(.heavy))
                             .foregroundStyle(HubTheme.sage)
+                        Text(item.title)
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+                        Text(item.detail)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(HubTheme.muted)
+                            .lineLimit(1)
                     }
-                }
 
-                Spacer(minLength: 0)
+                    Spacer(minLength: 0)
 
-                if item.destination != nil {
                     Image(systemName: "chevron.right")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(HubTheme.muted)
                 }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(HubTheme.tile)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(HubTheme.sage.opacity(0.3), lineWidth: 1)
+                )
             }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(HubTheme.tile)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(HubTheme.sage.opacity(0.3), lineWidth: 1)
-            )
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
-        .disabled(item.destination == nil)
-        .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { now = $0 }
     }
 
     private func profileName(_ id: String) -> String? {
@@ -729,7 +668,7 @@ private struct CompactTileShell<Content: View>: View {
             Spacer(minLength: 0)
         }
         .padding(12)
-        .frame(maxWidth: .infinity, minHeight: 154, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 88, maxHeight: .infinity, alignment: .topLeading)
         .background(HubTheme.tile)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
@@ -817,7 +756,10 @@ private struct CompactDashboardTile: View {
                 CompactChoresSummary(dashboard: dashboard, visibleLimit: groupRowLimit)
             }
         case .meals:
-            CompactMealSummary(meals: dashboard.meals)
+            CompactMealSummary(
+                meals: dashboard.meals,
+                timezone: TimeZone(identifier: dashboard.household.timezone) ?? .current
+            )
         case .snacks:
             CompactSnacksSummary(dashboard: dashboard)
         case .sleep:
@@ -832,8 +774,8 @@ private struct CompactDashboardTile: View {
     }
 }
 
-/// The day's remaining events. The Next Up hero only ever surfaces one item, so
-/// without this the Schedule card had nowhere to render on iPhone.
+/// The day's remaining events. The Next Up hero covers routines and chores only, so this tile
+/// is the one place calendar events appear on iPhone.
 private struct CompactScheduleSummary: View {
     @EnvironmentObject private var appState: AppState
     let dashboard: DashboardData
@@ -1004,29 +946,26 @@ private struct CompactCheckAction: View {
 }
 
 
+/// Features one meal, moving through the day on the household's clock (see MealSlotClock):
+/// breakfast, then lunch from 10:30 AM, then dinner from 2:30 PM.
 private struct CompactMealSummary: View {
     let meals: [Meal]
-
-    private var slot: MealSlot {
-        let hour = Calendar.current.component(.hour, from: .now)
-        if hour < 11 { return .breakfast }
-        if hour < 16 { return .lunch }
-        return .dinner
-    }
-
-    private var meal: Meal? {
-        meals.first { $0.slot == slot }
-    }
+    let timezone: TimeZone
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(slot.label.uppercased())
-                .font(.caption2.weight(.heavy))
-                .foregroundStyle(HubTheme.sage)
-            Text(meal?.title ?? "Not planned")
-                .font(.headline.weight(.bold))
-                .lineLimit(3)
-                .foregroundStyle(meal == nil ? HubTheme.muted : .primary)
+        // Re-evaluated every minute so the meal changes on time without a refresh.
+        TimelineView(.everyMinute) { context in
+            let slot = MealSlotClock.slot(at: context.date, timezone: timezone)
+            let meal = meals.first { $0.slot == slot }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(slot.label.uppercased())
+                    .font(.caption2.weight(.heavy))
+                    .foregroundStyle(HubTheme.sage)
+                Text(meal?.title ?? "Not planned")
+                    .font(.headline.weight(.bold))
+                    .lineLimit(3)
+                    .foregroundStyle(meal == nil ? HubTheme.muted : .primary)
+            }
         }
     }
 }
