@@ -82,7 +82,7 @@ To load `http://` during development, add a temporary ATS exception in Info.plis
 - **Account deletion** (Profile → Delete Account, password required): a sole member's household is deleted with them, the only owner of a shared household must transfer ownership first, and anyone else just leaves
 - **Profile photos**: pick from library, upload, replace, remove (parents for any profile; guests for own)
 - Local snapshot cache for the last household/dashboard load
-- Local notifications for routines, chores, and sleep reminders
+- Local notifications for routines, chores, sleep, and **birthdays**. Birthday reminders are chosen in Settings → Notifications: on the day, and any of 1 day, 3 days, 1 week, or 2 weeks before, at a time you pick (8:00 AM by default) in the household's time zone. They are planned up to 45 days ahead so they arrive even if the app isn't opened, capped at 30 to leave room for the other reminders
 - Per-user hub module toggles, sidebar order, and dashboard card order and size
 - Mobile REST API under `src/app/api/mobile/v1/`
 - Adaptive iPhone layouts for parent editing flows, with the same backend data refreshing on larger display clients.
@@ -110,6 +110,7 @@ ios/checks/streak-helpers/run.sh
 ios/checks/completion-helpers/run.sh
 ios/checks/recipe-tags/run.sh
 ios/checks/birthday-today/run.sh
+ios/checks/birthday-notifications/run.sh
 ```
 
 iOS (after opening in Xcode): **Product → Build** (⌘B), then run on iPhone and iPad simulators. Landscape remains recommended for a dedicated shared iPad display.

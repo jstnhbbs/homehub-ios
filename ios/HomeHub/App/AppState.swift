@@ -177,7 +177,10 @@ final class AppState: ObservableObject {
             await refreshNativeGroceryItems()
             await refreshNativeWeather()
             if let dashboard {
-                await nativeNotifications.scheduleDashboardReminders(from: dashboard)
+                await nativeNotifications.scheduleDashboardReminders(
+                    from: dashboard,
+                    birthdaysModuleEnabled: hubModules.isEnabled(.birthdays)
+                )
             }
             publishWidgetSummary()
         } catch {
@@ -188,7 +191,10 @@ final class AppState: ObservableObject {
 
     func rescheduleNativeNotifications() async {
         guard let dashboard else { return }
-        await nativeNotifications.scheduleDashboardReminders(from: dashboard)
+        await nativeNotifications.scheduleDashboardReminders(
+            from: dashboard,
+            birthdaysModuleEnabled: hubModules.isEnabled(.birthdays)
+        )
     }
 
     func refreshNativeTodaySchedule() async {
@@ -310,7 +316,12 @@ final class AppState: ObservableObject {
         let saveVersion = hubModulesSaveVersion
         pendingHubModulesSave = modules
         locallySavedHubModules = modules
+        let birthdaysWereEnabled = hubModules.isEnabled(.birthdays)
         applyHubModules(modules)
+        // The Birthdays module also gates birthday reminders, so re-plan them when it flips.
+        if birthdaysWereEnabled != modules.isEnabled(.birthdays) {
+            await rescheduleNativeNotifications()
+        }
         do {
             let savedModules = try await api.saveHubModules(modules)
             if saveVersion == hubModulesSaveVersion {

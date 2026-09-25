@@ -13,30 +13,6 @@ enum NativeNotificationAccessStatus: String, Sendable {
     }
 }
 
-struct HomeHubNotificationSettings: Codable, Equatable, Sendable {
-    var routinesEnabled: Bool
-    var choresEnabled: Bool
-    var sleepEnabled: Bool
-    var morningRoutineMinute: Int
-    var afternoonRoutineMinute: Int
-    var eveningRoutineMinute: Int
-    var choreMinute: Int
-    var bedtimeMinute: Int
-    var napCheckMinutes: Int
-
-    static let defaults = HomeHubNotificationSettings(
-        routinesEnabled: true,
-        choresEnabled: true,
-        sleepEnabled: true,
-        morningRoutineMinute: 7 * 60,
-        afternoonRoutineMinute: 15 * 60,
-        eveningRoutineMinute: 19 * 60 + 30,
-        choreMinute: 17 * 60,
-        bedtimeMinute: 20 * 60,
-        napCheckMinutes: 90
-    )
-}
-
 @MainActor
 final class NativeNotificationService: ObservableObject {
     @Published private(set) var accessStatus: NativeNotificationAccessStatus = .notDetermined
@@ -71,7 +47,10 @@ final class NativeNotificationService: ObservableObject {
         }
     }
 
-    func scheduleDashboardReminders(from dashboard: DashboardData) async {
+    /// Replaces this app's pending reminders with ones planned from the latest dashboard.
+    /// `birthdaysModuleEnabled` is the household's Birthdays module toggle; turning that module
+    /// off also stops its reminders.
+    func scheduleDashboardReminders(from dashboard: DashboardData, birthdaysModuleEnabled: Bool = true) async {
         await refreshAccessStatus()
         await removeHomeHubPendingRequests()
         guard canSchedule else { return }
@@ -111,8 +90,38 @@ final class NativeNotificationService: ObservableObject {
             ))
         }
 
+        if settings.birthdaysEnabled, birthdaysModuleEnabled {
+            requests.append(contentsOf: birthdayRequests(
+                items: dashboard.upcomingBirthdays,
+                timezone: timezone,
+                calendar: calendar
+            ))
+        }
+
         for request in requests {
             try? await center.add(request)
+        }
+    }
+
+    private func birthdayRequests(
+        items: [BirthdayItem],
+        timezone: TimeZone,
+        calendar: Calendar
+    ) -> [UNNotificationRequest] {
+        BirthdayNotificationPlanner.plan(
+            items: items,
+            options: settings.birthdayOptions,
+            timezone: timezone
+        )
+        .map { reminder in
+            request(
+                id: reminder.id,
+                title: reminder.title,
+                body: reminder.body,
+                fireDate: reminder.fireDate,
+                calendar: calendar,
+                thread: "homehub.birthdays"
+            )
         }
     }
 
@@ -234,7 +243,8 @@ final class NativeNotificationService: ObservableObject {
         title: String,
         body: String,
         fireDate: Date,
-        calendar: Calendar
+        calendar: Calendar,
+        thread: String = "homehub"
     ) -> UNNotificationRequest {
         var components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
         components.timeZone = calendar.timeZone
@@ -243,7 +253,7 @@ final class NativeNotificationService: ObservableObject {
         content.title = title
         content.body = body
         content.sound = .default
-        content.threadIdentifier = "homehub"
+        content.threadIdentifier = thread
 
         return UNNotificationRequest(
             identifier: identifierPrefix + stableIdentifier(id),

@@ -1246,7 +1246,7 @@ private struct NativeNotificationsSettingView: View {
             } header: {
                 Text("Local Reminders")
             } footer: {
-                Text("Beacon can remind this device about routines, chores, bedtime, and active naps without relying on server jobs.")
+                Text("Beacon can remind this device about routines, chores, bedtime, active naps, and birthdays without relying on server jobs.")
             }
 
             Section("Routines") {
@@ -1266,6 +1266,23 @@ private struct NativeNotificationsSettingView: View {
                 timeRow("Bedtime", systemImage: "bed.double.fill", minute: \.bedtimeMinute)
                 Stepper(value: intBinding(\.napCheckMinutes), in: 30...180, step: 15) {
                     Label("Nap Check After \(service.settings.napCheckMinutes) Minutes", systemImage: "timer")
+                }
+            }
+
+            if appState.hubModules.isEnabled(.birthdays) {
+                Section {
+                    Toggle("Birthday Reminders", isOn: boolBinding(\.birthdaysEnabled))
+                    if service.settings.birthdaysEnabled {
+                        Toggle("On the Day", isOn: boolBinding(\.birthdayOnTheDay))
+                        ForEach(BirthdayNotificationPlanner.leadDayChoices, id: \.self) { days in
+                            Toggle(BirthdayNotificationPlanner.leadLabel(days), isOn: leadDaysBinding(days))
+                        }
+                        timeRow("Send At", systemImage: "clock.fill", minute: \.birthdayMinute)
+                    }
+                } header: {
+                    Text("Birthdays")
+                } footer: {
+                    Text("Pick as many reminders as you like. Beacon plans them up to 45 days ahead, so they still arrive if you don't open the app, using the household's time zone.")
                 }
             }
         }
@@ -1325,6 +1342,24 @@ private struct NativeNotificationsSettingView: View {
             set: { value in
                 var next = service.settings
                 next[keyPath: keyPath] = value
+                service.settings = next
+                Task { await appState.rescheduleNativeNotifications() }
+            }
+        )
+    }
+
+    private func leadDaysBinding(_ days: Int) -> Binding<Bool> {
+        Binding(
+            get: { service.settings.birthdayLeadDays.contains(days) },
+            set: { isOn in
+                var next = service.settings
+                var lead = Set(next.birthdayLeadDays)
+                if isOn {
+                    lead.insert(days)
+                } else {
+                    lead.remove(days)
+                }
+                next.birthdayLeadDays = lead.sorted()
                 service.settings = next
                 Task { await appState.rescheduleNativeNotifications() }
             }
