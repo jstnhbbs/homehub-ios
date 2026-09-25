@@ -657,6 +657,7 @@ private func compactCompletion(_ work: () async throws -> Void) async -> Bool {
 /// Chrome every compact tile shares: header with drill-in chevron, frame, background.
 private struct CompactTileShell<Content: View>: View {
     let card: DashboardCardId
+    let span: CompactTileSpan
     let onNavigate: (HubDestination) -> Void
     var beforeNavigate: (() -> Void)?
     @ViewBuilder var content: () -> Content
@@ -668,13 +669,20 @@ private struct CompactTileShell<Content: View>: View {
             Spacer(minLength: 0)
         }
         .padding(12)
-        .frame(maxWidth: .infinity, minHeight: 88, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: minHeight, maxHeight: .infinity, alignment: .topLeading)
         .background(HubTheme.tile)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(HubTheme.line, lineWidth: 1)
         )
+    }
+
+    /// Standard tiles keep one fixed size so the grid looks the same whichever modules a household
+    /// has on; a household with few cards shouldn't get differently sized tiles. Full-width tiles
+    /// hold a variable amount (a schedule may have one event or three), so they fit their content.
+    private var minHeight: CGFloat {
+        span == .half ? 154 : 88
     }
 
     @ViewBuilder
@@ -728,6 +736,7 @@ private struct CompactDashboardTile: View {
     var body: some View {
         CompactTileShell(
             card: card,
+            span: span,
             onNavigate: onNavigate,
             beforeNavigate: card == .snacks ? { appState.pendingFoodSection = .snacks } : nil
         ) {
