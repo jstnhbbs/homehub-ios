@@ -122,6 +122,12 @@ final class NativeWeatherService: NSObject, ObservableObject {
             accessStatus = .unavailable
             errorMessage = "Weather is unavailable until WeatherKit is enabled for this app."
             didReceiveAuthorizationUpdate = true
+            #if DEBUG
+            // WeatherKit can't be provisioned on a Personal team, so debug builds show a sample
+            // reading to let the header readout be designed and checked. Release builds never
+            // do: with WeatherKit off they show nothing rather than invented weather.
+            snapshot = .sample
+            #endif
             return
         }
         locationManager.delegate = self
@@ -175,6 +181,22 @@ extension NativeWeatherService: CLLocationManagerDelegate {
         }
     }
 }
+
+#if DEBUG
+extension NativeWeatherSnapshot {
+    /// Placeholder reading for debug builds while WeatherKit is unavailable.
+    static let sample = NativeWeatherSnapshot(
+        temperature: 78,
+        feelsLike: 80,
+        high: 85,
+        low: 66,
+        precipitationChance: 20,
+        condition: "Partly Cloudy",
+        symbolName: "cloud.sun.fill",
+        updatedAt: .now
+    )
+}
+#endif
 
 extension NativeWeatherSnapshot {
     fileprivate init(weather: Weather) {
