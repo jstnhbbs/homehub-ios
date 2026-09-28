@@ -355,14 +355,20 @@ struct DashboardView: View {
                 height: rowHeight,
                 fillsHeight: fillsHeight
             ) {
-                VStack(spacing: 8) {
-                    ForEach([MealSlot.breakfast, .lunch, .dinner], id: \.self) { slot in
-                        MealSlotRow(
-                            slot: slot,
-                            meal: dashboard.meals.first { $0.slot == slot }
-                        )
+                // A plain VStack here used to clip Dinner off entirely on a short row, with no
+                // way to reach it short of resizing the card. Every other dashboard card scrolls
+                // internally; this one now does too, so nothing is ever unreachable.
+                ScrollView {
+                    VStack(spacing: 8) {
+                        ForEach([MealSlot.breakfast, .lunch, .dinner], id: \.self) { slot in
+                            MealSlotRow(
+                                slot: slot,
+                                meal: dashboard.meals.first { $0.slot == slot }
+                            )
+                        }
                     }
                 }
+                .scrollIndicators(.hidden)
             }
         case .snacks:
             DashboardPanel(
@@ -1768,6 +1774,12 @@ private struct TodaySchedulePanel: View {
         Array(DashboardHelpers.upcomingScheduleEvents(events, now: now).prefix(5))
     }
 
+    /// Only worth a household seeing which calendar an event came from once more than one is
+    /// actually in play; otherwise it is the same name under every row.
+    private var showsCalendarName: Bool {
+        DashboardRowHelpers.showsCalendarName(visibleEvents.map(\.calendarName))
+    }
+
     var body: some View {
         Group {
             if visibleEvents.isEmpty {
@@ -1777,7 +1789,7 @@ private struct TodaySchedulePanel: View {
                 ScrollView {
                     VStack(spacing: 8) {
                         ForEach(visibleEvents) { event in
-                            ScheduleEventRow(event: event, timezone: timezone)
+                            ScheduleEventRow(event: event, timezone: timezone, showsCalendarName: showsCalendarName)
                         }
                     }
                 }
@@ -1825,6 +1837,7 @@ private struct TodaySchedulePanel: View {
 private struct ScheduleEventRow: View {
     let event: ScheduleEvent
     let timezone: TimeZone
+    var showsCalendarName = true
 
     var body: some View {
         HStack(spacing: 10) {
@@ -1853,7 +1866,7 @@ private struct ScheduleEventRow: View {
         let time = event.allDay
             ? "All day"
             : DateHelpers.timeString(event.startsAt, timezone: timezone)
-        if let calendarName = event.calendarName {
+        if showsCalendarName, let calendarName = event.calendarName {
             return "\(time) · \(calendarName)"
         }
         return time
@@ -2593,10 +2606,16 @@ private struct DashboardGroceryItemRow: View {
                             .font(.subheadline.weight(.heavy))
                             .lineLimit(1)
                             .minimumScaleFactor(0.78)
-                        Text(item.quantity ?? item.category)
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(HubTheme.muted)
-                            .lineLimit(1)
+                        if let subtitle = DashboardRowHelpers.grocerySubtitle(
+                            quantity: item.quantity,
+                            category: item.category,
+                            isServerBacked: item.householdId != nil
+                        ) {
+                            Text(subtitle)
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(HubTheme.muted)
+                                .lineLimit(1)
+                        }
                     }
                     Spacer(minLength: 0)
                 }
