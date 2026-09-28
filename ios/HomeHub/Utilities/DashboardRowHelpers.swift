@@ -27,4 +27,18 @@ enum DashboardRowHelpers {
     static func showsCalendarName(_ calendarNames: [String?]) -> Bool {
         Set(calendarNames.compactMap { $0 }).count > 1
     }
+
+    /// How many same-height rows fit in `availableHeight` without needing to scroll, so a card
+    /// given more room (a wider window, or fewer other cards sharing the grid) genuinely shows
+    /// more — rather than every card showing the same fixed count regardless of size.
+    /// `columns` lets this cover a 2-column grid (groceries, snacks) as well as a plain list.
+    ///
+    /// Always fits at least one row: a `GeometryReader` can briefly report zero height before its
+    /// real layout pass settles, and showing nothing for that one frame would flash the card's
+    /// empty state even though it has items.
+    static func visibleRowCount(availableHeight: CGFloat, rowHeight: CGFloat, spacing: CGFloat, columns: Int, total: Int) -> Int {
+        guard rowHeight > 0, columns > 0 else { return total }
+        let rows = max(1, Int(floor((availableHeight + spacing) / (rowHeight + spacing))))
+        return min(total, rows * columns)
+    }
 }

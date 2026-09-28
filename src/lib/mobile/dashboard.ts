@@ -163,7 +163,10 @@ export async function buildDashboardPayload(
     })),
     localDate,
   );
-  const upcomingBirthdays = birthdayItems.filter((item) => item.daysUntil <= 45);
+  // nextBirthdayOccurrence always rolls to the soonest occurrence (this year or next), so
+  // daysUntil never exceeds about a year regardless of this cutoff; it exists so a change to that
+  // logic can't silently make the dashboard payload unbounded, not to hide anything further out.
+  const upcomingBirthdays = birthdayItems.filter((item) => item.daysUntil <= 365);
 
   const schedule = [
     ...birthdayEventsInRange(
@@ -227,8 +230,8 @@ export async function buildDashboardPayload(
     groceryItems: groceryRows,
     notes: noteRows,
     upcomingBirthdays,
-    // Says whether any anniversary exists at all, not just within the next 45 days, so the app can
-    // name the module consistently ("Birthdays" or "Celebrations").
+    // Says whether any anniversary exists at all, not just within upcomingBirthdays' window, so
+    // the app can name the module consistently ("Birthdays" or "Celebrations").
     hasAnniversaries: familyBirthdayRows.some((row) => row.kind === "anniversary"),
     routineStreaks,
   };

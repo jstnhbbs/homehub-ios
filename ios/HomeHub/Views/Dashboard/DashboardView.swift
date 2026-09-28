@@ -334,18 +334,7 @@ struct DashboardView: View {
                 height: rowHeight,
                 fillsHeight: fillsHeight
             ) {
-                let pending = dashboard.chores.filter { !$0.completed }
-                DashboardChecklistPanel(
-                    isEmpty: pending.isEmpty,
-                    emptyTitle: dashboard.chores.isEmpty
-                        ? "Add the first family chore."
-                        : "All chores done!",
-                    emptyAction: { openDestination(.chores) }
-                ) {
-                    ForEach(pending.prefix(5)) { chore in
-                        ChoreCheckRow(chore: chore)
-                    }
-                }
+                ChoresDashboardPanel(dashboard: dashboard)
             }
         case .meals:
             DashboardPanel(
@@ -1446,23 +1435,47 @@ private struct DashboardPanel<Content: View>: View {
     }
 }
 
-private struct DashboardChecklistPanel<Content: View>: View {
-    let isEmpty: Bool
-    let emptyTitle: String
-    let emptyAction: () -> Void
-    @ViewBuilder var content: () -> Content
+/// Today's due, unfinished chores. Shows as many as the card's measured height allows — a
+/// household with more room (a wider window, or fewer other cards) sees more without needing to
+/// scroll, matching every other list-style dashboard card.
+private struct ChoresDashboardPanel: View {
+    @Environment(\.openHubDestination) private var openHubDestination
+    let dashboard: DashboardData
+
+    /// Matches ChoreCheckRow's rendered height closely enough to fill the card without much
+    /// wasted space; see SnacksDashboardPanel for the same approximation on its own row type.
+    private static let rowHeight: CGFloat = 56
+    private static let spacing: CGFloat = 8
+
+    private var pending: [ChoreRow] {
+        dashboard.chores.filter { !$0.completed }
+    }
 
     var body: some View {
-        if isEmpty {
-            EmptyStateView(text: emptyTitle, action: emptyAction)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        if pending.isEmpty {
+            EmptyStateView(
+                text: dashboard.chores.isEmpty ? "Add the first family chore." : "All chores done!",
+                action: { openHubDestination(.chores) }
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            ScrollView {
-                VStack(spacing: 8) {
-                    content()
+            GeometryReader { geo in
+                let visibleCount = DashboardRowHelpers.visibleRowCount(
+                    availableHeight: geo.size.height,
+                    rowHeight: Self.rowHeight,
+                    spacing: Self.spacing,
+                    columns: 1,
+                    total: pending.count
+                )
+                ScrollView {
+                    VStack(spacing: Self.spacing) {
+                        ForEach(pending.prefix(visibleCount)) { chore in
+                            ChoreCheckRow(chore: chore)
+                        }
+                    }
                 }
+                .scrollIndicators(.hidden)
             }
-            .scrollIndicators(.hidden)
         }
     }
 }
@@ -1724,6 +1737,14 @@ private struct RoutineProgressRow: View {
                                     .lineLimit(1)
                             }
                         }
+                        // The preview is capped at 3 steps regardless of card size; say so rather
+                        // than let the rest go unmentioned. The full list is one tap away.
+                        if group.remainingSteps.count > previewSteps.count {
+                            Text("+\(group.remainingSteps.count - previewSteps.count) more")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(HubTheme.muted)
+                                .padding(.leading, 24)
+                        }
                     }
                 }
             }
@@ -1770,30 +1791,44 @@ private struct TodaySchedulePanel: View {
     @State private var now = Date.now
     @State private var endTimer: Timer?
 
-    private var visibleEvents: [ScheduleEvent] {
-        Array(DashboardHelpers.upcomingScheduleEvents(events, now: now).prefix(5))
+    private static let rowHeight: CGFloat = 52
+    private static let spacing: CGFloat = 8
+
+    private var allUpcomingEvents: [ScheduleEvent] {
+        DashboardHelpers.upcomingScheduleEvents(events, now: now)
     }
 
     /// Only worth a household seeing which calendar an event came from once more than one is
-    /// actually in play; otherwise it is the same name under every row.
+    /// actually in play; otherwise it is the same name under every row. Based on every event
+    /// today, not just the ones currently visible, so the format doesn't flicker as the card
+    /// resizes and a different number of rows fit.
     private var showsCalendarName: Bool {
-        DashboardRowHelpers.showsCalendarName(visibleEvents.map(\.calendarName))
+        DashboardRowHelpers.showsCalendarName(allUpcomingEvents.map(\.calendarName))
     }
 
     var body: some View {
         Group {
-            if visibleEvents.isEmpty {
+            if allUpcomingEvents.isEmpty {
                 EmptyStateView(text: emptyMessage, action: connected ? nil : onConnect)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollView {
-                    VStack(spacing: 8) {
-                        ForEach(visibleEvents) { event in
-                            ScheduleEventRow(event: event, timezone: timezone, showsCalendarName: showsCalendarName)
+                GeometryReader { geo in
+                    let visibleCount = DashboardRowHelpers.visibleRowCount(
+                        availableHeight: geo.size.height,
+                        rowHeight: Self.rowHeight,
+                        spacing: Self.spacing,
+                        columns: 1,
+                        total: allUpcomingEvents.count
+                    )
+                    ScrollView {
+                        VStack(spacing: Self.spacing) {
+                            ForEach(allUpcomingEvents.prefix(visibleCount)) { event in
+                                ScheduleEventRow(event: event, timezone: timezone, showsCalendarName: showsCalendarName)
+                            }
                         }
                     }
+                    .scrollIndicators(.hidden)
                 }
-                .scrollIndicators(.hidden)
             }
         }
         .onAppear {
@@ -2073,8 +2108,11 @@ private struct SnacksDashboardPanel: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 GeometryReader { geo in
-                    let visibleCount = Self.visibleSnackCount(
-                        forHeight: geo.size.height,
+                    let visibleCount = DashboardRowHelpers.visibleRowCount(
+                        availableHeight: geo.size.height,
+                        rowHeight: 40,
+                        spacing: 8,
+                        columns: 2,
                         total: sortedSnacks.count
                     )
                     ScrollView {
@@ -2101,14 +2139,6 @@ private struct SnacksDashboardPanel: View {
             }
         }
     }
-
-    /// Fits as many 2-column snack rows as the card height allows.
-    private static func visibleSnackCount(forHeight height: CGFloat, total: Int) -> Int {
-        let rowHeight: CGFloat = 40
-        let spacing: CGFloat = 8
-        let rows = max(1, Int(floor((height + spacing) / (rowHeight + spacing))))
-        return min(total, rows * 2)
-    }
 }
 
 private struct GroceriesDashboardPanel: View {
@@ -2124,7 +2154,7 @@ private struct GroceriesDashboardPanel: View {
     }
 
     var body: some View {
-        let items = Array(visibleItems.prefix(6))
+        let items = visibleItems
         VStack(spacing: 8) {
             if items.isEmpty {
                 EmptyStateView(
@@ -2133,14 +2163,23 @@ private struct GroceriesDashboardPanel: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollView {
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                        ForEach(items) { item in
-                            DashboardGroceryItemRow(item: item)
+                GeometryReader { geo in
+                    let visibleCount = DashboardRowHelpers.visibleRowCount(
+                        availableHeight: geo.size.height,
+                        rowHeight: 44,
+                        spacing: 8,
+                        columns: 2,
+                        total: items.count
+                    )
+                    ScrollView {
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                            ForEach(items.prefix(visibleCount)) { item in
+                                DashboardGroceryItemRow(item: item)
+                            }
                         }
                     }
+                    .scrollIndicators(.hidden)
                 }
-                .scrollIndicators(.hidden)
 
                 Text("\(visibleItems.count) to buy")
                     .font(.caption.weight(.bold))
@@ -2196,20 +2235,29 @@ private struct NotesDashboardPanel: View {
                 EmptyStateView(text: "Leave a household note.", action: nil)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollView {
-                    VStack(spacing: 8) {
-                        ForEach(dashboard.notes.prefix(5)) { note in
-                            NoteRow(
-                                note: note,
-                                canDelete: appState.canManageHousehold,
-                                isDeleting: deletingId == note.id
-                            ) {
-                                await delete(note)
+                GeometryReader { geo in
+                    let visibleCount = DashboardRowHelpers.visibleRowCount(
+                        availableHeight: geo.size.height,
+                        rowHeight: 54,
+                        spacing: 8,
+                        columns: 1,
+                        total: dashboard.notes.count
+                    )
+                    ScrollView {
+                        VStack(spacing: 8) {
+                            ForEach(dashboard.notes.prefix(visibleCount)) { note in
+                                NoteRow(
+                                    note: note,
+                                    canDelete: appState.canManageHousehold,
+                                    isDeleting: deletingId == note.id
+                                ) {
+                                    await delete(note)
+                                }
                             }
                         }
                     }
+                    .scrollIndicators(.hidden)
                 }
-                .scrollIndicators(.hidden)
             }
         }
     }
@@ -2294,8 +2342,10 @@ private struct BirthdaysDashboardPanel: View {
     @Environment(\.openHubDestination) private var openHubDestination
     let dashboard: DashboardData
 
+    /// No cap: the household asked to see everything coming up, not just what fits — scrolling
+    /// through a full year of birthdays and anniversaries beats silently hiding the later ones.
     private var items: [BirthdayItem] {
-        Array(dashboard.upcomingBirthdays.prefix(4))
+        dashboard.upcomingBirthdays
     }
 
     /// Today's date in the household's time zone, so a dashboard loaded yesterday still shows "today".
@@ -2311,12 +2361,14 @@ private struct BirthdaysDashboardPanel: View {
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            VStack(spacing: 8) {
-                ForEach(items) { item in
-                    row(item, isToday: item.nextDate == today)
+            ScrollView {
+                VStack(spacing: 8) {
+                    ForEach(items) { item in
+                        row(item, isToday: item.nextDate == today)
+                    }
                 }
-                Spacer(minLength: 0)
             }
+            .scrollIndicators(.hidden)
         }
     }
 

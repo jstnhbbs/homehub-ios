@@ -54,6 +54,14 @@ async function sameDayYearsAgo(yearsAgo: number) {
   return `${Number(today.slice(0, 4)) - yearsAgo}${today.slice(4)}`;
 }
 
+/** A birth date whose next occurrence lands `daysAhead` from today. */
+async function birthdayDaysAhead(daysAhead: number) {
+  const { localDateIn } = await import("@/lib/dates");
+  const { addDays } = await import("@/lib/streaks");
+  const target = addDays(localDateIn("America/Chicago"), daysAhead);
+  return `1990${target.slice(4)}`;
+}
+
 beforeAll(async () => {
   const { db } = await import("@/db/client");
   const schema = await import("@/db/schema");
@@ -164,5 +172,18 @@ describe("birthdays and anniversaries", () => {
   it("does not let guests add or change entries", async () => {
     const created = await call("guest", "birthdays", "POST", { name: "X", birthDate: "2000-01-01", kind: "anniversary" });
     expect(created.status).toBe(403);
+  });
+
+  it("includes a birthday far past the old 45-day window, up to a year out", async () => {
+    const farOut = await call("parent", "birthdays", "POST", {
+      name: "Far Out",
+      birthDate: await birthdayDaysAhead(200),
+    });
+    expect(farOut.status).toBe(201);
+
+    const names = (await dashboard()).upcomingBirthdays.map((item) => item.name);
+    expect(names).toContain("Far Out");
+
+    await call("parent", "birthdays/[id]", "DELETE", undefined, { id: farOut.json.item.id });
   });
 });
