@@ -78,6 +78,9 @@ struct MealsView: View {
 
     // MARK: - Week
 
+    /// Wide enough for the week grid to keep room beside a sidebar.
+    private static let sidebarWidth: CGFloat = 1000
+
     private var weekContent: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
@@ -86,7 +89,17 @@ struct MealsView: View {
             if horizontalSizeClass == .compact {
                 compactDayList
             } else {
-                weeklyGrid
+                GeometryReader { proxy in
+                    if proxy.size.width >= Self.sidebarWidth {
+                        HStack(alignment: .top, spacing: 20) {
+                            weeklyGrid
+                            mealsSidebar
+                                .frame(width: 340)
+                        }
+                    } else {
+                        weeklyGrid
+                    }
+                }
             }
         }
         .onAppear { viewModel.bind(to: appState) }
@@ -334,6 +347,143 @@ struct MealsView: View {
             .padding(.vertical, 3)
             .background(HubTheme.sage)
             .clipShape(Capsule())
+    }
+
+    // MARK: - iPad: sidebar
+
+    private var slotRefs: [MealSlotRef] {
+        viewModel.weekDateStrings.flatMap { date in
+            MealSlot.planningSlots.map { MealSlotRef(localDate: date, slot: $0) }
+        }
+    }
+
+    private var plannedCount: Int {
+        slotRefs.filter { viewModel.meal($0) != nil }.count
+    }
+
+    private var mealsSidebar: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                if viewModel.isCurrentWeek {
+                    todayCard
+                }
+                if viewModel.canManage {
+                    stillToPlanCard
+                    weekActionsCard
+                }
+            }
+        }
+        .scrollIndicators(.hidden)
+    }
+
+    /// Today's three meals at a glance, in larger type than the grid; tap one to change it.
+    private var todayCard: some View {
+        HubCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Label("Today", systemImage: "fork.knife")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(HubTheme.sage)
+                ForEach(MealSlot.planningSlots, id: \.self) { slot in
+                    let ref = MealSlotRef(localDate: viewModel.todayString, slot: slot)
+                    let meal = viewModel.meal(ref)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(slot.label.uppercased())
+                            .font(.caption2.weight(.heavy))
+                            .foregroundStyle(HubTheme.muted)
+                        if let meal {
+                            Text(meal.title)
+                                .font(.headline.weight(.semibold))
+                                .multilineTextAlignment(.leading)
+                        } else {
+                            Text(viewModel.canManage ? "Nothing planned. Tap to add." : "Not planned")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(HubTheme.muted)
+                        }
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(HubTheme.tileQuiet)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if viewModel.canManage { pickerTarget = ref }
+                    }
+                }
+            }
+        }
+    }
+
+    /// For each meal of the day, the days still empty this week. Tapping a day opens the picker for it.
+    private var stillToPlanCard: some View {
+        HubCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Still to plan", systemImage: "calendar.badge.plus")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(HubTheme.sage)
+                Text("\(plannedCount) of \(slotRefs.count) meals planned")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(HubTheme.muted)
+
+                ForEach(MealSlot.planningSlots, id: \.self) { slot in
+                    let open = zip(viewModel.weekDates, viewModel.weekDateStrings).filter { _, date in
+                        viewModel.meal(MealSlotRef(localDate: date, slot: slot)) == nil
+                            && (!viewModel.isCurrentWeek || date >= viewModel.todayString)
+                    }
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(slot.label.uppercased())
+                            .font(.caption2.weight(.heavy))
+                            .foregroundStyle(HubTheme.muted)
+                        if open.isEmpty {
+                            Label("All set", systemImage: "checkmark.circle.fill")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(HubTheme.sage)
+                        } else {
+                            TagFlowLayout(spacing: 6) {
+                                ForEach(open, id: \.1) { day, date in
+                                    Button {
+                                        pickerTarget = MealSlotRef(localDate: date, slot: slot)
+                                    } label: {
+                                        Text(DateHelpers.weekdayShort(day, timezone: viewModel.timezone))
+                                            .font(.subheadline.weight(.semibold))
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 6)
+                                            .background(HubTheme.tileQuiet)
+                                            .clipShape(Capsule())
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// The week-level actions that otherwise sit in the More menu.
+    private var weekActionsCard: some View {
+        HubCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Label("This week", systemImage: "cart")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(HubTheme.sage)
+                Button {
+                    Task { await viewModel.prepareGroceryPreview() }
+                } label: {
+                    Label("Add week to groceries", systemImage: "cart.badge.plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(HubButtonStyle(emphasis: .primary))
+                Button {
+                    Task { await viewModel.copyPreviousWeek() }
+                } label: {
+                    Label("Copy last week", systemImage: "doc.on.doc")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(HubButtonStyle(emphasis: .secondary))
+            }
+            .disabled(viewModel.isWorking)
+        }
     }
 
     // MARK: - iPad: week grid

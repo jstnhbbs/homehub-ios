@@ -139,7 +139,7 @@ struct RecipesView: View {
             RecipeDetailPanel(recipe: recipe, viewModel: viewModel) {
                 activeRecipeSheet = .edit(recipe.id)
             }
-            .frame(maxHeight: 520)
+            .frame(maxHeight: .infinity, alignment: .top)
         } else if !viewModel.isLoading {
             HubCard {
                 Text("Select a recipe to view details.")

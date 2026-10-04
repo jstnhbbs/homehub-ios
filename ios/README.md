@@ -83,13 +83,14 @@ To load `http://` during development, add a temporary ATS exception in Info.plis
 - **Profile photos**: pick from library, upload, replace, remove (parents for any profile; guests for own)
 - Local snapshot cache for the last household/dashboard load
 - Local notifications for routines, chores, sleep, and **birthdays**. Birthday reminders are chosen in Settings → Notifications: on the day, and any of 1 day, 3 days, 1 week, or 2 weeks before, at a time you pick (8:00 AM by default) in the household's time zone. They are planned up to 45 days ahead so they arrive even if the app isn't opened, capped at 30 to leave room for the other reminders
+- Sleep Live Activity: while a child is napping or in bed, the lock screen and Dynamic Island show a running timer (`HomeHubLiveActivity/`, started and ended by `SleepLiveActivityManager`). It is started locally, so it needs no push entitlement; it appears on a device when the app next refreshes, and iOS ends any Live Activity after about 8 hours
 - Per-user hub module toggles, sidebar order, and dashboard card order and size
 - Mobile REST API under `src/app/api/mobile/v1/`
 - Adaptive iPhone layouts for parent editing flows, with the same backend data refreshing on larger display clients.
 
 **Still to build in Swift**
 
-- Widget target integration: `HomeHubWidget/` exists but the generated Xcode project has only the `HomeHub` app target
+- Home-screen widget integration: `HomeHubWidget/` exists but is not a target. The generated project has the `HomeHub` app and the `HomeHubLiveActivity` extension (sleep Live Activity) only. The widget would need an App Group to share data with the app, which a Personal Team can't provision
 - Creating and editing calendar events (the server-side event API was removed; the "default calendar for new events" setting is currently unused)
 
 ## Run checks

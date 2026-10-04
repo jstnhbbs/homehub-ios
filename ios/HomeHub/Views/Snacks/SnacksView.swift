@@ -11,20 +11,97 @@ struct SnacksView: View {
         case edit
     }
 
+    /// Wide enough for the checklist to sit beside a panel with the date, progress and settings.
+    private static let sidePanelWidth: CGFloat = 820
+
     var body: some View {
-        List {
-            headerSection
-            messagesSection
-            snackChecklistSection
-            perChildSection
+        GeometryReader { proxy in
+            if proxy.size.width >= Self.sidePanelWidth, horizontalSizeClass != .compact {
+                HStack(alignment: .top, spacing: 20) {
+                    List {
+                        messagesSection
+                        snackChecklistSection
+                    }
+                    .listStyle(.insetGrouped)
+                    sidePanel
+                        .frame(width: 340)
+                }
+            } else {
+                List {
+                    headerSection
+                    messagesSection
+                    snackChecklistSection
+                    perChildSection
+                }
+                .listStyle(.insetGrouped)
+            }
         }
-        .listStyle(.insetGrouped)
         .onAppear { viewModel.bind(to: appState) }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
         .onChange(of: viewModel.editingSnack) { _, snack in
             focusedField = snack == nil ? nil : .edit
         }
+    }
+
+    /// The date, progress, reset and the per-child setting, as cards beside the checklist.
+    private var sidePanel: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                HubCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Today's snacks")
+                            .font(HubTheme.sectionTitle)
+                        if !viewModel.dateLabel.isEmpty {
+                            Text(viewModel.dateLabel)
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(HubTheme.muted)
+                        }
+                        if !viewModel.snackOptions.isEmpty {
+                            Text("\(viewModel.eaten.count) of \(viewModel.snackOptions.count)")
+                                .font(.system(size: 40, weight: .bold, design: .rounded))
+                                .monospacedDigit()
+                            Text(viewModel.usesPerChild ? "snacks eaten by everyone" : "snacks eaten")
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(HubTheme.muted)
+                            ProgressView(
+                                value: Double(viewModel.eaten.count),
+                                total: Double(max(viewModel.snackOptions.count, 1))
+                            )
+                            .tint(HubTheme.sage)
+                            Button {
+                                Task { await viewModel.resetChecklist() }
+                            } label: {
+                                Label("Reset", systemImage: "arrow.counterclockwise")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(HubButtonStyle(emphasis: .secondary))
+                            .disabled(viewModel.isWorking)
+                        }
+                    }
+                }
+
+                if viewModel.canManage && (viewModel.canChoosePerChild || viewModel.tracksPerChild) {
+                    HubCard {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Toggle(
+                                "Track snacks for each child",
+                                isOn: Binding(
+                                    get: { viewModel.tracksPerChild },
+                                    set: { enabled in Task { await viewModel.setPerChild(enabled) } }
+                                )
+                            )
+                            .font(.subheadline.weight(.semibold))
+                            .disabled(viewModel.isWorking)
+                            Text("Off, one tap marks a snack eaten for everyone. On, each child has their own circle, which suits kids who eat different things.")
+                                .font(.footnote)
+                                .foregroundStyle(HubTheme.muted)
+                        }
+                    }
+                }
+            }
+        }
+        .scrollIndicators(.hidden)
     }
 
     @ViewBuilder

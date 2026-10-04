@@ -189,6 +189,12 @@ final class AppState: ObservableObject {
                 )
             }
             publishWidgetSummary()
+            if let dashboard {
+                await SleepLiveActivityManager.sync(
+                    logs: dashboard.naps,
+                    children: NapHelpers.childProfiles(from: dashboard.profiles)
+                )
+            }
         } catch {
             hydrateFromLocalStore()
             errorMessage = error.localizedDescription
@@ -374,6 +380,7 @@ final class AppState: ObservableObject {
         setHasAnniversaries(false)
         localStore.clear()
         HomeHubWidgetStore.clear()
+        await SleepLiveActivityManager.endAll()
         pendingProfileEditId = nil
         selectedDestination = .dashboard
     }
