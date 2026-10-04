@@ -1460,9 +1460,10 @@ private struct ChoresDashboardPanel: View {
     @Environment(\.openHubDestination) private var openHubDestination
     let dashboard: DashboardData
 
-    /// ChoreCheckRow's rendered height: title line, "who" line, and padding. A title that wraps makes
-    /// a row taller, which the card's scroll view absorbs rather than clipping.
-    private static let rowHeight: CGFloat = 64
+    /// ChoreCheckRow's rendered height: title line, optional "who" line, and padding. A title that
+    /// wraps makes a row taller, which the card's scroll view absorbs rather than clipping.
+    private static let rowHeightWithAssignee: CGFloat = 64
+    private static let rowHeightWithoutAssignee: CGFloat = 48
     private static let spacing: CGFloat = 8
     /// Narrower than this and a chore's title wraps onto a second line, so the card uses one column.
     private static let minimumColumnWidth: CGFloat = 165
@@ -1471,7 +1472,14 @@ private struct ChoresDashboardPanel: View {
         dashboard.chores.filter { !$0.completed }
     }
 
+    /// Who a chore is for, as the row would say it.
+    private func assigneeName(_ chore: ChoreRow) -> String {
+        dashboard.profiles.first { $0.id == chore.profileId }?.name ?? "Anyone"
+    }
+
     var body: some View {
+        // The "who" line is only worth its space when chores are for different people.
+        let showsAssignee = DashboardRowHelpers.showsAssignee(pending.map(assigneeName))
         if pending.isEmpty {
             EmptyStateView(
                 text: dashboard.chores.isEmpty ? "Add the first family chore." : "All chores done!",
@@ -1486,7 +1494,7 @@ private struct ChoresDashboardPanel: View {
                     spacing: Self.spacing
                 )
                 let fit = DashboardRowHelpers.fitWholeRows(
-                    itemHeights: Array(repeating: Self.rowHeight, count: pending.count),
+                    itemHeights: Array(repeating: showsAssignee ? Self.rowHeightWithAssignee : Self.rowHeightWithoutAssignee, count: pending.count),
                     columns: columns,
                     spacing: Self.spacing,
                     availableHeight: geo.size.height,
@@ -1496,7 +1504,7 @@ private struct ChoresDashboardPanel: View {
                     VStack(spacing: Self.spacing) {
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Self.spacing), count: columns), spacing: Self.spacing) {
                             ForEach(pending.prefix(fit.shown)) { chore in
-                                ChoreCheckRow(chore: chore)
+                                ChoreCheckRow(chore: chore, showsAssignee: showsAssignee)
                             }
                         }
                         if fit.hidden > 0 && fit.footerFits {
@@ -2416,85 +2424,71 @@ private struct DashboardSleepRow: View {
     }
 }
 
+private struct SnackListItem: Identifiable {
+    let label: String
+    var id: String { label }
+}
+
 private struct SnacksDashboardPanel: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.openHubDestination) private var openHubDestination
     let dashboard: DashboardData
 
     private var eaten: Set<String> { Set(dashboard.snackEaten) }
-    private var sortedSnacks: [String] {
-        SnackHelpers.sortedSnackOptions(dashboard.snackOptions, eaten: eaten)
+    private var sortedSnacks: [SnackListItem] {
+        SnackHelpers.sortedSnackOptions(dashboard.snackOptions, eaten: eaten).map(SnackListItem.init)
     }
     private var children: [Profile] { NapHelpers.childProfiles(from: dashboard.profiles) }
     /// Each child has their own circle on each snack.
     private var perChild: Bool { dashboard.snacksPerChild && !children.isEmpty }
 
-    var body: some View {
-        VStack(spacing: 8) {
-            if dashboard.snackOptions.isEmpty {
-                EmptyStateView(
-                    text: "Add snack options for the family.",
-                    action: {
-                        if appState.hubModules.snacks {
-                            appState.pendingFoodSection = .snacks
-                        }
-                        openHubDestination(.meals)
-                    }
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                GeometryReader { geo in
-                    let columns = DashboardRowHelpers.columnCount(
-                        availableWidth: geo.size.width,
-                        minimumColumnWidth: perChild ? DashboardCheckTile.perChildMinimumColumnWidth : DashboardCheckTile.minimumColumnWidth,
-                        spacing: 8
-                    )
-                    let fit = DashboardRowHelpers.fitWholeRows(
-                        itemHeights: sortedSnacks.map {
-                            perChild
-                                ? DashboardCheckTile.snackChildHeight(title: $0, childCount: children.count, columns: columns, width: geo.size.width)
-                                : DashboardCheckTile.snackHeight(title: $0, columns: columns, width: geo.size.width)
-                        },
-                        columns: columns,
-                        spacing: 8,
-                        availableHeight: geo.size.height,
-                        footerHeight: 0
-                    )
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: columns), spacing: 8) {
-                        ForEach(sortedSnacks.prefix(fit.shown), id: \.self) { snack in
-                            if perChild {
-                                SnackChildTile(
-                                    snack: snack,
-                                    children: children,
-                                    records: dashboard.snackCompletions,
-                                    isDone: eaten.contains(snack),
-                                    localDate: dashboard.localDate
-                                )
-                            } else {
-                                SnackCheckRow(
-                                    label: snack,
-                                    localDate: dashboard.localDate,
-                                    isEaten: eaten.contains(snack)
-                                )
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .dashboardMoreChip(hidden: fit.hidden, footerFits: false) {
-                        if appState.hubModules.snacks { appState.pendingFoodSection = .snacks }
-                        openHubDestination(.meals)
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+    private var summary: String {
+        perChild
+            ? "\(dashboard.snackEaten.count) of \(dashboard.snackOptions.count) eaten by everyone"
+            : "\(dashboard.snackEaten.count) of \(dashboard.snackOptions.count) eaten today"
+    }
 
-            if !dashboard.snackOptions.isEmpty {
-                Text(perChild
-                    ? "\(dashboard.snackEaten.count) of \(dashboard.snackOptions.count) eaten by everyone"
-                    : "\(dashboard.snackEaten.count) of \(dashboard.snackOptions.count) eaten today")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(HubTheme.muted)
-                    .frame(maxWidth: .infinity)
+    private func openSnacks() {
+        if appState.hubModules.snacks { appState.pendingFoodSection = .snacks }
+        openHubDestination(.meals)
+    }
+
+    var body: some View {
+        if dashboard.snackOptions.isEmpty {
+            EmptyStateView(text: "Add snack options for the family.", action: openSnacks)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            // The summary shares the "+N more" line, or shows underneath when everything fits and
+            // there is room, so it never costs a row of its own.
+            WholeRowsGrid(
+                items: sortedSnacks,
+                minimumColumnWidth: perChild ? DashboardCheckTile.perChildMinimumColumnWidth : DashboardCheckTile.minimumColumnWidth,
+                maxColumns: 2,
+                itemHeight: { item, columnWidth in
+                    perChild
+                        ? DashboardCheckTile.snackChildHeight(title: item.label, childCount: children.count, columnWidth: columnWidth)
+                        : DashboardCheckTile.snackHeight(title: item.label, columnWidth: columnWidth)
+                },
+                onMore: openSnacks,
+                spareHint: summary,
+                moreSuffix: summary,
+                centersHint: true
+            ) { item, _ in
+                if perChild {
+                    SnackChildTile(
+                        snack: item.label,
+                        children: children,
+                        records: dashboard.snackCompletions,
+                        isDone: eaten.contains(item.label),
+                        localDate: dashboard.localDate
+                    )
+                } else {
+                    SnackCheckRow(
+                        label: item.label,
+                        localDate: dashboard.localDate,
+                        isEaten: eaten.contains(item.label)
+                    )
+                }
             }
         }
     }
@@ -2514,47 +2508,37 @@ private struct GroceriesDashboardPanel: View {
 
     var body: some View {
         let items = visibleItems
-        VStack(spacing: 8) {
-            if items.isEmpty {
-                EmptyStateView(
-                    text: "Start a shared grocery list.",
-                    action: { openHubDestination(.groceries) }
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                GeometryReader { geo in
-                    let columns = DashboardRowHelpers.columnCount(
-                        availableWidth: geo.size.width,
-                        minimumColumnWidth: DashboardCheckTile.minimumColumnWidth,
-                        spacing: 8
+        if items.isEmpty {
+            EmptyStateView(
+                text: "Start a shared grocery list.",
+                action: { openHubDestination(.groceries) }
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            let summary = "\(items.count) to buy"
+            // The count shares the "+N more" line, or shows underneath when everything fits and
+            // there is room, so it never costs a row of its own.
+            WholeRowsGrid(
+                items: items,
+                minimumColumnWidth: DashboardCheckTile.minimumColumnWidth,
+                maxColumns: 2,
+                itemHeight: { item, columnWidth in
+                    DashboardCheckTile.groceryHeight(
+                        title: item.title,
+                        hasSubtitle: DashboardRowHelpers.grocerySubtitle(
+                            quantity: item.quantity,
+                            category: item.category,
+                            isServerBacked: item.householdId != nil
+                        ) != nil,
+                        columnWidth: columnWidth
                     )
-                    let fit = DashboardRowHelpers.fitWholeRows(
-                        itemHeights: items.map { item in
-                            DashboardCheckTile.groceryHeight(
-                                title: item.title,
-                                hasSubtitle: DashboardRowHelpers.grocerySubtitle(quantity: item.quantity, category: item.category, isServerBacked: item.householdId != nil) != nil,
-                                columns: columns,
-                                width: geo.size.width
-                            )
-                        },
-                        columns: columns,
-                        spacing: 8,
-                        availableHeight: geo.size.height,
-                        footerHeight: 0
-                    )
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: columns), spacing: 8) {
-                        ForEach(items.prefix(fit.shown)) { item in
-                            DashboardGroceryItemRow(item: item)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .dashboardMoreChip(hidden: fit.hidden, footerFits: false) { openHubDestination(.groceries) }
-                }
-
-                Text("\(visibleItems.count) to buy")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(HubTheme.muted)
-                    .frame(maxWidth: .infinity)
+                },
+                onMore: { openHubDestination(.groceries) },
+                spareHint: summary,
+                moreSuffix: summary,
+                centersHint: true
+            ) { item, _ in
+                DashboardGroceryItemRow(item: item)
             }
         }
     }
@@ -2917,17 +2901,19 @@ private struct RoutineCheckRow: View {
 private struct ChoreCheckRow: View {
     @EnvironmentObject private var appState: AppState
     let chore: ChoreRow
+    let showsAssignee: Bool
     @State private var isChecked: Bool
 
-    init(chore: ChoreRow) {
+    init(chore: ChoreRow, showsAssignee: Bool = true) {
         self.chore = chore
+        self.showsAssignee = showsAssignee
         _isChecked = State(initialValue: chore.completed)
     }
 
     var body: some View {
         CheckItemView(
             label: chore.title,
-            detail: appState.dashboard?.profiles.first { $0.id == chore.profileId }?.name ?? "Anyone",
+            detail: showsAssignee ? (appState.dashboard?.profiles.first { $0.id == chore.profileId }?.name ?? "Anyone") : nil,
             color: profileColor,
             isChecked: $isChecked,
             removeWhenChecked: true
@@ -3103,28 +3089,35 @@ private struct DashboardMoreFooter: View {
     static let height: CGFloat = 22
 
     let count: Int
+    /// Extra text after the count, e.g. "25 to buy", so a card's summary shares this one line
+    /// instead of costing a second.
+    var suffix: String?
     let action: () -> Void
+
+    private var text: String {
+        suffix.map { "+\(count) more · \($0)" } ?? "+\(count) more"
+    }
 
     var body: some View {
         Button(action: action) {
-            Text("+\(count) more")
+            Text(text)
                 .font(.caption.weight(.bold))
                 .foregroundStyle(HubTheme.muted)
                 .frame(maxWidth: .infinity, minHeight: Self.height)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(count) more. Open the full list.")
+        .accessibilityLabel("\(text). Open the full list.")
     }
 }
 
 private extension View {
     /// Fallback for a card so short that even one row leaves no room for the "+N more" line: a small
     /// chip in the corner instead, so the count is never silently clipped.
-    func dashboardMoreChip(hidden: Int, footerFits: Bool, action: @escaping () -> Void) -> some View {
+    func dashboardMoreChip(hidden: Int, footerFits: Bool, suffix: String? = nil, action: @escaping () -> Void) -> some View {
         overlay(alignment: .bottomTrailing) {
             if hidden > 0 && !footerFits {
                 Button(action: action) {
-                    Text("+\(hidden) more")
+                    Text(suffix.map { "+\(hidden) more · \($0)" } ?? "+\(hidden) more")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(HubTheme.muted)
                         .padding(.horizontal, 8)
@@ -3155,6 +3148,10 @@ private struct WholeRowsGrid<Item: Identifiable, Tile: View>: View {
     let onMore: () -> Void
     /// Optional line shown under the rows, only when there is room to spare and nothing is hidden.
     var spareHint: String?
+    /// Joined onto the "+N more" line when rows are hidden.
+    var moreSuffix: String?
+    /// Centre and enlarge the line, for a card's summary rather than a hint.
+    var centersHint = false
     @ViewBuilder let tile: (Item, CGFloat) -> Tile
 
     private let hintHeight: CGFloat = 30
@@ -3195,16 +3192,18 @@ private struct WholeRowsGrid<Item: Identifiable, Tile: View>: View {
                     }
                 }
                 if fit.hidden > 0 && fit.footerFits {
-                    DashboardMoreFooter(count: fit.hidden, action: onMore)
+                    DashboardMoreFooter(count: fit.hidden, suffix: moreSuffix, action: onMore)
                 } else if let spareHint, geo.size.height - usedHeight >= hintHeight {
                     Text(spareHint)
-                        .font(.caption2.weight(.bold))
+                        .font(centersHint ? .caption.weight(.bold) : .caption2.weight(.bold))
                         .foregroundStyle(HubTheme.muted)
                         .lineLimit(2)
+                        .frame(maxWidth: centersHint ? .infinity : nil)
+                        .multilineTextAlignment(centersHint ? .center : .leading)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .dashboardMoreChip(hidden: fit.hidden, footerFits: fit.footerFits, action: onMore)
+            .dashboardMoreChip(hidden: fit.hidden, footerFits: fit.footerFits, suffix: moreSuffix, action: onMore)
         }
     }
 
@@ -3219,32 +3218,25 @@ private enum DashboardCheckTile {
     static let minimumColumnWidth: CGFloat = 180
     /// A per-child tile needs room for a row of circles beside a readable name.
     static let perChildMinimumColumnWidth: CGFloat = 200
-    private static let spacing: CGFloat = 8
 
     /// Width left for the title once the checkbox and padding are taken off.
-    private static func titleWidth(columns: Int, width: CGFloat) -> CGFloat {
-        let columnWidth = (width - CGFloat(max(0, columns - 1)) * spacing) / CGFloat(max(1, columns))
-        return columnWidth - 56
-    }
-
-    private static func titleLines(_ title: String, columns: Int, width: CGFloat) -> Int {
+    private static func titleLines(_ title: String, columnWidth: CGFloat) -> Int {
         DashboardRowHelpers.estimatedLineCount(
             characterCount: title.count,
-            availableWidth: titleWidth(columns: columns, width: width),
+            availableWidth: columnWidth - 56,
             averageCharacterWidth: 9,
             maxLines: 2
         )
     }
 
     /// A snack tile is padding plus one or two title lines.
-    static func snackHeight(title: String, columns: Int, width: CGFloat) -> CGFloat {
-        20 + CGFloat(titleLines(title, columns: columns, width: width)) * 20
+    static func snackHeight(title: String, columnWidth: CGFloat) -> CGFloat {
+        20 + CGFloat(titleLines(title, columnWidth: columnWidth)) * 20
     }
 
     /// A per-child snack tile: padding, up to two title lines, then the child circles (which wrap
     /// onto more lines for a large family).
-    static func snackChildHeight(title: String, childCount: Int, columns: Int, width: CGFloat) -> CGFloat {
-        let columnWidth = (width - CGFloat(max(0, columns - 1)) * spacing) / CGFloat(max(1, columns))
+    static func snackChildHeight(title: String, childCount: Int, columnWidth: CGFloat) -> CGFloat {
         let titleLineCount = DashboardRowHelpers.estimatedLineCount(
             characterCount: title.count,
             availableWidth: columnWidth - 20,
@@ -3262,7 +3254,7 @@ private enum DashboardCheckTile {
     }
 
     /// A grocery tile adds a category line under the title when there is one.
-    static func groceryHeight(title: String, hasSubtitle: Bool, columns: Int, width: CGFloat) -> CGFloat {
-        20 + CGFloat(titleLines(title, columns: columns, width: width)) * 20 + (hasSubtitle ? 15 : 0)
+    static func groceryHeight(title: String, hasSubtitle: Bool, columnWidth: CGFloat) -> CGFloat {
+        20 + CGFloat(titleLines(title, columnWidth: columnWidth)) * 20 + (hasSubtitle ? 15 : 0)
     }
 }

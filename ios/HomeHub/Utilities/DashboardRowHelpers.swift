@@ -22,6 +22,13 @@ enum DashboardRowHelpers {
         return isServerBacked ? category : nil
     }
 
+    /// Whether a chore row should say who it is for. When every chore on the card is for the same
+    /// person ("Anyone" on all of them, or one child's whole list) the line is the same string on
+    /// every row, and dropping it lets a row be about a third shorter so more of them fit.
+    static func showsAssignee(_ assigneeNames: [String]) -> Bool {
+        Set(assigneeNames).count > 1
+    }
+
     /// Whether a schedule row should append its calendar's name. Worth it once the visible
     /// events come from more than one calendar; with a single calendar it is the same string
     /// on every row.

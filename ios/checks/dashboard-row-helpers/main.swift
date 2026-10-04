@@ -12,6 +12,13 @@ check("native reminder with a real quantity: shows it", String(describing: Dashb
 check("server item with no quantity: shows its real category", String(describing: DashboardRowHelpers.grocerySubtitle(quantity: nil, category: "Produce", isServerBacked: true)), "Optional(\"Produce\")")
 check("server item with a quantity: quantity wins", String(describing: DashboardRowHelpers.grocerySubtitle(quantity: "3", category: "Produce", isServerBacked: true)), "Optional(\"3\")")
 
+// Chore assignee
+check("everyone is Anyone: not worth repeating", String(DashboardRowHelpers.showsAssignee(["Anyone", "Anyone", "Anyone"])), "false")
+check("one child's whole list: not worth repeating", String(DashboardRowHelpers.showsAssignee(["Judah", "Judah"])), "false")
+check("a mix of people: worth showing", String(DashboardRowHelpers.showsAssignee(["Judah", "Anyone", "Maisie"])), "true")
+check("one chore: nothing to compare, so hidden", String(DashboardRowHelpers.showsAssignee(["Judah"])), "false")
+check("no chores", String(DashboardRowHelpers.showsAssignee([])), "false")
+
 // Calendar name
 check("one calendar: not worth repeating", String(DashboardRowHelpers.showsCalendarName(["Family", "Family", "Family"])), "false")
 check("two calendars: worth showing", String(DashboardRowHelpers.showsCalendarName(["Family", "Work"])), "true")
