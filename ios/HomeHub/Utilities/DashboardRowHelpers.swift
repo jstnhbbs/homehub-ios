@@ -72,7 +72,8 @@ enum DashboardRowHelpers {
         columns: Int,
         spacing: CGFloat,
         availableHeight: CGFloat,
-        footerHeight: CGFloat
+        footerHeight: CGFloat,
+        footerGap: CGFloat? = nil
     ) -> (shown: Int, hidden: Int, footerFits: Bool) {
         let total = itemHeights.count
         guard total > 0 else { return (0, 0, true) }
@@ -94,13 +95,16 @@ enum DashboardRowHelpers {
             return index
         }
 
+        // The footer normally sits one row-gap under the rows; a caller that pins it to the bottom
+        // edge passes a smaller gap.
+        let gap = footerGap ?? spacing
         let everything = shown(fittingIn: availableHeight)
         if everything >= total { return (total, 0, true) }
-        let withFooter = shown(fittingIn: availableHeight - footerHeight - spacing)
+        let withFooter = shown(fittingIn: availableHeight - footerHeight - gap)
         // Even a single forced row can leave no room for the footer line; the caller then shows
         // the count another way rather than letting it be clipped.
         let used = rowsHeight(itemHeights: Array(itemHeights.prefix(withFooter)), columns: columnCount, spacing: spacing)
-        return (withFooter, total - withFooter, used + spacing + footerHeight <= availableHeight)
+        return (withFooter, total - withFooter, used + gap + footerHeight <= availableHeight)
     }
 
     /// Rough number of lines `characterCount` characters wrap to in `availableWidth`, between one

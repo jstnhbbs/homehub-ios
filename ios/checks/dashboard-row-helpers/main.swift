@@ -113,5 +113,14 @@ check("exactly filling the height fits", allFit([50, 50], height: 108), "true")
 check("one point short does not", allFit([50, 50], height: 107), "false")
 check("nothing to show always fits", allFit([], height: 0), "true")
 
+// A smaller gap above the footer lets another row fit
+func fitGap(_ heights: [CGFloat], height: CGFloat, gap: CGFloat?) -> String {
+    let r = DashboardRowHelpers.fitWholeRows(itemHeights: heights, columns: 1, spacing: 8, availableHeight: height, footerHeight: 20, footerGap: gap)
+    return "\(r.shown)/\(r.hidden)"
+}
+check("default gap is the row spacing", fitGap([50, 50, 50], height: 128, gap: nil), "1/2")
+check("a smaller footer gap fits one more row in the same card", fitGap([50, 50, 50], height: 128, gap: 0), "2/1")
+check("a gap of zero changes nothing when everything fits", fitGap([50, 50], height: 108, gap: 0), "2/0")
+
 print(failures == 0 ? "\nALL PASSED" : "\n\(failures) FAILED")
 exit(failures == 0 ? 0 : 1)
