@@ -43,7 +43,7 @@ struct ChoresView: View {
                     if let error = viewModel.errorMessage {
                         Text(error).font(.footnote).foregroundStyle(.red)
                     }
-                    choresContent(columns: [GridItem(.flexible()), GridItem(.flexible())])
+                    choresContent(columns: [GridItem(.adaptive(minimum: 300), spacing: 16, alignment: .top)])
                 }
             }
             .frame(maxWidth: .infinity)

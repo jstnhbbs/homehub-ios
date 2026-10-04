@@ -227,14 +227,12 @@ struct HubView: View {
 
     private func regularContentMaxWidth(for destination: HubDestination) -> CGFloat? {
         switch destination {
-        case .dashboard:
-            nil
         case .settings:
+            // A settings list reads badly stretched across a wide screen.
             900
-        case .calendar:
-            1180
         default:
-            1040
+            // Every other page uses the whole width; its own columns adapt to it.
+            nil
         }
     }
 

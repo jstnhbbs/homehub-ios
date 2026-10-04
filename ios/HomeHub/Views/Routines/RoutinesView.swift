@@ -44,10 +44,7 @@ struct RoutinesView: View {
                     if let error = viewModel.errorMessage {
                         Text(error).font(.footnote).foregroundStyle(.red)
                     }
-                    routinesContent(columns: [
-                        GridItem(.flexible(), alignment: .top),
-                        GridItem(.flexible(), alignment: .top)
-                    ])
+                    routinesContent(columns: [GridItem(.adaptive(minimum: 320), spacing: 16, alignment: .top)])
                 }
             }
             .frame(maxWidth: .infinity)

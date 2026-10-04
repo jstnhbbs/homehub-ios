@@ -17,16 +17,26 @@ struct BirthdaysView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @StateObject private var viewModel = BirthdaysViewModel()
     @State private var editor: BirthdayEditor?
+    /// The person picked on the ring or in the list, shown in the ring's centre.
+    @State private var selectedId: String?
+
+    /// Below this width the ring and the list stack, as on a phone.
+    private static let sideBySideWidth: CGFloat = 820
 
     var body: some View {
-        Group {
-            if horizontalSizeClass == .compact {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        header
-                        content
+        GeometryReader { proxy in
+            let sideBySide = horizontalSizeClass != .compact && proxy.size.width >= Self.sideBySideWidth
+                && !viewModel.items.isEmpty
+            if sideBySide {
+                VStack(alignment: .leading, spacing: 16) {
+                    header
+                    if let error = viewModel.errorMessage {
+                        Text(error).font(.footnote).foregroundStyle(.red)
                     }
+                    monthStrip
+                    sideBySideBody(width: proxy.size.width)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
@@ -55,9 +65,6 @@ struct BirthdaysView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(CelebrationNaming.current)
                         .font(HubTheme.pageTitle)
-                    Text(subtitle)
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(HubTheme.muted)
                 }
             } else {
                 Text(subtitle)
@@ -112,6 +119,35 @@ struct BirthdaysView: View {
         }
     }
 
+    /// Ring on the left, everything else on the right; each scrolls on its own.
+    private func sideBySideBody(width: CGFloat) -> some View {
+        HStack(alignment: .top, spacing: 20) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    if let next = viewModel.nextBirthday {
+                        nextHero(next)
+                    }
+                    ringCard
+                }
+            }
+            .scrollIndicators(.hidden)
+            .frame(width: 440)
+
+            ScrollViewReader { reader in
+                ScrollView {
+                    wideList
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .scrollIndicators(.hidden)
+                .onChange(of: selectedId) { _, id in
+                    guard let id else { return }
+                    withAnimation(.snappy) { reader.scrollTo(id, anchor: .center) }
+                }
+            }
+        }
+        .frame(maxHeight: .infinity)
+    }
+
     private var monthStrip: some View {
         HubCard {
             VStack(alignment: .leading, spacing: 12) {
@@ -122,6 +158,11 @@ struct BirthdaysView: View {
                     ForEach(0..<12, id: \.self) { month in
                         let current = BirthdayHelpers.monthIndex(from: viewModel.today) == month
                         let dots = viewModel.monthCounts[month] ?? []
+                        Button {
+                            if let first = dots.sorted(by: { $0.daysUntil < $1.daysUntil }).first {
+                                selectedId = first.id
+                            }
+                        } label: {
                         VStack(spacing: 6) {
                             Text(BirthdayHelpers.monthShortTitle(index: month, timezone: viewModel.timezone))
                                 .font(.caption2.weight(.bold))
@@ -145,6 +186,10 @@ struct BirthdaysView: View {
                             }
                             .frame(height: 14)
                         }
+                        .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(dots.isEmpty)
                         .frame(maxWidth: .infinity)
                     }
                 }
@@ -192,8 +237,33 @@ struct BirthdaysView: View {
                 today: viewModel.today,
                 timezone: viewModel.timezone,
                 next: viewModel.nextBirthday,
-                size: horizontalSizeClass == .compact ? 320 : 380
+                size: horizontalSizeClass == .compact ? 320 : 380,
+                selectedId: selectedId,
+                onSelect: { selectedId = $0 }
             )
+        }
+    }
+
+    /// Everything coming up as one continuous grid in date order. Each row already says its date,
+    /// so there are no month headings to leave half-empty rows between groups.
+    private var wideList: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if !viewModel.soonItems.isEmpty {
+                Text("Soon (\(viewModel.soonItems.count))")
+                    .font(.headline.weight(.semibold))
+                rowGrid {
+                    ForEach(viewModel.soonItems) { item in
+                        birthdayRow(item, emphasize: item.daysUntil <= 7)
+                    }
+                }
+            }
+            if !viewModel.laterItems.isEmpty {
+                rowGrid {
+                    ForEach(viewModel.laterItems) { item in
+                        birthdayRow(item, emphasize: false)
+                    }
+                }
+            }
         }
     }
 
@@ -201,8 +271,10 @@ struct BirthdaysView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Soon (\(viewModel.soonItems.count))")
                 .font(.headline.weight(.semibold))
-            ForEach(viewModel.soonItems) { item in
-                birthdayRow(item, emphasize: item.daysUntil <= 7)
+            rowGrid {
+                ForEach(viewModel.soonItems) { item in
+                    birthdayRow(item, emphasize: item.daysUntil <= 7)
+                }
             }
         }
     }
@@ -215,25 +287,36 @@ struct BirthdaysView: View {
             }
             ForEach(viewModel.laterGroups) { group in
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(group.title)
-                            .font(.subheadline.weight(.bold))
-                        Spacer()
-                        Text("\(group.items.count)")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(HubTheme.muted)
-                    }
-                    ForEach(group.items) { item in
-                        birthdayRow(item, emphasize: false)
+                    Text(group.title)
+                        .font(.subheadline.weight(.bold))
+                    rowGrid {
+                        ForEach(group.items) { item in
+                            birthdayRow(item, emphasize: false)
+                        }
                     }
                 }
             }
         }
     }
 
+    /// One column where the list is narrow (and on a phone), two where there is room.
+    private func rowGrid<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: 10, alignment: .top)], spacing: 10) {
+            content()
+        }
+    }
+
+    /// Beside the ring, tapping a row picks that person on the ring and a pencil edits; on a phone
+    /// the whole row edits, as before.
+    private var rowsSelect: Bool { horizontalSizeClass != .compact && !viewModel.items.isEmpty }
+
     private func birthdayRow(_ item: BirthdayItem, emphasize: Bool) -> some View {
-        Button {
-            if viewModel.canEdit(item) {
+        let selects = rowsSelect
+        let isSelected = selects && selectedId == item.id
+        return Button {
+            if selects {
+                selectedId = item.id
+            } else if viewModel.canEdit(item) {
                 editor = .edit(item)
             }
         } label: {
@@ -251,13 +334,31 @@ struct BirthdaysView: View {
                 Text(BirthdayHelpers.countdownLabel(daysUntil: item.daysUntil))
                     .font(.caption.weight(.bold))
                     .foregroundStyle(emphasize ? HubTheme.sage : HubTheme.muted)
+                if selects && viewModel.canEdit(item) {
+                    Button {
+                        editor = .edit(item)
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.caption.weight(.bold))
+                            .frame(width: 32, height: 32)
+                            .background(HubTheme.tileQuiet)
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Edit \(item.name)")
+                }
             }
             .padding(12)
             .background(HubTheme.tile)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(HubTheme.sage, lineWidth: isSelected ? 2 : 0)
+            )
         }
         .buttonStyle(.plain)
-        .disabled(!viewModel.canEdit(item) && !viewModel.canManage)
+        .id(item.id)
+        .disabled(!selects && !viewModel.canEdit(item) && !viewModel.canManage)
     }
 
     private func rowDetail(_ item: BirthdayItem) -> String {
@@ -318,11 +419,8 @@ private struct BirthdayEditorSheet: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                BirthdayFormView(editor: editor, viewModel: viewModel) {
-                    dismiss()
-                }
-                .padding(20)
+            BirthdayFormView(editor: editor, viewModel: viewModel) {
+                dismiss()
             }
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
@@ -380,7 +478,63 @@ private struct BirthdayFormView: View {
         editingItem?.source != .profile
     }
 
+    /// Wide enough for the calendar to sit beside the fields.
+    private static let sideBySideWidth: CGFloat = 700
+
     var body: some View {
+        GeometryReader { proxy in
+            if proxy.size.width >= Self.sideBySideWidth {
+                // Fields and buttons on the left, calendar on the right: everything in view.
+                ScrollView {
+                    HStack(alignment: .top, spacing: 24) {
+                        VStack(alignment: .leading, spacing: 14) {
+                            fields
+                            actions
+                        }
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        dateField
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
+                    .padding(20)
+                }
+            } else {
+                // The calendar is tall, so the buttons stay pinned at the bottom rather than
+                // scrolling out of sight.
+                VStack(spacing: 0) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 14) {
+                            fields
+                            dateField
+                        }
+                        .padding(20)
+                    }
+                    Divider()
+                    actions
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                }
+            }
+        }
+        .onAppear(perform: populate)
+        .alert("Remove this \(kind.noun)?", isPresented: $confirmDelete) {
+            Button("Cancel", role: .cancel) {}
+            Button("Remove", role: .destructive) {
+                Task {
+                    guard let item = editingItem else { return }
+                    isSaving = true
+                    defer { isSaving = false }
+                    if await viewModel.delete(item) {
+                        onFinished()
+                    }
+                }
+            }
+        } message: {
+            Text("Household members stay in the family list. Extra entries are removed from \(CelebrationNaming.current).")
+        }
+    }
+
+    private var fields: some View {
         VStack(alignment: .leading, spacing: 14) {
             if canChooseKind {
                 FormField(label: "Type") {
@@ -393,11 +547,13 @@ private struct BirthdayFormView: View {
                 }
             }
 
-            if editorIsAdd, kind == .birthday {
+            // Only worth asking when a household member is still missing a birthday; otherwise
+            // "Someone else" is the one choice.
+            if editorIsAdd, kind == .birthday, !profilesWithoutBirthday.isEmpty {
                 FormField(label: "Who") {
                     Picker("Who", selection: $target) {
                         Text("Someone else").tag(FormTarget.newPerson)
-                        ForEach(viewModel.profiles.filter { $0.birthday == nil }) { profile in
+                        ForEach(profilesWithoutBirthday) { profile in
                             Text(profile.name).tag(FormTarget.profile(profile.id))
                         }
                     }
@@ -421,18 +577,24 @@ private struct BirthdayFormView: View {
                     .font(.caption.weight(.bold))
                     .foregroundStyle(HubTheme.muted)
             }
+        }
+    }
 
-            FormField(label: kind == .anniversary ? "Anniversary" : "Birthday") {
-                DatePicker(
-                    kind.capitalizedNoun,
-                    selection: $birthdayDate,
-                    in: ...viewModel.maxBirthdayDate,
-                    displayedComponents: .date
-                )
-                .datePickerStyle(.graphical)
-                .labelsHidden()
-            }
+    private var dateField: some View {
+        FormField(label: kind == .anniversary ? "Anniversary" : "Birthday") {
+            DatePicker(
+                kind.capitalizedNoun,
+                selection: $birthdayDate,
+                in: ...viewModel.maxBirthdayDate,
+                displayedComponents: .date
+            )
+            .datePickerStyle(.graphical)
+            .labelsHidden()
+        }
+    }
 
+    private var actions: some View {
+        VStack(alignment: .leading, spacing: 14) {
             Button(editorIsAdd ? "Add \(kind.noun)" : "Save \(kind.noun)") {
                 Task { await save() }
             }
@@ -446,22 +608,10 @@ private struct BirthdayFormView: View {
                 .disabled(isSaving)
             }
         }
-        .onAppear(perform: populate)
-        .alert("Remove this \(kind.noun)?", isPresented: $confirmDelete) {
-            Button("Cancel", role: .cancel) {}
-            Button("Remove", role: .destructive) {
-                Task {
-                    guard let item = editingItem else { return }
-                    isSaving = true
-                    defer { isSaving = false }
-                    if await viewModel.delete(item) {
-                        onFinished()
-                    }
-                }
-            }
-        } message: {
-            Text("Household members stay in the family list. Extra entries are removed from \(CelebrationNaming.current).")
-        }
+    }
+
+    private var profilesWithoutBirthday: [Profile] {
+        viewModel.profiles.filter { $0.birthday == nil }
     }
 
     private var editorIsAdd: Bool {

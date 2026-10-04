@@ -6,6 +6,15 @@ struct BirthdayYearRing: View {
     let timezone: TimeZone
     var next: BirthdayItem?
     var size: CGFloat = 320
+    /// The person to feature in the ring's centre and circle, when one has been picked; otherwise
+    /// the next birthday.
+    var selectedId: String?
+    var onSelect: ((String) -> Void)?
+
+    private var featured: BirthdayItem? {
+        if let selectedId, let picked = items.first(where: { $0.id == selectedId }) { return picked }
+        return next
+    }
 
     private var marks: [BirthdayHelpers.RingMark] {
         BirthdayHelpers.ringMarks(items: items, today: today, size: size)
@@ -63,7 +72,7 @@ struct BirthdayYearRing: View {
 
             ForEach(marks) { mark in
                 ZStack {
-                    if mark.isNext {
+                    if let featured, mark.memberIds.contains(featured.id) {
                         Circle()
                             .stroke(HubTheme.sage, lineWidth: 3)
                             .frame(width: 34, height: 34)
@@ -79,21 +88,31 @@ struct BirthdayYearRing: View {
                             .offset(x: 10, y: 10)
                     }
                 }
+                .contentShape(Circle())
+                .onTapGesture {
+                    // Tapping a crowded spot steps through everyone at it.
+                    if let featured, let at = mark.memberIds.firstIndex(of: featured.id), mark.memberIds.count > 1 {
+                        onSelect?(mark.memberIds[(at + 1) % mark.memberIds.count])
+                    } else {
+                        onSelect?(mark.id)
+                    }
+                }
                 .position(x: mark.x, y: mark.y)
                 .accessibilityLabel(mark.extra > 0 ? "\(mark.name) and \(mark.extra) more" : mark.name)
+                .accessibilityAddTraits(onSelect == nil ? [] : .isButton)
             }
 
             VStack(spacing: 2) {
-                if let next {
-                    Text(next.name)
+                if let featured {
+                    Text(featured.name)
                         .font(.headline.weight(.semibold))
                         .lineLimit(1)
-                    if let detail = next.kind.ageDetail(next.upcomingAge) {
+                    if let detail = featured.kind.ageDetail(featured.upcomingAge) {
                         Text(detail)
                             .font(.caption.weight(.bold))
                             .foregroundStyle(HubTheme.muted)
                     }
-                    Text(BirthdayHelpers.countdownLabel(daysUntil: next.daysUntil))
+                    Text(BirthdayHelpers.countdownLabel(daysUntil: featured.daysUntil))
                         .font(.caption.weight(.bold))
                         .foregroundStyle(HubTheme.sage)
                 } else {

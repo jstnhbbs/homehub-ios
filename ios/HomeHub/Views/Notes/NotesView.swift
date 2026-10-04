@@ -28,7 +28,6 @@ struct NotesView: View {
                 addNoteCard
                 notesList
             }
-            .frame(maxWidth: 900, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .task {
@@ -110,7 +109,7 @@ struct NotesView: View {
                     .stroke(HubTheme.line, lineWidth: 1)
             )
         } else {
-            VStack(spacing: 10) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: 10, alignment: .top)], spacing: 10) {
                 ForEach(notes) { note in
                     NotesPageRow(note: note, canEdit: canManage, isDeleting: deletingId == note.id) {
                         editingNote = note

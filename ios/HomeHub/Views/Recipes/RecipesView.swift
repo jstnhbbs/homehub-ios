@@ -52,7 +52,7 @@ struct RecipesView: View {
                     } else if viewModel.recipes.isEmpty {
                         EmptyStateView(text: "Save your first recipe manually or import one from a website.")
                     } else {
-                        recipesGrid(columns: [GridItem(.flexible()), GridItem(.flexible())])
+                        recipesGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16, alignment: .top)])
                     }
                 }
             }

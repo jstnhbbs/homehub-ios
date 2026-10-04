@@ -17,6 +17,9 @@ enum BirthdayHelpers {
         let angle: Double
         let extra: Int
         let isNext: Bool
+        /// Everyone sharing this spot on the ring, lead first, so a person hidden behind the lead
+        /// can still be featured and highlighted.
+        let memberIds: [String]
         let x: CGFloat
         let y: CGFloat
     }
@@ -186,6 +189,18 @@ enum BirthdayHelpers {
         )
     }
 
+    /// Which of a crowded spot's people is drawn on the ring. Someone with a profile in the app
+    /// comes first (a manually added person is often a relative or friend, and the family's own
+    /// members are who the ring is for). Among those, or among everyone when nobody has a profile,
+    /// the soonest upcoming birthday wins.
+    static func ringLeadIndex(isProfile: [Bool], daysUntil: [Int]) -> Int {
+        guard !isProfile.isEmpty else { return 0 }
+        let indices = Array(isProfile.indices)
+        let profiles = indices.filter { isProfile[$0] }
+        let pool = profiles.isEmpty ? indices : profiles
+        return pool.min { daysUntil[$0] < daysUntil[$1] } ?? pool[0]
+    }
+
     static func ringMarks(
         items: [BirthdayItem],
         today: String,
@@ -225,7 +240,11 @@ enum BirthdayHelpers {
         }
 
         return clusters.map { group in
-            let lead = group.first(where: { $0.item.id == nextId })?.item ?? group[0].item
+            let leadIndex = ringLeadIndex(
+                isProfile: group.map { $0.item.source == .profile && $0.item.kind == .birthday },
+                daysUntil: group.map { $0.item.daysUntil }
+            )
+            let lead = group[leadIndex].item
             let angle = group[0].angle
             let point = point(angleDegrees: angle, radius: ringRadius, center: center)
             return RingMark(
@@ -236,6 +255,7 @@ enum BirthdayHelpers {
                 angle: angle,
                 extra: group.count - 1,
                 isNext: lead.id == nextId,
+                memberIds: ([lead] + group.map(\.item).filter { $0.id != lead.id }).map(\.id),
                 x: point.x,
                 y: point.y
             )
