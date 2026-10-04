@@ -219,3 +219,30 @@ describe("what guests can do", () => {
     expect((await call("guest", "hub-modules", "PATCH", { body: { calendar: false } })).status).toBe(200);
   });
 });
+
+describe("invite codes stay with people who can manage the household", () => {
+  const sources: Array<[route: string, pick: (json: Record<string, unknown>) => Record<string, unknown>]> = [
+    ["household", (json) => json],
+    ["dashboard", (json) => json.household as Record<string, unknown>],
+  ];
+
+  it.each(sources)("%s hides both codes from a guest", async (route, pick) => {
+    const guest = await call("guest", route, "GET");
+    expect(guest.status).toBe(200);
+    const household = pick(guest.json as Record<string, unknown>);
+    // Empty strings, not missing keys: older app versions decode both as required.
+    expect(household.inviteCode).toBe("");
+    expect(household.guestInviteCode).toBe("");
+    expect(JSON.stringify(guest.json)).not.toContain("INV1");
+    expect(JSON.stringify(guest.json)).not.toContain("GUEST1");
+  });
+
+  it.each(sources)("%s still gives parents and owners both codes", async (route, pick) => {
+    for (const role of ["parent", "owner"] as const) {
+      const result = await call(role, route, "GET");
+      const household = pick(result.json as Record<string, unknown>);
+      expect(household.inviteCode, `${role} ${route}`).toBe("INV1");
+      expect(household.guestInviteCode, `${role} ${route}`).toBe("GUEST1");
+    }
+  });
+});

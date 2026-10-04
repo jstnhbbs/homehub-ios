@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { fromZonedTime } from "date-fns-tz";
 import { db } from "@/db/client";
 import {
@@ -49,6 +49,7 @@ export async function buildDashboardPayload(
     noteRows,
     familyBirthdayRows,
     routineStreaks,
+    hubModules,
   ] = await Promise.all([
     db
       .select()
@@ -98,7 +99,14 @@ export async function buildDashboardPayload(
       .from(choreCompletions)
       .innerJoin(chores, eq(choreCompletions.choreId, chores.id))
       .leftJoin(users, eq(choreCompletions.completedBy, users.id))
-      .where(eq(chores.householdId, household.id)),
+      .where(
+        and(
+          eq(chores.householdId, household.id),
+          // Weekly chores are keyed by week and everything else by day, so these two periods are
+          // all the dashboard reads. Without this every completion ever recorded came back.
+          inArray(choreCompletions.periodKey, [localDate, weeklyKey]),
+        ),
+      ),
     db
       .select()
       .from(meals)
@@ -139,6 +147,7 @@ export async function buildDashboardPayload(
       .where(eq(familyBirthdays.householdId, household.id))
       .orderBy(asc(familyBirthdays.name)),
     loadRoutineStreaks(household.id, household.timezone, localDate),
+    getUserHubModules(userId),
   ]);
 
   const doneSteps = new Map(routineDone.map((item) => [item.stepId, item]));
@@ -151,7 +160,6 @@ export async function buildDashboardPayload(
     ),
   );
 
-  const hubModules = await getUserHubModules(userId);
   const birthdayItems = listHouseholdBirthdays(
     familyProfiles,
     familyBirthdayRows.map((row) => ({

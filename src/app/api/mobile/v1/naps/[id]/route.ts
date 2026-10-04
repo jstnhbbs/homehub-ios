@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { deleteNap, updateNapTimes } from "@/lib/naps/store";
+import { deleteNap, serializeNap, updateNapTimes } from "@/lib/naps/store";
 import {
   handleMobileError,
   mobileJson,
@@ -21,13 +21,14 @@ export async function PATCH(
       })
       .parse(await parseJsonBody(request));
 
-    await updateNapTimes(
+    const nap = await updateNapTimes(
       household,
       z.string().uuid().parse(id),
       new Date(input.startedAt),
       input.endedAt ? new Date(input.endedAt) : null,
     );
-    return mobileJson({ ok: true });
+    // The changed entry rides along so the app does not have to refetch the page.
+    return mobileJson({ ok: true, nap: serializeNap(nap) });
   } catch (error) {
     return handleMobileError(error);
   }

@@ -4,16 +4,14 @@ import { db } from "@/db/client";
 import { choreCompletions, chores } from "@/db/schema";
 import {
   handleMobileError,
+  requireMobileContext,
   mobileJson,
   parseJsonBody,
-  requireMobileHousehold,
-  requireMobileUser,
 } from "@/lib/mobile/http";
 
 export async function POST(request: Request) {
   try {
-    const user = await requireMobileUser();
-    const household = await requireMobileHousehold();
+    const { user, household } = await requireMobileContext();
     const input = z
       .object({
         choreId: z.string().uuid(),

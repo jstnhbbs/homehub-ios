@@ -102,7 +102,11 @@ final class NativeWeatherService: NSObject, ObservableObject {
 
     private var shouldRefreshAutomatically: Bool {
         guard !isLoading else { return false }
-        guard snapshot == nil else { return true }
+        // Every dashboard refresh asks, and each check-off triggers one, so a reading that is
+        // still recent must be reused rather than fetched again.
+        if let snapshot {
+            return Date().timeIntervalSince(snapshot.updatedAt) >= automaticRefreshBackoff
+        }
         guard let lastRefreshAttemptAt else { return true }
         return Date().timeIntervalSince(lastRefreshAttemptAt) >= automaticRefreshBackoff
     }

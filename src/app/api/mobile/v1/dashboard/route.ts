@@ -1,15 +1,13 @@
 import {
   handleMobileError,
+  requireMobileContext,
   mobileJson,
-  requireMobileHousehold,
-  requireMobileUser,
 } from "@/lib/mobile/http";
 import { buildDashboardPayload } from "@/lib/mobile/dashboard";
 
 export async function GET() {
   try {
-    const user = await requireMobileUser();
-    const household = await requireMobileHousehold();
+    const { user, household } = await requireMobileContext();
     return mobileJson(await buildDashboardPayload(household, user.id));
   } catch (error) {
     return handleMobileError(error);

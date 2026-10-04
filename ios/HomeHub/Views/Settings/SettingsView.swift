@@ -395,15 +395,18 @@ struct SettingsView: View {
                     Text("Shown in the top-left sidebar instead of the family-name letter.")
                 }
 
-                Section {
-                    LabeledContent("Parent invite", value: household.inviteCode)
-                    LabeledContent("Guest invite", value: household.guestInviteCode)
-                } header: {
-                    Text("Invite codes")
-                } footer: {
-                    Text("Share the parent code with another parent after they create an account. The guest code is for grandparents, nannies, and other helpers.")
+                // The server sends empty codes to guests, who can't invite anyone.
+                if !household.inviteCode.isEmpty {
+                    Section {
+                        LabeledContent("Parent invite", value: household.inviteCode)
+                        LabeledContent("Guest invite", value: household.guestInviteCode)
+                    } header: {
+                        Text("Invite codes")
+                    } footer: {
+                        Text("Share the parent code with another parent after they create an account. The guest code is for grandparents, nannies, and other helpers.")
+                    }
+                    .textSelection(.enabled)
                 }
-                .textSelection(.enabled)
             }
 
             if appState.canManageHousehold {

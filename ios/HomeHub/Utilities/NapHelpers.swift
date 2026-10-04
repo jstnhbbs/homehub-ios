@@ -58,7 +58,7 @@ enum NapHelpers {
         guard let dayStart = DateHelpers.dateFromLocalDate(localDate, timezone: timezone) else {
             return durationMinutes(startedAt: startedAt, endedAt: endedAt, now: now)
         }
-        let dayEnd = Calendar(identifier: .gregorian).date(byAdding: .day, value: 1, to: dayStart) ?? dayStart.addingTimeInterval(86_400)
+        let dayEnd = DateHelpers.gregorian(in: timezone).date(byAdding: .day, value: 1, to: dayStart) ?? dayStart.addingTimeInterval(86_400)
         let sleepEnd = endedAt ?? now
         let overlapStart = max(startedAt, dayStart)
         let overlapEnd = min(sleepEnd, dayEnd)
@@ -200,7 +200,7 @@ enum NapHelpers {
 
     static func sleepOverlapsLocalDate(_ log: NapLog, localDate: String, timezone: TimeZone, now: Date = .now) -> Bool {
         guard let dayStart = DateHelpers.dateFromLocalDate(localDate, timezone: timezone),
-              let dayEnd = Calendar(identifier: .gregorian).date(byAdding: .day, value: 1, to: dayStart)?.addingTimeInterval(-0.001) else {
+              let dayEnd = DateHelpers.gregorian(in: timezone).date(byAdding: .day, value: 1, to: dayStart)?.addingTimeInterval(-0.001) else {
             return log.localDate == localDate
         }
         let sleepEnd = log.endedAt ?? now
@@ -357,8 +357,7 @@ enum NapTimelineHelpers {
 
     static func minutesOnLocalDate(_ date: Date, localDate: String, timezone: TimeZone) -> Int? {
         guard DateHelpers.localDateIn(timezone: timezone, date: date) == localDate else { return nil }
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = timezone
+        let calendar = DateHelpers.gregorian(in: timezone)
         return calendar.component(.hour, from: date) * 60 + calendar.component(.minute, from: date)
     }
 
@@ -378,7 +377,7 @@ enum NapTimelineHelpers {
             .sorted { $0.startedAt < $1.startedAt }
             .compactMap { nap in
             guard let dayStart = DateHelpers.dateFromLocalDate(localDate, timezone: timezone) else { return nil }
-            let dayEnd = Calendar(identifier: .gregorian).date(byAdding: .day, value: 1, to: dayStart)?.addingTimeInterval(-0.001) ?? dayStart
+            let dayEnd = DateHelpers.gregorian(in: timezone).date(byAdding: .day, value: 1, to: dayStart)?.addingTimeInterval(-0.001) ?? dayStart
             let sleepEnd = nap.endedAt ?? now
             let overlapStart = max(nap.startedAt, dayStart)
             let overlapEnd = min(sleepEnd, dayEnd)
@@ -430,7 +429,7 @@ enum NapTimelineHelpers {
     static func overlapsHeatmapBlock(nap: NapLog, localDate: String, timezone: TimeZone, block: HeatmapBlock, now: Date = .now) -> Bool {
         guard NapHelpers.sleepOverlapsLocalDate(nap, localDate: localDate, timezone: timezone, now: now),
               let dayStart = DateHelpers.dateFromLocalDate(localDate, timezone: timezone) else { return false }
-        let dayEnd = Calendar(identifier: .gregorian).date(byAdding: .day, value: 1, to: dayStart)?.addingTimeInterval(-0.001) ?? dayStart
+        let dayEnd = DateHelpers.gregorian(in: timezone).date(byAdding: .day, value: 1, to: dayStart)?.addingTimeInterval(-0.001) ?? dayStart
         let sleepEnd = nap.endedAt ?? now
         let overlapStart = max(nap.startedAt, dayStart)
         let overlapEnd = min(sleepEnd, dayEnd)

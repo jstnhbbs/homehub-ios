@@ -91,21 +91,25 @@ export async function fetchChildProfiles(householdId: string) {
 }
 
 export async function startNap(household: Household, profileId: string) {
-  await assertChildProfile(household, profileId);
-  await assertNoActiveSleep(household, profileId);
+  await Promise.all([
+    assertChildProfile(household, profileId),
+    assertNoActiveSleep(household, profileId),
+  ]);
 
   const startedAt = new Date();
   const id = randomUUID();
-  await db.insert(napLogs).values({
-    id,
-    householdId: household.id,
-    profileId,
-    kind: "nap",
-    localDate: localDateIn(household.timezone, startedAt),
-    startedAt,
-  });
-
-  return id;
+  const [row] = await db
+    .insert(napLogs)
+    .values({
+      id,
+      householdId: household.id,
+      profileId,
+      kind: "nap",
+      localDate: localDateIn(household.timezone, startedAt),
+      startedAt,
+    })
+    .returning();
+  return mapNap(row);
 }
 
 export async function fetchSleepLogsInRange(
@@ -131,6 +135,20 @@ export async function fetchSleepLogsInRange(
   return rows.map(mapNap);
 }
 
+/** The logs that count for `localDate`: anything overlapping it, plus a nap still running. */
+function logsForLocalDate(
+  logs: NapLogRecord[],
+  household: Household,
+  localDate: string,
+  now = new Date(),
+) {
+  return logs.filter(
+    (log) =>
+      sleepOverlapsLocalDate(log, localDate, household.timezone, now) ||
+      (log.kind === "nap" && !log.endedAt),
+  );
+}
+
 export async function fetchSleepForDate(household: Household, localDate: string) {
   const queryStart = addLocalDays(localDate, household.timezone, -1);
   const rows = await db
@@ -147,14 +165,7 @@ export async function fetchSleepForDate(household: Household, localDate: string)
     )
     .orderBy(asc(napLogs.startedAt));
 
-  const now = new Date();
-  return rows
-    .map(mapNap)
-    .filter(
-      (log) =>
-        sleepOverlapsLocalDate(log, localDate, household.timezone, now) ||
-        (log.kind === "nap" && !log.endedAt),
-    );
+  return logsForLocalDate(rows.map(mapNap), household, localDate);
 }
 
 export async function fetchNapPageData(household: Household) {
@@ -168,12 +179,14 @@ export async function fetchNapPageData(household: Household) {
   const weekStart = weekDatesList[0];
   const weekEnd = weekDatesList[6];
 
-  const [childProfiles, todayLogs, weekLogs] = await Promise.all([
+  const [childProfiles, weekLogs] = await Promise.all([
     fetchChildProfiles(household.id),
-    fetchSleepForDate(household, localDate),
     fetchSleepLogsInRange(household, weekStart, weekEnd),
   ]);
 
+  // Today sits inside the week, and the week query already reaches back a day and includes every
+  // running sleep, so today's logs are a subset of it: no second query needed.
+  const todayLogs = logsForLocalDate(weekLogs, household, localDate);
   const naps = todayLogs.filter((log) => log.kind === "nap" || !log.endedAt);
 
   return {
@@ -206,42 +219,48 @@ export async function createManualNap(
   startedAt: Date,
   endedAt: Date | null,
 ) {
-  await assertChildProfile(household, profileId);
   validateSleepTimes(startedAt, endedAt);
-  if (!endedAt) {
-    await assertNoActiveSleep(household, profileId);
-  }
+  await Promise.all([
+    assertChildProfile(household, profileId),
+    endedAt ? undefined : assertNoActiveSleep(household, profileId),
+  ]);
 
   const id = randomUUID();
-  await db.insert(napLogs).values({
-    id,
-    householdId: household.id,
-    profileId,
-    kind: "nap",
-    localDate: localDateIn(household.timezone, startedAt),
-    startedAt,
-    endedAt,
-  });
-
-  return id;
+  const [row] = await db
+    .insert(napLogs)
+    .values({
+      id,
+      householdId: household.id,
+      profileId,
+      kind: "nap",
+      localDate: localDateIn(household.timezone, startedAt),
+      startedAt,
+      endedAt,
+    })
+    .returning();
+  return mapNap(row);
 }
 
 export async function startNightSleep(household: Household, profileId: string) {
-  await assertChildProfile(household, profileId);
-  await assertNoActiveSleep(household, profileId);
+  await Promise.all([
+    assertChildProfile(household, profileId),
+    assertNoActiveSleep(household, profileId),
+  ]);
 
   const startedAt = new Date();
   const id = randomUUID();
-  await db.insert(napLogs).values({
-    id,
-    householdId: household.id,
-    profileId,
-    kind: "night",
-    localDate: localDateIn(household.timezone, startedAt),
-    startedAt,
-  });
-
-  return id;
+  const [row] = await db
+    .insert(napLogs)
+    .values({
+      id,
+      householdId: household.id,
+      profileId,
+      kind: "night",
+      localDate: localDateIn(household.timezone, startedAt),
+      startedAt,
+    })
+    .returning();
+  return mapNap(row);
 }
 
 export async function createNightSleep(
@@ -250,27 +269,29 @@ export async function createNightSleep(
   fellAsleepAt: Date,
   wokeUpAt: Date | null,
 ) {
-  await assertChildProfile(household, profileId);
   validateSleepTimes(fellAsleepAt, wokeUpAt);
-  if (!wokeUpAt) {
-    await assertNoActiveSleep(household, profileId);
-  }
+  await Promise.all([
+    assertChildProfile(household, profileId),
+    wokeUpAt ? undefined : assertNoActiveSleep(household, profileId),
+  ]);
 
   const id = randomUUID();
-  await db.insert(napLogs).values({
-    id,
-    householdId: household.id,
-    profileId,
-    kind: "night",
-    localDate: localDateIn(
-      household.timezone,
-      wokeUpAt ?? fellAsleepAt,
-    ),
-    startedAt: fellAsleepAt,
-    endedAt: wokeUpAt,
-  });
-
-  return id;
+  const [row] = await db
+    .insert(napLogs)
+    .values({
+      id,
+      householdId: household.id,
+      profileId,
+      kind: "night",
+      localDate: localDateIn(
+        household.timezone,
+        wokeUpAt ?? fellAsleepAt,
+      ),
+      startedAt: fellAsleepAt,
+      endedAt: wokeUpAt,
+    })
+    .returning();
+  return mapNap(row);
 }
 
 export async function updateNapTimes(
@@ -304,8 +325,9 @@ export async function updateNapTimes(
       updatedAt: new Date(),
     })
     .where(and(eq(napLogs.id, napId), eq(napLogs.householdId, household.id)))
-    .returning({ id: napLogs.id });
+    .returning();
   if (!updated[0]) throw new Error("Sleep entry not found.");
+  return mapNap(updated[0]);
 }
 
 export async function endNap(
@@ -343,8 +365,9 @@ export async function endNap(
         isNull(napLogs.endedAt),
       ),
     )
-    .returning({ id: napLogs.id });
+    .returning();
   if (!updated[0]) throw new Error("Active sleep not found.");
+  return mapNap(updated[0]);
 }
 
 export async function endNapForProfile(household: Household, profileId: string) {
@@ -360,7 +383,7 @@ export async function endNapForProfile(household: Household, profileId: string) 
     )
     .limit(1);
   if (!active[0]) throw new Error("Active sleep not found.");
-  await endNap(household, active[0].id);
+  return endNap(household, active[0].id);
 }
 
 export async function deleteNap(household: Household, napId: string) {

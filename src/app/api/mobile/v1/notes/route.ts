@@ -7,8 +7,8 @@ import {
   handleMobileError,
   mobileJson,
   parseJsonBody,
+  requireMobileContext,
   requireMobileHousehold,
-  requireMobileUser,
 } from "@/lib/mobile/http";
 
 const noteInputSchema = z.object({
@@ -34,9 +34,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const user = await requireMobileUser();
     // Any member, including guests, can add a note; only parents edit or delete.
-    const household = await requireMobileHousehold();
+    const { user, household } = await requireMobileContext();
     const input = noteInputSchema.parse(await parseJsonBody(request));
     const id = randomUUID();
 

@@ -319,28 +319,36 @@ final class HomeHubAPI: ObservableObject {
         try await client.request("/api/mobile/v1/naps")
     }
 
-    func startNap(profileId: String) async throws {
-        let _: OkResponse = try await client.request(
+    // Every sleep write answers with the entry it created or changed, so the Sleep page can show
+    // it straight away. `nil` means an older server that only sends `ok`; callers then refetch.
+
+    @discardableResult
+    func startNap(profileId: String) async throws -> NapLog? {
+        let response: NapWriteResponse = try await client.request(
             "/api/mobile/v1/naps",
             method: "POST",
             body: NapActionRequest(action: "start", profileId: profileId)
         )
+        return response.nap
     }
 
-    func endNap(napId: String? = nil, profileId: String? = nil) async throws {
-        let _: OkResponse = try await client.request(
+    @discardableResult
+    func endNap(napId: String? = nil, profileId: String? = nil) async throws -> NapLog? {
+        let response: NapWriteResponse = try await client.request(
             "/api/mobile/v1/naps",
             method: "POST",
             body: NapActionRequest(action: "end", profileId: profileId, napId: napId)
         )
+        return response.nap
     }
 
     func deleteNap(id: String) async throws {
         try await client.requestVoid("/api/mobile/v1/naps/\(id)", method: "DELETE")
     }
 
-    func createNap(profileId: String, startedAt: Date, endedAt: Date?) async throws {
-        let _: OkResponse = try await client.request(
+    @discardableResult
+    func createNap(profileId: String, startedAt: Date, endedAt: Date?) async throws -> NapLog? {
+        let response: NapWriteResponse = try await client.request(
             "/api/mobile/v1/naps",
             method: "POST",
             body: NapActionRequest(
@@ -350,18 +358,22 @@ final class HomeHubAPI: ObservableObject {
                 endedAt: endedAt
             )
         )
+        return response.nap
     }
 
-    func startNightSleep(profileId: String) async throws {
-        let _: OkResponse = try await client.request(
+    @discardableResult
+    func startNightSleep(profileId: String) async throws -> NapLog? {
+        let response: NapWriteResponse = try await client.request(
             "/api/mobile/v1/naps",
             method: "POST",
             body: NapActionRequest(action: "startNight", profileId: profileId)
         )
+        return response.nap
     }
 
-    func createNightSleep(profileId: String, fellAsleepAt: Date, wokeUpAt: Date?) async throws {
-        let _: OkResponse = try await client.request(
+    @discardableResult
+    func createNightSleep(profileId: String, fellAsleepAt: Date, wokeUpAt: Date?) async throws -> NapLog? {
+        let response: NapWriteResponse = try await client.request(
             "/api/mobile/v1/naps",
             method: "POST",
             body: NapActionRequest(
@@ -371,14 +383,17 @@ final class HomeHubAPI: ObservableObject {
                 wokeUpAt: wokeUpAt
             )
         )
+        return response.nap
     }
 
-    func updateNap(id: String, startedAt: Date, endedAt: Date?) async throws {
-        let _: OkResponse = try await client.request(
+    @discardableResult
+    func updateNap(id: String, startedAt: Date, endedAt: Date?) async throws -> NapLog? {
+        let response: NapWriteResponse = try await client.request(
             "/api/mobile/v1/naps/\(id)",
             method: "PATCH",
             body: UpdateNapRequest(startedAt: startedAt, endedAt: endedAt)
         )
+        return response.nap
     }
 
     // MARK: - Calendar

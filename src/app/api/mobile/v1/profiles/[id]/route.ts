@@ -9,11 +9,10 @@ import { canManageHousehold } from "@/lib/household-roles";
 import { isProfileColor } from "@/lib/profile-colors";
 import {
   handleMobileError,
+  requireMobileContext,
   mobileError,
   mobileJson,
   parseJsonBody,
-  requireMobileHousehold,
-  requireMobileUser,
 } from "@/lib/mobile/http";
 
 const shortText = z.string().trim().min(1).max(120);
@@ -22,8 +21,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    const user = await requireMobileUser();
-    const household = await requireMobileHousehold();
+    const { user, household } = await requireMobileContext();
     const id = z.string().uuid().parse((await context.params).id);
     const input = z
       .object({

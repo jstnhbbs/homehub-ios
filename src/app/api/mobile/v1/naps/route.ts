@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  type NapLogRecord,
   createManualNap,
   createNightSleep,
   endNap,
@@ -17,6 +18,14 @@ import {
 } from "@/lib/mobile/http";
 
 const isoDate = z.string().datetime();
+
+/**
+ * Answers a write with the entry it created or changed, so the app can show it straight away
+ * instead of fetching the whole page again. `nap` is extra: older apps only read `ok` and `id`.
+ */
+function changed(nap: NapLogRecord) {
+  return mobileJson({ ok: true, id: nap.id, nap: serializeNap(nap) });
+}
 
 export async function GET() {
   try {
@@ -69,44 +78,43 @@ export async function POST(request: Request) {
       .parse(await parseJsonBody(request));
 
     if (input.action === "start") {
-      const id = await startNap(household, input.profileId);
-      return mobileJson({ ok: true, id });
+      return changed(await startNap(household, input.profileId));
     }
 
     if (input.action === "startNight") {
-      const id = await startNightSleep(household, input.profileId);
-      return mobileJson({ ok: true, id });
+      return changed(await startNightSleep(household, input.profileId));
     }
 
     if (input.action === "create") {
-      const id = await createManualNap(
-        household,
-        input.profileId,
-        new Date(input.startedAt),
-        input.endedAt ? new Date(input.endedAt) : null,
+      return changed(
+        await createManualNap(
+          household,
+          input.profileId,
+          new Date(input.startedAt),
+          input.endedAt ? new Date(input.endedAt) : null,
+        ),
       );
-      return mobileJson({ ok: true, id });
     }
 
     if (input.action === "createNight") {
-      const id = await createNightSleep(
-        household,
-        input.profileId,
-        new Date(input.fellAsleepAt),
-        input.wokeUpAt ? new Date(input.wokeUpAt) : null,
+      return changed(
+        await createNightSleep(
+          household,
+          input.profileId,
+          new Date(input.fellAsleepAt),
+          input.wokeUpAt ? new Date(input.wokeUpAt) : null,
+        ),
       );
-      return mobileJson({ ok: true, id });
     }
 
-    if (input.napId) {
-      await endNap(household, input.napId);
-    } else {
-      await endNapForProfile(
-        household,
-        z.string().uuid().parse(input.profileId),
-      );
-    }
-    return mobileJson({ ok: true });
+    return changed(
+      input.napId
+        ? await endNap(household, input.napId)
+        : await endNapForProfile(
+            household,
+            z.string().uuid().parse(input.profileId),
+          ),
+    );
   } catch (error) {
     return handleMobileError(error);
   }

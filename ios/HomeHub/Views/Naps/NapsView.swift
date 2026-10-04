@@ -14,6 +14,8 @@ struct NapsView: View {
     @State private var selectedPatternDate: String?
     @State private var showingAddSheet = false
     @State private var editingNap: NapLog?
+    /// Bumped by every write, so a reload that started before one can tell its answer is stale.
+    @State private var writeVersion = 0
 
     private let timer = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
 
@@ -273,7 +275,8 @@ struct NapsView: View {
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .fill(HubTheme.profileColor(profile.color))
                             .frame(width: frame.width)
-                            .offset(x: frame.x)
+                            // Padding, not offset: an offset moves the drawing but not the layout,
+                            // so the duration label below stayed at the left edge of the lane.
                             .overlay {
                                 if bar.widthPercent > 10 {
                                     Text(bar.durationLabel)
@@ -285,6 +288,7 @@ struct NapsView: View {
                             .onTapGesture {
                                 editingNap = profileDayLogs.first { $0.id == bar.napId }
                             }
+                            .padding(.leading, frame.x)
                     }
 
                     if bars.isEmpty {
@@ -386,6 +390,11 @@ struct NapsView: View {
             now: now
         )
         let color = HubTheme.profileColor(profile.color)
+        // Each day's logs, found once. The heatmap used to look them up again for every one of its
+        // 42 cells, which made this card the slowest thing on the page to draw.
+        let logsByDay = Dictionary(uniqueKeysWithValues: payload.weekDates.map { localDate in
+            (localDate, NapHelpers.logsForDate(profileId: profile.id, in: payload.weekLogs, localDate: localDate, timezone: timezone))
+        })
 
         return VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
@@ -437,7 +446,7 @@ struct NapsView: View {
                             .foregroundStyle(HubTheme.muted)
                             .frame(width: 44, alignment: .leading)
                         ForEach(payload.weekDates, id: \.self) { localDate in
-                            let dayLogs = NapHelpers.logsForDate(profileId: profile.id, in: payload.weekLogs, localDate: localDate, timezone: timezone)
+                            let dayLogs = logsByDay[localDate] ?? []
                             let active = dayLogs.contains { NapTimelineHelpers.overlapsHeatmapBlock(nap: $0, localDate: localDate, timezone: timezone, block: block, now: now) }
                             Button { selectedPatternDate = localDate } label: {
                                 RoundedRectangle(cornerRadius: 6, style: .continuous)
@@ -489,8 +498,12 @@ struct NapsView: View {
     private func load() async {
         isLoading = true
         defer { isLoading = false }
+        let version = writeVersion
         do {
             let fresh = try await appState.api.fetchNaps()
+            // A write finished while this was in flight, so what came back may predate it. That
+            // write started its own reload, which will bring the page up to date.
+            guard version == writeVersion else { return }
             payload = fresh
             errorMessage = nil
             await SleepLiveActivityManager.sync(logs: sleepLogs(from: fresh), children: fresh.childProfiles)
@@ -501,87 +514,75 @@ struct NapsView: View {
         }
     }
 
-    private func startNap(profileId: String) async {
+    /// Runs one sleep write and shows its result at once: the server answers with the entry it
+    /// changed, so there is nothing to wait for beyond that single request. The dashboard (reminders,
+    /// Today cards) and a full reload catch up in the background. Returns a message for the caller
+    /// to show when the write fails, or nil when it succeeded.
+    @discardableResult
+    private func commit(removing removedId: String? = nil, _ write: () async throws -> NapLog?) async -> String? {
         do {
-            try await appState.api.startNap(profileId: profileId)
-            await appState.refreshDashboard()
-            await load()
-        } catch {
-            if let message = error.userFacingMessage {
-                errorMessage = message
+            let log = try await write()
+            writeVersion += 1
+            if let removedId { payload?.remove(id: removedId) }
+            if let log { payload?.apply(log) }
+            errorMessage = nil
+            if let payload {
+                await SleepLiveActivityManager.sync(logs: sleepLogs(from: payload), children: payload.childProfiles)
             }
+            if log == nil && removedId == nil {
+                // An older server doesn't send the entry back, so reload before showing anything.
+                await load()
+            }
+            reconcileInBackground()
+            return nil
+        } catch {
+            return error.userFacingMessage ?? "That didn't finish. Try again."
         }
     }
 
-    private func createNap(profileId: String, startedAt: Date, endedAt: Date?) async {
-        do {
-            try await appState.api.createNap(profileId: profileId, startedAt: startedAt, endedAt: endedAt)
-            await appState.refreshDashboard()
-            await load()
-        } catch {
-            if let message = error.userFacingMessage {
-                errorMessage = message
-            }
+    /// For the buttons on the page itself: a failure shows at the top of the page.
+    private func run(_ write: () async throws -> NapLog?) async {
+        if let message = await commit(write) {
+            errorMessage = message
         }
+    }
+
+    private func reconcileInBackground() {
+        Task {
+            async let page: Void = load()
+            await appState.refreshDashboard()
+            await page
+        }
+    }
+
+    private func startNap(profileId: String) async {
+        await run { try await appState.api.startNap(profileId: profileId) }
     }
 
     private func startNightSleep(profileId: String) async {
-        do {
-            try await appState.api.startNightSleep(profileId: profileId)
-            await appState.refreshDashboard()
-            await load()
-        } catch {
-            if let message = error.userFacingMessage {
-                errorMessage = message
-            }
-        }
-    }
-
-    private func createNightSleep(profileId: String, fellAsleepAt: Date, wokeUpAt: Date?) async {
-        do {
-            try await appState.api.createNightSleep(profileId: profileId, fellAsleepAt: fellAsleepAt, wokeUpAt: wokeUpAt)
-            await appState.refreshDashboard()
-            await load()
-        } catch {
-            if let message = error.userFacingMessage {
-                errorMessage = message
-            }
-        }
+        await run { try await appState.api.startNightSleep(profileId: profileId) }
     }
 
     private func endNap(napId: String) async {
-        do {
-            try await appState.api.endNap(napId: napId)
-            await appState.refreshDashboard()
-            await load()
-        } catch {
-            if let message = error.userFacingMessage {
-                errorMessage = message
-            }
-        }
+        await run { try await appState.api.endNap(napId: napId) }
     }
 
-    private func updateNap(id: String, startedAt: Date, endedAt: Date?) async {
-        do {
-            try await appState.api.updateNap(id: id, startedAt: startedAt, endedAt: endedAt)
-            await appState.refreshDashboard()
-            await load()
-        } catch {
-            if let message = error.userFacingMessage {
-                errorMessage = message
-            }
-        }
+    private func createNap(profileId: String, startedAt: Date, endedAt: Date?) async -> String? {
+        await commit { try await appState.api.createNap(profileId: profileId, startedAt: startedAt, endedAt: endedAt) }
     }
 
-    private func deleteNap(id: String) async {
-        do {
+    private func createNightSleep(profileId: String, fellAsleepAt: Date, wokeUpAt: Date?) async -> String? {
+        await commit { try await appState.api.createNightSleep(profileId: profileId, fellAsleepAt: fellAsleepAt, wokeUpAt: wokeUpAt) }
+    }
+
+    private func updateNap(id: String, startedAt: Date, endedAt: Date?) async -> String? {
+        await commit { try await appState.api.updateNap(id: id, startedAt: startedAt, endedAt: endedAt) }
+    }
+
+    private func deleteNap(id: String) async -> String? {
+        await commit(removing: id) {
             try await appState.api.deleteNap(id: id)
-            await appState.refreshDashboard()
-            await load()
-        } catch {
-            if let message = error.userFacingMessage {
-                errorMessage = message
-            }
+            return nil
         }
     }
 }
