@@ -4,6 +4,11 @@ import { db } from "@/db/client";
 import { householdMembers, households } from "@/db/schema";
 import { getCurrentHousehold } from "@/lib/household";
 import {
+  assertMayTryInviteCode,
+  clientAddress,
+  normalizeInviteCode,
+} from "@/lib/invite-codes";
+import {
   handleMobileError,
   mobileJson,
   parseJsonBody,
@@ -14,11 +19,11 @@ import {
 export async function POST(request: Request) {
   try {
     const user = await requireMobileUser();
-    const inviteCode = z
-      .string()
-      .trim()
-      .transform((value) => value.toUpperCase())
-      .parse((await parseJsonBody<{ inviteCode: string }>(request)).inviteCode);
+    await assertMayTryInviteCode(user.id, clientAddress(request.headers));
+    const { inviteCode: typed } = z
+      .object({ inviteCode: z.string().max(40) })
+      .parse(await parseJsonBody(request));
+    const inviteCode = normalizeInviteCode(typed);
 
     const household = await db
       .select({ id: households.id })

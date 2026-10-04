@@ -1,8 +1,9 @@
 "use server";
 
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db/client";
@@ -17,6 +18,12 @@ import {
   isGuest,
 } from "@/lib/household-roles";
 import { updateHouseholdMemberRole } from "@/lib/household-members";
+import {
+  assertMayTryInviteCode,
+  clientAddress,
+  generateInviteCodePair,
+  normalizeInviteCode,
+} from "@/lib/invite-codes";
 import {
   requireParentHousehold,
   requireUser,
@@ -40,10 +47,6 @@ function text(formData: FormData, key: string) {
 
 const shortText = z.string().trim().min(1).max(120);
 
-function generateInviteCode() {
-  return randomBytes(4).toString("hex").toUpperCase();
-}
-
 export async function createHousehold(formData: FormData) {
   const user = await requireUser();
   const input = z
@@ -59,11 +62,7 @@ export async function createHousehold(formData: FormData) {
     });
 
   const id = randomUUID();
-  const inviteCode = generateInviteCode();
-  let guestInviteCode = generateInviteCode();
-  while (guestInviteCode === inviteCode) {
-    guestInviteCode = generateInviteCode();
-  }
+  const { inviteCode, guestInviteCode } = generateInviteCodePair();
   await db.transaction(async (tx) => {
     await tx.insert(households).values({
       id,
@@ -91,7 +90,8 @@ export async function createHousehold(formData: FormData) {
 
 export async function joinHousehold(formData: FormData) {
   const user = await requireUser();
-  const inviteCode = text(formData, "inviteCode").toUpperCase();
+  await assertMayTryInviteCode(user.id, clientAddress(await headers()));
+  const inviteCode = normalizeInviteCode(text(formData, "inviteCode"));
   const household = await db
     .select({ id: households.id })
     .from(households)
@@ -111,7 +111,8 @@ export async function joinHousehold(formData: FormData) {
 
 export async function joinHouseholdAsGuest(formData: FormData) {
   const user = await requireUser();
-  const inviteCode = text(formData, "guestInviteCode").toUpperCase();
+  await assertMayTryInviteCode(user.id, clientAddress(await headers()));
+  const inviteCode = normalizeInviteCode(text(formData, "guestInviteCode"));
   const household = await db
     .select({ id: households.id })
     .from(households)

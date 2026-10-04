@@ -3,6 +3,11 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import { householdMembers, households } from "@/db/schema";
 import { getCurrentHousehold } from "@/lib/household";
+import {
+  assertMayTryInviteCode,
+  clientAddress,
+  normalizeInviteCode,
+} from "@/lib/invite-codes";
 import { ensureMemberProfiles } from "@/lib/member-profiles";
 import {
   handleMobileError,
@@ -15,14 +20,11 @@ import {
 export async function POST(request: Request) {
   try {
     const user = await requireMobileUser();
-    const guestInviteCode = z
-      .string()
-      .trim()
-      .transform((value) => value.toUpperCase())
-      .parse(
-        (await parseJsonBody<{ guestInviteCode: string }>(request))
-          .guestInviteCode,
-      );
+    await assertMayTryInviteCode(user.id, clientAddress(request.headers));
+    const { guestInviteCode: typed } = z
+      .object({ guestInviteCode: z.string().max(40) })
+      .parse(await parseJsonBody(request));
+    const guestInviteCode = normalizeInviteCode(typed);
 
     const household = await db
       .select({ id: households.id })

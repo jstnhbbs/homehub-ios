@@ -1,9 +1,10 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { householdMembers, households, profiles, users } from "@/db/schema";
 import { getCurrentHousehold } from "@/lib/household";
+import { generateInviteCodePair } from "@/lib/invite-codes";
 import {
   handleMobileError,
   mobileJson,
@@ -13,10 +14,6 @@ import {
 } from "@/lib/mobile/http";
 
 const shortText = z.string().trim().min(1).max(120);
-
-function generateInviteCode() {
-  return randomBytes(4).toString("hex").toUpperCase();
-}
 
 export async function GET() {
   try {
@@ -41,11 +38,7 @@ export async function POST(request: Request) {
       .parse(await parseJsonBody(request));
 
     const id = randomUUID();
-    const inviteCode = generateInviteCode();
-    let guestInviteCode = generateInviteCode();
-    while (guestInviteCode === inviteCode) {
-      guestInviteCode = generateInviteCode();
-    }
+    const { inviteCode, guestInviteCode } = generateInviteCodePair();
 
     await db.transaction(async (tx) => {
       await tx.insert(households).values({

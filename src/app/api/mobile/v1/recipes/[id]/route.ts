@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { webUrl } from "@/lib/web-url";
 import { db } from "@/db/client";
 import { recipes } from "@/db/schema";
 import { recipeFromRow, serializeRecipeFields } from "@/lib/recipes/store";
@@ -24,8 +25,8 @@ const recipeInputSchema = z.object({
   ingredients: z.array(z.string().trim().min(1).max(300)).min(1).max(80),
   directions: z.array(z.string().trim().min(1).max(1000)).min(1).max(80),
   nutrition: z.record(z.string(), z.string()).optional(),
-  sourceUrl: z.string().url().optional(),
-  imageUrl: z.string().url().optional(),
+  sourceUrl: webUrl.optional(),
+  imageUrl: webUrl.optional(),
   notes: bodyText.optional(),
   tags: z.array(z.string().trim().max(60)).max(30).optional(),
 });

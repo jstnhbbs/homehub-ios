@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { webUrl } from "@/lib/web-url";
 import { db } from "@/db/client";
 import { recipes } from "@/db/schema";
 import { importRecipeFromUrl } from "@/lib/recipes/import";
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
       throw new Error("Too many recipe imports. Try again later.");
     }
     const { url: sourceUrl } = z
-      .object({ url: z.string().url() })
+      .object({ url: webUrl })
       .parse(await parseJsonBody(request));
     const parsed = await importRecipeFromUrl(sourceUrl);
     const id = randomUUID();
