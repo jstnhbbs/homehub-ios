@@ -40,8 +40,10 @@ const hubModulesSchema = z.object({
   recipes: z.boolean().optional(),
   sidebarOrder: z.array(z.enum(HUB_MODULE_IDS)).optional(),
   dashboardCards: dashboardCardsSchema.optional(),
-  dashboardCardSizes: dashboardCardSizesSchema.optional(),
-  dashboardOrder: z.array(z.enum(DASHBOARD_CARD_IDS)).optional(),
+  dashboardCardSizesPhone: dashboardCardSizesSchema.optional(),
+  dashboardOrderPhone: z.array(z.enum(DASHBOARD_CARD_IDS)).optional(),
+  dashboardCardSizesTablet: dashboardCardSizesSchema.optional(),
+  dashboardOrderTablet: z.array(z.enum(DASHBOARD_CARD_IDS)).optional(),
 });
 
 export async function GET() {

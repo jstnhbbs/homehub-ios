@@ -11,6 +11,9 @@ struct DashboardData: Codable, Sendable {
     var scheduleEvents: [ScheduleEvent]
     var snackOptions: [String]
     var snackEaten: [String]
+    /// Who ate what today, so each child's snack can be shown on its own.
+    var snackCompletions: [SnackEatenRecord]
+    var snacksPerChild: Bool
     var naps: [NapLog]
     var groceryItems: [GroceryItem]
     var notes: [HouseholdNote]
@@ -30,6 +33,8 @@ struct DashboardData: Codable, Sendable {
         case scheduleEvents
         case snackOptions
         case snackEaten
+        case snackCompletions
+        case snacksPerChild
         case naps
         case groceryItems
         case notes
@@ -50,6 +55,8 @@ struct DashboardData: Codable, Sendable {
         scheduleEvents = try container.decodeIfPresent([ScheduleEvent].self, forKey: .scheduleEvents) ?? []
         snackOptions = try container.decodeIfPresent([String].self, forKey: .snackOptions) ?? []
         snackEaten = try container.decodeIfPresent([String].self, forKey: .snackEaten) ?? []
+        snackCompletions = try container.decodeIfPresent([SnackEatenRecord].self, forKey: .snackCompletions) ?? []
+        snacksPerChild = try container.decodeIfPresent(Bool.self, forKey: .snacksPerChild) ?? false
         naps = try container.decodeIfPresent([NapLog].self, forKey: .naps) ?? []
         groceryItems = try container.decodeIfPresent([GroceryItem].self, forKey: .groceryItems) ?? []
         notes = try container.decodeIfPresent([HouseholdNote].self, forKey: .notes) ?? []
@@ -70,6 +77,8 @@ struct DashboardData: Codable, Sendable {
         try container.encode(scheduleEvents, forKey: .scheduleEvents)
         try container.encode(snackOptions, forKey: .snackOptions)
         try container.encode(snackEaten, forKey: .snackEaten)
+        try container.encode(snackCompletions, forKey: .snackCompletions)
+        try container.encode(snacksPerChild, forKey: .snacksPerChild)
         try container.encode(naps, forKey: .naps)
         try container.encode(groceryItems, forKey: .groceryItems)
         try container.encode(notes, forKey: .notes)

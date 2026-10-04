@@ -62,6 +62,7 @@ export function serializeHousehold(
     inviteCode: household.inviteCode,
     guestInviteCode: household.guestInviteCode,
     snackOptions: household.snackOptions,
+    snacksPerChild: household.snacksPerChild,
     ownerName: household.ownerName,
     photo: household.photo,
     role: household.role,

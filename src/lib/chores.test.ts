@@ -3,6 +3,7 @@ import {
   choreCadenceDetail,
   choreDaysForCadence,
   isChoreDueOnDate,
+  isChoreOverdue,
   weeklyChoreDay,
 } from "./chores";
 
@@ -32,5 +33,19 @@ describe("chore helpers", () => {
     expect(
       isChoreDueOnDate("daily", "0,1,2,3,4,5,6", "2026-07-14", "America/Chicago"),
     ).toBe(true);
+  });
+
+  it("is overdue once its due date has passed and it's still unfinished", () => {
+    expect(isChoreOverdue("2026-07-14", "2026-07-15", false)).toBe(true);
+  });
+
+  it("is not overdue on or before its due date", () => {
+    expect(isChoreOverdue("2026-07-15", "2026-07-15", false)).toBe(false);
+    expect(isChoreOverdue("2026-07-16", "2026-07-15", false)).toBe(false);
+  });
+
+  it("is never overdue once completed, or with no due date set", () => {
+    expect(isChoreOverdue("2026-07-14", "2026-07-15", true)).toBe(false);
+    expect(isChoreOverdue(null, "2026-07-15", false)).toBe(false);
   });
 });

@@ -17,9 +17,9 @@ import {
 } from "@/db/schema";
 import { birthdayEventsInRange } from "@/lib/birthdays";
 import { listHouseholdBirthdays } from "@/lib/family-birthdays";
-import { isChoreDueOnDate } from "@/lib/chores";
+import { isChoreDueOnDate, isChoreOverdue } from "@/lib/chores";
 import { localDateIn, weekKey } from "@/lib/dates";
-import { parseSnackOptions } from "@/lib/meals/snacks";
+import { parseSnackOptions, snackEatenLabels } from "@/lib/meals/snacks";
 import { fetchNapsForDate, serializeNap } from "@/lib/naps/store";
 import type { getCurrentHousehold } from "@/lib/household";
 import { getUserHubModules } from "@/lib/hub-modules-store";
@@ -106,7 +106,10 @@ export async function buildDashboardPayload(
         and(eq(meals.householdId, household.id), eq(meals.localDate, localDate)),
       ),
     db
-      .select({ snackLabel: snackCompletions.snackLabel })
+      .select({
+        snackLabel: snackCompletions.snackLabel,
+        profileId: snackCompletions.profileId,
+      })
       .from(snackCompletions)
       .where(
         and(
@@ -183,6 +186,12 @@ export async function buildDashboardPayload(
     ),
   ].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 
+  const childIds = familyProfiles
+    .filter((profile) => profile.profileType === "child")
+    .map((profile) => profile.id);
+  // Per-child tracking only means something when there is a child to track.
+  const snacksPerChild = household.snacksPerChild && childIds.length > 0;
+
   return {
     household: serializeHousehold(household),
     hubModules,
@@ -202,16 +211,19 @@ export async function buildDashboardPayload(
       const done = choreDone.find(
         (item) => item.choreId === chore.id && item.periodKey === periodKey,
       );
+      const completed = Boolean(done);
       return {
         id: chore.id,
         title: chore.title,
         profileId: chore.profileId,
         cadence: chore.cadence,
         days: chore.days,
+        dueDate: chore.dueDate,
         periodKey,
-        completed: Boolean(done),
+        completed,
         completedAt: done?.completedAt ?? null,
         completedByName: done?.completedByName ?? null,
+        overdue: isChoreOverdue(chore.dueDate, localDate, completed),
       };
     }),
     meals: todayMeals,
@@ -225,7 +237,12 @@ export async function buildDashboardPayload(
       calendarName: event.calendarName,
     })),
     snackOptions: parseSnackOptions(household.snackOptions),
-    snackEaten: snackDone.map((item) => item.snackLabel),
+    snacksPerChild: snacksPerChild,
+    snackCompletions: snackDone.map((item) => ({
+      snackLabel: item.snackLabel,
+      profileId: item.profileId || null,
+    })),
+    snackEaten: snackEatenLabels(snackDone, snacksPerChild, childIds),
     naps: todayNaps.map(serializeNap),
     groceryItems: groceryRows,
     notes: noteRows,

@@ -3,6 +3,7 @@ import SwiftUI
 struct ChoreFormView: View {
     let profiles: [Profile]
     var chore: ChoreRow?
+    let timezone: TimeZone
     let submitLabel: String
     var onSubmit: (ChoreInput) async -> Bool
     var onDelete: (() async -> Bool)?
@@ -11,6 +12,8 @@ struct ChoreFormView: View {
     @State private var profileId: String?
     @State private var cadence: ChoreCadence = .daily
     @State private var weekDay = "1"
+    @State private var hasDueDate = false
+    @State private var dueDate = Date()
     @State private var isSaving = false
 
     var body: some View {
@@ -43,6 +46,17 @@ struct ChoreFormView: View {
                 }
             }
 
+            FormField(label: "Due date") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle("Has a due date", isOn: $hasDueDate.animation())
+                    if hasDueDate {
+                        DatePicker("Due", selection: $dueDate, displayedComponents: .date)
+                            .datePickerStyle(.compact)
+                            .labelsHidden()
+                    }
+                }
+            }
+
             Button(submitLabel) {
                 Task {
                     isSaving = true
@@ -51,7 +65,8 @@ struct ChoreFormView: View {
                         title: title.trimmingCharacters(in: .whitespacesAndNewlines),
                         profileId: profileId,
                         cadence: cadence,
-                        weekDay: cadence == .weekly ? weekDay : nil
+                        weekDay: cadence == .weekly ? weekDay : nil,
+                        dueDate: hasDueDate ? DateHelpers.localDateIn(timezone: timezone, date: dueDate) : nil
                     )
                     _ = await onSubmit(input)
                 }
@@ -79,5 +94,10 @@ struct ChoreFormView: View {
         profileId = chore.profileId
         cadence = chore.cadence
         weekDay = ChoreHelpers.weeklyChoreDay(chore.days)
+        if let storedDueDate = chore.dueDate,
+           let parsed = DateHelpers.dateFromLocalDate(storedDueDate, timezone: timezone) {
+            hasDueDate = true
+            dueDate = parsed
+        }
     }
 }

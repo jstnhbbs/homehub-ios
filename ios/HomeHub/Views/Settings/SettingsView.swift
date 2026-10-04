@@ -208,7 +208,7 @@ struct SettingsView: View {
                 "Ask"
             }
         case .layout:
-            "\(appState.hubModules.dashboardOrder.filter { $0 != .weather }.count)"
+            "\(DashboardCardId.allCases.filter { $0 != .weather }.count)"
         case .data:
             appState.household == nil ? "Offline" : "Signed in"
         case .faq:
@@ -1408,14 +1408,17 @@ private struct NativeNotificationsSettingView: View {
 
 private struct HubModulesSettingView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var modules = HubModules.defaults
     @State private var isSaving = false
     @State private var saveTask: Task<Void, Never>?
+    @State private var editingTarget: DashboardLayoutTarget = .phone
 
     var body: some View {
         layoutRoot
             .onAppear {
                 modules = appState.hubModules
+                editingTarget = DashboardLayoutTarget(horizontalSizeClass: horizontalSizeClass)
             }
             .onChange(of: appState.hubModules) { _, newValue in
                 if !isSaving {
@@ -1564,7 +1567,19 @@ private struct HubModulesSettingView: View {
         )
     }
 
+    @ViewBuilder
     private var dashboardCardsSection: some View {
+        Section {
+            Picker("Device", selection: $editingTarget) {
+                ForEach(DashboardLayoutTarget.allCases) { target in
+                    Text(target.label).tag(target)
+                }
+            }
+            .pickerStyle(.segmented)
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+        }
+
         Section {
             // Weather is header chrome now, like the clock, so it isn't a card to
             // configure. Filtered rather than removed from the model so existing
@@ -1582,11 +1597,11 @@ private struct HubModulesSettingView: View {
                     ),
                     size: Binding(
                         get: {
-                            let size = modules.dashboardCardSize(card)
+                            let size = modules.dashboardCardSize(card, for: editingTarget)
                             return size == .compact ? .standard : size
                         },
                         set: { size in
-                            let next = modules.updatingDashboardCardSize(card, size: size)
+                            let next = modules.updatingDashboardCardSize(card, size: size, for: editingTarget)
                             updateModules(next)
                         }
                     ),
@@ -1599,7 +1614,7 @@ private struct HubModulesSettingView: View {
             }
             .onMove(perform: moveDashboardCards)
         } header: {
-            Text("Choose what appears in Today, arrange the order, and set each card’s size. Tap Edit to reorder.")
+            Text("Choose what appears in Today, arrange the order, and set each card’s size for \(editingTarget.label). Tap Edit to reorder.")
                 .font(.caption)
                 .foregroundStyle(HubTheme.muted)
                 .textCase(nil)
@@ -1657,18 +1672,22 @@ private struct HubModulesSettingView: View {
         updateModules(next)
     }
 
-    /// Cards the Layout screen lists. Weather is excluded because it renders in the
-    /// header rather than the grid.
+    /// Cards the Layout screen lists, for whichever device is currently being edited.
+    /// Weather is excluded because it renders in the header rather than the grid.
     private var layoutCards: [DashboardCardId] {
-        modules.dashboardOrder.filter { $0 != .weather }
+        modules.dashboardOrder(for: editingTarget).filter { $0 != .weather }
     }
 
-    /// Rebuilds the stored order from a reordered visible list. The move offsets index
-    /// `layoutCards`, not `dashboardOrder`, so they can't be applied directly — the
-    /// hidden entries are pinned to the front instead.
+    /// Rebuilds the stored order for `editingTarget` from a reordered visible list. The
+    /// move offsets index `layoutCards`, not the stored order, so they can't be applied
+    /// directly — the hidden entries are pinned to the front instead.
     private func applyingLayoutOrder(_ visible: [DashboardCardId]) -> HubModules {
         var next = modules
-        next.dashboardOrder = modules.dashboardOrder.filter { $0 == .weather } + visible
+        let order = modules.dashboardOrder(for: editingTarget).filter { $0 == .weather } + visible
+        switch editingTarget {
+        case .phone: next.dashboardOrderPhone = order
+        case .tablet: next.dashboardOrderTablet = order
+        }
         return next
     }
 
@@ -1761,7 +1780,9 @@ private enum LayoutSettingsSection: String, Hashable, Identifiable {
     func summary(_ modules: HubModules) -> String {
         switch self {
         case .todayCards:
-            let enabledCount = modules.dashboardOrder
+            // Enabled cards are the same set on every device; only their order and
+            // size differ per target.
+            let enabledCount = DashboardCardId.allCases
                 .filter { $0 != .weather && modules.isDashboardCardEnabled($0) }
                 .count
             return "\(enabledCount)"
@@ -1804,8 +1825,6 @@ private struct LayoutOptionRow: View {
 }
 
 private struct DashboardCardLayoutOptionRow: View {
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-
     let title: String
     let systemImage: String
     @Binding var isOn: Bool
@@ -1850,7 +1869,7 @@ private struct DashboardCardLayoutOptionRow: View {
             }
         } label: {
             HStack(spacing: 4) {
-                Text(sizeLabel)
+                Text(size.label)
                     .font(.caption.weight(.bold))
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.caption2.weight(.bold))
@@ -1864,11 +1883,6 @@ private struct DashboardCardLayoutOptionRow: View {
             .clipShape(Capsule())
         }
         .disabled(!isOn)
-        .accessibilityLabel("\(title) iPad card size")
+        .accessibilityLabel("\(title) card size")
     }
-
-    private var sizeLabel: String {
-        horizontalSizeClass == .compact ? "iPad \(size.label)" : size.label
-    }
-
 }

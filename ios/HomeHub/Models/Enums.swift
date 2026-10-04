@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 enum HouseholdRole: String, Codable, Sendable, CaseIterable {
     case owner
@@ -260,6 +261,28 @@ enum DashboardCardSize: String, Codable, Sendable, CaseIterable, Hashable, Ident
 
 }
 
+/// The dashboard grid is arranged and sized separately for iPhone and for iPad/Mac, since the
+/// two have very different amounts of room. This technically follows SwiftUI's horizontal size
+/// class, so an iPad in a narrow split-screen window uses `.phone` too — but for how someone
+/// actually uses the app, this is iPhone vs iPad/Mac.
+enum DashboardLayoutTarget: String, Codable, Sendable, CaseIterable, Hashable, Identifiable {
+    case phone
+    case tablet
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .phone: "iPhone"
+        case .tablet: "iPad & Mac"
+        }
+    }
+
+    init(horizontalSizeClass: UserInterfaceSizeClass?) {
+        self = horizontalSizeClass == .compact ? .phone : .tablet
+    }
+}
+
 struct HubModules: Codable, Sendable, Equatable {
     var notes: Bool
     var calendar: Bool
@@ -272,9 +295,12 @@ struct HubModules: Codable, Sendable, Equatable {
     var snacks: Bool
     var recipes: Bool
     var sidebarOrder: [HubModuleId]
+    /// Which dashboard cards are turned on. Shared: the same set shows on every device.
     var dashboardCards: [DashboardCardId: Bool]
-    var dashboardCardSizes: [DashboardCardId: DashboardCardSize]
-    var dashboardOrder: [DashboardCardId]
+    var dashboardCardSizesPhone: [DashboardCardId: DashboardCardSize]
+    var dashboardOrderPhone: [DashboardCardId]
+    var dashboardCardSizesTablet: [DashboardCardId: DashboardCardSize]
+    var dashboardOrderTablet: [DashboardCardId]
 
     static let defaults = HubModules(
         notes: true,
@@ -289,8 +315,11 @@ struct HubModules: Codable, Sendable, Equatable {
         recipes: true,
         sidebarOrder: [.notes, .calendar, .groceries, .routines, .chores, .meals, .sleep, .birthdays],
         dashboardCards: Dictionary(uniqueKeysWithValues: DashboardCardId.allCases.map { ($0, true) }),
-        dashboardCardSizes: Self.defaultsDashboardCardSizes,
-        dashboardOrder: Self.defaultsDashboardOrder
+        // Phone and tablet start out identical; they only diverge once someone edits one of them.
+        dashboardCardSizesPhone: Self.defaultsDashboardCardSizes,
+        dashboardOrderPhone: Self.defaultsDashboardOrder,
+        dashboardCardSizesTablet: Self.defaultsDashboardCardSizes,
+        dashboardOrderTablet: Self.defaultsDashboardOrder
     )
 
     private enum CodingKeys: String, CodingKey {
@@ -307,8 +336,10 @@ struct HubModules: Codable, Sendable, Equatable {
         case recipes
         case sidebarOrder
         case dashboardCards
-        case dashboardCardSizes
-        case dashboardOrder
+        case dashboardCardSizesPhone
+        case dashboardOrderPhone
+        case dashboardCardSizesTablet
+        case dashboardOrderTablet
     }
 
     init(
@@ -324,8 +355,10 @@ struct HubModules: Codable, Sendable, Equatable {
         recipes: Bool,
         sidebarOrder: [HubModuleId],
         dashboardCards: [DashboardCardId: Bool],
-        dashboardCardSizes: [DashboardCardId: DashboardCardSize],
-        dashboardOrder: [DashboardCardId]
+        dashboardCardSizesPhone: [DashboardCardId: DashboardCardSize],
+        dashboardOrderPhone: [DashboardCardId],
+        dashboardCardSizesTablet: [DashboardCardId: DashboardCardSize],
+        dashboardOrderTablet: [DashboardCardId]
     ) {
         self.notes = notes
         self.calendar = calendar
@@ -343,9 +376,15 @@ struct HubModules: Codable, Sendable, Equatable {
             allowed: Self.sidebarModules
         )
         self.dashboardCards = Self.normalizedDashboardCards(dashboardCards)
-        self.dashboardCardSizes = Self.normalizedDashboardCardSizes(dashboardCardSizes)
-        self.dashboardOrder = Self.normalizedOrder(
-            dashboardOrder,
+        self.dashboardCardSizesPhone = Self.normalizedDashboardCardSizes(dashboardCardSizesPhone)
+        self.dashboardOrderPhone = Self.normalizedOrder(
+            dashboardOrderPhone,
+            fallback: Self.defaultsDashboardOrder,
+            allowed: Array(DashboardCardId.allCases)
+        )
+        self.dashboardCardSizesTablet = Self.normalizedDashboardCardSizes(dashboardCardSizesTablet)
+        self.dashboardOrderTablet = Self.normalizedOrder(
+            dashboardOrderTablet,
             fallback: Self.defaultsDashboardOrder,
             allowed: Array(DashboardCardId.allCases)
         )
@@ -357,14 +396,15 @@ struct HubModules: Codable, Sendable, Equatable {
             [String: Bool].self,
             forKey: .dashboardCards
         ) ?? Dictionary(uniqueKeysWithValues: Self.defaults.dashboardCards.map { ($0.key.rawValue, $0.value) })
-        let dashboardCardSizeValues = try container.decodeIfPresent(
-            [String: String].self,
-            forKey: .dashboardCardSizes
-        ) ?? Dictionary(uniqueKeysWithValues: Self.defaults.dashboardCardSizes.map { ($0.key.rawValue, $0.value.rawValue) })
         let groceriesEnabled =
             try container.decodeIfPresent(Bool.self, forKey: .groceries)
             ?? container.decodeIfPresent(Bool.self, forKey: .shopping)
             ?? Self.defaults.groceries
+        // A locally cached dashboard written by a build from before per-device layouts existed
+        // has neither of these keys; that's fine, `init` falls back to `defaults` for whichever
+        // is missing, and the next successful server refresh replaces the cache anyway.
+        let dashboardCardSizesPhoneValues = try container.decodeIfPresent([String: String].self, forKey: .dashboardCardSizesPhone)
+        let dashboardCardSizesTabletValues = try container.decodeIfPresent([String: String].self, forKey: .dashboardCardSizesTablet)
         self.init(
             notes: try container.decodeIfPresent(Bool.self, forKey: .notes) ?? Self.defaults.notes,
             calendar: try container.decodeIfPresent(Bool.self, forKey: .calendar) ?? Self.defaults.calendar,
@@ -383,17 +423,12 @@ struct HubModules: Codable, Sendable, Equatable {
                     return DashboardCardId(rawValue: normalizedKey).map { ($0, value) }
                 }
             ),
-            dashboardCardSizes: Dictionary(
-                uniqueKeysWithValues: dashboardCardSizeValues.compactMap { key, value in
-                    let normalizedKey = key == "shopping" ? "groceries" : key
-                    guard let card = DashboardCardId(rawValue: normalizedKey),
-                          let size = DashboardCardSize(rawValue: value) else {
-                        return nil
-                    }
-                    return (card, size)
-                }
-            ),
-            dashboardOrder: try container.decodeIfPresent([DashboardCardId].self, forKey: .dashboardOrder) ?? Self.defaultsDashboardOrder
+            dashboardCardSizesPhone: dashboardCardSizesPhoneValues.map(Self.decodedDashboardCardSizes)
+                ?? Self.defaults.dashboardCardSizesPhone,
+            dashboardOrderPhone: try container.decodeIfPresent([DashboardCardId].self, forKey: .dashboardOrderPhone) ?? Self.defaultsDashboardOrder,
+            dashboardCardSizesTablet: dashboardCardSizesTabletValues.map(Self.decodedDashboardCardSizes)
+                ?? Self.defaults.dashboardCardSizesTablet,
+            dashboardOrderTablet: try container.decodeIfPresent([DashboardCardId].self, forKey: .dashboardOrderTablet) ?? Self.defaultsDashboardOrder
         )
     }
 
@@ -415,10 +450,31 @@ struct HubModules: Codable, Sendable, Equatable {
             forKey: .dashboardCards
         )
         try container.encode(
-            Dictionary(uniqueKeysWithValues: dashboardCardSizes.map { ($0.key.rawValue, $0.value.rawValue) }),
-            forKey: .dashboardCardSizes
+            Dictionary(uniqueKeysWithValues: dashboardCardSizesPhone.map { ($0.key.rawValue, $0.value.rawValue) }),
+            forKey: .dashboardCardSizesPhone
         )
-        try container.encode(dashboardOrder, forKey: .dashboardOrder)
+        try container.encode(dashboardOrderPhone, forKey: .dashboardOrderPhone)
+        try container.encode(
+            Dictionary(uniqueKeysWithValues: dashboardCardSizesTablet.map { ($0.key.rawValue, $0.value.rawValue) }),
+            forKey: .dashboardCardSizesTablet
+        )
+        try container.encode(dashboardOrderTablet, forKey: .dashboardOrderTablet)
+    }
+
+    /// Shared by both dashboardCardSizesPhone/Tablet decoding: normalizes the pre-rename
+    /// "shopping" key the same way dashboardCards does, and drops any value that isn't a
+    /// recognized card or size rather than failing the whole decode.
+    private static func decodedDashboardCardSizes(_ raw: [String: String]) -> [DashboardCardId: DashboardCardSize] {
+        Dictionary(
+            uniqueKeysWithValues: raw.compactMap { key, value in
+                let normalizedKey = key == "shopping" ? "groceries" : key
+                guard let card = DashboardCardId(rawValue: normalizedKey),
+                      let size = DashboardCardSize(rawValue: value) else {
+                    return nil
+                }
+                return (card, size)
+            }
+        )
     }
 
     static let sidebarModules: [HubModuleId] = [.notes, .calendar, .groceries, .routines, .chores, .meals, .sleep, .birthdays]
@@ -487,14 +543,31 @@ struct HubModules: Codable, Sendable, Equatable {
         return copy
     }
 
-    func updatingDashboardCardSize(_ card: DashboardCardId, size: DashboardCardSize) -> HubModules {
+    func dashboardOrder(for target: DashboardLayoutTarget) -> [DashboardCardId] {
+        switch target {
+        case .phone: dashboardOrderPhone
+        case .tablet: dashboardOrderTablet
+        }
+    }
+
+    func dashboardCardSizes(for target: DashboardLayoutTarget) -> [DashboardCardId: DashboardCardSize] {
+        switch target {
+        case .phone: dashboardCardSizesPhone
+        case .tablet: dashboardCardSizesTablet
+        }
+    }
+
+    func updatingDashboardCardSize(_ card: DashboardCardId, size: DashboardCardSize, for target: DashboardLayoutTarget) -> HubModules {
         var copy = self
-        copy.dashboardCardSizes[card] = size
+        switch target {
+        case .phone: copy.dashboardCardSizesPhone[card] = size
+        case .tablet: copy.dashboardCardSizesTablet[card] = size
+        }
         return copy
     }
 
-    func dashboardCardSize(_ card: DashboardCardId) -> DashboardCardSize {
-        dashboardCardSizes[card, default: .standard]
+    func dashboardCardSize(_ card: DashboardCardId, for target: DashboardLayoutTarget) -> DashboardCardSize {
+        dashboardCardSizes(for: target)[card, default: .standard]
     }
 
     func movingSidebarModule(_ module: HubModuleId, by offset: Int) -> HubModules {
@@ -503,9 +576,12 @@ struct HubModules: Codable, Sendable, Equatable {
         return copy
     }
 
-    func movingDashboardCard(_ card: DashboardCardId, by offset: Int) -> HubModules {
+    func movingDashboardCard(_ card: DashboardCardId, by offset: Int, for target: DashboardLayoutTarget) -> HubModules {
         var copy = self
-        copy.dashboardOrder = Self.moving(card, in: dashboardOrder, by: offset)
+        switch target {
+        case .phone: copy.dashboardOrderPhone = Self.moving(card, in: dashboardOrderPhone, by: offset)
+        case .tablet: copy.dashboardOrderTablet = Self.moving(card, in: dashboardOrderTablet, by: offset)
+        }
         return copy
     }
 

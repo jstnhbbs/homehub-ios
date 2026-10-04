@@ -3,7 +3,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { choreCompletions, chores, profiles, users } from "@/db/schema";
-import { choreDaysForCadence, isChoreDueOnDate } from "@/lib/chores";
+import { choreDaysForCadence, isChoreDueOnDate, isChoreOverdue } from "@/lib/chores";
 import { localDateIn, weekKey } from "@/lib/dates";
 import {
   handleMobileError,
@@ -15,11 +15,14 @@ import {
 
 const shortText = z.string().trim().min(1).max(120);
 
+const localDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+
 const choreInputSchema = z.object({
   title: shortText,
   profileId: z.string().uuid().optional(),
   cadence: z.enum(["daily", "weekly"]),
   weekDay: z.enum(["0", "1", "2", "3", "4", "5", "6"]).optional(),
+  dueDate: z.string().regex(localDatePattern).optional(),
 });
 
 export async function GET(request: Request) {
@@ -73,6 +76,7 @@ export async function GET(request: Request) {
           localDate,
           household.timezone,
         );
+        const completed = Boolean(done);
         return {
           id: chore.id,
           title: chore.title,
@@ -80,11 +84,13 @@ export async function GET(request: Request) {
           cadence: chore.cadence,
           days: chore.days,
           sortOrder: chore.sortOrder,
+          dueDate: chore.dueDate,
           periodKey,
-          completed: Boolean(done),
+          completed,
           completedAt: done?.completedAt ?? null,
           completedByName: done?.completedByName ?? null,
           dueToday,
+          overdue: isChoreOverdue(chore.dueDate, localDate, completed),
         };
       }),
     );
@@ -120,6 +126,7 @@ export async function POST(request: Request) {
       profileId: input.profileId ?? null,
       cadence: input.cadence,
       days: choreDaysForCadence(input.cadence, input.weekDay),
+      dueDate: input.dueDate ?? null,
     });
 
     const created = await db

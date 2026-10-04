@@ -16,6 +16,7 @@ struct SnacksView: View {
             headerSection
             messagesSection
             snackChecklistSection
+            perChildSection
         }
         .listStyle(.insetGrouped)
         .onAppear { viewModel.bind(to: appState) }
@@ -73,6 +74,25 @@ struct SnacksView: View {
         }
     }
 
+    /// Parents choose whether a snack is checked off once for the household or by each child.
+    @ViewBuilder
+    private var perChildSection: some View {
+        if viewModel.canManage && (viewModel.canChoosePerChild || viewModel.tracksPerChild) {
+            Section {
+                Toggle(
+                    "Track snacks for each child",
+                    isOn: Binding(
+                        get: { viewModel.tracksPerChild },
+                        set: { enabled in Task { await viewModel.setPerChild(enabled) } }
+                    )
+                )
+                .disabled(viewModel.isWorking)
+            } footer: {
+                Text("Off, one tap marks a snack eaten for everyone. On, each child has their own circle, which suits kids who eat different things.")
+            }
+        }
+    }
+
     @ViewBuilder
     private var snackChecklistSection: some View {
         Section {
@@ -112,11 +132,33 @@ struct SnacksView: View {
             Label("Snacks", systemImage: "carrot.fill")
         } footer: {
             if !viewModel.snackOptions.isEmpty {
-                Text("\(viewModel.eaten.count) of \(viewModel.snackOptions.count) eaten today")
+                Text(viewModel.usesPerChild
+                    ? "\(viewModel.eaten.count) of \(viewModel.snackOptions.count) snacks eaten by everyone today"
+                    : "\(viewModel.eaten.count) of \(viewModel.snackOptions.count) eaten today")
             } else if viewModel.canManage {
                 Text("Add a snack below to start today's checklist.")
             }
         }
+    }
+
+    /// The snack's name with a circle for each child to tick off once they have had it.
+    private func perChildRow(_ snack: String) -> some View {
+        let done = viewModel.eaten.contains(snack)
+        return VStack(alignment: .leading, spacing: 8) {
+            Text(snack)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(done ? HubTheme.muted : .primary)
+                .strikethrough(done, color: HubTheme.muted)
+            SnackChildChips(
+                snack: snack,
+                children: viewModel.children,
+                records: viewModel.records
+            ) { child in
+                await viewModel.toggleSnack(snack, profileId: child.id)
+            }
+        }
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -141,11 +183,15 @@ struct SnacksView: View {
                     .foregroundStyle(HubTheme.muted)
                 }
             } else {
-                SnackCheckRow(
-                    label: snack,
-                    isEaten: viewModel.eaten.contains(snack)
-                ) {
-                    await viewModel.toggleSnack(snack)
+                if viewModel.usesPerChild {
+                    perChildRow(snack)
+                } else {
+                    SnackCheckRow(
+                        label: snack,
+                        isEaten: viewModel.eaten.contains(snack)
+                    ) {
+                        await viewModel.toggleSnack(snack)
+                    }
                 }
             }
         }

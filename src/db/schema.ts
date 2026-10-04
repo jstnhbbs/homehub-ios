@@ -92,6 +92,10 @@ export const households = sqliteTable("households", {
   inviteCode: text("invite_code").notNull().unique(),
   guestInviteCode: text("guest_invite_code").notNull().unique(),
   snackOptions: text("snack_options").notNull().default(""),
+  /** When on, each snack is checked off per child instead of once for the whole household. */
+  snacksPerChild: integer("snacks_per_child", { mode: "boolean" })
+    .notNull()
+    .default(false),
   weatherLocation: text("weather_location").notNull().default("Chicago, IL"),
   weatherLatitude: text("weather_latitude").notNull().default("41.8781"),
   weatherLongitude: text("weather_longitude").notNull().default("-87.6298"),
@@ -223,6 +227,8 @@ export const chores = sqliteTable(
       .default("daily"),
     days: text("days").notNull().default("0,1,2,3,4,5,6"),
     sortOrder: integer("sort_order").notNull().default(0),
+    /** Optional deadline, independent of cadence/days — e.g. a one-off "due Friday" item. */
+    dueDate: text("due_date"),
     ...timestamps,
   },
   (table) => [index("chores_household_idx").on(table.householdId)],
@@ -256,13 +262,20 @@ export const snackCompletions = sqliteTable(
       .references(() => households.id, { onDelete: "cascade" }),
     localDate: text("local_date").notNull(),
     snackLabel: text("snack_label").notNull(),
+    /** The child who ate it, or "" for the household-wide checklist. */
+    profileId: text("profile_id").notNull().default(""),
     completedAt: integer("completed_at", { mode: "timestamp" })
       .$defaultFn(() => new Date())
       .notNull(),
   },
   (table) => [
     primaryKey({
-      columns: [table.householdId, table.localDate, table.snackLabel],
+      columns: [
+        table.householdId,
+        table.localDate,
+        table.snackLabel,
+        table.profileId,
+      ],
     }),
     index("snack_completions_date_idx").on(table.localDate),
   ],

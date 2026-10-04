@@ -8,6 +8,8 @@ struct Chore: Codable, Identifiable, Sendable {
     var cadence: ChoreCadence
     var days: String
     var sortOrder: Int
+    /// Optional deadline ("YYYY-MM-DD"), independent of cadence — e.g. a one-off "due Friday" item.
+    var dueDate: String?
     var createdAt: Date?
     var updatedAt: Date?
 }
@@ -25,11 +27,13 @@ struct ChoreRow: Codable, Identifiable, Sendable {
     var cadence: ChoreCadence
     var days: String
     var sortOrder: Int?
+    var dueDate: String?
     var periodKey: String
     var completed: Bool
     var completedAt: Date?
     var completedByName: String?
     var dueToday: Bool?
+    var overdue: Bool?
 }
 
 struct ChoreInput: Codable, Sendable {
@@ -37,6 +41,7 @@ struct ChoreInput: Codable, Sendable {
     var profileId: String?
     var cadence: ChoreCadence
     var weekDay: String?
+    var dueDate: String?
 }
 
 struct ToggleChoreRequest: Codable, Sendable {

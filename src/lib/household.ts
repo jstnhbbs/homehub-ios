@@ -30,6 +30,7 @@ export async function getCurrentHousehold() {
       inviteCode: households.inviteCode,
       guestInviteCode: households.guestInviteCode,
       snackOptions: households.snackOptions,
+      snacksPerChild: households.snacksPerChild,
       photo: households.photo,
       role: householdMembers.role,
     })

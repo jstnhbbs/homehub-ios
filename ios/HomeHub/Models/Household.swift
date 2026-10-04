@@ -8,6 +8,8 @@ struct Household: Codable, Identifiable, Sendable {
     var inviteCode: String
     var guestInviteCode: String
     var snackOptions: String
+    /// Nil from a server that predates per-child snacks.
+    var snacksPerChild: Bool?
     var ownerName: String?
     var photo: String?
     var role: HouseholdRole

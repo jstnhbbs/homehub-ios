@@ -4,6 +4,10 @@ import Foundation
 final class SnacksViewModel: ObservableObject {
     @Published var snackOptions: [String] = []
     @Published var eaten: Set<String> = []
+    /// Who has had what today, for households that track snacks per child.
+    @Published var records: [SnackEatenRecord] = []
+    @Published var children: [Profile] = []
+    @Published var tracksPerChild = false
     @Published var newSnackText = ""
     @Published var editingSnack: String?
     @Published var editDraft = ""
@@ -24,6 +28,12 @@ final class SnacksViewModel: ObservableObject {
         appState?.canManageHousehold ?? false
     }
 
+    /// Per-child tracking is on and there is a child to track.
+    var usesPerChild: Bool { tracksPerChild && !children.isEmpty }
+
+    /// Per-child tracking can only be switched on once there is a child.
+    var canChoosePerChild: Bool { !children.isEmpty }
+
     var displayedSnacks: [String] {
         SnackHelpers.sortedSnackOptions(snackOptions, eaten: eaten)
     }
@@ -37,8 +47,7 @@ final class SnacksViewModel: ObservableObject {
         await appState.refreshDashboard()
         guard let dashboard = appState.dashboard else { return }
 
-        snackOptions = dashboard.snackOptions
-        eaten = Set(dashboard.snackEaten)
+        syncFromDashboard(dashboard)
         localDate = dashboard.localDate
 
         if let timezone = appState.household.flatMap({ TimeZone(identifier: $0.timezone) }) {
@@ -48,14 +57,45 @@ final class SnacksViewModel: ObservableObject {
         }
     }
 
-    func toggleSnack(_ label: String) async {
+    private func syncFromDashboard(_ dashboard: DashboardData) {
+        snackOptions = dashboard.snackOptions
+        eaten = Set(dashboard.snackEaten)
+        records = dashboard.snackCompletions
+        tracksPerChild = dashboard.snacksPerChild
+        children = NapHelpers.childProfiles(from: dashboard.profiles)
+    }
+
+    func setPerChild(_ enabled: Bool) async {
+        guard let appState else { return }
+        isWorking = true
+        errorMessage = nil
+        successMessage = nil
+        defer { isWorking = false }
+        do {
+            let household = try await appState.api.saveSnackOptions(
+                SaveSnackOptionsRequest(snackOptions: nil, snacksPerChild: enabled)
+            )
+            appState.household = household
+            await appState.refreshDashboard()
+            if let dashboard = appState.dashboard {
+                syncFromDashboard(dashboard)
+            }
+        } catch {
+            if let message = error.userFacingMessage {
+                errorMessage = message
+            }
+        }
+    }
+
+    /// `profileId` is the child who ate it when snacks are tracked per child.
+    func toggleSnack(_ label: String, profileId: String? = nil) async {
         guard let appState else { return }
         do {
-            try await appState.toggleSnack(localDate: localDate, label: label)
+            try await appState.toggleSnack(localDate: localDate, label: label, profileId: profileId)
             // Prefer the refreshed server state; fall back to a local flip if the
             // dashboard isn't loaded for some reason.
             if let dashboard = appState.dashboard {
-                eaten = Set(dashboard.snackEaten)
+                syncFromDashboard(dashboard)
             } else if eaten.contains(label) {
                 eaten.remove(label)
             } else {
@@ -175,14 +215,13 @@ final class SnacksViewModel: ObservableObject {
 
         do {
             let household = try await appState.api.saveSnackOptions(
-                SaveSnackOptionsRequest(snackOptions: serialized)
+                SaveSnackOptionsRequest(snackOptions: serialized, snacksPerChild: nil)
             )
             appState.household = household
             snackOptions = lines
             await appState.refreshDashboard()
             if let dashboard = appState.dashboard {
-                snackOptions = dashboard.snackOptions
-                eaten = Set(dashboard.snackEaten)
+                syncFromDashboard(dashboard)
             }
             return true
         } catch {

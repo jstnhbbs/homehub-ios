@@ -68,8 +68,18 @@ struct SnackCompletion: Codable, Sendable {
 struct ToggleSnackRequest: Codable, Sendable {
     var localDate: String
     var snackLabel: String
+    /// The child who ate it. Only sent when the household tracks snacks per child.
+    var profileId: String?
 }
 
+/// Either field may be sent alone; the server leaves whatever is omitted as it was.
 struct SaveSnackOptionsRequest: Codable, Sendable {
-    var snackOptions: String
+    var snackOptions: String?
+    var snacksPerChild: Bool?
+}
+
+/// One snack eaten today. `profileId` is nil for the household-wide checklist.
+struct SnackEatenRecord: Codable, Hashable, Sendable {
+    let snackLabel: String
+    var profileId: String?
 }

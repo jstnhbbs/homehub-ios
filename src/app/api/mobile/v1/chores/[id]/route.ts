@@ -12,11 +12,14 @@ import {
 
 const shortText = z.string().trim().min(1).max(120);
 
+const localDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+
 const choreInputSchema = z.object({
   title: shortText,
   profileId: z.string().uuid().optional(),
   cadence: z.enum(["daily", "weekly"]),
   weekDay: z.enum(["0", "1", "2", "3", "4", "5", "6"]).optional(),
+  dueDate: z.string().regex(localDatePattern).optional(),
 });
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -55,6 +58,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         profileId: input.profileId ?? null,
         cadence: input.cadence,
         days: choreDaysForCadence(input.cadence, input.weekDay),
+        dueDate: input.dueDate ?? null,
         updatedAt: new Date(),
       })
       .where(eq(chores.id, id))

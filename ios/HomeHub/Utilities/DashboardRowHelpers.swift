@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// Small rules for when a dashboard row's second line is worth showing. In both cases the
@@ -40,5 +41,91 @@ enum DashboardRowHelpers {
         guard rowHeight > 0, columns > 0 else { return total }
         let rows = max(1, Int(floor((availableHeight + spacing) / (rowHeight + spacing))))
         return min(total, rows * columns)
+    }
+
+    /// How many columns of at least `minimumColumnWidth` fit in `availableWidth`, between one and
+    /// `maxColumns`. A half-width card on a 10.5" iPad is under 300pt wide, so a fixed two-column
+    /// grid squeezes every tile to about 130pt and turns titles into "Go...".
+    static func columnCount(availableWidth: CGFloat, minimumColumnWidth: CGFloat, spacing: CGFloat, maxColumns: Int = 2) -> Int {
+        guard minimumColumnWidth > 0, availableWidth > 0 else { return 1 }
+        let fits = Int(floor((availableWidth + spacing) / (minimumColumnWidth + spacing)))
+        return min(max(1, maxColumns), max(1, fits))
+    }
+
+    /// Fits items of differing heights, laid out row by row in `columns` columns, into
+    /// `availableHeight` without ever showing a partial row. A row is as tall as its tallest item.
+    ///
+    /// When everything fits, nothing is hidden. Otherwise the space for a one-line "+N more"
+    /// footer (`footerHeight` plus one `spacing`) is taken off first, so the footer never covers a
+    /// row. Always shows at least one row: a measured height can briefly be zero before layout
+    /// settles, and an empty card for that frame would flash the empty state. `footerFits` is false
+    /// only in that forced-single-row case, when the footer line has nowhere to go.
+    static func fitWholeRows(
+        itemHeights: [CGFloat],
+        columns: Int,
+        spacing: CGFloat,
+        availableHeight: CGFloat,
+        footerHeight: CGFloat
+    ) -> (shown: Int, hidden: Int, footerFits: Bool) {
+        let total = itemHeights.count
+        guard total > 0 else { return (0, 0, true) }
+        let columnCount = max(1, columns)
+
+        func shown(fittingIn height: CGFloat) -> Int {
+            var used: CGFloat = 0
+            var rowsPlaced = 0
+            var index = 0
+            while index < total {
+                let end = min(index + columnCount, total)
+                let rowHeight = itemHeights[index..<end].max() ?? 0
+                let needed = used + (rowsPlaced == 0 ? 0 : spacing) + rowHeight
+                if rowsPlaced > 0 && needed > height { break }
+                used = needed
+                rowsPlaced += 1
+                index = end
+            }
+            return index
+        }
+
+        let everything = shown(fittingIn: availableHeight)
+        if everything >= total { return (total, 0, true) }
+        let withFooter = shown(fittingIn: availableHeight - footerHeight - spacing)
+        // Even a single forced row can leave no room for the footer line; the caller then shows
+        // the count another way rather than letting it be clipped.
+        let used = rowsHeight(itemHeights: Array(itemHeights.prefix(withFooter)), columns: columnCount, spacing: spacing)
+        return (withFooter, total - withFooter, used + spacing + footerHeight <= availableHeight)
+    }
+
+    /// Rough number of lines `characterCount` characters wrap to in `availableWidth`, between one
+    /// and `maxLines`. Deliberately generous (callers pass a wide `averageCharacterWidth`), because
+    /// word wrapping breaks earlier than a pure character count, and a tile sized one line short
+    /// would clip its text.
+    static func estimatedLineCount(characterCount: Int, availableWidth: CGFloat, averageCharacterWidth: CGFloat, maxLines: Int) -> Int {
+        let limit = max(1, maxLines)
+        guard availableWidth > 0, averageCharacterWidth > 0 else { return limit }
+        let perLine = max(1, Int(floor(availableWidth / averageCharacterWidth)))
+        let lines = Int(ceil(Double(max(characterCount, 1)) / Double(perLine)))
+        return min(limit, max(1, lines))
+    }
+
+    /// Total height of the given items laid out row by row, a row being as tall as its tallest item.
+    static func rowsHeight(itemHeights: [CGFloat], columns: Int, spacing: CGFloat) -> CGFloat {
+        let columnCount = max(1, columns)
+        var total: CGFloat = 0
+        var index = 0
+        while index < itemHeights.count {
+            let end = min(index + columnCount, itemHeights.count)
+            total += (index == 0 ? 0 : spacing) + (itemHeights[index..<end].max() ?? 0)
+            index = end
+        }
+        return total
+    }
+
+    /// How many lines `count` equal-sized chips wrap to in `availableWidth`.
+    static func chipRowCount(count: Int, availableWidth: CGFloat, chipSize: CGFloat, spacing: CGFloat) -> Int {
+        guard count > 0 else { return 0 }
+        guard availableWidth > 0, chipSize > 0 else { return count }
+        let perRow = max(1, Int(floor((availableWidth + spacing) / (chipSize + spacing))))
+        return Int(ceil(Double(count) / Double(perRow)))
     }
 }

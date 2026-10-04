@@ -276,9 +276,9 @@ final class AppState: ObservableObject {
         await refreshDashboard()
     }
 
-    func toggleSnack(localDate: String, label: String) async throws {
+    func toggleSnack(localDate: String, label: String, profileId: String? = nil) async throws {
         try await api.toggleSnack(
-            ToggleSnackRequest(localDate: localDate, snackLabel: label)
+            ToggleSnackRequest(localDate: localDate, snackLabel: label, profileId: profileId)
         )
         await refreshDashboard()
     }

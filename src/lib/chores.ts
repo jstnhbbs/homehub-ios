@@ -58,3 +58,17 @@ export function isChoreDueOnDate(
   if (cadence === "daily") return true;
   return weeklyChoreDay(days) === String(localDayOfWeek(localDate, timezone));
 }
+
+/**
+ * A due date is a deadline, not a recurrence rule — it sits alongside cadence rather than
+ * replacing it, so a daily chore can still carry a one-off "due Friday" label. Overdue only
+ * once the date has passed and the current period is still unfinished.
+ */
+export function isChoreOverdue(
+  dueDate: string | null,
+  localDate: string,
+  completed: boolean,
+): boolean {
+  if (!dueDate || completed) return false;
+  return dueDate < localDate;
+}

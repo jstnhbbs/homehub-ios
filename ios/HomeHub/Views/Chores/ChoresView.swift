@@ -163,6 +163,14 @@ private struct ChoreItemRow: View {
                     .padding(.leading, 8)
             }
 
+            if let dueDate = chore.dueDate {
+                let label = DateHelpers.formatLocalDate(dueDate, timezone: viewModel.timezone, pattern: "EEE, MMM d")
+                Text(chore.overdue == true ? "Overdue · \(label)" : "Due \(label)")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(chore.overdue == true ? .red : HubTheme.muted)
+                    .padding(.leading, 8)
+            }
+
             if isChecked,
                let caption = CompletionHelpers.caption(
                    name: chore.completedByName,
@@ -236,6 +244,7 @@ private struct ChoreEditorSheet: View {
                     case .add:
                         ChoreFormView(
                             profiles: profiles,
+                            timezone: viewModel.timezone,
                             submitLabel: "Add Chore"
                         ) { input in
                             let saved = await viewModel.createChore(input)
@@ -249,6 +258,7 @@ private struct ChoreEditorSheet: View {
                             ChoreFormView(
                                 profiles: profiles,
                                 chore: chore,
+                                timezone: viewModel.timezone,
                                 submitLabel: "Save Chore",
                                 onSubmit: { input in
                                     let saved = await viewModel.updateChore(id: chore.id, input: input)

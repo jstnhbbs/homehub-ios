@@ -32,6 +32,7 @@ export async function buildHouseholdExport(householdId: string) {
       timezone: households.timezone,
       weekStartsOn: households.weekStartsOn,
       snackOptions: households.snackOptions,
+      snacksPerChild: households.snacksPerChild,
       weatherLocation: households.weatherLocation,
       createdAt: households.createdAt,
     })
@@ -138,7 +139,10 @@ export async function buildHouseholdExport(householdId: string) {
     routineCompletions: routineCompletionRows.map((row) => omit(row, "completedBy")),
     chores: choreRows.map((row) => omit(row, "householdId")),
     choreCompletions: choreCompletionRows.map((row) => omit(row, "completedBy")),
-    snackCompletions: snackRows.map((row) => omit(row, "householdId")),
+    snackCompletions: snackRows.map((row) => ({
+      ...omit(row, "householdId"),
+      profileId: row.profileId || null,
+    })),
     sleepLogs: sleepRows.map((row) => omit(row, "householdId")),
     recipes: recipeRows.map((row) => ({
       ...omit(row, "householdId"),

@@ -104,13 +104,22 @@ private struct RoutineCard: View {
     }
 
     var body: some View {
+        let profile = viewModel.profile(for: routine.profileId)
         HubCard {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(meta.label.uppercased())
-                            .font(.caption2.weight(.heavy))
-                            .foregroundStyle(HubTheme.muted)
+                        // Whose routine this is, in words as well as colour: a family with several
+                        // children has several "Morning" cards that otherwise look alike.
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(HubTheme.profileColor(profile?.color))
+                                .frame(width: 8, height: 8)
+                            Text("\(profile?.name ?? "Everyone") · \(meta.label)".uppercased())
+                                .font(.caption2.weight(.heavy))
+                                .foregroundStyle(HubTheme.muted)
+                                .lineLimit(1)
+                        }
                         Text(routine.name)
                             .font(.title2.weight(.semibold))
                     }
@@ -123,7 +132,6 @@ private struct RoutineCard: View {
                 }
 
                 let pending = viewModel.pendingSteps(for: routine)
-                let profile = viewModel.profile(for: routine.profileId)
 
                 if pending.isEmpty, !(routine.steps ?? []).isEmpty {
                     HStack(spacing: 8) {
