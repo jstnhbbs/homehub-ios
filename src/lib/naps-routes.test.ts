@@ -129,6 +129,72 @@ describe("sleep writes hand back the entry they changed", () => {
   });
 });
 
+describe("two requests at the same moment", () => {
+  const third = "33333333-3333-4333-8333-333333333333";
+
+  beforeAll(async () => {
+    const { db } = await import("@/db/client");
+    const schema = await import("@/db/schema");
+    await db.insert(schema.profiles).values({ id: third, householdId: "h1", name: "Cal", profileType: "child", color: "#4f7c6d" });
+  });
+
+  // In one process the two requests run nearly in step, so the up-front check usually catches the
+  // second. The database constraint is the backstop for when it doesn't; it is tested directly below.
+  it("start exactly one sleep for a child, however the two are timed", async () => {
+    for (let round = 0; round < 8; round += 1) {
+      const [a, b] = await Promise.all([
+        post({ action: round % 2 ? "start" : "startNight", profileId: third }),
+        post({ action: "start", profileId: third }),
+      ]);
+      const statuses = [a.status, b.status].sort();
+      expect(statuses, `round ${round}`).toEqual([200, 400]);
+      const loser = a.status === 400 ? a : b;
+      // The same plain message the up-front check gives, not a database error.
+      expect(loser.json.error).toBe("This child already has sleep in progress.");
+
+      const page = await call("naps", "GET");
+      const running = (page.json.weekLogs as Nap[]).filter((log) => log.profileId === third && log.endedAt === null);
+      expect(running, `round ${round}`).toHaveLength(1);
+      await post({ action: "end", profileId: third });
+    }
+  });
+
+  it("cannot be slipped past by editing a finished sleep back to running", async () => {
+    const running = await post({ action: "start", profileId: third });
+    expect(running.status).toBe(200);
+    const finished = await post({ action: "create", profileId: third, startedAt: iso(300), endedAt: iso(240) });
+    const id = (finished.json.nap as Nap).id;
+    const edit = await call("naps/[id]", "PATCH", { startedAt: iso(300), endedAt: null }, { id });
+    expect(edit.status).toBe(400);
+    expect(edit.json.error).toBe("This child already has sleep in progress.");
+    await post({ action: "end", profileId: third });
+  });
+
+  it("the database refuses a second running sleep, and the refusal reads as the plain message", async () => {
+    const { db } = await import("@/db/client");
+    const schema = await import("@/db/schema");
+    const { guardActiveSleep } = await import("@/lib/naps/store");
+    await post({ action: "start", profileId: third });
+
+    const second = () =>
+      db.insert(schema.napLogs).values({
+        id: "99999999-9999-4999-8999-999999999999",
+        householdId: "h1",
+        profileId: third,
+        kind: "nap",
+        localDate: "2026-10-04",
+        startedAt: new Date(),
+      });
+    // Written around the app's own checks, as a second request in the same instant would be.
+    await expect(second()).rejects.toThrow();
+    // And through the guard the store puts around its writes, which is what that request would hit.
+    await expect(guardActiveSleep(second)).rejects.toThrow("This child already has sleep in progress.");
+    // Other failures are not mistaken for it.
+    await expect(guardActiveSleep(async () => { throw new Error("something else"); })).rejects.toThrow("something else");
+    await post({ action: "end", profileId: third });
+  });
+});
+
 describe("the sleep page", () => {
   it("lists every running sleep and every entry from the week in one payload", async () => {
     const page = await call("naps", "GET");

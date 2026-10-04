@@ -183,6 +183,13 @@
       "when": 1784310000000,
       "tag": "0025_snacks_per_child",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1784320000000,
+      "tag": "0026_one_active_sleep_per_child",
+      "breakpoints": true
     }
   ]
 }

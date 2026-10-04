@@ -34,6 +34,32 @@ function mapNap(row: typeof napLogs.$inferSelect): NapLogRecord {
   };
 }
 
+const ACTIVE_SLEEP_MESSAGE = "This child already has sleep in progress.";
+
+/** Whether the database refused a write because the child already has a running sleep. */
+function isActiveSleepConflict(error: unknown) {
+  let current: unknown = error;
+  for (let depth = 0; depth < 4 && current instanceof Error; depth += 1) {
+    if (current.message.includes("nap_logs.profile_id")) return true;
+    current = current.cause;
+  }
+  return false;
+}
+
+/**
+ * The checks above run before a write, so two requests at the same moment can both pass them. The
+ * unique index on running sleeps settles that race; this turns its refusal into the same message
+ * the checks give, instead of a database error.
+ */
+export async function guardActiveSleep<T>(write: () => Promise<T>) {
+  try {
+    return await write();
+  } catch (error) {
+    if (isActiveSleepConflict(error)) throw new Error(ACTIVE_SLEEP_MESSAGE);
+    throw error;
+  }
+}
+
 function validateSleepTimes(startedAt: Date, endedAt: Date | null) {
   if (endedAt && endedAt.getTime() <= startedAt.getTime()) {
     throw new Error("Wake time must be after sleep time.");
@@ -74,7 +100,7 @@ async function assertNoActiveSleep(
     .from(napLogs)
     .where(and(...conditions))
     .limit(1);
-  if (active[0]) throw new Error("This child already has sleep in progress.");
+  if (active[0]) throw new Error(ACTIVE_SLEEP_MESSAGE);
 }
 
 export async function fetchChildProfiles(householdId: string) {
@@ -98,17 +124,19 @@ export async function startNap(household: Household, profileId: string) {
 
   const startedAt = new Date();
   const id = randomUUID();
-  const [row] = await db
-    .insert(napLogs)
-    .values({
-      id,
-      householdId: household.id,
-      profileId,
-      kind: "nap",
-      localDate: localDateIn(household.timezone, startedAt),
-      startedAt,
-    })
-    .returning();
+  const [row] = await guardActiveSleep(() =>
+    db
+      .insert(napLogs)
+      .values({
+        id,
+        householdId: household.id,
+        profileId,
+        kind: "nap",
+        localDate: localDateIn(household.timezone, startedAt),
+        startedAt,
+      })
+      .returning(),
+  );
   return mapNap(row);
 }
 
@@ -226,18 +254,20 @@ export async function createManualNap(
   ]);
 
   const id = randomUUID();
-  const [row] = await db
-    .insert(napLogs)
-    .values({
-      id,
-      householdId: household.id,
-      profileId,
-      kind: "nap",
-      localDate: localDateIn(household.timezone, startedAt),
-      startedAt,
-      endedAt,
-    })
-    .returning();
+  const [row] = await guardActiveSleep(() =>
+    db
+      .insert(napLogs)
+      .values({
+        id,
+        householdId: household.id,
+        profileId,
+        kind: "nap",
+        localDate: localDateIn(household.timezone, startedAt),
+        startedAt,
+        endedAt,
+      })
+      .returning(),
+  );
   return mapNap(row);
 }
 
@@ -249,17 +279,19 @@ export async function startNightSleep(household: Household, profileId: string) {
 
   const startedAt = new Date();
   const id = randomUUID();
-  const [row] = await db
-    .insert(napLogs)
-    .values({
-      id,
-      householdId: household.id,
-      profileId,
-      kind: "night",
-      localDate: localDateIn(household.timezone, startedAt),
-      startedAt,
-    })
-    .returning();
+  const [row] = await guardActiveSleep(() =>
+    db
+      .insert(napLogs)
+      .values({
+        id,
+        householdId: household.id,
+        profileId,
+        kind: "night",
+        localDate: localDateIn(household.timezone, startedAt),
+        startedAt,
+      })
+      .returning(),
+  );
   return mapNap(row);
 }
 
@@ -276,21 +308,23 @@ export async function createNightSleep(
   ]);
 
   const id = randomUUID();
-  const [row] = await db
-    .insert(napLogs)
-    .values({
-      id,
-      householdId: household.id,
-      profileId,
-      kind: "night",
-      localDate: localDateIn(
-        household.timezone,
-        wokeUpAt ?? fellAsleepAt,
-      ),
-      startedAt: fellAsleepAt,
-      endedAt: wokeUpAt,
-    })
-    .returning();
+  const [row] = await guardActiveSleep(() =>
+    db
+      .insert(napLogs)
+      .values({
+        id,
+        householdId: household.id,
+        profileId,
+        kind: "night",
+        localDate: localDateIn(
+          household.timezone,
+          wokeUpAt ?? fellAsleepAt,
+        ),
+        startedAt: fellAsleepAt,
+        endedAt: wokeUpAt,
+      })
+      .returning(),
+  );
   return mapNap(row);
 }
 
@@ -316,16 +350,18 @@ export async function updateNapTimes(
   const anchorDate =
     existing[0].kind === "night" && endedAt ? endedAt : startedAt;
 
-  const updated = await db
-    .update(napLogs)
-    .set({
-      startedAt,
-      endedAt,
-      localDate: localDateIn(household.timezone, anchorDate),
-      updatedAt: new Date(),
-    })
-    .where(and(eq(napLogs.id, napId), eq(napLogs.householdId, household.id)))
-    .returning();
+  const updated = await guardActiveSleep(() =>
+    db
+      .update(napLogs)
+      .set({
+        startedAt,
+        endedAt,
+        localDate: localDateIn(household.timezone, anchorDate),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(napLogs.id, napId), eq(napLogs.householdId, household.id)))
+      .returning(),
+  );
   if (!updated[0]) throw new Error("Sleep entry not found.");
   return mapNap(updated[0]);
 }

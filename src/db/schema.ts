@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   index,
   integer,
@@ -304,6 +304,10 @@ export const napLogs = sqliteTable(
   (table) => [
     index("nap_logs_household_date_idx").on(table.householdId, table.localDate),
     index("nap_logs_profile_idx").on(table.profileId),
+    // One running sleep per child, enforced by the database so two requests can't both start one.
+    uniqueIndex("nap_logs_one_active_per_profile_idx")
+      .on(table.profileId)
+      .where(sql`${table.endedAt} is null`),
   ],
 );
 
