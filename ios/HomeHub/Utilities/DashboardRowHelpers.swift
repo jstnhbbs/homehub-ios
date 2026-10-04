@@ -128,4 +128,11 @@ enum DashboardRowHelpers {
         let perRow = max(1, Int(floor((availableWidth + spacing) / (chipSize + spacing))))
         return Int(ceil(Double(count) / Double(perRow)))
     }
+
+    /// Whether every item fits in `availableHeight` as it is, with no forced row. `fitWholeRows`
+    /// always keeps at least one row, so on its own it cannot tell a short card whose single row
+    /// overflows from one that really fits.
+    static func allFit(itemHeights: [CGFloat], columns: Int, spacing: CGFloat, availableHeight: CGFloat) -> Bool {
+        rowsHeight(itemHeights: itemHeights, columns: columns, spacing: spacing) <= availableHeight
+    }
 }

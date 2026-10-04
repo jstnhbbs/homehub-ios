@@ -96,5 +96,15 @@ check("no kids, no rows", chipRows(0, width: 200), "0")
 check("unmeasured width assumes one chip per line", chipRows(3, width: 0), "3")
 check("a width narrower than one chip still places one per line", chipRows(3, width: 10), "3")
 
+// Does everything really fit, with no forced row
+func allFit(_ heights: [CGFloat], columns: Int = 1, height: CGFloat) -> String {
+    String(DashboardRowHelpers.allFit(itemHeights: heights, columns: columns, spacing: 8, availableHeight: height))
+}
+check("two tall tiles in one row, in a card too short for them, do not fit", allFit([122, 122], columns: 2, height: 81), "false")
+check("the same tiles in a tall enough card fit", allFit([122, 122], columns: 2, height: 122), "true")
+check("exactly filling the height fits", allFit([50, 50], height: 108), "true")
+check("one point short does not", allFit([50, 50], height: 107), "false")
+check("nothing to show always fits", allFit([], height: 0), "true")
+
 print(failures == 0 ? "\nALL PASSED" : "\n\(failures) FAILED")
 exit(failures == 0 ? 0 : 1)

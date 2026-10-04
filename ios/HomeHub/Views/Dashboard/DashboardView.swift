@@ -1575,14 +1575,12 @@ private struct RoutinesDashboardPanel: View {
                     spacing: 8,
                     maxColumns: 4
                 )
-                let fullFit = DashboardRowHelpers.fitWholeRows(
+                let isCompact = !DashboardRowHelpers.allFit(
                     itemHeights: groups.map { RoutineProgressRow.fullHeight(for: $0) },
                     columns: fullColumns,
                     spacing: 8,
-                    availableHeight: geo.size.height,
-                    footerHeight: DashboardMoreFooter.height
+                    availableHeight: geo.size.height
                 )
-                let isCompact = fullFit.hidden > 0
                 let compactColumns = DashboardRowHelpers.columnCount(
                     availableWidth: geo.size.width,
                     minimumColumnWidth: Self.compactMinimumColumnWidth,
@@ -1591,13 +1589,12 @@ private struct RoutinesDashboardPanel: View {
                 )
                 // Last resort for a big family in a short card: one progress ring per child,
                 // which wraps to fit any number of children in a small space.
-                let ringsOnly = isCompact && DashboardRowHelpers.fitWholeRows(
+                let ringsOnly = isCompact && !DashboardRowHelpers.allFit(
                     itemHeights: Array(repeating: RoutineProgressRow.compactHeight, count: groups.count),
                     columns: compactColumns,
                     spacing: RoutineProgressRow.compactSpacing,
-                    availableHeight: geo.size.height,
-                    footerHeight: 0
-                ).hidden > 0
+                    availableHeight: geo.size.height
+                )
                 if ringsOnly {
                     ScrollView {
                         TagFlowLayout(spacing: 10) {
@@ -2227,13 +2224,12 @@ private struct NapsDashboardPanel: View {
                     let fullColumns = DashboardRowHelpers.columnCount(
                         availableWidth: geo.size.width, minimumColumnWidth: 190, spacing: 8
                     )
-                    let isCompact = DashboardRowHelpers.fitWholeRows(
+                    let isCompact = !DashboardRowHelpers.allFit(
                         itemHeights: fullHeights,
                         columns: fullColumns,
                         spacing: 8,
-                        availableHeight: geo.size.height,
-                        footerHeight: DashboardMoreFooter.height
-                    ).hidden > 0
+                        availableHeight: geo.size.height
+                    )
                     WholeRowsGrid(
                         items: childProfiles,
                         minimumColumnWidth: isCompact ? 200 : 190,
