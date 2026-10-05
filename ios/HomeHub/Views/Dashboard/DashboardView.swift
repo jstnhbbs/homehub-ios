@@ -852,14 +852,15 @@ private struct CompactSnacksSummary: View {
                     Text(snack)
                         .font(.caption.weight(.bold))
                         .lineLimit(1)
-                    SnackChildChips(snack: snack, children: children, records: dashboard.snackCompletions) { child in
-                        try? await appState.toggleSnack(localDate: dashboard.localDate, label: snack, profileId: child.id)
+                    SnackChildChips(snack: snack, children: children, records: dashboard.snackCompletions) { child, eaten in
+                        try? await appState.toggleSnack(localDate: dashboard.localDate, label: snack, profileId: child.id, completed: eaten)
                     }
                 }
             } else {
                 CompactCheckAction(label: snack) {
                     await compactCompletion {
-                        try await appState.toggleSnack(localDate: dashboard.localDate, label: snack)
+                        // Only snacks not yet eaten are offered here.
+                        try await appState.toggleSnack(localDate: dashboard.localDate, label: snack, completed: true)
                     }
                 }
             }
@@ -2563,6 +2564,7 @@ private struct RoutineCheckRow: View {
                         try await appState.toggleRoutineStep(
                             stepId: step.id,
                             localDate: localDate,
+                            completed: true,
                             refreshingDashboard: false
                         )
                     } catch {
@@ -2685,7 +2687,7 @@ private struct ChoreCheckRow: View {
         isWorking = true
         defer { isWorking = false }
         do {
-            try await appState.toggleChore(choreId: chore.id, periodKey: chore.periodKey)
+            try await appState.toggleChore(choreId: chore.id, periodKey: chore.periodKey, completed: true)
             isChecked = true
             withAnimation { isHidden = true }
         } catch {
@@ -2712,8 +2714,8 @@ private struct SnackChildTile: View {
                 .strikethrough(isDone, color: HubTheme.muted)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
-            SnackChildChips(snack: snack, children: children, records: records) { child in
-                try? await appState.toggleSnack(localDate: localDate, label: snack, profileId: child.id)
+            SnackChildChips(snack: snack, children: children, records: records) { child, eaten in
+                try? await appState.toggleSnack(localDate: localDate, label: snack, profileId: child.id, completed: eaten)
             }
         }
         .padding(10)
@@ -2747,7 +2749,7 @@ private struct SnackCheckRow: View {
                 let previous = isChecked
                 isChecked.toggle()
                 do {
-                    try await appState.toggleSnack(localDate: localDate, label: label)
+                    try await appState.toggleSnack(localDate: localDate, label: label, completed: !previous)
                 } catch {
                     isChecked = previous
                 }

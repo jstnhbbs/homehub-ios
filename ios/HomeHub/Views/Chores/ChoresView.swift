@@ -150,7 +150,8 @@ private struct ChoreItemRow: View {
                 color: groupColor,
                 isChecked: $isChecked
             ) {
-                await viewModel.toggleChore(chore)
+                // The row flips `isChecked` after this returns, so the state wanted is the opposite.
+                await viewModel.toggleChore(chore, completed: !isChecked)
                 await viewModel.load()
             }
             .disabled(chore.dueToday == false)

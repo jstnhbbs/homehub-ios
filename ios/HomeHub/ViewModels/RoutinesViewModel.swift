@@ -69,10 +69,11 @@ final class RoutinesViewModel: ObservableObject {
         )
     }
 
+    /// Steps are only checked off from the list, never unchecked, so the wanted state is "done".
     func toggleStep(_ stepId: String) async -> Bool {
         guard let appState else { return false }
         do {
-            try await appState.toggleRoutineStep(stepId: stepId, localDate: localDate)
+            try await appState.toggleRoutineStep(stepId: stepId, localDate: localDate, completed: true)
             return true
         } catch {
             if let message = error.userFacingMessage {

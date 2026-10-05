@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { applyCompletion } from "@/lib/completion-state";
 import { db } from "@/db/client";
 import { profiles, snackCompletions } from "@/db/schema";
 import { SHARED_SNACK_PROFILE, parseSnackOptions } from "@/lib/meals/snacks";
@@ -22,6 +23,8 @@ export async function POST(request: Request) {
         // Which child ate it. Only used when the household tracks snacks per child; older app
         // versions never send it and keep checking snacks off for everyone.
         profileId: z.string().uuid().optional(),
+        // The state the app wants. Left out by older apps, which means "flip it".
+        completed: z.boolean().optional(),
       })
       .parse(await parseJsonBody(request));
 
@@ -61,27 +64,34 @@ export async function POST(request: Request) {
       eq(snackCompletions.profileId, profileId),
     );
 
-    const existing = await db
-      .select({ snackLabel: snackCompletions.snackLabel })
-      .from(snackCompletions)
-      .where(match)
-      .limit(1);
+    const completed = await applyCompletion(input.completed, {
+      isDone: async () =>
+        Boolean(
+          (
+            await db
+              .select({ snackLabel: snackCompletions.snackLabel })
+              .from(snackCompletions)
+              .where(match)
+              .limit(1)
+          )[0],
+        ),
+      mark: async () => {
+        await db
+          .insert(snackCompletions)
+          .values({
+            householdId: household.id,
+            localDate: input.localDate,
+            snackLabel: input.snackLabel,
+            profileId,
+          })
+          .onConflictDoNothing();
+      },
+      unmark: async () => {
+        await db.delete(snackCompletions).where(match);
+      },
+    });
 
-    if (existing[0]) {
-      await db.delete(snackCompletions).where(match);
-    } else {
-      await db
-        .insert(snackCompletions)
-        .values({
-          householdId: household.id,
-          localDate: input.localDate,
-          snackLabel: input.snackLabel,
-          profileId,
-        })
-        .onConflictDoNothing();
-    }
-
-    return mobileJson({ ok: true });
+    return mobileJson({ ok: true, completed });
   } catch (error) {
     return handleMobileError(error);
   }

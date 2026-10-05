@@ -48,6 +48,9 @@ struct RoutineInput: Codable, Sendable {
 struct ToggleRoutineStepRequest: Codable, Sendable {
     var stepId: String
     var localDate: String
+    /// The state wanted, so a repeated request can't flip it back. Servers that predate this
+    /// ignore it and flip the step.
+    var completed: Bool?
 }
 
 struct RoutineStepDisplay: Equatable, Sendable {

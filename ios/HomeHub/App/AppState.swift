@@ -266,25 +266,27 @@ final class AppState: ObservableObject {
 
     /// `refreshingDashboard: false` lets a caller run its own completion animation
     /// first and refresh afterwards, instead of re-rendering mid-animation.
-    func toggleRoutineStep(stepId: String, localDate: String, refreshingDashboard: Bool = true) async throws {
+    /// `completed` is the state to leave the step in. Pass it whenever the caller knows it, so a
+    /// retried or doubled request is harmless; nil asks the server to flip the step.
+    func toggleRoutineStep(stepId: String, localDate: String, completed: Bool? = nil, refreshingDashboard: Bool = true) async throws {
         try await api.toggleRoutineStep(
-            ToggleRoutineStepRequest(stepId: stepId, localDate: localDate)
+            ToggleRoutineStepRequest(stepId: stepId, localDate: localDate, completed: completed)
         )
         if refreshingDashboard {
             await refreshDashboard()
         }
     }
 
-    func toggleChore(choreId: String, periodKey: String) async throws {
+    func toggleChore(choreId: String, periodKey: String, completed: Bool? = nil) async throws {
         try await api.toggleChore(
-            ToggleChoreRequest(choreId: choreId, periodKey: periodKey)
+            ToggleChoreRequest(choreId: choreId, periodKey: periodKey, completed: completed)
         )
         await refreshDashboard()
     }
 
-    func toggleSnack(localDate: String, label: String, profileId: String? = nil) async throws {
+    func toggleSnack(localDate: String, label: String, profileId: String? = nil, completed: Bool? = nil) async throws {
         try await api.toggleSnack(
-            ToggleSnackRequest(localDate: localDate, snackLabel: label, profileId: profileId)
+            ToggleSnackRequest(localDate: localDate, snackLabel: label, profileId: profileId, completed: completed)
         )
         await refreshDashboard()
     }

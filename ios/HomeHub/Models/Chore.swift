@@ -47,4 +47,7 @@ struct ChoreInput: Codable, Sendable {
 struct ToggleChoreRequest: Codable, Sendable {
     var choreId: String
     var periodKey: String
+    /// The state wanted, so a repeated request can't flip it back. Servers that predate this
+    /// ignore it and flip the chore.
+    var completed: Bool?
 }

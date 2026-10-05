@@ -70,6 +70,9 @@ struct ToggleSnackRequest: Codable, Sendable {
     var snackLabel: String
     /// The child who ate it. Only sent when the household tracks snacks per child.
     var profileId: String?
+    /// The state wanted, so a repeated request can't flip it back. Servers that predate this
+    /// ignore it and flip the snack.
+    var completed: Bool?
 }
 
 /// Either field may be sent alone; the server leaves whatever is omitted as it was.

@@ -230,8 +230,8 @@ struct SnacksView: View {
                 snack: snack,
                 children: viewModel.children,
                 records: viewModel.records
-            ) { child in
-                await viewModel.toggleSnack(snack, profileId: child.id)
+            ) { child, eaten in
+                await viewModel.toggleSnack(snack, profileId: child.id, completed: eaten)
             }
         }
         .padding(.vertical, 4)
@@ -267,7 +267,7 @@ struct SnacksView: View {
                         label: snack,
                         isEaten: viewModel.eaten.contains(snack)
                     ) {
-                        await viewModel.toggleSnack(snack)
+                        await viewModel.toggleSnack(snack, completed: !viewModel.eaten.contains(snack))
                     }
                 }
             }

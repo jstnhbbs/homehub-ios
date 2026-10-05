@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { applyCompletion } from "@/lib/completion-state";
 import { db } from "@/db/client";
 import {
   routineCompletions,
@@ -20,6 +21,8 @@ export async function POST(request: Request) {
       .object({
         stepId: z.string().uuid(),
         localDate: z.string().date(),
+        // The state the app wants. Left out by older apps, which means "flip it".
+        completed: z.boolean().optional(),
       })
       .parse(await parseJsonBody(request));
 
@@ -36,38 +39,38 @@ export async function POST(request: Request) {
       .limit(1);
     if (!step[0]) throw new Error("Routine step not found.");
 
-    const existing = await db
-      .select({ stepId: routineCompletions.stepId })
-      .from(routineCompletions)
-      .where(
-        and(
-          eq(routineCompletions.stepId, input.stepId),
-          eq(routineCompletions.localDate, input.localDate),
+    const match = and(
+      eq(routineCompletions.stepId, input.stepId),
+      eq(routineCompletions.localDate, input.localDate),
+    );
+    const completed = await applyCompletion(input.completed, {
+      isDone: async () =>
+        Boolean(
+          (
+            await db
+              .select({ stepId: routineCompletions.stepId })
+              .from(routineCompletions)
+              .where(match)
+              .limit(1)
+          )[0],
         ),
-      )
-      .limit(1);
+      // Already done by someone else: leave that first completion (and who did it) as it is.
+      mark: async () => {
+        await db
+          .insert(routineCompletions)
+          .values({
+            stepId: input.stepId,
+            localDate: input.localDate,
+            completedBy: user.id,
+          })
+          .onConflictDoNothing();
+      },
+      unmark: async () => {
+        await db.delete(routineCompletions).where(match);
+      },
+    });
 
-    if (existing[0]) {
-      await db
-        .delete(routineCompletions)
-        .where(
-          and(
-            eq(routineCompletions.stepId, input.stepId),
-            eq(routineCompletions.localDate, input.localDate),
-          ),
-        );
-    } else {
-      await db
-        .insert(routineCompletions)
-        .values({
-          stepId: input.stepId,
-          localDate: input.localDate,
-          completedBy: user.id,
-        })
-        .onConflictDoNothing();
-    }
-
-    return mobileJson({ ok: true });
+    return mobileJson({ ok: true, completed });
   } catch (error) {
     return handleMobileError(error);
   }

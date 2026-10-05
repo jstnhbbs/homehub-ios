@@ -87,11 +87,12 @@ final class SnacksViewModel: ObservableObject {
         }
     }
 
-    /// `profileId` is the child who ate it when snacks are tracked per child.
-    func toggleSnack(_ label: String, profileId: String? = nil) async {
+    /// `profileId` is the child who ate it when snacks are tracked per child. `completed` is the
+    /// state to leave it in (eaten or not); nil flips it.
+    func toggleSnack(_ label: String, profileId: String? = nil, completed: Bool? = nil) async {
         guard let appState else { return }
         do {
-            try await appState.toggleSnack(localDate: localDate, label: label, profileId: profileId)
+            try await appState.toggleSnack(localDate: localDate, label: label, profileId: profileId, completed: completed)
             // Prefer the refreshed server state; fall back to a local flip if the
             // dashboard isn't loaded for some reason.
             if let dashboard = appState.dashboard {

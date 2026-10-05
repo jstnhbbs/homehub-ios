@@ -9,7 +9,8 @@ struct SnackChildChips: View {
     let snack: String
     let children: [Profile]
     let records: [SnackEatenRecord]
-    let onToggle: (Profile) async -> Void
+    /// Called with the child and the state wanted (true: they ate it), so the request can say so.
+    let onToggle: (Profile, Bool) async -> Void
 
     @State private var working: Set<String> = []
 
@@ -36,7 +37,7 @@ struct SnackChildChips: View {
                 guard !working.contains(child.id) else { return }
                 working.insert(child.id)
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                await onToggle(child)
+                await onToggle(child, !isEaten)
                 working.remove(child.id)
             }
         } label: {

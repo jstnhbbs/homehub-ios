@@ -79,11 +79,12 @@ final class ChoresViewModel: ObservableObject {
         }
     }
 
-    func toggleChore(_ chore: ChoreRow) async {
+    /// `completed` is the state to leave the chore in; nil flips it.
+    func toggleChore(_ chore: ChoreRow, completed: Bool? = nil) async {
         guard let appState else { return }
         do {
             // AppState refreshes the dashboard; `load()` then refreshes this screen's own list.
-            try await appState.toggleChore(choreId: chore.id, periodKey: chore.periodKey)
+            try await appState.toggleChore(choreId: chore.id, periodKey: chore.periodKey, completed: completed)
             await load()
         } catch {
             guard !error.isCancellation else { return }
