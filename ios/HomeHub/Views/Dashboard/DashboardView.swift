@@ -1,4 +1,3 @@
-import Combine
 import SwiftUI
 import UIKit
 
@@ -6,9 +5,10 @@ struct DashboardView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var compactNavigationPath = NavigationPath()
-    /// Ticks once a minute so the birthday banner appears (and goes away) at midnight on its own.
+    /// The moment the day-dependent parts (header date, birthday banner) were last drawn for. It is
+    /// only replaced when the day changes, so the banner appears and goes away at midnight on its own
+    /// without redrawing the whole dashboard every minute.
     @State private var clock = Date()
-    private let minuteTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
     // Greeting keeps its size-class-dependent sizes, now scaled for Dynamic Type.
     @ScaledMetric(relativeTo: .title) private var greetingCompactSize: CGFloat = 26
     @ScaledMetric(relativeTo: .title) private var greetingRegularSize: CGFloat = 32
@@ -59,7 +59,20 @@ struct DashboardView: View {
                 await appState.refreshNativeTodaySchedule()
             }
         }
-        .onReceive(minuteTimer) { clock = $0 }
+        .onTick(every: 60) {
+            let now = Date()
+            if dayChanged(from: clock, to: now) { clock = now }
+        }
+    }
+
+    /// True when `new` is a different day from `old` on the device's calendar or in the household's
+    /// time zone, which is what the birthday banner uses.
+    private func dayChanged(from old: Date, to new: Date) -> Bool {
+        if !Calendar.current.isDate(old, inSameDayAs: new) { return true }
+        guard let id = appState.dashboard?.household.timezone, let timezone = TimeZone(identifier: id) else {
+            return false
+        }
+        return DateHelpers.localDateIn(timezone: timezone, date: old) != DateHelpers.localDateIn(timezone: timezone, date: new)
     }
 
     @ViewBuilder
@@ -786,7 +799,6 @@ private struct CompactScheduleSummary: View {
     let dashboard: DashboardData
 
     @State private var now = Date.now
-    private let ticker = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
     private var timezone: TimeZone {
         TimeZone(identifier: dashboard.household.timezone) ?? .current
@@ -826,7 +838,7 @@ private struct CompactScheduleSummary: View {
                 }
             }
         }
-        .onReceive(ticker) { now = $0 }
+        .onTick(every: 60) { now = Date() }
     }
 }
 
@@ -2012,8 +2024,8 @@ private struct TodaySchedulePanel: View {
         .onChange(of: events.map(\.eventId)) { _, _ in
             scheduleEndTimer()
         }
-        .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { date in
-            now = date
+        .onTick(every: 60) {
+            now = Date()
             scheduleEndTimer()
         }
     }
@@ -2131,7 +2143,6 @@ private struct NapsDashboardPanel: View {
     var fillsHeight = true
 
     @State private var now = Date.now
-    private let timer = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
 
     /// Anyone asleep right now comes first, so with a big family in a short card the children
     /// whose nap or night can be ended are always the ones visible.
@@ -2183,9 +2194,7 @@ private struct NapsDashboardPanel: View {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(HubTheme.line, lineWidth: 1)
         )
-        .onReceive(timer) { date in
-            now = date
-        }
+        .onTick(every: 30) { now = Date() }
     }
 }
 
@@ -2864,5 +2873,19 @@ private enum DashboardCheckTile {
         )
         let chips = CGFloat(chipRows) * SnackChildChips.chipSize + CGFloat(max(0, chipRows - 1)) * SnackChildChips.spacing
         return 20 + CGFloat(titleLineCount) * 20 + 6 + chips
+    }
+}
+
+private extension View {
+    /// Runs `action` every `seconds` while the view is on screen. Unlike `onReceive(Timer.publish(...))`,
+    /// nothing is created each time the view redraws, and the loop ends by itself when the view goes away.
+    func onTick(every seconds: TimeInterval, perform action: @escaping @MainActor () -> Void) -> some View {
+        task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                guard !Task.isCancelled else { return }
+                await action()
+            }
+        }
     }
 }
