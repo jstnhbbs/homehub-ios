@@ -2884,7 +2884,7 @@ private extension View {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
                 guard !Task.isCancelled else { return }
-                await action()
+                action()
             }
         }
     }
