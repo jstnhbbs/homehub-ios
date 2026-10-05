@@ -67,18 +67,14 @@ struct RecipesView: View {
     @ViewBuilder
     private var tagFilterBar: some View {
         if !viewModel.availableTags.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                TagFlowLayout(spacing: 8) {
-                    ForEach(viewModel.availableTags, id: \.self) { tag in
-                        TagChip(text: tag, isSelected: RecipeTagHelpers.contains(viewModel.tagFilters, tag)) {
-                            viewModel.toggleTagFilter(tag)
-                        }
+            TagFlowLayout(spacing: 8) {
+                ForEach(viewModel.availableTags, id: \.self) { tag in
+                    TagChip(text: tag, isSelected: RecipeTagHelpers.contains(viewModel.tagFilters, tag)) {
+                        viewModel.toggleTagFilter(tag)
                     }
                 }
                 if !viewModel.tagFilters.isEmpty {
-                    Button("Clear filters") { viewModel.clearTagFilters() }
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(HubTheme.sage)
+                    ClearFiltersChip { viewModel.clearTagFilters() }
                 }
             }
         }

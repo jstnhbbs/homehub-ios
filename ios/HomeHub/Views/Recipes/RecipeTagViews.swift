@@ -70,6 +70,26 @@ struct TagChip: View {
     }
 }
 
+/// Sits with the filter chips, the same shape, and switches every filter off. Red so it reads as
+/// "undo" rather than another tag to pick.
+struct ClearFiltersChip: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label("Clear filters", systemImage: "xmark")
+                .font(.caption.weight(.bold))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .foregroundStyle(Color.white)
+                .background(Color.red)
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Clear all filters")
+    }
+}
+
 /// A small read-only tag on a recipe card or detail.
 struct TagPill: View {
     let text: String

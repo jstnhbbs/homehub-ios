@@ -71,23 +71,34 @@ struct RemoteImage<Placeholder: View>: View {
     }
 
     var body: some View {
-        Group {
-            if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                placeholder()
+        // The photo is drawn over an empty view that takes whatever size it is given. A photo scaled
+        // to fill is bigger than its frame; clipping hides the extra but does not stop it taking
+        // touches, so on its own a tall photo sat invisibly over the controls above its card and
+        // swallowed their taps (a filter chip that would not switch off, an Add button that barely
+        // answered). The photo takes no touches itself, and the frame is the touch area.
+        Color.clear
+            .overlay {
+                Group {
+                    if let image {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        placeholder()
+                    }
+                }
+                .allowsHitTesting(false)
             }
-        }
-        .task(id: url) {
-            guard image == nil else { return }
-            if let cached = RemoteImageLoader.shared.cachedImage(for: url, maxPixelSize: maxPixelSize) {
-                image = cached
-            } else {
-                image = await RemoteImageLoader.shared.image(for: url, maxPixelSize: maxPixelSize)
+            .clipped()
+            .contentShape(Rectangle())
+            .task(id: url) {
+                guard image == nil else { return }
+                if let cached = RemoteImageLoader.shared.cachedImage(for: url, maxPixelSize: maxPixelSize) {
+                    image = cached
+                } else {
+                    image = await RemoteImageLoader.shared.image(for: url, maxPixelSize: maxPixelSize)
+                }
             }
-        }
-        .onDisappear { image = nil }
+            .onDisappear { image = nil }
     }
 }
