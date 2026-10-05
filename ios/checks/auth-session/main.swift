@@ -9,9 +9,9 @@ func check(_ label: String, _ actual: String, _ expected: String) {
 
 /// Answers every request from `StubServer.handler` and remembers what it was sent.
 final class StubServer: URLProtocol, @unchecked Sendable {
-    nonisolated(unsafe) static var handler: ((URLRequest) -> Result<(Int, String), Error>)?
+    typealias Reply = (status: Int, body: String, headers: [String: String])
+    nonisolated(unsafe) static var handler: ((URLRequest) -> Result<Reply, Error>)?
     nonisolated(unsafe) static var seen: [URLRequest] = []
-    nonisolated(unsafe) static var cookiesHeldWhenSeen: [Int] = []
     nonisolated(unsafe) static var lastBody: Data?
 
     /// A request's body reaches a URLProtocol as a stream, not as `httpBody`.
@@ -36,12 +36,13 @@ final class StubServer: URLProtocol, @unchecked Sendable {
     override func startLoading() {
         Self.seen.append(request)
         Self.lastBody = Self.readBody(of: request)
-        Self.cookiesHeldWhenSeen.append(HTTPCookieStorage.shared.cookies(for: request.url!)?.count ?? 0)
         switch Self.handler?(request) ?? .failure(URLError(.notConnectedToInternet)) {
-        case .success(let (status, body)):
-            let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
+        case .success(let reply):
+            var headers = reply.headers
+            headers["Content-Type"] = "application/json"
+            let response = HTTPURLResponse(url: request.url!, statusCode: reply.status, httpVersion: nil, headerFields: headers)!
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-            client?.urlProtocol(self, didLoad: Data(body.utf8))
+            client?.urlProtocol(self, didLoad: Data(reply.body.utf8))
             client?.urlProtocolDidFinishLoading(self)
         case .failure(let error):
             client?.urlProtocol(self, didFailWithError: error)
@@ -50,11 +51,30 @@ final class StubServer: URLProtocol, @unchecked Sendable {
     override func stopLoading() {}
 }
 
-URLProtocol.registerClass(StubServer.self)
 let base = URL(string: "http://localhost:3000")!
 let userJSON = #"{"user":{"id":"u1","name":"Pat","email":"pat@example.com","emailVerified":false,"image":null},"session":{"id":"s","token":"t","expiresAt":"2026-11-01T00:00:00.000Z","userId":"u1"}}"#
+let setSession = ["Set-Cookie": "better-auth.session_token=TOKEN123.sig; Max-Age=2592000; Path=/; HttpOnly; SameSite=Lax"]
+let clearSession = ["Set-Cookie": "better-auth.session_token=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax"]
 
-func respond(_ status: Int, _ body: String) { StubServer.handler = { _ in .success((status, body)) } }
+func respond(_ status: Int, _ body: String, headers: [String: String] = [:]) {
+    StubServer.handler = { _ in .success((status, body, headers)) }
+}
+
+func makeSession() -> URLSession {
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [StubServer.self]
+    configuration.httpCookieStorage = nil
+    configuration.httpShouldSetCookies = false
+    return URLSession(configuration: configuration)
+}
+
+/// An app with its own empty Keychain stand-in, as a fresh launch would have.
+@MainActor
+func makeApp(store: SecretStore = InMemorySecretStore()) -> (auth: AuthService, credentials: SessionCredentials, client: APIClient, store: SecretStore) {
+    let credentials = SessionCredentials(baseURL: base, store: store)
+    let client = APIClient(baseURL: base, session: makeSession(), credentials: credentials)
+    return (AuthService(baseURL: base, client: client), credentials, client, store)
+}
 
 // MARK: Pure helpers
 
@@ -66,11 +86,11 @@ check("a message from the sign-in service", APIClient.serverErrorMessage(statusC
 check("an error from Beacon's own routes", APIClient.serverErrorMessage(statusCode: 400, data: Data(#"{"error":"Nothing to update."}"#.utf8)), "Nothing to update.")
 check("a page that is not JSON", APIClient.serverErrorMessage(statusCode: 502, data: Data("<html>bad gateway</html>".utf8)), "Unexpected server response (502).")
 
-// MARK: Checking the saved session
-
 @MainActor
 func run() async {
-    let auth = AuthService(baseURL: base)
+    // MARK: Checking the saved session
+
+    let (auth, _, _, _) = makeApp()
 
     respond(200, "null")
     var result = await auth.restoreSession()
@@ -98,65 +118,169 @@ func run() async {
     check("a Wi-Fi sign-in page does not sign anyone out", "\(result) \(auth.isSignedIn)", "unreachable true")
 
     // The saved person is shown straight away, and a "no session" answer then takes them away again.
-    let fresh = AuthService(baseURL: base)
+    let fresh = makeApp().auth
     fresh.adoptSavedUser(try! JSONDecoder().decode(User.self, from: Data(#"{"id":"u1","name":"Pat","email":"p@e.com","emailVerified":false}"#.utf8)))
     check("a saved user is shown before the check", String(fresh.isSignedIn), "true")
     respond(200, "null")
     _ = await fresh.restoreSession()
     check("and goes when the server says there is no session", String(fresh.isSignedIn), "false")
 
-    // MARK: Origin and cookies
+    // MARK: The session lives in the Keychain, not in cookie storage
 
-    func setStaleCookie() {
-        let cookie = HTTPCookie(properties: [.domain: "localhost", .path: "/", .name: "better-auth.session_token", .value: "stale", .secure: "FALSE"])!
-        HTTPCookieStorage.shared.setCookie(cookie)
+    do {
+        let app = makeApp()
+        StubServer.seen = []
+        respond(200, #"{"redirect":false,"token":"t","user":{"id":"u1","name":"Pat","email":"pat@example.com","emailVerified":false}}"#, headers: setSession)
+        try? await app.auth.signIn(email: "pat@example.com", password: "abcdefghij1234")
+        check("signing in saves the session cookie", String(app.credentials.hasSession), "true")
+        let stored = app.store.read(account: "http://localhost:3000").flatMap { try? JSONDecoder().decode([String: String].self, from: $0) }
+        check("in the secret store, by name", stored?["better-auth.session_token"] ?? "nil", "TOKEN123.sig")
+        check("and the person is signed in", app.auth.currentUser?.email ?? "nil", "pat@example.com")
+        check("the sign-in itself carried no cookie", StubServer.seen.first?.value(forHTTPHeaderField: "Cookie") ?? "none", "none")
+        check("sign-in names the origin", StubServer.seen.first?.value(forHTTPHeaderField: "Origin") ?? "nil", "http://localhost:3000")
+
+        // Later requests send it.
+        StubServer.seen = []
+        respond(200, "{}")
+        let _: [String: String]? = try? await app.client.request("/api/mobile/v1/dashboard")
+        check("later requests send the saved cookie", StubServer.seen.first?.value(forHTTPHeaderField: "Cookie") ?? "none", "better-auth.session_token=TOKEN123.sig")
+        check("mobile routes carry no Origin", StubServer.seen.first?.value(forHTTPHeaderField: "Origin") ?? "none", "none")
+
+        // Downloads and uploads send it too.
+        StubServer.seen = []
+        _ = try? await app.client.requestData("/api/mobile/v1/household/export")
+        check("downloads send it", StubServer.seen.first?.value(forHTTPHeaderField: "Cookie") ?? "none", "better-auth.session_token=TOKEN123.sig")
+        StubServer.seen = []
+        let _: [String: String]? = try? await app.client.uploadMultipart("/api/mobile/v1/household/photo", fileData: Data("x".utf8), fileName: "a.jpg", mimeType: "image/jpeg")
+        check("uploads send it", StubServer.seen.first?.value(forHTTPHeaderField: "Cookie") ?? "none", "better-auth.session_token=TOKEN123.sig")
+
+        // It survives the app being closed: a new launch reads it back from the store.
+        let relaunched = makeApp(store: app.store)
+        check("a new launch finds the saved session", String(relaunched.credentials.hasSession), "true")
+        StubServer.seen = []
+        respond(200, "{}")
+        let _: [String: String]? = try? await relaunched.client.request("/api/mobile/v1/dashboard")
+        check("and sends it", StubServer.seen.first?.value(forHTTPHeaderField: "Cookie") ?? "none", "better-auth.session_token=TOKEN123.sig")
+
+        // Never to another server, even if a request is built for one.
+        let other = URL(string: "https://elsewhere.example.com/x")!
+        check("the cookie is not offered to another host", app.credentials.cookieHeader(for: other) ?? "none", "none")
+        check("it is offered to this one", app.credentials.cookieHeader(for: URL(string: "http://localhost:3000/anything")!) ?? "none", "better-auth.session_token=TOKEN123.sig")
+
+        // A response from another host cannot plant a session.
+        let before = app.credentials.cookieHeader(for: base)
+        let foreign = HTTPURLResponse(url: other, statusCode: 200, httpVersion: nil, headerFields: ["Set-Cookie": "better-auth.session_token=EVIL; Path=/"])!
+        app.credentials.absorb(foreign, from: other)
+        check("a cookie from another host is ignored", String(app.credentials.cookieHeader(for: base) == before), "true")
+
+        // MARK: Signing out
+
+        StubServer.seen = []
+        respond(200, #"{"success":true}"#, headers: clearSession)
+        await app.auth.signOut()
+        let signOutRequest = StubServer.seen.first
+        check("sign-out sends the saved cookie", signOutRequest?.value(forHTTPHeaderField: "Cookie") ?? "none", "better-auth.session_token=TOKEN123.sig")
+        check("sign-out names the server's origin", signOutRequest?.value(forHTTPHeaderField: "Origin") ?? "nil", "http://localhost:3000")
+        check("sign-out goes to the sign-in service", signOutRequest?.url?.path ?? "nil", "/api/auth/sign-out")
+        check("sign-out says its body is JSON", signOutRequest?.value(forHTTPHeaderField: "Content-Type") ?? "nil", "application/json")
+        check("and sends an empty object", String(data: StubServer.lastBody ?? Data(), encoding: .utf8) ?? "nil", "{}")
+        check("the session is gone from the store", String(app.store.read(account: "http://localhost:3000") == nil), "true")
+        check("and the person is signed out", String(app.auth.isSignedIn), "false")
+        StubServer.seen = []
+        respond(200, "{}")
+        let _: [String: String]? = try? await app.client.request("/api/mobile/v1/dashboard")
+        check("a later request sends no cookie", StubServer.seen.first?.value(forHTTPHeaderField: "Cookie") ?? "none", "none")
     }
 
-    // Signing out must reach the server with its cookie and an Origin, or the server refuses it.
-    setStaleCookie()
-    StubServer.seen = []
-    respond(200, #"{"success":true}"#)
-    await auth.signOut()
-    let signOutRequest = StubServer.seen.first
-    let signOutBody = StubServer.lastBody
-    check("sign-out names the server's origin", signOutRequest?.value(forHTTPHeaderField: "Origin") ?? "nil", "http://localhost:3000")
-    check("sign-out goes to the sign-in service", signOutRequest?.url?.path ?? "nil", "/api/auth/sign-out")
-    check("sign-out says its body is JSON", signOutRequest?.value(forHTTPHeaderField: "Content-Type") ?? "nil", "application/json")
-    check("and sends an empty object", String(data: signOutBody ?? Data(), encoding: .utf8) ?? "nil", "{}")
-    check("the cookie is forgotten afterwards", String(HTTPCookieStorage.shared.cookies(for: base)?.count ?? 0), "0")
-    check("and the person is signed out", String(auth.isSignedIn), "false")
-
     // Even when the server cannot be reached, the device forgets the session.
-    setStaleCookie()
-    respond(200, userJSON)
-    _ = await auth.restoreSession()
-    StubServer.handler = { _ in .failure(URLError(.notConnectedToInternet)) }
-    await auth.signOut()
-    check("offline sign-out still signs out here", String(auth.isSignedIn), "false")
-    check("and forgets the cookie", String(HTTPCookieStorage.shared.cookies(for: base)?.count ?? 0), "0")
+    do {
+        let app = makeApp()
+        respond(200, userJSON, headers: setSession)
+        try? await app.auth.signIn(email: "pat@example.com", password: "abcdefghij1234")
+        check("signed in again", String(app.credentials.hasSession), "true")
+        StubServer.handler = { _ in .failure(URLError(.notConnectedToInternet)) }
+        await app.auth.signOut()
+        check("offline sign-out still signs out here", String(app.auth.isSignedIn), "false")
+        check("and forgets the session", String(app.credentials.hasSession) + " " + String(app.store.read(account: "http://localhost:3000") == nil), "false true")
+    }
 
-    // Signing in starts with no old cookie, so the server has no Origin check to apply.
-    setStaleCookie()
-    StubServer.seen = []
-    StubServer.cookiesHeldWhenSeen = []
-    respond(200, #"{"redirect":false,"token":"t","user":{"id":"u1","name":"Pat","email":"pat@example.com","emailVerified":false}}"#)
-    try? await auth.signIn(email: "pat@example.com", password: "abcdefghij1234")
-    check("sign-in is sent with no old cookie held", String(StubServer.cookiesHeldWhenSeen.first ?? -1), "0")
-    check("sign-in also names the origin", StubServer.seen.first?.value(forHTTPHeaderField: "Origin") ?? "nil", "http://localhost:3000")
-    check("and signs the person in", auth.currentUser?.email ?? "nil", "pat@example.com")
+    // Signing in starts with no old session, so the server has no Origin check to apply.
+    do {
+        let app = makeApp()
+        respond(200, "{}", headers: setSession)
+        let _: [String: String]? = try? await app.client.request("/api/mobile/v1/x")
+        check("an old session is held", String(app.credentials.hasSession), "true")
+        StubServer.seen = []
+        respond(200, #"{"redirect":false,"token":"t","user":{"id":"u1","name":"Pat","email":"pat@example.com","emailVerified":false}}"#, headers: ["Set-Cookie": "better-auth.session_token=NEW.sig; Max-Age=2592000; Path=/"])
+        try? await app.auth.signIn(email: "pat@example.com", password: "abcdefghij1234")
+        check("sign-in is sent with no old cookie", StubServer.seen.first?.value(forHTTPHeaderField: "Cookie") ?? "none", "none")
+        check("and the new session replaces the old", app.credentials.cookieHeader(for: base) ?? "none", "better-auth.session_token=NEW.sig")
+    }
 
     // A wrong password reads as a sentence, not JSON.
-    respond(401, #"{"message":"Invalid email or password","code":"INVALID_EMAIL_OR_PASSWORD"}"#)
-    var message = "no error"
-    do { try await auth.signIn(email: "pat@example.com", password: "wrong-password") } catch { message = error.localizedDescription }
-    check("a wrong password is a readable message", message, "Invalid email or password")
+    do {
+        let app = makeApp()
+        respond(401, #"{"message":"Invalid email or password","code":"INVALID_EMAIL_OR_PASSWORD"}"#)
+        var message = "no error"
+        do { try await app.auth.signIn(email: "pat@example.com", password: "wrong-password") } catch { message = error.localizedDescription }
+        check("a wrong password is a readable message", message, "Invalid email or password")
+        check("and saves no session", String(app.credentials.hasSession), "false")
+    }
 
-    // Beacon's own routes get no Origin: they are not behind the sign-in service's check.
-    StubServer.seen = []
-    respond(200, "{}")
-    let api = APIClient(baseURL: base)
-    let _: [String: String]? = try? await api.request("/api/mobile/v1/dashboard")
-    check("mobile routes carry no Origin", StubServer.seen.first?.value(forHTTPHeaderField: "Origin") ?? "none", "none")
+    // The sign-in service can rotate the cookie on any response, and the app keeps up.
+    do {
+        let app = makeApp()
+        respond(200, "{}", headers: setSession)
+        let _: [String: String]? = try? await app.client.request("/api/mobile/v1/a")
+        respond(200, "{}", headers: ["Set-Cookie": "better-auth.session_token=ROTATED.sig; Max-Age=2592000; Path=/"])
+        let _: [String: String]? = try? await app.client.request("/api/mobile/v1/b")
+        check("a refreshed cookie replaces the old one", app.credentials.cookieHeader(for: base) ?? "none", "better-auth.session_token=ROTATED.sig")
+        // Several cookies are all kept and sent.
+        respond(200, "{}", headers: ["Set-Cookie": "other=1; Path=/"])
+        let _: [String: String]? = try? await app.client.request("/api/mobile/v1/c")
+        check("more than one cookie is kept", app.credentials.cookieHeader(for: base) ?? "none", "better-auth.session_token=ROTATED.sig; other=1")
+    }
+
+    // The production cookie name carries a prefix and is Secure.
+    do {
+        let secure = URL(string: "https://hobbshomehub.vercel.app")!
+        let credentials = SessionCredentials(baseURL: secure, store: InMemorySecretStore())
+        let response = HTTPURLResponse(url: secure, statusCode: 200, httpVersion: nil, headerFields: ["Set-Cookie": "__Secure-better-auth.session_token=PROD.sig; Max-Age=2592000; Path=/; HttpOnly; Secure; SameSite=Lax"])!
+        credentials.absorb(response, from: secure)
+        check("the production cookie is kept under its full name", credentials.cookieHeader(for: secure) ?? "none", "__Secure-better-auth.session_token=PROD.sig")
+    }
+
+    // MARK: Moving over from the old cookie storage
+
+    do {
+        let suite = UserDefaults(suiteName: "auth-session-check-\(UUID().uuidString)")!
+        let storage = HTTPCookieStorage.sharedCookieStorage(forGroupContainerIdentifier: "auth-session-check-\(UUID().uuidString)")
+        let old = HTTPCookie(properties: [.domain: "localhost", .path: "/", .name: "better-auth.session_token", .value: "OLD.sig"])!
+        storage.setCookie(old)
+
+        // Someone already signed in: the cookie moves to the store and is removed from the old place.
+        let upgrading = SessionCredentials(baseURL: base, store: InMemorySecretStore())
+        upgrading.migrateOnFirstLaunch(baseURL: base, defaults: suite, storage: storage)
+        check("an existing sign-in moves to the secure store", upgrading.cookieHeader(for: base) ?? "none", "better-auth.session_token=OLD.sig")
+        check("and is removed from the cookie storage", String(storage.cookies(for: base)?.count ?? 0), "0")
+
+        // It only happens once.
+        let again = SessionCredentials(baseURL: base, store: InMemorySecretStore())
+        again.migrateOnFirstLaunch(baseURL: base, defaults: suite, storage: storage)
+        check("it does not run a second time", String(again.hasSession), "false")
+    }
+
+    do {
+        // A fresh install: the Keychain still holds the last install's session, which is cleared.
+        let suite = UserDefaults(suiteName: "auth-session-check-\(UUID().uuidString)")!
+        let storage = HTTPCookieStorage.sharedCookieStorage(forGroupContainerIdentifier: "auth-session-check-\(UUID().uuidString)")
+        let leftover = InMemorySecretStore()
+        leftover.write(try! JSONEncoder().encode(["better-auth.session_token": "LEFTOVER.sig"]), account: "http://localhost:3000")
+        let credentials = SessionCredentials(baseURL: base, store: leftover)
+        check("the leftover is read at first", String(credentials.hasSession), "true")
+        credentials.migrateOnFirstLaunch(baseURL: base, defaults: suite, storage: storage)
+        check("a fresh install clears a session left in the Keychain", String(credentials.hasSession) + " " + String(leftover.read(account: "http://localhost:3000") == nil), "false true")
+    }
 
     if failures > 0 {
         print("\(failures) failed")

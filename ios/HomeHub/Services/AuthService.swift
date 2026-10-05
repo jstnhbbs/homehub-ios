@@ -8,8 +8,8 @@ final class AuthService: ObservableObject {
 
     private let client: APIClient
 
-    init(baseURL: URL) {
-        self.client = APIClient(baseURL: baseURL)
+    init(baseURL: URL, client: APIClient? = nil) {
+        self.client = client ?? APIClient(baseURL: baseURL)
     }
 
     var isSignedIn: Bool {

@@ -39,10 +39,22 @@ extension Error {
 struct APIClient: Sendable {
     let baseURL: URL
     private let session: URLSession
+    private let credentials: SessionCredentials
 
-    init(baseURL: URL, session: URLSession = .shared) {
+    /// A session that leaves cookies alone: the app keeps the sign-in cookie in the Keychain and sends
+    /// it itself (see `SessionCredentials`), so the system's cookie storage must not also hold it.
+    static let defaultSession: URLSession = {
+        let configuration = URLSessionConfiguration.default
+        configuration.httpCookieStorage = nil
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieAcceptPolicy = .never
+        return URLSession(configuration: configuration)
+    }()
+
+    init(baseURL: URL, session: URLSession = APIClient.defaultSession, credentials: SessionCredentials? = nil) {
         self.baseURL = baseURL
         self.session = session
+        self.credentials = credentials ?? SessionCredentials.shared(for: baseURL)
     }
 
     /// The server's own origin, such as "https://example.com" or "http://localhost:3000".
@@ -68,12 +80,24 @@ struct APIClient: Sendable {
         request.setValue(origin, forHTTPHeaderField: "Origin")
     }
 
-    /// Forgets the session cookie held for this server.
+    /// Forgets the saved session for this server.
     func clearCookies() {
-        let storage = session.configuration.httpCookieStorage ?? HTTPCookieStorage.shared
-        for cookie in storage.cookies(for: baseURL) ?? [] {
-            storage.deleteCookie(cookie)
+        credentials.clear()
+    }
+
+    /// Sends the saved session with a request to this server.
+    private func attachSession(to request: inout URLRequest) {
+        guard let url = request.url, let header = credentials.cookieHeader(for: url) else { return }
+        request.setValue(header, forHTTPHeaderField: "Cookie")
+    }
+
+    /// Runs a request and keeps any cookies the server set or removed.
+    private func send(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        let (data, response) = try await session.data(for: request)
+        if let http = response as? HTTPURLResponse, let url = request.url {
+            credentials.absorb(http, from: url)
         }
+        return (data, response)
     }
 
     func request<T: Decodable>(
@@ -92,13 +116,14 @@ struct APIClient: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Beacon-iOS/1.0", forHTTPHeaderField: "User-Agent")
         addOriginIfNeeded(to: &request, path: path)
+        attachSession(to: &request)
 
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONEncoder.api.encode(body)
         }
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await send(request)
         guard let http = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
         }
@@ -127,8 +152,9 @@ struct APIClient: Sendable {
         var request = URLRequest(url: url)
         request.timeoutInterval = timeout
         request.setValue("Beacon-iOS/1.0", forHTTPHeaderField: "User-Agent")
+        attachSession(to: &request)
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await send(request)
         guard let http = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
         }
@@ -174,9 +200,10 @@ struct APIClient: Sendable {
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Beacon-iOS/1.0", forHTTPHeaderField: "User-Agent")
+        attachSession(to: &request)
         request.httpBody = body
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await send(request)
         guard let http = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
         }
@@ -211,13 +238,14 @@ struct APIClient: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Beacon-iOS/1.0", forHTTPHeaderField: "User-Agent")
         addOriginIfNeeded(to: &request, path: path)
+        attachSession(to: &request)
 
         if let jsonBody {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONEncoder.api.encode(jsonBody)
         }
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await send(request)
         guard let http = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
         }
