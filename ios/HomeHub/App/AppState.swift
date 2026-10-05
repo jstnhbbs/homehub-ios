@@ -153,17 +153,25 @@ final class AppState: ObservableObject {
 
     func bootstrap() async {
         isBootstrapping = true
-        await auth.restoreSession()
+
+        // Open straight to the saved screens when there are any, then check the session behind them.
+        // Waiting for the server first meant a slow or missing connection left a spinner (or, before,
+        // the sign-in screen) where the app should have been.
+        if let savedUser = localStore.loadUser() {
+            auth.adoptSavedUser(savedUser)
+            hydrateFromLocalStore()
+            if household != nil || dashboard != nil {
+                isBootstrapping = false
+            }
+        }
+
+        let check = await auth.restoreSession()
+        if check == .signedIn {
+            localStore.saveUser(auth.currentUser)
+        }
+
         guard auth.isSignedIn else {
-            household = nil
-            dashboard = nil
-            hubModules = .defaults
-            pendingHubModulesSave = nil
-            selectedDestination = .dashboard
-            pendingFoodSection = nil
-            pendingProfileEditId = nil
-            localStore.clear()
-            HomeHubWidgetStore.clear()
+            clearSignedInState()
             isBootstrapping = false
             return
         }
@@ -185,15 +193,31 @@ final class AppState: ObservableObject {
         do {
             household = try await api.fetchHousehold()
             localStore.saveHousehold(household)
+            localStore.saveUser(auth.currentUser)
             if household != nil {
                 await refreshDashboard()
             } else {
                 dashboard = nil
             }
         } catch {
+            if case APIError.unauthorized = error {
+                await handleSessionExpired()
+                return
+            }
             hydrateFromLocalStore()
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// The server no longer accepts this device's session (it expired, or was ended from somewhere
+    /// else). Nothing more can be saved or loaded, so go back to sign-in and say why, rather than
+    /// leave every screen failing.
+    func handleSessionExpired() async {
+        guard auth.isSignedIn else { return }
+        auth.endSessionLocally()
+        clearSignedInState()
+        await SleepLiveActivityManager.endAll()
+        showNotice("You were signed out. Please sign in again.")
     }
 
     /// Calendar, Reminders and weather are read from the device, and the system tells us the moment a
@@ -236,6 +260,10 @@ final class AppState: ObservableObject {
                 )
             }
         } catch {
+            if case APIError.unauthorized = error {
+                await handleSessionExpired()
+                return
+            }
             let hadData = dashboard != nil
             hydrateFromLocalStore()
             errorMessage = error.localizedDescription
@@ -423,11 +451,24 @@ final class AppState: ObservableObject {
     }
 
     func refreshSession() async {
-        await auth.restoreSession()
+        switch await auth.restoreSession() {
+        case .signedIn:
+            localStore.saveUser(auth.currentUser)
+        case .signedOut:
+            await handleSessionExpired()
+        case .unreachable:
+            break
+        }
     }
 
     func signOut() async {
         await auth.signOut()
+        clearSignedInState()
+        await SleepLiveActivityManager.endAll()
+    }
+
+    /// Everything that belongs to the signed-in person, for sign-out and for an ended session.
+    private func clearSignedInState() {
         household = nil
         dashboard = nil
         hubModules = .defaults
@@ -437,8 +478,8 @@ final class AppState: ObservableObject {
         localStore.clear()
         HomeHubWidgetStore.clear()
         lastDeviceRefreshAt = nil
-        await SleepLiveActivityManager.endAll()
         pendingProfileEditId = nil
+        pendingFoodSection = nil
         selectedDestination = .dashboard
     }
 

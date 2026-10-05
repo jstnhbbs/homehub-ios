@@ -7,12 +7,22 @@ final class HomeHubLocalSnapshot {
     var updatedAt: Date
     var householdData: Data?
     var dashboardData: Data?
+    /// Who was signed in, so the app can open straight to the saved screens with no connection.
+    /// Added later than the rest; a copy saved by an older version simply has none.
+    var userData: Data?
 
-    init(id: String, updatedAt: Date = .now, householdData: Data? = nil, dashboardData: Data? = nil) {
+    init(
+        id: String,
+        updatedAt: Date = .now,
+        householdData: Data? = nil,
+        dashboardData: Data? = nil,
+        userData: Data? = nil
+    ) {
         self.id = id
         self.updatedAt = updatedAt
         self.householdData = householdData
         self.dashboardData = dashboardData
+        self.userData = userData
     }
 }
 
@@ -54,6 +64,19 @@ final class HomeHubLocalStore {
     func loadHousehold() -> Household? {
         guard let data = currentSnapshot()?.householdData else { return nil }
         return try? decoder.decode(Household.self, from: data)
+    }
+
+    func loadUser() -> User? {
+        guard let data = currentSnapshot()?.userData else { return nil }
+        return try? decoder.decode(User.self, from: data)
+    }
+
+    func saveUser(_ user: User?) {
+        guard let user, let data = try? encoder.encode(user) else { return }
+        let snapshot = editableSnapshot()
+        guard snapshot.userData != data else { return }
+        snapshot.userData = data
+        save()
     }
 
     func loadDashboard() -> DashboardData? {

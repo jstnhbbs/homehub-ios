@@ -45,6 +45,37 @@ struct APIClient: Sendable {
         self.session = session
     }
 
+    /// The server's own origin, such as "https://example.com" or "http://localhost:3000".
+    ///
+    /// The sign-in service (Better Auth) refuses any request that carries a cookie but no Origin
+    /// header ("Missing or null Origin"), to stop other websites using a signed-in person's cookie.
+    /// A native app has no origin of its own, so for the sign-in service's paths it presents the
+    /// server's. Without this, signing out failed quietly (the session stayed valid on the server)
+    /// and signing in again was refused while the old cookie was still held.
+    static func origin(of baseURL: URL) -> String? {
+        guard let scheme = baseURL.scheme, let host = baseURL.host else { return nil }
+        if let port = baseURL.port { return "\(scheme)://\(host):\(port)" }
+        return "\(scheme)://\(host)"
+    }
+
+    /// The paths served by the sign-in service rather than Beacon's own mobile API.
+    static func isAuthPath(_ path: String) -> Bool {
+        path.hasPrefix("/api/auth/")
+    }
+
+    private func addOriginIfNeeded(to request: inout URLRequest, path: String) {
+        guard Self.isAuthPath(path), let origin = Self.origin(of: baseURL) else { return }
+        request.setValue(origin, forHTTPHeaderField: "Origin")
+    }
+
+    /// Forgets the session cookie held for this server.
+    func clearCookies() {
+        let storage = session.configuration.httpCookieStorage ?? HTTPCookieStorage.shared
+        for cookie in storage.cookies(for: baseURL) ?? [] {
+            storage.deleteCookie(cookie)
+        }
+    }
+
     func request<T: Decodable>(
         _ path: String,
         method: String = "GET",
@@ -60,6 +91,7 @@ struct APIClient: Sendable {
         request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Beacon-iOS/1.0", forHTTPHeaderField: "User-Agent")
+        addOriginIfNeeded(to: &request, path: path)
 
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -178,6 +210,7 @@ struct APIClient: Sendable {
         request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Beacon-iOS/1.0", forHTTPHeaderField: "User-Agent")
+        addOriginIfNeeded(to: &request, path: path)
 
         if let jsonBody {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -199,9 +232,11 @@ struct APIClient: Sendable {
     }
 
     static func serverErrorMessage(statusCode: Int, data: Data) -> String {
-        if let error = try? JSONDecoder.api.decode(ErrorResponse.self, from: data).error,
-           !error.isEmpty {
-            return error
+        // Beacon's own routes answer {"error": "..."}; the sign-in service answers {"message": "..."}.
+        if let response = try? JSONDecoder.api.decode(ErrorResponse.self, from: data),
+           let text = response.error ?? response.message,
+           !text.isEmpty {
+            return text
         }
 
         let body = String(data: data, encoding: .utf8) ?? ""
@@ -249,7 +284,8 @@ struct APIClient: Sendable {
 }
 
 struct ErrorResponse: Decodable, Sendable {
-    let error: String
+    var error: String?
+    var message: String?
 }
 
 extension JSONEncoder {
