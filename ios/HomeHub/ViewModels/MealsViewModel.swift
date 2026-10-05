@@ -301,7 +301,7 @@ final class MealsViewModel: ObservableObject {
                 guard let planned = meal(localDate: localDate, slot: slot) else { continue }
                 let title = planned.title.trimmingCharacters(in: .whitespacesAndNewlines)
                 if let recipeId = planned.recipeId, let recipe = recipeDetails[recipeId] {
-                    for ingredient in recipe.ingredients {
+                    for ingredient in RecipeLines.items(recipe.ingredients) {
                         entries.append((source: recipe.title, ingredient: ingredient))
                     }
                 } else if !title.isEmpty, !mealsWithoutRecipe.contains(title) {

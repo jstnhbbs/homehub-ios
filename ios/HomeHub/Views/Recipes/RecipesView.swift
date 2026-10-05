@@ -169,6 +169,11 @@ struct RecipesView: View {
                         } label: {
                             Label("Import from URL", systemImage: "arrow.down.circle")
                         }
+                        Button {
+                            activeRecipeSheet = .importCrouton(UUID())
+                        } label: {
+                            Label("Import from Crouton", systemImage: "square.and.arrow.down.on.square")
+                        }
                     } label: {
                         Label("Add Recipe", systemImage: "plus")
                     }
@@ -235,7 +240,7 @@ private struct RecipeCard: View {
                         if let totalTime = recipe.totalTime {
                             Text(totalTime).font(.caption2.weight(.bold)).foregroundStyle(HubTheme.muted)
                         }
-                        Text("\(recipe.ingredients.count) ingredients")
+                        Text("\(RecipeLines.items(recipe.ingredients).count) ingredients")
                             .font(.caption2.weight(.bold))
                             .foregroundStyle(HubTheme.muted)
                     }
@@ -264,6 +269,19 @@ private struct RecipeCard: View {
                 .font(.caption.weight(.bold))
                 .foregroundStyle(HubTheme.muted)
         }
+    }
+}
+
+/// A group heading inside a recipe's ingredients or directions ("For the gravy", "Stove").
+private struct RecipeSectionHeading: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.subheadline.weight(.heavy))
+            .foregroundStyle(HubTheme.sage)
+            .padding(.top, 10)
+            .accessibilityAddTraits(.isHeader)
     }
 }
 
@@ -337,19 +355,29 @@ private struct RecipeDetailPanel: View {
                                 .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
                                 .disabled(viewModel.isWorking)
                             }
-                            ForEach(recipe.ingredients, id: \.self) { item in
-                                Text("• \(item)")
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .padding(.vertical, 4)
+                            ForEach(Array(RecipeLines.display(recipe.ingredients).enumerated()), id: \.offset) { _, line in
+                                switch line {
+                                case .heading(let text):
+                                    RecipeSectionHeading(text: text)
+                                case .item(_, let text):
+                                    Text("• \(text)")
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .padding(.vertical, 4)
+                                }
                             }
                         }
 
                         if !recipe.directions.isEmpty {
                             Text("Directions").font(.headline)
-                            ForEach(Array(recipe.directions.enumerated()), id: \.offset) { index, step in
-                                Text("\(index + 1). \(step)")
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .padding(.vertical, 4)
+                            ForEach(Array(RecipeLines.display(recipe.directions).enumerated()), id: \.offset) { _, line in
+                                switch line {
+                                case .heading(let text):
+                                    RecipeSectionHeading(text: text)
+                                case .item(let number, let text):
+                                    Text("\(number). \(text)")
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .padding(.vertical, 4)
+                                }
                             }
                         }
 
@@ -412,6 +440,7 @@ private enum RecipeSheetPresentation: Identifiable {
     case add(UUID)
     case edit(String)
     case importRecipe(UUID)
+    case importCrouton(UUID)
 
     var id: String {
         switch self {
@@ -421,6 +450,8 @@ private enum RecipeSheetPresentation: Identifiable {
             "edit-\(recipeId)"
         case .importRecipe(let id):
             "import-\(id.uuidString)"
+        case .importCrouton(let id):
+            "crouton-\(id.uuidString)"
         }
     }
 }
@@ -444,6 +475,8 @@ private struct RecipeManagementSheet: View {
             "Edit Recipe"
         case .importRecipe:
             "Import Recipe"
+        case .importCrouton:
+            "Import from Crouton"
         }
     }
 
@@ -499,6 +532,10 @@ private struct RecipeManagementSheet: View {
                     case .importRecipe:
                         RecipeImportForm(viewModel: viewModel) {
                             dismiss()
+                        }
+                    case .importCrouton:
+                        CroutonImportView {
+                            await viewModel.load()
                         }
                     }
                 }

@@ -332,9 +332,16 @@ export const recipes = sqliteTable(
     sourceUrl: text("source_url"),
     imageUrl: text("image_url"),
     notes: text("notes"),
+    // Where an imported recipe came from ("crouton:<id>"); null for recipes added any other way.
+    importKey: text("import_key"),
     ...timestamps,
   },
-  (table) => [index("recipes_household_idx").on(table.householdId)],
+  (table) => [
+    index("recipes_household_idx").on(table.householdId),
+    uniqueIndex("recipes_household_import_key_idx")
+      .on(table.householdId, table.importKey)
+      .where(sql`${table.importKey} is not null`),
+  ],
 );
 
 export const meals = sqliteTable(

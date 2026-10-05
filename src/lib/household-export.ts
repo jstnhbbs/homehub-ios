@@ -145,7 +145,8 @@ export async function buildHouseholdExport(householdId: string) {
     })),
     sleepLogs: sleepRows.map((row) => omit(row, "householdId")),
     recipes: recipeRows.map((row) => ({
-      ...omit(row, "householdId"),
+      // importKey is bookkeeping for re-imports, not something the family wrote.
+      ...omit(row, "householdId", "importKey"),
       ingredients: parseJsonArray(row.ingredients),
       directions: parseJsonArray(row.directions),
       tags: parseJsonArray(row.tags),

@@ -25,11 +25,12 @@ beforeAll(async () => {
   cpSync(path.resolve("drizzle"), folder, { recursive: true });
   const journalPath = path.join(folder, "meta/_journal.json");
   const journal = JSON.parse(readFileSync(journalPath, "utf8")) as { entries: Array<{ tag: string }> };
-  const last = journal.entries.at(-1)!;
-  expect(last.tag).toBe("0026_one_active_sleep_per_child");
+  // Found by name, so migrations added after 0026 don't change what this test builds.
+  const at0026 = journal.entries.findIndex((entry) => entry.tag === "0026_one_active_sleep_per_child");
+  expect(at0026).toBeGreaterThan(0);
 
   // The database as it stood before 0026.
-  writeFileSync(journalPath, JSON.stringify({ ...journal, entries: journal.entries.slice(0, -1) }));
+  writeFileSync(journalPath, JSON.stringify({ ...journal, entries: journal.entries.slice(0, at0026) }));
   client = createClient({ url: `file:${path.join(dir, "test.db")}` });
   await migrate(drizzle(client), { migrationsFolder: folder });
 
@@ -58,7 +59,7 @@ beforeAll(async () => {
   await log("p3-a", "p3", "2026-10-04T07:00:00Z", null);
   await log("p3-b", "p3", "2026-10-04T07:00:00Z", null);
 
-  // Now apply 0026, as a deploy would.
+  // Now apply 0026 (and anything after it), as a deploy would.
   cpSync(path.resolve("drizzle/meta/_journal.json"), journalPath);
   await migrate(drizzle(client), { migrationsFolder: folder });
 });

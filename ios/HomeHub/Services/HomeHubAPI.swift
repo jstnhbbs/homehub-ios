@@ -296,6 +296,25 @@ final class HomeHubAPI: ObservableObject {
         try await client.request("/api/mobile/v1/recipes/import", method: "POST", body: input)
     }
 
+    /// Imports up to 25 recipes read from a Crouton export. Text only; each created recipe's photo is
+    /// sent afterwards with `uploadRecipePhoto`.
+    func importCroutonRecipes(_ recipes: [CroutonRecipePayload]) async throws -> CroutonImportResponse {
+        try await client.request(
+            "/api/mobile/v1/recipes/import/crouton",
+            method: "POST",
+            body: CroutonImportRequest(recipes: recipes)
+        )
+    }
+
+    func uploadRecipePhoto(recipeId: String, jpeg: Data) async throws {
+        let _: IgnoredResponse = try await client.uploadMultipart(
+            "/api/mobile/v1/recipes/\(recipeId)/image",
+            fileData: jpeg,
+            fileName: "photo.jpg",
+            mimeType: "image/jpeg"
+        )
+    }
+
     func suggestRecipeTags(title: String, ingredients: [String]) async throws -> [String] {
         let response: SuggestRecipeTagsResponse = try await client.request(
             "/api/mobile/v1/recipes/suggest-tags",
@@ -403,6 +422,9 @@ final class HomeHubAPI: ObservableObject {
         try await client.request("/api/mobile/v1/calendar/settings", method: "PATCH", body: input)
     }
 }
+
+/// For a request whose answer isn't needed, only that it worked.
+private struct IgnoredResponse: Decodable, Sendable {}
 
 private struct WeekRequest: Encodable {
     let weekStart: String

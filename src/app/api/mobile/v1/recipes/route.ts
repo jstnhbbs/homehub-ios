@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
+import { MAX_DIRECTION_LINE } from "@/lib/recipes/limits";
 import { webUrl } from "@/lib/web-url";
 import { db } from "@/db/client";
 import { recipes } from "@/db/schema";
@@ -24,7 +25,7 @@ const recipeInputSchema = z.object({
   cookTime: z.string().trim().max(80).optional(),
   totalTime: z.string().trim().max(80).optional(),
   ingredients: z.array(z.string().trim().min(1).max(300)).min(1).max(80),
-  directions: z.array(z.string().trim().min(1).max(1000)).min(1).max(80),
+  directions: z.array(z.string().trim().min(1).max(MAX_DIRECTION_LINE)).min(1).max(80),
   nutrition: z.record(z.string(), z.string()).optional(),
   sourceUrl: webUrl.optional(),
   imageUrl: webUrl.optional(),

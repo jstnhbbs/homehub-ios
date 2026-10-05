@@ -47,6 +47,7 @@ yarn-error.log*
 *.db-wal
 public/profile-photos/
 public/household-photos/
+public/recipe-images/
 
 # Xcode user-specific state
 **/xcuserdata/

@@ -73,7 +73,8 @@ final class RecipesViewModel: ObservableObject {
     /// Asks the server to guess tags from a recipe being edited. Returns nothing on failure.
     func suggestTags(title: String, ingredients: [String]) async -> [String] {
         guard let appState else { return [] }
-        return (try? await appState.api.suggestRecipeTags(title: title, ingredients: ingredients)) ?? []
+        // A heading like "Chicken" would otherwise count as an ingredient and suggest a tag.
+        return (try? await appState.api.suggestRecipeTags(title: title, ingredients: RecipeLines.items(ingredients))) ?? []
     }
 
     func importRecipe() async -> Bool {
@@ -151,9 +152,8 @@ final class RecipesViewModel: ObservableObject {
 
     func addIngredientsToGroceryList(_ recipe: Recipe) async -> Bool {
         guard let appState else { return false }
-        let ingredients = recipe.ingredients
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
+        // Group headings ("## Gravy") are labels, not things to buy.
+        let ingredients = RecipeLines.items(recipe.ingredients)
         guard !ingredients.isEmpty else {
             errorMessage = "This recipe does not have ingredients to add."
             return false
