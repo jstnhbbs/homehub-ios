@@ -44,6 +44,16 @@ enum RecipeTagHelpers {
         return adding(tag, to: tags)
     }
 
+    /// Switches a filter chip on or off. The tag is used exactly as the chip shows it: `toggling`
+    /// re-spells the tag the way the editor would (cut to 24 characters, spacing fixed, capped at 12),
+    /// which for a tag that is not already in that form leaves a filter no chip can switch off.
+    static func togglingFilter(_ tag: String, in filters: [String]) -> [String] {
+        if contains(filters, tag) {
+            return filters.filter { $0.caseInsensitiveCompare(tag) != .orderedSame }
+        }
+        return filters + [tag]
+    }
+
     /// Every tag in use, meal types first, then proteins, then custom tags alphabetically.
     static func usedTags(in tagLists: [[String]]) -> [String] {
         var seen = Set<String>()

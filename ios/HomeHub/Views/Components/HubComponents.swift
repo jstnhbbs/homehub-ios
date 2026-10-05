@@ -403,13 +403,8 @@ struct ProfileAvatarView: View {
     var body: some View {
         Group {
             if ProfilePhotoHelpers.hasPhoto(avatar), let avatar, let url = URL(string: avatar) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
-                        initialsView
-                    }
+                RemoteImage(url: url, maxPixelSize: max(96, Int(size * 3))) {
+                    initialsView
                 }
             } else {
                 initialsView
@@ -468,13 +463,8 @@ struct HouseholdMarkView: View {
     var body: some View {
         Group {
             if ProfilePhotoHelpers.hasPhoto(photo), let photo, let url = URL(string: photo) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
-                        initialView
-                    }
+                RemoteImage(url: url, maxPixelSize: max(96, Int(size * 3))) {
+                    initialView
                 }
             } else {
                 initialView

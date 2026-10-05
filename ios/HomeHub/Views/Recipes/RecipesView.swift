@@ -189,6 +189,7 @@ private struct RecipeRoute: Hashable {
 }
 
 private struct RecipeCard: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let recipe: Recipe
     var isSelected = false
     var onSelect: (() -> Void)?
@@ -204,16 +205,16 @@ private struct RecipeCard: View {
         }
     }
 
+    /// A phone card is nearly the screen wide; on iPad it is one grid column.
+    private var imagePixelSize: Int {
+        horizontalSizeClass == .compact ? 1100 : 700
+    }
+
     private var card: some View {
         VStack(alignment: .leading, spacing: 0) {
                 if let imageUrl = recipe.imageUrl, let url = URL(string: imageUrl) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                        default:
-                            placeholderImage
-                        }
+                    RemoteImage(url: url, maxPixelSize: imagePixelSize) {
+                        placeholderImage
                     }
                     .frame(height: 140)
                     .clipped()
@@ -297,10 +298,8 @@ private struct RecipeDetailPanel: View {
                 HubCard {
                     VStack(alignment: .leading, spacing: 16) {
                         if let imageUrl = recipe.imageUrl, let url = URL(string: imageUrl) {
-                            AsyncImage(url: url) { phase in
-                                if case .success(let image) = phase {
-                                    image.resizable().scaledToFill()
-                                }
+                            RemoteImage(url: url, maxPixelSize: 1100) {
+                                Color.clear
                             }
                             .frame(height: 180)
                             .frame(maxWidth: .infinity)

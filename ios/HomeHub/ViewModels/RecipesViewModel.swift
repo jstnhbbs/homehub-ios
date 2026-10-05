@@ -2,7 +2,9 @@ import Foundation
 
 @MainActor
 final class RecipesViewModel: ObservableObject {
-    @Published var recipes: [Recipe] = []
+    @Published var recipes: [Recipe] = [] {
+        didSet { updateDerivedLists() }
+    }
     @Published var selectedRecipeId: String?
     @Published var isLoading = false
     @Published var isWorking = false
@@ -10,7 +12,9 @@ final class RecipesViewModel: ObservableObject {
     @Published var successMessage: String?
     @Published var showAddForm = false
     @Published var importURL = ""
-    @Published var tagFilters: [String] = []
+    @Published var tagFilters: [String] = [] {
+        didSet { updateDerivedLists() }
+    }
 
     private var appState: AppState?
 
@@ -52,18 +56,22 @@ final class RecipesViewModel: ObservableObject {
     // MARK: - Tags
 
     /// Every tag in use across the household's recipes, in a friendly order.
-    var availableTags: [String] {
-        RecipeTagHelpers.usedTags(in: recipes.map(\.tags))
-    }
+    /// Worked out when the recipes change rather than each time a view reads it: the page reads it
+    /// on every redraw, and with a few hundred recipes that was noticeable.
+    private(set) var availableTags: [String] = []
 
     /// Recipes that have every selected tag; all recipes when nothing is selected.
-    var filteredRecipes: [Recipe] {
-        guard !tagFilters.isEmpty else { return recipes }
-        return recipes.filter { RecipeTagHelpers.matches(recipeTags: $0.tags, selected: tagFilters) }
+    private(set) var filteredRecipes: [Recipe] = []
+
+    private func updateDerivedLists() {
+        availableTags = RecipeTagHelpers.usedTags(in: recipes.map(\.tags))
+        filteredRecipes = tagFilters.isEmpty
+            ? recipes
+            : recipes.filter { RecipeTagHelpers.matches(recipeTags: $0.tags, selected: tagFilters) }
     }
 
     func toggleTagFilter(_ tag: String) {
-        tagFilters = RecipeTagHelpers.toggling(tag, in: tagFilters)
+        tagFilters = RecipeTagHelpers.togglingFilter(tag, in: tagFilters)
     }
 
     func clearTagFilters() {
