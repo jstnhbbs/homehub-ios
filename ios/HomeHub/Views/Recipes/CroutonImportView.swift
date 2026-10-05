@@ -59,7 +59,7 @@ struct CroutonImportView: View {
             Text("Export your recipes from Crouton as .crumb files into the Files app, then choose that folder here, or pick individual files. Ingredients, steps, times, tags, notes, nutrition and photos come across.")
                 .font(.footnote)
                 .foregroundStyle(HubTheme.muted)
-            Text("Importing the same recipes again is safe: ones already in Beacon are skipped.")
+            Text("Importing the same recipes again is safe: ones already in Beacon are skipped, and any that are missing their photo get it.")
                 .font(.footnote)
                 .foregroundStyle(HubTheme.muted)
 

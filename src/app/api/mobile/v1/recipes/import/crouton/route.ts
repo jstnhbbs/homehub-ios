@@ -31,6 +31,11 @@ type Result = {
   status: "created" | "duplicate" | "failed";
   /** The recipe's id here, for "created" and "duplicate". */
   id?: string;
+  /**
+   * For "duplicate": whether the recipe already has a photo. A recipe imported before photo storage
+   * was set up has none, and this lets the app send it the photo it skipped.
+   */
+  hasPhoto?: boolean;
   error?: string;
 };
 
@@ -73,16 +78,18 @@ export async function POST(request: Request) {
     const keys = ready.map((item) => item.mapped.importKey);
     const existing = keys.length
       ? await db
-          .select({ id: recipes.id, importKey: recipes.importKey })
+          .select({ id: recipes.id, importKey: recipes.importKey, imageUrl: recipes.imageUrl })
           .from(recipes)
           .where(and(eq(recipes.householdId, household.id), inArray(recipes.importKey, keys)))
       : [];
-    const known = new Map(existing.map((row) => [row.importKey, row.id]));
+    const known = new Map(
+      existing.map((row) => [row.importKey, { id: row.id, hasPhoto: Boolean(row.imageUrl) }]),
+    );
 
     for (const { index, mapped } of ready) {
       const already = known.get(mapped.importKey);
       if (already) {
-        results.push({ index, title: mapped.title, status: "duplicate", id: already });
+        results.push({ index, title: mapped.title, status: "duplicate", id: already.id, hasPhoto: already.hasPhoto });
         continue;
       }
 
@@ -110,7 +117,7 @@ export async function POST(request: Request) {
         .returning({ id: recipes.id });
 
       if (inserted[0]) {
-        known.set(mapped.importKey, id);
+        known.set(mapped.importKey, { id, hasPhoto: false });
         results.push({ index, title: mapped.title, status: "created", id });
       } else {
         results.push({ index, title: mapped.title, status: "duplicate" });

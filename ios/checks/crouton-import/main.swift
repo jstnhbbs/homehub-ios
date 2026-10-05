@@ -103,6 +103,11 @@ let answer = try JSONDecoder().decode(CroutonImportResponse.self, from: Data("""
 check("the answer's counts", "\(answer.created) \(answer.duplicates) \(answer.failed)", "1 1 1")
 check("each result's status", answer.results.map { $0.status.rawValue }.joined(separator: ","), "created,duplicate,failed")
 check("a failure's reason", answer.results[2].error ?? "", "uuid: Required")
+check("a duplicate from an older server doesn't say about its photo", String(answer.results[1].hasPhoto == nil), "true")
+let withPhotoInfo = try JSONDecoder().decode(CroutonImportResponse.self, from: Data("""
+{"results":[{"index":0,"title":"A","status":"duplicate","id":"x","hasPhoto":false},{"index":1,"title":"B","status":"duplicate","id":"y","hasPhoto":true}],"created":0,"duplicates":2,"failed":0}
+""".utf8))
+check("a duplicate says whether it has its photo", withPhotoInfo.results.map { String($0.hasPhoto ?? true) }.joined(separator: ","), "false,true")
 
 // MARK: Photos
 

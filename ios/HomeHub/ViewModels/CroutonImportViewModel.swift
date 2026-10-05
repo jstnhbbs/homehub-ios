@@ -154,6 +154,10 @@ final class CroutonImportViewModel: ObservableObject {
                 }
             case .duplicate:
                 duplicates += 1
+                // Imported earlier without its photo (photo storage wasn't set up yet): send it now.
+                if result.hasPhoto == false, let id = result.id, let photo = items[result.index].photoBase64 {
+                    photoJobs.append((id, photo))
+                }
             case .failed:
                 problems.append(Problem(title: result.title, reason: result.error ?? "This recipe couldn't be imported."))
             }

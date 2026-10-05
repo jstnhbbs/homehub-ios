@@ -27,7 +27,7 @@ process.env.BETTER_AUTH_URL = "http://localhost:3000";
 
 type Handler = (request: Request, context: { params: Promise<Record<string, string>> }) => Promise<Response>;
 type Who = "parent" | "guest" | "nobody";
-type ImportResult = { index: number; title: string; status: string; id?: string; error?: string };
+type ImportResult = { index: number; title: string; status: string; id?: string; error?: string; hasPhoto?: boolean };
 type Json = {
   error?: string;
   imageUrl?: string;
@@ -163,6 +163,21 @@ describe("importing from Crouton", () => {
     const duplicate = again.json.results.find((r) => r.status === "duplicate")!;
     expect(duplicate.id).toEqual(expect.any(String));
     expect((await recipeRows()).length).toBe(before + 1);
+  });
+
+  it("says whether a recipe it already has still needs its photo", async () => {
+    // Imported earlier with no photo store set up, so no photo: the app is told to send one.
+    const again = await importBatch([crouton(1), crouton(2)]);
+    const first = again.json.results.find((r) => r.title === "Imported Soup 1")!;
+    expect(first).toMatchObject({ status: "duplicate", hasPhoto: false });
+
+    const { db } = await import("@/db/client");
+    const schema = await import("@/db/schema");
+    const { eq } = await import("drizzle-orm");
+    await db.update(schema.recipes).set({ imageUrl: "https://example.com/p.jpg" }).where(eq(schema.recipes.id, first.id!));
+    const withPhoto = await importBatch([crouton(1), crouton(2)]);
+    expect(withPhoto.json.results.find((r) => r.title === "Imported Soup 1")).toMatchObject({ status: "duplicate", hasPhoto: true });
+    expect(withPhoto.json.results.find((r) => r.title === "Imported Soup 2")).toMatchObject({ status: "duplicate", hasPhoto: false });
   });
 
   it("treats the same recipe twice in one batch as one", async () => {

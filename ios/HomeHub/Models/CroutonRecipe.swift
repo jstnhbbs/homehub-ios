@@ -85,4 +85,6 @@ struct CroutonImportResult: Decodable, Sendable {
     let status: Status
     let id: String?
     let error: String?
+    /// For a duplicate: whether Beacon already has its photo. Nil from a server that doesn't say.
+    let hasPhoto: Bool?
 }
