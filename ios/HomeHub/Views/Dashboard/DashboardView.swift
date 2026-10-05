@@ -637,12 +637,15 @@ private struct CompactDetailChip: View {
 }
 
 /// Shared failure handling for one-tap completions: the check animates back off
-/// when the call throws.
-private func compactCompletion(_ work: () async throws -> Void) async -> Bool {
+/// when the call throws, and the failure is reported so it is not silent. Main-actor because
+/// `report` publishes to the app state, which must happen on the main thread.
+@MainActor
+private func compactCompletion(report: (Error) -> Void, _ work: () async throws -> Void) async -> Bool {
     do {
         try await work()
         return true
     } catch {
+        report(error)
         return false
     }
 }
@@ -853,16 +856,23 @@ private struct CompactSnacksSummary: View {
                         .font(.caption.weight(.bold))
                         .lineLimit(1)
                     SnackChildChips(snack: snack, children: children, records: dashboard.snackCompletions) { child, eaten in
-                        try? await appState.toggleSnack(localDate: dashboard.localDate, label: snack, profileId: child.id, completed: eaten)
+                        do {
+                            try await appState.toggleSnack(localDate: dashboard.localDate, label: snack, profileId: child.id, completed: eaten)
+                        } catch {
+                            appState.report(error)
+                        }
                     }
                 }
             } else {
                 CompactCheckAction(label: snack) {
-                    await compactCompletion {
+                    await compactCompletion(report: appState.report) {
                         // Only snacks not yet eaten are offered here.
                         try await appState.toggleSnack(localDate: dashboard.localDate, label: snack, completed: true)
                     }
                 }
+                // Keyed to the snack: once it is eaten the next one takes this spot, and without a key
+                // it would inherit this one's "done" look and refuse taps.
+                .id(snack)
             }
         }
     }
@@ -886,10 +896,12 @@ private struct CompactGroceriesSummary: View {
         )
         if let item = items.first {
             CompactCheckAction(label: item.title, enabled: appState.canManageHousehold) {
-                await compactCompletion {
+                await compactCompletion(report: appState.report) {
                     try await appState.setGroceryItemChecked(id: item.id, checked: true)
                 }
             }
+            // Keyed to the item for the same reason as the snack above.
+            .id(item.id)
         }
     }
 }
@@ -1235,7 +1247,7 @@ private struct CompactNotesSummary: View {
             draft = ""
             await appState.refreshDashboard()
         } catch {
-            appState.errorMessage = error.localizedDescription
+            appState.report(error)
         }
     }
 }
@@ -2209,7 +2221,7 @@ private struct DashboardSleepRow: View {
                 try await appState.api.endNap(napId: logId)
                 await appState.refreshDashboard()
             } catch {
-                appState.errorMessage = error.localizedDescription
+                appState.report(error)
             }
         }
     }
@@ -2415,7 +2427,7 @@ private struct NotesDashboardPanel: View {
             draft = ""
             await appState.refreshDashboard()
         } catch {
-            appState.errorMessage = error.localizedDescription
+            appState.report(error)
         }
     }
 
@@ -2427,7 +2439,7 @@ private struct NotesDashboardPanel: View {
             try await appState.api.deleteHouseholdNote(id: note.id)
             await appState.refreshDashboard()
         } catch {
-            appState.errorMessage = error.localizedDescription
+            appState.report(error)
         }
     }
 }
@@ -2715,7 +2727,11 @@ private struct SnackChildTile: View {
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
             SnackChildChips(snack: snack, children: children, records: records) { child, eaten in
-                try? await appState.toggleSnack(localDate: localDate, label: snack, profileId: child.id, completed: eaten)
+                do {
+                    try await appState.toggleSnack(localDate: localDate, label: snack, profileId: child.id, completed: eaten)
+                } catch {
+                    appState.report(error)
+                }
             }
         }
         .padding(10)

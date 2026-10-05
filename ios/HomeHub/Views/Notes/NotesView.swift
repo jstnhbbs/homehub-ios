@@ -131,7 +131,7 @@ struct NotesView: View {
             draft = ""
             await appState.refreshDashboard()
         } catch {
-            appState.errorMessage = error.localizedDescription
+            appState.report(error)
         }
     }
 
@@ -143,7 +143,7 @@ struct NotesView: View {
             try await appState.api.deleteHouseholdNote(id: note.id)
             await appState.refreshDashboard()
         } catch {
-            appState.errorMessage = error.localizedDescription
+            appState.report(error)
         }
     }
 }

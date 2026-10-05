@@ -19,6 +19,8 @@ struct SettingsView: View {
     @State private var exportDocument: HouseholdExportDocument?
     @State private var isPreparingExport = false
     @State private var showExporter = false
+    @State private var confirmingSignOut = false
+    @State private var guestToRemove: HouseholdMemberSummary?
 
     var body: some View {
         Group {
@@ -295,12 +297,19 @@ struct SettingsView: View {
 
             Section {
                 Button("Sign Out", role: .destructive) {
-                    Task { await appState.signOut() }
+                    confirmingSignOut = true
                 }
             }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+        .confirmationDialog("Sign out of Beacon?", isPresented: $confirmingSignOut, titleVisibility: .visible) {
+            Button("Sign Out", role: .destructive) {
+                Task { await appState.signOut() }
+            }
+        } message: {
+            Text("The household's information stays safe. Sign back in any time.")
+        }
         .fileExporter(
             isPresented: $showExporter,
             document: exportDocument,
@@ -308,7 +317,7 @@ struct SettingsView: View {
             defaultFilename: "beacon-export-\(DateHelpers.localDateIn(timezone: .current))"
         ) { result in
             if case .failure(let error) = result {
-                appState.errorMessage = error.localizedDescription
+                appState.report(error)
             }
             exportDocument = nil
         }
@@ -378,6 +387,7 @@ struct SettingsView: View {
             await appState.refreshDashboard()
             weekStartsOn = WeekStart.parseWeekStartsOn(household.weekStartsOn)
         } catch {
+            appState.report(error)
             if let household = appState.household {
                 weekStartsOn = WeekStart.parseWeekStartsOn(household.weekStartsOn)
             }
@@ -409,6 +419,18 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+        .confirmationDialog(
+            "Remove \(guestToRemove?.name ?? "this guest")?",
+            isPresented: Binding(get: { guestToRemove != nil }, set: { if !$0 { guestToRemove = nil } }),
+            titleVisibility: .visible,
+            presenting: guestToRemove
+        ) { guest in
+            Button("Remove Guest", role: .destructive) {
+                Task { await membersViewModel.removeGuest(userId: guest.userId) }
+            }
+        } message: { _ in
+            Text("They lose access to the household now. They can rejoin with the guest code unless you replace it.")
+        }
     }
 
     private var dataTab: some View {
@@ -426,9 +448,9 @@ struct SettingsView: View {
             Section {
                 Button {
                     Task {
-                        await appState.refreshHousehold()
-                        await appState.refreshDashboard()
-                        await appState.refreshNativeTodaySchedule()
+                        // The dashboard carries the household, so this one call is enough; forcing it
+                        // also re-reads the device's calendars, reminders and weather.
+                        await appState.refreshDashboard(forcingDeviceRefresh: true)
                     }
                 } label: {
                     Label("Refresh Now", systemImage: "arrow.clockwise")
@@ -497,7 +519,7 @@ struct SettingsView: View {
             exportDocument = HouseholdExportDocument(data: try await appState.api.exportHouseholdData())
             showExporter = true
         } catch {
-            appState.errorMessage = error.localizedDescription
+            appState.report(error)
         }
     }
 
@@ -539,7 +561,7 @@ struct SettingsView: View {
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         if member.role == .guest {
                             Button(role: .destructive) {
-                                Task { await membersViewModel.removeGuest(userId: member.userId) }
+                                guestToRemove = member
                             } label: {
                                 Label("Remove", systemImage: "person.crop.circle.badge.minus")
                             }
@@ -549,7 +571,7 @@ struct SettingsView: View {
                     .contextMenu {
                         if member.role == .guest {
                             Button(role: .destructive) {
-                                Task { await membersViewModel.removeGuest(userId: member.userId) }
+                                guestToRemove = member
                             } label: {
                                 Label("Remove Guest", systemImage: "person.crop.circle.badge.minus")
                             }
@@ -1284,8 +1306,13 @@ private struct NativeNotificationsSettingView: View {
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .task {
+            // Reminders are already planned; only re-plan if the permission changed while away
+            // (for instance in iOS Settings).
+            let before = service.accessStatus
             await service.refreshAccessStatus()
-            await appState.rescheduleNativeNotifications()
+            if service.accessStatus != before {
+                await appState.rescheduleNativeNotifications()
+            }
         }
     }
 
@@ -1408,6 +1435,7 @@ private struct HubModulesSettingView: View {
     @State private var isSaving = false
     @State private var saveTask: Task<Void, Never>?
     @State private var editingTarget: DashboardLayoutTarget = .phone
+    @State private var confirmingReset = false
 
     var body: some View {
         layoutRoot
@@ -1448,10 +1476,17 @@ private struct HubModulesSettingView: View {
                 }
 
                 Button("Reset layout") {
-                    updateModules(.defaults)
+                    confirmingReset = true
                 }
                 .buttonStyle(HubButtonStyle(emphasis: .secondary))
                 .disabled(isSaving)
+                .confirmationDialog("Reset the layout?", isPresented: $confirmingReset, titleVisibility: .visible) {
+                    Button("Reset Layout", role: .destructive) {
+                        updateModules(.defaults)
+                    }
+                } message: {
+                    Text("Today cards and navigation go back to their defaults on iPhone and iPad.")
+                }
             }
             .padding()
         }

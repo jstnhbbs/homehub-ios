@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct RootView: View {
     @EnvironmentObject private var appState: AppState
@@ -21,6 +22,15 @@ struct RootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(HubTheme.canvas)
         .tint(appState.accentPalette.accent)
+        .overlay(alignment: .top) {
+            if let notice = appState.notice {
+                NoticeBanner(message: notice) { appState.dismissNotice() }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: appState.notice)
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active, appState.auth.isSignedIn else { return }
             Task { await appState.refreshHousehold() }
@@ -42,5 +52,29 @@ private struct BeaconLoadingIndicator: View {
             .controlSize(.regular)
             .tint(HubTheme.sage)
             .frame(width: 44, height: 44)
+    }
+}
+
+/// A failure the person should know about, over whatever screen they are on. Tap to dismiss; it
+/// also goes away by itself.
+private struct NoticeBanner: View {
+    let message: String
+    let dismiss: () -> Void
+
+    var body: some View {
+        Button(action: dismiss) {
+            Label(message, systemImage: "exclamationmark.triangle.fill")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.leading)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .frame(maxWidth: 520, alignment: .leading)
+                .background(Color.red.opacity(0.92), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Double tap to dismiss")
+        .onAppear { UIAccessibility.post(notification: .announcement, argument: message) }
     }
 }

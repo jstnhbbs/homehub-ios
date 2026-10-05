@@ -33,7 +33,14 @@ final class AppState: ObservableObject {
     @Published var pendingFoodSection: FoodHubSection?
     @Published var pendingProfileEditId: String?
     @Published var isBootstrapping = true
+    /// Set when the whole screen has nothing to show (no dashboard yet); the Today screen draws it.
     @Published var errorMessage: String?
+    /// A short message about something that failed while the person was using the app, shown as a
+    /// banner over whatever screen they are on (see `RootView`). `errorMessage` is not enough for
+    /// this: it only appears when there is no dashboard, so a failed note or check-off would
+    /// otherwise say nothing at all. Use `report(_:)` from views.
+    @Published private(set) var notice: String?
+    private var noticeTask: Task<Void, Never>?
     @Published var accentPalette: AccentPalette {
         didSet {
             HubTheme.currentAccent = accentPalette
@@ -44,6 +51,27 @@ final class AppState: ObservableObject {
         didSet {
             UserDefaults.standard.set(appearanceMode.rawValue, forKey: Self.appearanceStorageKey)
         }
+    }
+
+    /// Shows the failure as a banner for a few seconds. A cancelled request says nothing.
+    func report(_ error: Error) {
+        guard let message = error.userFacingMessage else { return }
+        showNotice(message)
+    }
+
+    func showNotice(_ message: String) {
+        notice = message
+        noticeTask?.cancel()
+        noticeTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 6_000_000_000)
+            guard !Task.isCancelled else { return }
+            self?.notice = nil
+        }
+    }
+
+    func dismissNotice() {
+        noticeTask?.cancel()
+        notice = nil
     }
 
     private static let accentStorageKey = "homehub.accentPalette"
@@ -208,8 +236,14 @@ final class AppState: ObservableObject {
                 )
             }
         } catch {
+            let hadData = dashboard != nil
             hydrateFromLocalStore()
             errorMessage = error.localizedDescription
+            // The once-a-minute background refresh fails quietly when the phone is offline. Someone
+            // who pulled to refresh, or tapped Refresh Now, is owed an answer.
+            if forcingDeviceRefresh, hadData, let message = error.userFacingMessage {
+                showNotice("Couldn't refresh, so this is the last saved information. \(message)")
+            }
         }
     }
 
@@ -372,6 +406,9 @@ final class AppState: ObservableObject {
             if saveVersion == hubModulesSaveVersion {
                 pendingHubModulesSave = nil
                 errorMessage = error.localizedDescription
+                if let message = error.userFacingMessage {
+                    showNotice("Your layout change is on this device only; it couldn't be saved. \(message)")
+                }
             }
         }
     }
