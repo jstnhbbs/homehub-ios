@@ -1436,13 +1436,18 @@ private struct HubModulesSettingView: View {
     @State private var saveTask: Task<Void, Never>?
     @State private var editingTarget: DashboardLayoutTarget = .phone
     @State private var confirmingReset = false
+    @State private var confirmingRestoreDefault = false
+    /// The layout saved as this person's default for the kind of device being edited, if any.
+    @State private var savedDefault: TodayLayoutDefault?
 
     var body: some View {
         layoutRoot
             .onAppear {
                 modules = appState.hubModules
                 editingTarget = DashboardLayoutTarget(horizontalSizeClass: horizontalSizeClass)
+                loadSavedDefault()
             }
+            .onChange(of: editingTarget) { _, _ in loadSavedDefault() }
             .onChange(of: appState.hubModules) { _, newValue in
                 if !isSaving {
                     modules = newValue
@@ -1649,6 +1654,79 @@ private struct HubModulesSettingView: View {
                 .foregroundStyle(HubTheme.muted)
                 .textCase(nil)
         }
+
+        defaultLayoutSection
+    }
+
+    // MARK: Saved default
+
+    private var currentLayoutIsSavedDefault: Bool {
+        savedDefault?.matches(modules, target: editingTarget) == true
+    }
+
+    /// "Reset layout" goes back to the app's arrangement. This keeps the family's own: save the cards
+    /// the way you like them, then restore that when they get moved around too much.
+    private var defaultLayoutSection: some View {
+        Section {
+            Button {
+                saveCurrentAsDefault()
+            } label: {
+                Label("Set as Default", systemImage: "square.and.arrow.down")
+            }
+            .disabled(currentLayoutIsSavedDefault)
+
+            Button {
+                confirmingRestoreDefault = true
+            } label: {
+                Label("Restore Default", systemImage: "arrow.uturn.backward")
+            }
+            .disabled(savedDefault == nil || currentLayoutIsSavedDefault || isSaving)
+            .confirmationDialog(
+                "Restore your default Today layout?",
+                isPresented: $confirmingRestoreDefault,
+                titleVisibility: .visible
+            ) {
+                Button("Restore Default") { restoreSavedDefault() }
+            } message: {
+                Text("The Today cards for \(editingTarget.label) go back to how you saved them. Which cards are switched on is shared, so that changes on your other devices too.")
+            }
+        } header: {
+            Text("Default layout")
+                .textCase(nil)
+        } footer: {
+            Text(defaultLayoutFooter)
+        }
+        .listRowBackground(HubTheme.tile)
+    }
+
+    private var defaultLayoutFooter: String {
+        if savedDefault == nil {
+            return "Arrange the cards how you like them, then tap Set as Default. Restore Default brings that arrangement back for \(editingTarget.label) whenever it gets messy."
+        }
+        if currentLayoutIsSavedDefault {
+            return "This is your default layout for \(editingTarget.label). It is saved on this device."
+        }
+        return "Set as Default replaces your saved layout for \(editingTarget.label) with what you have now. Restore Default brings the saved one back."
+    }
+
+    private func loadSavedDefault() {
+        guard let userId = appState.currentUser?.id else {
+            savedDefault = nil
+            return
+        }
+        savedDefault = TodayLayoutDefaultStore().load(userId: userId, target: editingTarget)
+    }
+
+    private func saveCurrentAsDefault() {
+        guard let userId = appState.currentUser?.id else { return }
+        let layout = TodayLayoutDefault.capture(from: modules, target: editingTarget)
+        TodayLayoutDefaultStore().save(layout, userId: userId, target: editingTarget)
+        savedDefault = layout
+    }
+
+    private func restoreSavedDefault() {
+        guard let savedDefault else { return }
+        updateModules(savedDefault.applied(to: modules, target: editingTarget))
     }
 
     private func layoutSection<Item: Hashable & RawRepresentable>(
