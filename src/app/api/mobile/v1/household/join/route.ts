@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import { householdMembers, households } from "@/db/schema";
 import { getCurrentHousehold } from "@/lib/household";
+import { ensureMemberProfiles } from "@/lib/member-profiles";
 import {
   assertMayTryInviteCode,
   clientAddress,
@@ -40,6 +41,8 @@ export async function POST(request: Request) {
         role: "parent",
       })
       .onConflictDoNothing();
+
+    await ensureMemberProfiles(household[0].id);
 
     const current = await getCurrentHousehold();
     return mobileJson(serializeHousehold(current!));

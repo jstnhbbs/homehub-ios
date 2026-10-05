@@ -2,7 +2,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db/client";
-import { householdMembers, households, users } from "@/db/schema";
+import { householdMembers, households, profiles, users } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { canManageHousehold } from "@/lib/household-roles";
 import { ensureMemberProfiles } from "@/lib/member-profiles";
@@ -38,6 +38,13 @@ export async function getCurrentHousehold(knownUserId?: string) {
       snacksPerChild: households.snacksPerChild,
       photo: households.photo,
       role: householdMembers.role,
+      // Whether this member already has a profile, so requests can skip the repair below.
+      hasOwnProfile: sql<number>`(
+        select count(*)
+        from ${profiles}
+        where ${profiles.householdId} = ${households.id}
+          and ${profiles.userId} = ${householdMembers.userId}
+      )`,
       ownerName: sql<string | null>`(
         select ${users.name}
         from ${householdMembers} as owner_member
@@ -61,7 +68,7 @@ export async function requireHousehold() {
   const user = await requireUser();
   const household = await getCurrentHousehold(user.id);
   if (!household) redirect("/onboarding");
-  await ensureMemberProfiles(household.id);
+  if (!household.hasOwnProfile) await ensureMemberProfiles(household.id);
   return household;
 }
 

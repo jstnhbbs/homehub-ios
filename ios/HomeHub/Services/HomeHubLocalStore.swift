@@ -26,10 +26,16 @@ final class HomeHubLocalStore {
 
     init() {
         let schema = Schema([HomeHubLocalSnapshot.self])
-        let configuration = ModelConfiguration(schema: schema)
         do {
+            let support = try FileManager.default.url(
+                for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
+            )
+            LocalStoreLocation.removeLegacyStore(in: support)
+            let configuration = ModelConfiguration(schema: schema, url: try LocalStoreLocation.prepare(in: support))
             container = try ModelContainer(for: schema, configurations: [configuration])
         } catch {
+            // Including the device being locked when the app starts, which the protected folder
+            // refuses: this launch runs without an offline copy.
             let fallback = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
             do {
                 container = try ModelContainer(for: schema, configurations: [fallback])
@@ -55,10 +61,19 @@ final class HomeHubLocalStore {
         return try? decoder.decode(DashboardData.self, from: data)
     }
 
+    /// Invite codes let whoever holds them into the household, so they are never written to the
+    /// offline copy. They come back with the next successful refresh.
+    private static func withoutInviteCodes(_ household: Household) -> Household {
+        var copy = household
+        copy.inviteCode = ""
+        copy.guestInviteCode = ""
+        return copy
+    }
+
     func saveHousehold(_ household: Household?) {
         guard let household else { return }
         let snapshot = editableSnapshot()
-        snapshot.householdData = try? encoder.encode(household)
+        snapshot.householdData = try? encoder.encode(Self.withoutInviteCodes(household))
         snapshot.updatedAt = .now
         save()
     }
@@ -66,8 +81,10 @@ final class HomeHubLocalStore {
     func saveDashboard(_ dashboard: DashboardData?) {
         guard let dashboard else { return }
         let snapshot = editableSnapshot()
-        snapshot.householdData = try? encoder.encode(dashboard.household)
-        snapshot.dashboardData = try? encoder.encode(dashboard)
+        var stored = dashboard
+        stored.household = Self.withoutInviteCodes(dashboard.household)
+        snapshot.householdData = try? encoder.encode(stored.household)
+        snapshot.dashboardData = try? encoder.encode(stored)
         snapshot.updatedAt = .now
         save()
     }

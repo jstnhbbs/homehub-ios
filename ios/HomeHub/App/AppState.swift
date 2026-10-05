@@ -51,6 +51,7 @@ final class AppState: ObservableObject {
 
     private var eventKitObserver: NSObjectProtocol?
     private var eventKitRefreshTask: Task<Void, Never>?
+    private var lastDeviceRefreshAt: Date?
     private var hubModulesSaveVersion = 0
     private var pendingHubModulesSave: HubModules?
     private var locallySavedHubModules: HubModules?
@@ -167,7 +168,15 @@ final class AppState: ObservableObject {
         }
     }
 
-    func refreshDashboard() async {
+    /// Calendar, Reminders and weather are read from the device, and the system tells us the moment a
+    /// calendar or reminder changes (see `observeEventKitChanges`), so re-reading them on every
+    /// refresh, which happens after each check-off and every minute, is wasted work. They are read at
+    /// most this often unless the person asks (pull to refresh).
+    private static let minimumDeviceRefreshInterval: TimeInterval = 5 * 60
+
+    /// `forcingDeviceRefresh` re-reads the device's calendars, reminders and weather even if that was
+    /// done recently.
+    func refreshDashboard(forcingDeviceRefresh: Bool = false) async {
         errorMessage = nil
         do {
             dashboard = try await api.fetchDashboard()
@@ -179,9 +188,12 @@ final class AppState: ObservableObject {
             if let modules = dashboard?.hubModules {
                 applyHubModules(preferredHubModules(for: modules))
             }
-            await refreshNativeTodaySchedule()
-            await refreshNativeGroceryItems()
-            await refreshNativeWeather()
+            if forcingDeviceRefresh || shouldRefreshDeviceData {
+                lastDeviceRefreshAt = .now
+                await refreshNativeTodaySchedule()
+                await refreshNativeGroceryItems()
+                await refreshNativeWeather()
+            }
             if let dashboard {
                 await nativeNotifications.scheduleDashboardReminders(
                     from: dashboard,
@@ -199,6 +211,11 @@ final class AppState: ObservableObject {
             hydrateFromLocalStore()
             errorMessage = error.localizedDescription
         }
+    }
+
+    private var shouldRefreshDeviceData: Bool {
+        guard let lastDeviceRefreshAt else { return true }
+        return Date().timeIntervalSince(lastDeviceRefreshAt) >= Self.minimumDeviceRefreshInterval
     }
 
     /// Remembers whether the household has an anniversary, which decides whether the module reads
@@ -382,6 +399,7 @@ final class AppState: ObservableObject {
         setHasAnniversaries(false)
         localStore.clear()
         HomeHubWidgetStore.clear()
+        lastDeviceRefreshAt = nil
         await SleepLiveActivityManager.endAll()
         pendingProfileEditId = nil
         selectedDestination = .dashboard

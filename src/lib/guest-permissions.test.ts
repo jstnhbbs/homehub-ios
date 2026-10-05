@@ -129,6 +129,7 @@ const parentOnly: Array<[method: string, route: string, params?: Record<string, 
   ["DELETE", "notes/[id]", { id: "x" }],
   ["POST", "snacks/options"],
   ["POST", "household/photo"],
+  ["POST", "household/invite-codes"],
   ["DELETE", "household/photo"],
   ["PATCH", "household/members/[userId]", { userId: "nobody" }],
   ["DELETE", "household/members/[userId]", { userId: "nobody" }],
@@ -245,6 +246,28 @@ describe("invite codes stay with people who can manage the household", () => {
       const household = pick(result.json as Record<string, unknown>);
       expect(household.inviteCode, `${role} ${route}`).toBe("INV1");
       expect(household.guestInviteCode, `${role} ${route}`).toBe("GUEST1");
+    }
+  });
+});
+
+describe("member email addresses stay with people who manage the household", () => {
+  const emailsIn = (json: unknown) => (json as unknown as Array<{ email: string; role: string; name: string }>).map((member) => member.email);
+
+  it("are hidden from a guest, who still sees who is in the household and their roles", async () => {
+    const guest = await call("guest", "household/members", "GET");
+    expect(guest.status).toBe(200);
+    const members = guest.json as unknown as Array<{ email: string; role: string; name: string }>;
+    expect(members.length).toBeGreaterThanOrEqual(3);
+    // Empty strings, not missing keys: older app versions decode the field as required.
+    expect(emailsIn(guest.json).every((email) => email === "")).toBe(true);
+    expect(members.map((member) => member.role).sort()).toEqual(["guest", "owner", "parent"]);
+    expect(JSON.stringify(guest.json)).not.toContain("@example.com");
+  });
+
+  it("are still shown to parents and owners", async () => {
+    for (const role of ["parent", "owner"] as const) {
+      const result = await call(role, "household/members", "GET");
+      expect(emailsIn(result.json).sort(), role).toEqual(["guest@example.com", "owner@example.com", "parent@example.com"]);
     }
   });
 });

@@ -26,7 +26,9 @@ export async function requireMobileHousehold() {
   if (!household) {
     throw mobileError("Household required", 404);
   }
-  await ensureMemberProfiles(household.id);
+  // Profiles are made when someone joins; this repairs the rare member who has none, without a
+  // query on every request for everyone who does.
+  if (!household.hasOwnProfile) await ensureMemberProfiles(household.id);
   return household;
 }
 
@@ -37,7 +39,9 @@ export async function requireMobileContext() {
   if (!household) {
     throw mobileError("Household required", 404);
   }
-  await ensureMemberProfiles(household.id);
+  // Profiles are made when someone joins; this repairs the rare member who has none, without a
+  // query on every request for everyone who does.
+  if (!household.hasOwnProfile) await ensureMemberProfiles(household.id);
   return { user, household };
 }
 

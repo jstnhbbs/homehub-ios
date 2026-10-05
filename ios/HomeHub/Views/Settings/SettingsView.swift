@@ -397,15 +397,7 @@ struct SettingsView: View {
 
                 // The server sends empty codes to guests, who can't invite anyone.
                 if !household.inviteCode.isEmpty {
-                    Section {
-                        LabeledContent("Parent invite", value: household.inviteCode)
-                        LabeledContent("Guest invite", value: household.guestInviteCode)
-                    } header: {
-                        Text("Invite codes")
-                    } footer: {
-                        Text("Share the parent code with another parent after they create an account. The guest code is for grandparents, nannies, and other helpers.")
-                    }
-                    .textSelection(.enabled)
+                    InviteCodesSection(household: household)
                 }
             }
 

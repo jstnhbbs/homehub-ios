@@ -35,6 +35,15 @@ final class HomeHubAPI: ObservableObject {
         )
     }
 
+    /// `which` is "parent", "guest" or "both". The old code stops working at once.
+    func regenerateInviteCodes(which: String) async throws -> Household {
+        try await client.request(
+            "/api/mobile/v1/household/invite-codes",
+            method: "POST",
+            body: RegenerateInviteCodesRequest(which: which)
+        )
+    }
+
     func removeHouseholdPhoto() async throws -> Household {
         try await client.request("/api/mobile/v1/household/photo", method: "DELETE")
     }
@@ -421,6 +430,10 @@ final class HomeHubAPI: ObservableObject {
     func updateCalendarSettings(_ input: UpdateCalendarSettingsRequest) async throws -> Household {
         try await client.request("/api/mobile/v1/calendar/settings", method: "PATCH", body: input)
     }
+}
+
+private struct RegenerateInviteCodesRequest: Encodable {
+    let which: String
 }
 
 /// For a request whose answer isn't needed, only that it worked.

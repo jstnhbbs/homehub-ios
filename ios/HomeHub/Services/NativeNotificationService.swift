@@ -52,8 +52,10 @@ final class NativeNotificationService: ObservableObject {
     /// off also stops its reminders.
     func scheduleDashboardReminders(from dashboard: DashboardData, birthdaysModuleEnabled: Bool = true) async {
         await refreshAccessStatus()
-        await removeHomeHubPendingRequests()
-        guard canSchedule else { return }
+        guard canSchedule else {
+            await removeHomeHubPendingRequests()
+            return
+        }
 
         let timezone = TimeZone(identifier: dashboard.household.timezone) ?? .current
         let weekStartsOn = dashboard.household.weekStartsOn
@@ -98,7 +100,20 @@ final class NativeNotificationService: ObservableObject {
             ))
         }
 
-        for request in requests {
+        // Only what differs from what is already scheduled is touched. A refresh follows every
+        // check-off and runs each minute, and almost always the plan has not changed.
+        let scheduled = await center.pendingNotificationRequests()
+            .filter { $0.identifier.hasPrefix(identifierPrefix) }
+        let changes = NotificationDiff.changes(
+            existing: scheduled.map(PlannedNotification.init(request:)),
+            desired: requests.map(PlannedNotification.init(request:))
+        )
+        if !changes.remove.isEmpty {
+            center.removePendingNotificationRequests(withIdentifiers: changes.remove)
+        }
+        let toAdd = Set(changes.add)
+        for request in requests.reversed() where toAdd.contains(request.identifier) {
+            // Reversed so the last request wanted for an id is the one added, as `changes` assumes.
             try? await center.add(request)
         }
     }
@@ -317,4 +332,21 @@ private struct RoutineNotificationKey: Hashable {
     let period: RoutinePeriod
     let profileId: String?
     let routineName: String
+}
+
+private extension PlannedNotification {
+    init(request: UNNotificationRequest) {
+        let components = (request.trigger as? UNCalendarNotificationTrigger)?.dateComponents
+        self.init(
+            id: request.identifier,
+            title: request.content.title,
+            body: request.content.body,
+            thread: request.content.threadIdentifier,
+            trigger: [
+                components?.year, components?.month, components?.day, components?.hour, components?.minute,
+            ]
+            .map { $0.map(String.init) ?? "-" }
+            .joined(separator: ".") + " " + (components?.timeZone?.identifier ?? "")
+        )
+    }
 }

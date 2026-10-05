@@ -28,6 +28,7 @@ import {
   requireParentHousehold,
   requireUser,
 } from "@/lib/household";
+import { ensureMemberProfiles } from "@/lib/member-profiles";
 import { isProfileColor } from "@/lib/profile-colors";
 import {
   removeHouseholdPhoto,
@@ -106,6 +107,7 @@ export async function joinHousehold(formData: FormData) {
       role: "parent",
     })
     .onConflictDoNothing();
+  await ensureMemberProfiles(household[0].id);
   redirect("/settings");
 }
 
@@ -127,6 +129,7 @@ export async function joinHouseholdAsGuest(formData: FormData) {
       role: "guest",
     })
     .onConflictDoNothing();
+  await ensureMemberProfiles(household[0].id);
   redirect("/settings");
 }
 

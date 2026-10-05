@@ -50,7 +50,7 @@ struct DashboardView: View {
         }
         .frame(minHeight: 480)
         .refreshable {
-            await appState.refreshDashboard()
+            await appState.refreshDashboard(forcingDeviceRefresh: true)
         }
         .task {
             if appState.dashboard == nil {

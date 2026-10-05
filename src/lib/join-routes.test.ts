@@ -58,7 +58,7 @@ beforeAll(async () => {
   ]);
   const owner = await signUp("owner");
   await db.insert(schema.householdMembers).values({ householdId: "old", userId: owner, role: "owner" });
-  for (const name of ["ann", "bob", "cy", "dee", "eli", "flo", "guy", "hal", "ivy", "jon", "kim"]) {
+  for (const name of ["ann", "bob", "cy", "dee", "eli", "flo", "guy", "hal", "ivy", "jon", "kim", "zed", "yan", "xia"]) {
     await signUp(name);
   }
 });
@@ -166,3 +166,149 @@ describe("joining a household", () => {
     expect(blockedAt).toBe(40);
   });
 });
+
+describe("regenerating invite codes", () => {
+  const regenerate = (who: string, which: unknown) => post(who, "household/invite-codes", { which });
+
+  async function codes(householdId: string) {
+    const { db } = await import("@/db/client");
+    const schema = await import("@/db/schema");
+    const { eq } = await import("drizzle-orm");
+    const [row] = await db.select().from(schema.households).where(eq(schema.households.id, householdId));
+    return { parent: row.inviteCode, guest: row.guestInviteCode };
+  }
+
+  it("replaces the parent code, which stops the old one working and leaves the guest code alone", async () => {
+    const before = await codes("old");
+    const result = await regenerate("owner", "parent");
+    expect(result.status).toBe(200);
+    expect(result.json.inviteCode).toMatch(/^[A-HJ-NP-Z2-9]{10}$/);
+    expect(result.json.inviteCode).not.toBe(before.parent);
+    expect(result.json.guestInviteCode).toBe(before.guest);
+
+    const now = await codes("old");
+    expect(now.parent).toBe(result.json.inviteCode);
+    expect(now.guest).toBe(before.guest);
+
+    const old = await post("zed", "household/join", { inviteCode: before.parent });
+    expect(old.status).toBe(400);
+    expect(old.json.error).toBe("That invite code was not found.");
+    const fresh = await post("zed", "household/join", { inviteCode: now.parent });
+    expect(fresh.status).toBe(200);
+    expect(fresh.json.role).toBe("parent");
+  });
+
+  it("replaces only the guest code when asked", async () => {
+    const before = await codes("old");
+    const result = await regenerate("owner", "guest");
+    expect(result.json.guestInviteCode).not.toBe(before.guest);
+    expect(result.json.guestInviteCode).toMatch(/^[A-HJ-NP-Z2-9]{10}$/);
+    expect(result.json.inviteCode).toBe(before.parent);
+
+    expect((await post("yan", "household/join-guest", { guestInviteCode: before.guest })).status).toBe(400);
+    const joined = await post("yan", "household/join-guest", { guestInviteCode: result.json.guestInviteCode });
+    expect(joined.status).toBe(200);
+    expect(joined.json.role).toBe("guest");
+  });
+
+  it("replaces both, as two different codes", async () => {
+    const before = await codes("old");
+    const result = await regenerate("owner", "both");
+    expect(result.status).toBe(200);
+    expect(result.json.inviteCode).not.toBe(before.parent);
+    expect(result.json.guestInviteCode).not.toBe(before.guest);
+    expect(result.json.inviteCode).not.toBe(result.json.guestInviteCode);
+  });
+
+  it("leaves people who are already members exactly as they were", async () => {
+    const { db } = await import("@/db/client");
+    const schema = await import("@/db/schema");
+    const { eq } = await import("drizzle-orm");
+    const members = () => db.select().from(schema.householdMembers).where(eq(schema.householdMembers.householdId, "old"));
+    const before = (await members()).map((member) => `${member.userId}:${member.role}`).sort();
+    await regenerate("owner", "both");
+    expect((await members()).map((member) => `${member.userId}:${member.role}`).sort()).toEqual(before);
+  });
+
+  it("works for a parent as well as the owner, and only changes its own household", async () => {
+    const other = await codes("new");
+    const result = await regenerate("ann", "parent");
+    expect(result.status).toBe(200);
+    expect(await codes("new")).toEqual(other);
+  });
+
+  it("is refused for a guest, and the codes do not change", async () => {
+    const before = await codes("new");
+    const result = await regenerate("bob", "both");
+    expect(result.status).toBe(403);
+    expect(await codes("new")).toEqual(before);
+  });
+
+  it("refuses a request that doesn't say which code", async () => {
+    expect((await regenerate("owner", "everything")).status).toBe(400);
+    expect((await post("owner", "household/invite-codes", {})).status).toBe(400);
+  });
+
+  it("slows down someone changing codes over and over", async () => {
+    const { db } = await import("@/db/client");
+    const schema = await import("@/db/schema");
+    await db.delete(schema.rateLimits);
+    let limited = 0;
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      if ((await regenerate("owner", "guest")).status === 429) limited += 1;
+    }
+    expect(limited).toBe(2);
+  });
+});
+
+describe("profiles for members", () => {
+  async function profileFor(email: string) {
+    const { db } = await import("@/db/client");
+    const schema = await import("@/db/schema");
+    const users = await db.select().from(schema.users);
+    const userId = users.find((user) => user.email === email)!.id;
+    const profiles = await db.select().from(schema.profiles);
+    return profiles.filter((profile) => profile.userId === userId);
+  }
+
+  it("are made when someone joins, not on their first later request", async () => {
+    const parent = await post("xia", "household/join", { inviteCode: (await codesFor("new")).parent });
+    expect(parent.status).toBe(200);
+    expect(await profileFor("xia@example.com")).toHaveLength(1);
+  });
+
+  it("are still repaired for a member who has none", async () => {
+    const { db } = await import("@/db/client");
+    const schema = await import("@/db/schema");
+    const { and, eq } = await import("drizzle-orm");
+    const [profile] = await profileFor("xia@example.com");
+    await db.delete(schema.profiles).where(and(eq(schema.profiles.id, profile.id)));
+    expect(await profileFor("xia@example.com")).toHaveLength(0);
+
+    const { json } = await (async () => {
+      request.headers = new Headers({ cookie: cookies.xia });
+      const route = (await import("@/app/api/mobile/v1/profiles/route")) as { GET: () => Promise<Response> };
+      const response = await route.GET();
+      return { json: await response.json() };
+    })();
+    expect(Array.isArray(json)).toBe(true);
+    expect(await profileFor("xia@example.com")).toHaveLength(1);
+  });
+
+  it("are not duplicated by ordinary requests", async () => {
+    for (let index = 0; index < 3; index += 1) {
+      request.headers = new Headers({ cookie: cookies.xia });
+      const route = (await import("@/app/api/mobile/v1/profiles/route")) as { GET: () => Promise<Response> };
+      await route.GET();
+    }
+    expect(await profileFor("xia@example.com")).toHaveLength(1);
+  });
+});
+
+async function codesFor(householdId: string) {
+  const { db } = await import("@/db/client");
+  const schema = await import("@/db/schema");
+  const { eq } = await import("drizzle-orm");
+  const [row] = await db.select().from(schema.households).where(eq(schema.households.id, householdId));
+  return { parent: row.inviteCode, guest: row.guestInviteCode };
+}
