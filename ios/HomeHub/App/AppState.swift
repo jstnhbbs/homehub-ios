@@ -261,7 +261,6 @@ final class AppState: ObservableObject {
                     birthdaysModuleEnabled: hubModules.isEnabled(.birthdays)
                 )
             }
-            publishWidgetSummary()
             if let dashboard {
                 await SleepLiveActivityManager.sync(
                     logs: dashboard.naps,
@@ -310,7 +309,6 @@ final class AppState: ObservableObject {
         nativeCalendar.refreshAccessStatus()
         guard nativeCalendar.hasFullAccess else {
             nativeTodayScheduleEvents = []
-            publishWidgetSummary()
             return
         }
 
@@ -318,7 +316,6 @@ final class AppState: ObservableObject {
         let localDate = DateHelpers.localDateIn(timezone: timezone)
         guard let day = CalendarHelpers.parseLocalDate(localDate, timezone: timezone) else {
             nativeTodayScheduleEvents = []
-            publishWidgetSummary()
             return
         }
 
@@ -327,7 +324,6 @@ final class AppState: ObservableObject {
         let start = calendar.startOfDay(for: day)
         let end = calendar.date(byAdding: DateComponents(day: 1, second: -1), to: start) ?? start
         nativeTodayScheduleEvents = nativeCalendar.scheduleEvents(start: start, end: end)
-        publishWidgetSummary()
     }
 
     func refreshNativeGroceryItems() async {
@@ -410,7 +406,6 @@ final class AppState: ObservableObject {
 
     func refreshNativeWeather() async {
         await nativeWeather.refreshWeather()
-        publishWidgetSummary()
     }
 
     func applyHubModules(_ modules: HubModules) {
@@ -497,7 +492,6 @@ final class AppState: ObservableObject {
         locallySavedHubModules = nil
         setHasAnniversaries(false)
         localStore.clear()
-        HomeHubWidgetStore.clear()
         lastDeviceRefreshAt = nil
         pendingProfileEditId = nil
         pendingFoodSection = nil
@@ -511,7 +505,6 @@ final class AppState: ObservableObject {
             if let modules = cachedDashboard.hubModules {
                 applyHubModules(modules)
             }
-            publishWidgetSummary()
         } else if household == nil, let cachedHousehold = localStore.loadHousehold() {
             household = cachedHousehold
         }
@@ -532,35 +525,6 @@ final class AppState: ObservableObject {
         }
 
         return locallySavedHubModules
-    }
-
-    private func publishWidgetSummary() {
-        guard let dashboard else { return }
-
-        let timezone = TimeZone(identifier: dashboard.household.timezone) ?? .current
-        let scheduleEvents = nativeCalendar.hasFullAccess ? nativeTodayScheduleEvents : []
-        let nextEvent = DashboardHelpers.upcomingScheduleEvents(scheduleEvents, now: .now).first
-        let dinnerTitle = dashboard.meals
-            .first { $0.localDate == dashboard.localDate && $0.slot == .dinner }?
-            .title
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        let summary = HomeHubWidgetSummary(
-            householdName: dashboard.household.name,
-            localDate: DateHelpers.headerDateLabel(timezone: timezone),
-            pendingRoutineCount: dashboard.routineSteps.filter { !$0.completed }.count,
-            pendingChoreCount: dashboard.chores.filter { !$0.completed && $0.dueToday != false }.count,
-            dinnerTitle: dinnerTitle?.isEmpty == false ? dinnerTitle : nil,
-            nextEventTitle: nextEvent?.title,
-            nextEventTime: nextEvent.map { event in
-                event.allDay ? "All day" : DateHelpers.timeString(event.startsAt, timezone: timezone)
-            },
-            weatherTemperature: nativeWeather.snapshot?.temperature,
-            weatherCondition: nativeWeather.snapshot?.condition,
-            updatedAt: .now
-        )
-
-        HomeHubWidgetStore.save(summary)
     }
 
     private func observeEventKitChanges() {

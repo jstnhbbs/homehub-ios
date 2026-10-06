@@ -1,6 +1,6 @@
 # Beacon iOS
 
-Native SwiftUI app for Beacon on iPhone and iPad. It talks to the existing Next.js backend through Better Auth and the `/api/mobile/v1/*` JSON API added for native clients, so edits made on a parent phone use the same household data that appears on the larger shared display.
+Native SwiftUI app for Beacon on iPhone and iPad. It talks to the existing Next.js backend through Better Auth and the `/api/mobile/v1/*` JSON API added for native clients, so edits made on a parent's phone show up on the family iPad and the other way round.
 
 ## Architecture
 
@@ -9,11 +9,11 @@ ios/HomeHub/
 ├── Models/          # Codable types mirroring src/db/schema.ts
 ├── Utilities/       # Port of src/lib/* business logic (dates, chores, roles, …)
 ├── Services/        # Auth + REST API client
-├── Views/           # SwiftUI screens matching the web hub
+├── Views/           # SwiftUI screens, one folder per module
 └── App/             # AppState and root navigation
 ```
 
-The web app remains the source of truth for household data, routines, chores, meals, recipes, and profiles. The iOS app reads calendars through native EventKit access only; any iCloud or Google calendars should be added to Apple Calendar on the device, then selected inside Beacon.
+The Next.js server in the repo root is the source of truth for household data, routines, chores, meals, recipes, and profiles. Its own web pages are only sign-in, onboarding, a settings page and the legal pages; everything else is this app. The iOS app reads calendars through native EventKit access only; any iCloud or Google calendars should be added to Apple Calendar on the device, then selected inside Beacon.
 
 ## Prerequisites
 
@@ -47,24 +47,23 @@ For another production deployment, use that HTTPS domain.
 
 To load `http://` during development, add a temporary ATS exception in Info.plist or use an HTTPS tunnel.
 
-## Feature parity map
+## Where things live
 
-| Web (Next.js) | iOS (Swift) |
-|---------------|-------------|
-| `src/db/schema.ts` | `ios/HomeHub/Models/*` |
-| `src/lib/dates.ts`, `chores.ts`, … | `ios/HomeHub/Utilities/*` |
-| Server actions | `/api/mobile/v1/*` routes |
-| `(hub)/layout.tsx` | `HubView` + adaptive sidebar/tab navigation |
-| `/dashboard` | `DashboardView` (includes nap quick log) |
-| `/naps` | `NapsView` (sheet from dashboard; not in sidebar) |
-| `/calendar` | `CalendarView` (native calendar read + local calendar selection) |
-| `/routines`, `/chores`, `/meals` (weekly plan + recipes), `/snacks` | Matching SwiftUI views |
-| `/groceries`, `/birthdays`, `/notes` | `GroceriesView`, `BirthdaysView`, `NotesView` |
-| `/settings` | `SettingsView` |
+| Server (`src/`) | iOS (`ios/HomeHub/`) |
+|-----------------|----------------------|
+| `db/schema.ts` | `Models/*` |
+| `lib/*` business rules (dates, chores, streaks, tags, …) | `Utilities/*` (the rules the app needs on the device) |
+| `app/api/mobile/v1/*` | `Services/HomeHubAPI.swift` |
+| Today | `DashboardView`, with the sleep quick log |
+| Calendar | `CalendarView` (reads the device's calendars through EventKit) |
+| Routines, Chores, Food (weekly plan, snacks, recipes), Sleep | `RoutinesView`, `ChoresView`, `MealsView` / `SnacksView` / `RecipesView`, `NapsView` |
+| Groceries, Birthdays, Notes | `GroceriesView`, `BirthdaysView`, `NotesView` |
+| Settings | `SettingsView` |
+| Navigation shell | `HubView`: tab bar on iPhone, sidebar on iPad |
 
 ## What's implemented vs. next steps
 
-**Done in this translation**
+**Implemented**
 
 - Data models for all major entities
 - Business logic utilities ported from TypeScript
@@ -86,11 +85,11 @@ To load `http://` during development, add a temporary ATS exception in Info.plis
 - Sleep Live Activity: while a child is napping or in bed, the lock screen and Dynamic Island show a running timer (`HomeHubLiveActivity/`, started and ended by `SleepLiveActivityManager`). It is started locally, so it needs no push entitlement; it appears on a device when the app next refreshes, and iOS ends any Live Activity after about 8 hours
 - Per-user hub module toggles, sidebar order, and dashboard card order and size
 - Mobile REST API under `src/app/api/mobile/v1/`
-- Adaptive iPhone layouts for parent editing flows, with the same backend data refreshing on larger display clients.
+- Adaptive layouts: phone, and iPad with side panels that appear only when the window is wide enough (Groceries, Recipes, Snacks, Meals, Birthdays).
 
 **Still to build in Swift**
 
-- Home-screen widget integration: `HomeHubWidget/` exists but is not a target. The generated project has the `HomeHub` app and the `HomeHubLiveActivity` extension (sleep Live Activity) only. The widget would need an App Group to share data with the app, which a Personal Team can't provision
+- A home-screen widget. An earlier draft was removed because it could never run: it needs an App Group to share data with the app, which a Personal Team can't provision. It is in git history (the `HomeHubWidget/` folder before the commit that removed it) if that changes. The generated project has the `HomeHub` app and the `HomeHubLiveActivity` extension (sleep Live Activity) only
 - Creating and editing calendar events (the server-side event API was removed; the "default calendar for new events" setting is currently unused)
 
 ## Run checks

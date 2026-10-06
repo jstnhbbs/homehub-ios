@@ -106,8 +106,6 @@ struct SettingsView: View {
                 settingsRow(.about)
             } header: {
                 Text("Support")
-            } footer: {
-                Text("Web account setup stays minimal; day-to-day preferences live here in the iOS app.")
             }
         }
         .scrollContentBackground(.hidden)
@@ -350,12 +348,8 @@ struct SettingsView: View {
             ThemeSettingView()
 
             Section {
-                LabeledContent("Launch Loading", value: "Native spinner")
-                LabeledContent("App Icon Picker", value: "This device")
-            } header: {
-                Text("Icon Behavior")
             } footer: {
-                Text("Beacon shows cached app content as soon as possible. Alternate app icons only affect the Home Screen icon after iOS applies the change.")
+                Text("Theme and icon choices apply to this device only. A new app icon shows on the Home Screen once iOS applies the change.")
             }
         }
         .formStyle(.grouped)
@@ -443,13 +437,13 @@ struct SettingsView: View {
     private var dataTab: some View {
         Form {
             Section {
-                LabeledContent("Backend", value: AppConfig.baseURL.absoluteString)
+                LabeledContent("Server", value: AppConfig.baseURL.absoluteString)
                 LabeledContent("Session", value: appState.currentUser == nil ? "Signed out" : "Signed in")
                 LabeledContent("Local cache", value: appState.dashboard == nil ? "Empty" : "Ready")
             } header: {
                 Text("Sync Status")
             } footer: {
-                Text("Beacon stores household data on the backend and uses local device services for calendars, reminders, weather, and notifications.")
+                Text("Beacon keeps your household's information on its server and uses this device for calendars, reminders, weather, and notifications.")
             }
 
             Section {
@@ -472,8 +466,6 @@ struct SettingsView: View {
         Form {
             Section {
                 LabeledContent("Version", value: appVersionLabel)
-                LabeledContent("Calendar", value: "Native iOS")
-                LabeledContent("Backend", value: "Beacon web API")
             } header: {
                 Text("About Beacon")
             }
@@ -798,14 +790,15 @@ private struct SettingsFAQView: View {
 
     private static let sections: [FAQSection] = [
         FAQSection(title: "Getting Started", questions: [
-            FAQItem("How do I use Beacon on more than one device?", "Install Beacon on each device and sign in. Use the same account, or have another parent create an account and join your household with the parent invite code in Settings > Family. Shared household information comes from the same backend on your phone and larger display."),
+            FAQItem("How do I use Beacon on more than one device?", "Install Beacon on each device and sign in. Use the same account, or have another parent create an account and join your household with the parent invite code in Settings > Family. Shared household information is the same on your phone and your iPad."),
             FAQItem("What is the difference between an account and a family profile?", "An account is a sign-in for someone using Beacon. A family profile represents a person in your household, including children who do not need their own sign-in. Profiles let you assign routines and chores and keep birthdays together."),
             FAQItem("How do I invite a parent or helper?", "Find the invite codes in Settings > Family. Share the parent code with another parent, or the guest code with a helper. They create an account and join with that code. Treat invite codes as private household information."),
             FAQItem("What can owners, parents, and guests do?", "Owners and parents manage household setup and family information. Guests can use household views without changing global settings. Your role and available permissions appear in Settings > General.")
         ]),
         FAQSection(title: "Today & Layout", questions: [
             FAQItem("How do I choose and arrange Today cards?", "Open Settings > Layout > Today Cards. Toggle the cards you want to see and use the reorder controls to arrange them. Your card choices and order are saved for your signed-in user."),
-            FAQItem("What do Standard and Expanded mean?", "On larger layouts, Standard uses one column and Expanded uses two columns when space allows. Expanded changes width rather than making a whole row taller. On iPhone, cards stay in a single column; the size preference is for larger layouts."),
+            FAQItem("What do Standard and Expanded mean?", "Standard takes one column and Expanded takes two, when there is room. On iPhone that is half the width or the full width of the screen. Expanded changes width rather than making a card taller."),
+            FAQItem("What do Set as Default and Restore Default do?", "At the bottom of Settings > Layout > Today Cards, Set as Default saves your current Today layout (which cards are on, their order, and their sizes) for iPhone or for iPad & Mac, whichever you are editing. Restore Default brings it back after the cards have been moved around. It is saved on the device you set it on, and which cards are switched on is shared with your other devices."),
             FAQItem("Do my layout choices follow me between iPhone and iPad?", "Yes. Layout preferences are saved to your account, so the same user can use them on iPhone and iPad. Another parent has their own layout preferences. Each device adapts the arrangement to its available space."),
             FAQItem("Where are the sections I cannot see in navigation?", "Tap More to see overflow sections. Larger screens show more sections directly when space allows. Open Settings > Layout > Navigation to choose and reorder optional sections; Today stays available.")
         ]),
@@ -814,7 +807,7 @@ private struct SettingsFAQView: View {
             FAQItem("How do I choose which calendars appear?", "In Settings > Calendar & Reminders, open the calendar selection and choose from the accessible device calendars. Save your selection, or select all calendars. Configure calendar access and selection separately on each device."),
             FAQItem("Why are events different on my phone and iPad?", "Calendars are read locally through Apple Calendar. Check that both devices have the same calendar accounts, that the calendars are syncing in Apple Calendar, and that Beacon has access and the intended calendars selected on each device. Joining the same Beacon household does not share a calendar account."),
             FAQItem("How do I switch between day, week, and month?", "Open Calendar and select Day, Week, or Month. Tap a date in the grid to open Day view, or tap an event to see its details. Use the previous and next controls to move through dates, or Today to return to the current date. Search filters the events in the current calendar range."),
-            FAQItem("How do groceries work with Apple Reminders?", "Allow Reminders access in Settings > Calendar & Reminders and choose a list. Beacon uses that device's selected Reminders list. To see the same items elsewhere, share or sync the list through Apple Reminders and select it on each device. Without Reminders access, Beacon uses the household grocery list on the backend; these are separate lists."),
+            FAQItem("How do groceries work with Apple Reminders?", "Allow Reminders access in Settings > Calendar & Reminders and choose a list. Beacon uses that device's selected Reminders list. To see the same items elsewhere, share or sync the list through Apple Reminders and select it on each device. Without Reminders access, Beacon uses its own household grocery list; these are separate lists."),
             FAQItem("What if I denied Calendar or Reminders access?", "Open the permission settings from Beacon's Calendar & Reminders page, or open iOS Settings and find Beacon. Enable access, then return to Beacon and refresh. Calendars and lists must also be available in the Apple apps on that device.")
         ]),
         FAQSection(title: "Routines, Chores & Food", questions: [
@@ -825,7 +818,7 @@ private struct SettingsFAQView: View {
         ]),
         FAQSection(title: "Sync & Troubleshooting", questions: [
             FAQItem("When does shared information refresh?", "Beacon loads shared data when it starts and when screens load or refresh. Edits refresh the relevant data on the device making the change. Other devices receive changes when they fetch fresh data; this is not a continuous live connection. Use Settings > Data & Sync > Refresh Now if a device looks out of date."),
-            FAQItem("Can I use Beacon offline?", "Beacon can show cached household and Today content when it is available. Shared household edits need a working connection to the backend; do not assume offline edits will be queued and uploaded later. Native calendars and Reminders depend on what is available locally on your device."),
+            FAQItem("Can I use Beacon offline?", "Beacon can show cached household and Today content when it is available. Shared household edits need a working connection; do not assume offline edits will be queued and uploaded later. Native calendars and Reminders depend on what is available locally on your device."),
             FAQItem("Why is weather unavailable?", "Weather needs device location access and an available weather service. Allow location access when prompted, check Beacon's permissions in system settings, and make sure the device has a connection. Weather may be unavailable on some devices or environments."),
             FAQItem("Why am I not receiving reminders?", "Open Settings > Notifications in Beacon, allow notifications, and enable the reminders and times you want. Also check the device's notification settings, Focus modes, and Scheduled Summary. Beacon's reminder preferences and notification permission are configured on each device."),
             FAQItem("How do I change colors or light and dark mode?", "Choose a theme color or app icon in Settings > Appearance. Beacon follows your device's system light or dark appearance. Theme and icon choices apply locally to that device.")
@@ -901,7 +894,7 @@ private struct PrivacyAccessSettingsView: View {
             } header: {
                 Text("Device Access")
             } footer: {
-                Text("These permissions apply only to this device. Beacon does not upload calendar or reminder contents to the household backend.")
+                Text("These permissions apply only to this device. Beacon does not upload calendar or reminder contents to its server.")
             }
 
             Section {
@@ -1113,7 +1106,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
         case .calendar: "Access, defaults, alerts, and calendars on this device."
         case .notifications: "Configure native reminder times."
         case .layout: "Choose and arrange hub sections."
-        case .data: "Check backend status and refresh local data."
+        case .data: "Check the connection and refresh your data."
         case .faq: "Getting started, everyday use, and troubleshooting."
         case .about: "Version, privacy, and terms."
         }
