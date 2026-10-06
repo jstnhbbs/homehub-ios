@@ -7,6 +7,7 @@ import { MemberRoleSelect } from "@/components/member-role-select";
 import { ProfileAvatar } from "@/components/profile-avatar";
 import { ProfileColorPicker } from "@/components/profile-color-picker";
 import { SignOutButton } from "@/components/sign-out-button";
+import { VerifyEmailNotice } from "@/components/verify-email-notice";
 import { db } from "@/db/client";
 import { householdMembers, profiles, users } from "@/db/schema";
 import { requireHousehold, getSession } from "@/lib/household";
@@ -61,6 +62,10 @@ export default async function SettingsPage() {
         </div>
         <SignOutButton />
       </div>
+
+      {session && !session.user.emailVerified ? (
+        <VerifyEmailNotice email={session.user.email} />
+      ) : null}
 
       <div className="mt-6 grid grid-cols-2 gap-5 max-md:mt-4 max-md:grid-cols-1 max-md:gap-3">
         <section className="hub-card p-6 max-md:p-4">

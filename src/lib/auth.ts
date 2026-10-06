@@ -7,6 +7,8 @@ import {
   AccountDeletionBlockedError,
   detachUserFromHouseholds,
 } from "@/lib/account-deletion";
+import { sendEmail } from "@/lib/email";
+import { verificationEmail } from "@/lib/email-templates";
 
 export const auth = betterAuth({
   appName: "Beacon",
@@ -46,6 +48,20 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 10,
+    // Deliberately not required: an unverified address can still sign in and use the app (they are
+    // reminded to confirm it). Requiring it would lock out every account made before this existed,
+    // and anyone whose email is slow or never arrives.
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    // Following the link confirms the address and nothing else. Signing the browser in as well
+    // would make the email link a login, usable by anyone who sees it.
+    autoSignInAfterVerification: false,
+    expiresIn: 60 * 60 * 24,
+    sendVerificationEmail: async ({ user, url }) => {
+      // sendEmail never throws, so a provider problem cannot fail a sign-up.
+      await sendEmail(verificationEmail({ to: user.email, name: user.name, url }));
+    },
   },
   session: {
     expiresIn: 60 * 60 * 24 * 30,
@@ -59,6 +75,8 @@ export const auth = betterAuth({
     customRules: {
       "/sign-in/email": { window: 60, max: 5 },
       "/sign-up/email": { window: 60, max: 3 },
+      // "Send it again" must not be a way to flood someone's inbox.
+      "/send-verification-email": { window: 60, max: 2 },
     },
   },
   trustedOrigins: process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(","),

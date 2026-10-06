@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPolicyPage() {
   return (
-    <LegalPage title="Privacy Policy" updated="July 15, 2026">
+    <LegalPage title="Privacy Policy" updated="October 5, 2026">
       <p>
         Beacon is a family dashboard for calendars, routines, chores, meals,
         and recipes. This policy explains what information the app stores and
@@ -27,7 +27,9 @@ export default function PrivacyPolicyPage() {
         <p>
           <strong className="text-[var(--foreground)]">Parent accounts:</strong>{" "}
           name, email address, and authentication credentials managed through
-          Better Auth.
+          Better Auth. We use your email address to sign you in and to send a
+          one-time link that confirms the address belongs to you (through our
+          email provider, Resend); we do not send marketing email.
         </p>
         <p>
           <strong className="text-[var(--foreground)]">Household data:</strong>{" "}

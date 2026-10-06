@@ -54,6 +54,7 @@ Install the native app through Xcode or TestFlight. See [the iOS setup guide](io
 
 ## Backups and data export
 
+- **Email confirmation:** a new account is emailed a one-time link (valid 24 hours) that confirms its address. An unconfirmed address can still sign in and use everything; the app and the web settings page remind them and offer to send it again. Email goes out through Resend: set `RESEND_API_KEY` and `EMAIL_FROM` (an address on a domain you have verified with Resend) in the deployment's environment. Without them production sends nothing (and logs a warning), and development prints the email, including the link, in the server log.
 - **Household export:** owners and parents can save a JSON copy of their household from the iOS app (Settings → General → Export Household Data). It leaves out invite codes and member email addresses.
 - **Database backup:** for a full copy of the production database, run this while signed in to the Turso CLI:
 
