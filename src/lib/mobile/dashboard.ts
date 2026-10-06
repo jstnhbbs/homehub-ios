@@ -18,6 +18,7 @@ import {
 import { birthdayEventsInRange } from "@/lib/birthdays";
 import { listHouseholdBirthdays } from "@/lib/family-birthdays";
 import { choreState, upcomingTimedChores } from "@/lib/chores";
+import { routineRunsOn } from "@/lib/routines";
 import { localDateIn, weekKey } from "@/lib/dates";
 import { parseSnackOptions, snackEatenLabels } from "@/lib/meals/snacks";
 import { fetchNapsForDate, serializeNap } from "@/lib/naps/store";
@@ -30,7 +31,7 @@ type Household = NonNullable<Awaited<ReturnType<typeof getCurrentHousehold>>>;
 
 export async function buildDashboardPayload(
   household: Household,
-  userId: string,
+  userId: string
 ) {
   const localDate = localDateIn(household.timezone);
   const dayStart = fromZonedTime(`${localDate}T00:00:00`, household.timezone);
@@ -63,6 +64,7 @@ export async function buildDashboardPayload(
         routineName: routines.name,
         period: routines.period,
         profileId: routines.profileId,
+        routineDays: routines.days,
       })
       .from(routineSteps)
       .innerJoin(routines, eq(routineSteps.routineId, routines.id))
@@ -81,8 +83,8 @@ export async function buildDashboardPayload(
       .where(
         and(
           eq(routines.householdId, household.id),
-          eq(routineCompletions.localDate, localDate),
-        ),
+          eq(routineCompletions.localDate, localDate)
+        )
       ),
     db
       .select()
@@ -104,14 +106,14 @@ export async function buildDashboardPayload(
           eq(chores.householdId, household.id),
           // One-offs are keyed "once", weekly chores by week and everything else by day, so these
           // are all the dashboard reads. Without this every completion ever recorded came back.
-          inArray(choreCompletions.periodKey, [localDate, weeklyKey, "once"]),
-        ),
+          inArray(choreCompletions.periodKey, [localDate, weeklyKey, "once"])
+        )
       ),
     db
       .select()
       .from(meals)
       .where(
-        and(eq(meals.householdId, household.id), eq(meals.localDate, localDate)),
+        and(eq(meals.householdId, household.id), eq(meals.localDate, localDate))
       ),
     db
       .select({
@@ -122,8 +124,8 @@ export async function buildDashboardPayload(
       .where(
         and(
           eq(snackCompletions.householdId, household.id),
-          eq(snackCompletions.localDate, localDate),
-        ),
+          eq(snackCompletions.localDate, localDate)
+        )
       ),
     fetchNapsForDate(household, localDate),
     db
@@ -132,8 +134,8 @@ export async function buildDashboardPayload(
       .where(
         and(
           eq(groceryItems.householdId, household.id),
-          eq(groceryItems.checked, false),
-        ),
+          eq(groceryItems.checked, false)
+        )
       )
       .orderBy(asc(groceryItems.category), asc(groceryItems.createdAt)),
     db
@@ -155,7 +157,7 @@ export async function buildDashboardPayload(
   const choreItems = choreRows.map((chore) => {
     const completionFor = (periodKey: string) =>
       choreDone.find(
-        (item) => item.choreId === chore.id && item.periodKey === periodKey,
+        (item) => item.choreId === chore.id && item.periodKey === periodKey
       );
     const state = choreState(chore, {
       localDate,
@@ -179,12 +181,14 @@ export async function buildDashboardPayload(
       giftIdeas: row.giftIdeas,
       notifyDaysBefore: row.notifyDaysBefore,
     })),
-    localDate,
+    localDate
   );
   // nextBirthdayOccurrence always rolls to the soonest occurrence (this year or next), so
   // daysUntil never exceeds about a year regardless of this cutoff; it exists so a change to that
   // logic can't silently make the dashboard payload unbounded, not to hide anything further out.
-  const upcomingBirthdays = birthdayItems.filter((item) => item.daysUntil <= 365);
+  const upcomingBirthdays = birthdayItems.filter(
+    (item) => item.daysUntil <= 365
+  );
 
   const schedule = [
     ...birthdayEventsInRange(
@@ -197,7 +201,7 @@ export async function buildDashboardPayload(
       })),
       localDate,
       localDate,
-      household.timezone,
+      household.timezone
     ),
   ].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 
@@ -212,15 +216,23 @@ export async function buildDashboardPayload(
     hubModules,
     localDate,
     profiles: familyProfiles,
-    routineSteps: routineRows.map((step) => {
-      const done = doneSteps.get(step.id);
-      return {
-        ...step,
-        completed: Boolean(done),
-        completedAt: done?.completedAt ?? null,
-        completedByName: done?.completedByName ?? null,
-      };
-    }),
+    // Routines that don't run today are left out, so Today, the reminders and the Routines page
+    // only ask for what is on for the day. Their streaks already skip those days.
+    routineSteps: routineRows
+      .filter((step) => routineRunsOn(step.routineDays, localDate))
+      .map((step) => {
+        const done = doneSteps.get(step.id);
+        return {
+          id: step.id,
+          label: step.label,
+          routineName: step.routineName,
+          period: step.period,
+          profileId: step.profileId,
+          completed: Boolean(done),
+          completedAt: done?.completedAt ?? null,
+          completedByName: done?.completedByName ?? null,
+        };
+      }),
     chores: dueChores.map(({ chore, done, state }) => ({
       id: chore.id,
       title: chore.title,
@@ -241,7 +253,7 @@ export async function buildDashboardPayload(
       localDate,
       isDone: (choreId, periodKey) =>
         choreDone.some(
-          (item) => item.choreId === choreId && item.periodKey === periodKey,
+          (item) => item.choreId === choreId && item.periodKey === periodKey
         ),
     }),
     meals: todayMeals,
@@ -267,7 +279,9 @@ export async function buildDashboardPayload(
     upcomingBirthdays,
     // Says whether any anniversary exists at all, not just within upcomingBirthdays' window, so
     // the app can name the module consistently ("Birthdays" or "Celebrations").
-    hasAnniversaries: familyBirthdayRows.some((row) => row.kind === "anniversary"),
+    hasAnniversaries: familyBirthdayRows.some(
+      (row) => row.kind === "anniversary"
+    ),
     routineStreaks,
   };
 }

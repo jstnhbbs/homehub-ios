@@ -10,6 +10,7 @@ import {
   requireMobileHousehold,
   requireMobileParentHousehold,
 } from "@/lib/mobile/http";
+import { ALL_ROUTINE_DAYS, normalizeRoutineDays } from "@/lib/routines";
 
 const shortText = z.string().trim().min(1).max(120);
 
@@ -29,7 +30,10 @@ export async function GET() {
       .where(eq(routines.householdId, household.id))
       .orderBy(asc(routineSteps.sortOrder));
 
-    const stepsByRoutine = new Map<string, typeof routineSteps.$inferSelect[]>();
+    const stepsByRoutine = new Map<
+      string,
+      typeof routineSteps.$inferSelect[]
+    >();
     for (const row of steps) {
       const routineId = row.routine_steps.routineId;
       const list = stepsByRoutine.get(routineId) ?? [];
@@ -41,7 +45,7 @@ export async function GET() {
       routineRows.map((routine) => ({
         ...routine,
         steps: stepsByRoutine.get(routine.id) ?? [],
-      })),
+      }))
     );
   } catch (error) {
     return handleMobileError(error);
@@ -56,7 +60,7 @@ export async function POST(request: Request) {
         name: shortText,
         period: z.enum(["morning", "afternoon", "evening"]),
         profileId: z.string().uuid().optional(),
-        days: z.string().default("0,1,2,3,4,5,6"),
+        days: z.string().default(ALL_ROUTINE_DAYS),
         steps: z.array(shortText).min(1).max(30),
       })
       .parse(await parseJsonBody(request));
@@ -68,8 +72,8 @@ export async function POST(request: Request) {
         .where(
           and(
             eq(profiles.id, input.profileId),
-            eq(profiles.householdId, household.id),
-          ),
+            eq(profiles.householdId, household.id)
+          )
         )
         .limit(1);
       if (!profile[0]) throw new Error("Invalid family profile.");
@@ -83,7 +87,7 @@ export async function POST(request: Request) {
         name: input.name,
         period: input.period,
         profileId: input.profileId ?? null,
-        days: input.days,
+        days: normalizeRoutineDays(input.days),
       });
       await tx.insert(routineSteps).values(
         input.steps.map((label, index) => ({
@@ -92,7 +96,7 @@ export async function POST(request: Request) {
           label,
           sortOrder: index,
           createdAt: new Date(),
-        })),
+        }))
       );
     });
 

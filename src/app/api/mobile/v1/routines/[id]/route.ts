@@ -9,6 +9,7 @@ import {
   parseJsonBody,
   requireMobileParentHousehold,
 } from "@/lib/mobile/http";
+import { normalizeRoutineDays, pairRoutineSteps } from "@/lib/routines";
 
 const shortText = z.string().trim().min(1).max(120);
 
@@ -17,12 +18,17 @@ type RouteContext = { params: Promise<{ id: string }> };
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     const household = await requireMobileParentHousehold();
-    const id = z.string().uuid().parse((await context.params).id);
+    const id = z
+      .string()
+      .uuid()
+      .parse((await context.params).id);
     const input = z
       .object({
         name: shortText,
         period: z.enum(["morning", "afternoon", "evening"]),
         profileId: z.string().uuid().optional(),
+        // Left out by apps that predate day choices, which means "leave the days alone".
+        days: z.string().optional(),
         steps: z.array(shortText).min(1).max(30),
       })
       .parse(await parseJsonBody(request));
@@ -41,8 +47,8 @@ export async function PATCH(request: Request, context: RouteContext) {
         .where(
           and(
             eq(profiles.id, input.profileId),
-            eq(profiles.householdId, household.id),
-          ),
+            eq(profiles.householdId, household.id)
+          )
         )
         .limit(1);
       if (!profile[0]) throw new Error("Invalid family profile.");
@@ -55,38 +61,40 @@ export async function PATCH(request: Request, context: RouteContext) {
           name: input.name,
           profileId: input.profileId ?? null,
           period: input.period,
+          ...(input.days === undefined
+            ? {}
+            : { days: normalizeRoutineDays(input.days) }),
           updatedAt: new Date(),
         })
         .where(eq(routines.id, id));
 
       const existingSteps = await tx
-        .select({ id: routineSteps.id })
+        .select({ id: routineSteps.id, label: routineSteps.label })
         .from(routineSteps)
         .where(eq(routineSteps.routineId, id))
         .orderBy(asc(routineSteps.sortOrder));
 
-      for (const [index, label] of input.steps.entries()) {
-        const existingStep = existingSteps[index];
-        if (existingStep) {
+      // A step keeps its row, and so what has been checked off, when it is only moved.
+      const { pairs, removed } = pairRoutineSteps(existingSteps, input.steps);
+      for (const [index, pair] of pairs.entries()) {
+        if (pair.id) {
           await tx
             .update(routineSteps)
-            .set({ label, sortOrder: index })
-            .where(eq(routineSteps.id, existingStep.id));
+            .set({ label: pair.label, sortOrder: index })
+            .where(eq(routineSteps.id, pair.id));
         } else {
           await tx.insert(routineSteps).values({
             id: randomUUID(),
             routineId: id,
-            label,
+            label: pair.label,
             sortOrder: index,
             createdAt: new Date(),
           });
         }
       }
 
-      for (const removedStep of existingSteps.slice(input.steps.length)) {
-        await tx
-          .delete(routineSteps)
-          .where(eq(routineSteps.id, removedStep.id));
+      for (const removedId of removed) {
+        await tx.delete(routineSteps).where(eq(routineSteps.id, removedId));
       }
     });
 
@@ -110,7 +118,10 @@ export async function PATCH(request: Request, context: RouteContext) {
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
     const household = await requireMobileParentHousehold();
-    const id = z.string().uuid().parse((await context.params).id);
+    const id = z
+      .string()
+      .uuid()
+      .parse((await context.params).id);
     const deleted = await db
       .delete(routines)
       .where(and(eq(routines.id, id), eq(routines.householdId, household.id)))
