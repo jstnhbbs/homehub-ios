@@ -77,7 +77,7 @@ final class NativeNotificationService: ObservableObject {
 
         if settings.choresEnabled {
             requests.append(contentsOf: choreRequests(
-                chores: dashboard.chores,
+                dashboard: dashboard,
                 calendar: calendar,
                 today: today
             ))
@@ -169,26 +169,30 @@ final class NativeNotificationService: ObservableObject {
     }
 
     private func choreRequests(
-        chores: [ChoreRow],
+        dashboard: DashboardData,
         calendar: Calendar,
         today: Date
     ) -> [UNNotificationRequest] {
+        let chores = dashboard.chores
         let pendingChores = chores.filter { !$0.completed && $0.dueToday != false }
         var requests: [UNNotificationRequest] = []
 
-        // A chore with a time of its own reminds at that time, by name. The rest share the
-        // evening check-in.
-        for chore in pendingChores {
-            guard let time = chore.dueTime,
-                  let minute = ChoreHelpers.minuteOfDay(time),
-                  let fireDate = fireDate(today: today, minuteOfDay: minute, calendar: calendar) else {
-                continue
-            }
+        // A chore with a time of its own reminds by name, a set time before it is due. Today's
+        // come from the chore list and the next few days' are sent ahead, so a 7 am chore still
+        // reminds on a day the app hasn't been opened yet. The rest share the evening check-in.
+        for reminder in ChoreReminderPlanner.reminders(
+            today: chores,
+            upcoming: dashboard.upcomingChores,
+            localDate: dashboard.localDate,
+            leadMinutes: settings.choreLeadMinutes,
+            now: .now,
+            calendar: calendar
+        ) {
             requests.append(request(
-                id: "chore.\(chore.id).\(chore.periodKey)",
-                title: chore.title,
-                body: "This chore is due now.",
-                fireDate: fireDate,
+                id: reminder.id,
+                title: reminder.title,
+                body: reminder.body,
+                fireDate: reminder.fireDate,
                 calendar: calendar
             ))
         }

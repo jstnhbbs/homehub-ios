@@ -9,6 +9,8 @@ struct HomeHubNotificationSettings: Codable, Equatable, Sendable {
     var afternoonRoutineMinute: Int
     var eveningRoutineMinute: Int
     var choreMinute: Int
+    /// How long before its time a chore that has one reminds. 0 is at the time itself.
+    var choreLeadMinutes: Int
     var bedtimeMinute: Int
     var napCheckMinutes: Int
     var birthdaysEnabled: Bool
@@ -25,6 +27,7 @@ struct HomeHubNotificationSettings: Codable, Equatable, Sendable {
         afternoonRoutineMinute: 15 * 60,
         eveningRoutineMinute: 19 * 60 + 30,
         choreMinute: 17 * 60,
+        choreLeadMinutes: 0,
         bedtimeMinute: 20 * 60,
         napCheckMinutes: 90,
         birthdaysEnabled: true,
@@ -52,6 +55,7 @@ extension HomeHubNotificationSettings {
             afternoonRoutineMinute: try container.decodeIfPresent(Int.self, forKey: .afternoonRoutineMinute) ?? fallback.afternoonRoutineMinute,
             eveningRoutineMinute: try container.decodeIfPresent(Int.self, forKey: .eveningRoutineMinute) ?? fallback.eveningRoutineMinute,
             choreMinute: try container.decodeIfPresent(Int.self, forKey: .choreMinute) ?? fallback.choreMinute,
+            choreLeadMinutes: try container.decodeIfPresent(Int.self, forKey: .choreLeadMinutes) ?? fallback.choreLeadMinutes,
             bedtimeMinute: try container.decodeIfPresent(Int.self, forKey: .bedtimeMinute) ?? fallback.bedtimeMinute,
             napCheckMinutes: try container.decodeIfPresent(Int.self, forKey: .napCheckMinutes) ?? fallback.napCheckMinutes,
             birthdaysEnabled: try container.decodeIfPresent(Bool.self, forKey: .birthdaysEnabled) ?? fallback.birthdaysEnabled,

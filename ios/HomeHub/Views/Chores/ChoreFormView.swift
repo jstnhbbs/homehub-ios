@@ -6,7 +6,6 @@ struct ChoreFormView: View {
     let timezone: TimeZone
     let submitLabel: String
     var onSubmit: (ChoreInput) async -> Bool
-    var onDelete: (() async -> Bool)?
 
     @State private var title = ""
     @State private var profileId: String?
@@ -96,16 +95,6 @@ struct ChoreFormView: View {
             .buttonStyle(HubButtonStyle(emphasis: .primary))
             .disabled(isSaving || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
-            if let onDelete {
-                Button("Delete chore", role: .destructive) {
-                    Task {
-                        isSaving = true
-                        defer { isSaving = false }
-                        _ = await onDelete()
-                    }
-                }
-                .disabled(isSaving)
-            }
         }
         .onAppear(perform: populate)
     }

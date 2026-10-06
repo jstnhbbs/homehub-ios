@@ -7,6 +7,8 @@ struct DashboardData: Codable, Sendable {
     var profiles: [Profile]
     var routineSteps: [RoutineStepRow]
     var chores: [ChoreRow]
+    /// Chores with a time on the next few days, for scheduling their reminders ahead.
+    var upcomingChores: [UpcomingChore]
     var meals: [Meal]
     var scheduleEvents: [ScheduleEvent]
     var snackOptions: [String]
@@ -29,6 +31,7 @@ struct DashboardData: Codable, Sendable {
         case profiles
         case routineSteps
         case chores
+        case upcomingChores
         case meals
         case scheduleEvents
         case snackOptions
@@ -51,6 +54,7 @@ struct DashboardData: Codable, Sendable {
         profiles = try container.decodeIfPresent([Profile].self, forKey: .profiles) ?? []
         routineSteps = try container.decodeIfPresent([RoutineStepRow].self, forKey: .routineSteps) ?? []
         chores = try container.decodeIfPresent([ChoreRow].self, forKey: .chores) ?? []
+        upcomingChores = try container.decodeIfPresent([UpcomingChore].self, forKey: .upcomingChores) ?? []
         meals = try container.decodeIfPresent([Meal].self, forKey: .meals) ?? []
         scheduleEvents = try container.decodeIfPresent([ScheduleEvent].self, forKey: .scheduleEvents) ?? []
         snackOptions = try container.decodeIfPresent([String].self, forKey: .snackOptions) ?? []
@@ -73,6 +77,7 @@ struct DashboardData: Codable, Sendable {
         try container.encode(profiles, forKey: .profiles)
         try container.encode(routineSteps, forKey: .routineSteps)
         try container.encode(chores, forKey: .chores)
+        try container.encode(upcomingChores, forKey: .upcomingChores)
         try container.encode(meals, forKey: .meals)
         try container.encode(scheduleEvents, forKey: .scheduleEvents)
         try container.encode(snackOptions, forKey: .snackOptions)

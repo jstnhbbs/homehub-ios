@@ -233,6 +233,7 @@ private struct ChoreEditorSheet: View {
     let chores: [ChoreRow]
     let profiles: [Profile]
     @ObservedObject var viewModel: ChoresViewModel
+    @State private var confirmingDelete = false
 
     private var chore: ChoreRow? {
         guard case .edit(let choreId) = editor else { return nil }
@@ -278,13 +279,6 @@ private struct ChoreEditorSheet: View {
                                         dismiss()
                                     }
                                     return saved
-                                },
-                                onDelete: {
-                                    let deleted = await viewModel.deleteChore(id: chore.id)
-                                    if deleted {
-                                        dismiss()
-                                    }
-                                    return deleted
                                 }
                             )
                         } else {
@@ -297,8 +291,35 @@ private struct ChoreEditorSheet: View {
                     }
                 }
                 .padding()
+                // Room to scroll past the delete button pinned over the corner.
+                .padding(.bottom, chore == nil ? 0 : 72)
             }
             .background(HubTheme.canvas)
+            .overlay(alignment: .bottomTrailing) {
+                if let chore {
+                    // Away from Save, in the corner, and it asks before it deletes.
+                    Button {
+                        confirmingDelete = true
+                    } label: {
+                        Image(systemName: "trash")
+                            .frame(width: 20)
+                    }
+                    .buttonStyle(HubButtonStyle(emphasis: .danger))
+                    .accessibilityLabel("Delete chore")
+                    .padding(20)
+                    .confirmationDialog("Delete \(chore.title)?", isPresented: $confirmingDelete, titleVisibility: .visible) {
+                        Button("Delete Chore", role: .destructive) {
+                            Task {
+                                if await viewModel.deleteChore(id: chore.id) {
+                                    dismiss()
+                                }
+                            }
+                        }
+                    } message: {
+                        Text("This removes the chore and its history for everyone.")
+                    }
+                }
+            }
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

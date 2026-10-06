@@ -62,3 +62,16 @@ struct ToggleChoreRequest: Codable, Sendable {
     /// ignore it and flip the chore.
     var completed: Bool?
 }
+
+/// A chore with a time on one of the next few days. The dashboard sends these so a reminder can
+/// be scheduled before the day arrives, without the app having to be opened first.
+struct UpcomingChore: Codable, Identifiable, Sendable, Equatable {
+    var id: String
+    var title: String
+    var profileId: String?
+    /// The day it falls on ("YYYY-MM-DD").
+    var date: String
+    /// "HH:mm" in the household's time zone.
+    var dueTime: String
+    var periodKey: String
+}

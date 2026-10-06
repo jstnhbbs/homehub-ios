@@ -1284,9 +1284,21 @@ private struct NativeNotificationsSettingView: View {
                 timeRow("Bedtime", systemImage: "moon.fill", minute: \.eveningRoutineMinute)
             }
 
-            Section("Chores") {
+            Section {
                 Toggle("Chore Check-In", isOn: boolBinding(\.choresEnabled))
                 timeRow("Daily Check-In", systemImage: "checkmark.square.fill", minute: \.choreMinute)
+                Picker(selection: intBinding(\.choreLeadMinutes)) {
+                    ForEach(ChoreReminderPlanner.leadChoices, id: \.self) { minutes in
+                        Text(ChoreReminderPlanner.leadLabel(minutes)).tag(minutes)
+                    }
+                } label: {
+                    Label("Timed Chores", systemImage: "alarm.fill")
+                        .font(.subheadline.weight(.semibold))
+                }
+            } header: {
+                Text("Chores")
+            } footer: {
+                Text("A chore with a time reminds you by name, ahead of time if you choose. The check-in covers chores with no time. Reminders for the next few days are planned in advance, so they still arrive if you don't open the app.")
             }
 
             Section("Sleep") {
