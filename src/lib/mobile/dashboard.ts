@@ -177,6 +177,7 @@ export async function buildDashboardPayload(
       name: row.name,
       birthDate: row.birthDate,
       kind: row.kind,
+      color: row.color,
       notes: row.notes,
       giftIdeas: row.giftIdeas,
       notifyDaysBefore: row.notifyDaysBefore,

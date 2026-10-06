@@ -36,6 +36,43 @@ describe("family birthdays", () => {
     expect(colorForBirthdayName("Grandma Eve")).not.toBe(colorForBirthdayName("Riley"));
   });
 
+  it("uses a chosen color, and falls back to one from the name", () => {
+    const row = {
+      id: "family-3",
+      profileId: null,
+      name: "Grandma Eve",
+      birthDate: "1948-08-20",
+      notes: null,
+      giftIdeas: null,
+      notifyDaysBefore: 7,
+    };
+    const [chosen] = combineBirthdaySources([], [{ ...row, color: "#b07aa1" }]);
+    expect(chosen.color).toBe("#b07aa1");
+    const [automatic] = combineBirthdaySources([], [{ ...row, color: null }]);
+    expect(automatic.color).toBe(colorForBirthdayName("Grandma Eve"));
+    const [missing] = combineBirthdaySources([], [row]);
+    expect(missing.color).toBe(colorForBirthdayName("Grandma Eve"));
+  });
+
+  it("shows a linked profile's own color over a chosen one", () => {
+    const [item] = combineBirthdaySources(
+      [{ ...jamie, birthday: null }],
+      [
+        {
+          id: "family-4",
+          profileId: "profile-1",
+          name: "Jamie",
+          birthDate: "2020-07-18",
+          color: "#b07aa1",
+          notes: null,
+          giftIdeas: null,
+          notifyDaysBefore: 7,
+        },
+      ],
+    );
+    expect(item.color).toBe(jamie.color);
+  });
+
   it("prefers a household profile over a linked extra row", () => {
     const items = combineBirthdaySources(
       [jamie],

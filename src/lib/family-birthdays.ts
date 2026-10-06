@@ -32,6 +32,8 @@ export type BirthdayFamilySource = {
   birthDate: string;
   /** Defaults to a birthday when missing. */
   kind?: CelebrationKind;
+  /** A color chosen for this entry; null or missing picks one from the name. */
+  color?: string | null;
   notes: string | null;
   giftIdeas: string | null;
   notifyDaysBefore: number;
@@ -131,7 +133,7 @@ export function combineBirthdaySources(
         profileId: row.profileId,
         name: row.name,
         birthDate: row.birthDate,
-        color: linked?.color ?? colorForBirthdayName(row.name),
+        color: linked?.color ?? row.color ?? colorForBirthdayName(row.name),
         avatar: linked?.avatar ?? null,
         notes: row.notes,
         giftIdeas: row.giftIdeas,

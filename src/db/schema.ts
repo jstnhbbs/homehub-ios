@@ -445,6 +445,12 @@ export const familyBirthdays = sqliteTable(
     kind: text("kind", { enum: ["birthday", "anniversary"] })
       .notNull()
       .default("birthday"),
+    /**
+     * The color this person or couple shows in on the year wheel and lists, one of the profile
+     * colors. Null means "pick one from the name", which is what every row did before this
+     * existed. A row linked to a profile uses the profile's color instead.
+     */
+    color: text("color"),
     notes: text("notes"),
     giftIdeas: text("gift_ideas"),
     notifyDaysBefore: integer("notify_days_before").notNull().default(7),

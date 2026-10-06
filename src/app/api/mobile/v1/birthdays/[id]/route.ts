@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import { familyBirthdays, profiles } from "@/db/schema";
 import { localDateIn } from "@/lib/dates";
+import { isProfileColor } from "@/lib/profile-colors";
 import {
   handleMobileError,
   mobileJson,
@@ -17,6 +18,11 @@ const birthdayUpdateSchema = z.object({
   name: shortText.optional(),
   birthDate: z.string().date().optional(),
   kind: z.enum(["birthday", "anniversary"]).optional(),
+  // Left out (as older apps do), the color stays as it was.
+  color: z
+    .string()
+    .refine(isProfileColor, "Pick one of the listed colors.")
+    .optional(),
   profileId: z.string().uuid().nullable().optional(),
   notes: optionalText,
   giftIdeas: optionalText,
@@ -28,7 +34,10 @@ type RouteContext = { params: Promise<{ id: string }> };
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     const household = await requireMobileParentHousehold();
-    const id = z.string().uuid().parse((await context.params).id);
+    const id = z
+      .string()
+      .uuid()
+      .parse((await context.params).id);
     const input = birthdayUpdateSchema.parse(await parseJsonBody(request));
 
     const existing = await db
@@ -37,8 +46,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       .where(
         and(
           eq(familyBirthdays.id, id),
-          eq(familyBirthdays.householdId, household.id),
-        ),
+          eq(familyBirthdays.householdId, household.id)
+        )
       )
       .limit(1);
     if (!existing[0]) throw new Error("Birthday not found.");
@@ -49,7 +58,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       throw new Error(
         kind === "anniversary"
           ? "The anniversary date cannot be in the future."
-          : "Birthday cannot be in the future.",
+          : "Birthday cannot be in the future."
       );
     }
 
@@ -65,8 +74,8 @@ export async function PATCH(request: Request, context: RouteContext) {
           .where(
             and(
               eq(profiles.id, profileId),
-              eq(profiles.householdId, household.id),
-            ),
+              eq(profiles.householdId, household.id)
+            )
           )
           .limit(1);
         if (!profile[0]) throw new Error("Profile not found.");
@@ -80,10 +89,14 @@ export async function PATCH(request: Request, context: RouteContext) {
         birthDate,
         kind,
         profileId,
+        color: input.color ?? existing[0].color,
         notes: input.notes === undefined ? existing[0].notes : input.notes,
         giftIdeas:
-          input.giftIdeas === undefined ? existing[0].giftIdeas : input.giftIdeas,
-        notifyDaysBefore: input.notifyDaysBefore ?? existing[0].notifyDaysBefore,
+          input.giftIdeas === undefined
+            ? existing[0].giftIdeas
+            : input.giftIdeas,
+        notifyDaysBefore:
+          input.notifyDaysBefore ?? existing[0].notifyDaysBefore,
         updatedAt: new Date(),
       })
       .where(eq(familyBirthdays.id, id))
@@ -99,14 +112,17 @@ export async function PATCH(request: Request, context: RouteContext) {
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
     const household = await requireMobileParentHousehold();
-    const id = z.string().uuid().parse((await context.params).id);
+    const id = z
+      .string()
+      .uuid()
+      .parse((await context.params).id);
     const deleted = await db
       .delete(familyBirthdays)
       .where(
         and(
           eq(familyBirthdays.id, id),
-          eq(familyBirthdays.householdId, household.id),
-        ),
+          eq(familyBirthdays.householdId, household.id)
+        )
       )
       .returning({ id: familyBirthdays.id });
     if (!deleted[0]) throw new Error("Birthday not found.");

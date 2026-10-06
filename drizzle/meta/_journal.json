@@ -211,6 +211,13 @@
       "when": 1784417400000,
       "tag": "0029_chore_repeat",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1784418400000,
+      "tag": "0030_celebration_color",
+      "breakpoints": true
     }
   ]
 }

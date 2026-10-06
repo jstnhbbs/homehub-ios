@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import { familyBirthdays, profiles } from "@/db/schema";
 import { localDateIn } from "@/lib/dates";
+import { isProfileColor } from "@/lib/profile-colors";
 import { listHouseholdBirthdays } from "@/lib/family-birthdays";
 import {
   handleMobileError,
@@ -20,6 +21,11 @@ const birthdayInputSchema = z.object({
   name: shortText,
   birthDate: z.string().date(),
   kind: z.enum(["birthday", "anniversary"]).default("birthday"),
+  // One of the profile colors. Left out, the color is picked from the name.
+  color: z
+    .string()
+    .refine(isProfileColor, "Pick one of the listed colors.")
+    .optional(),
   profileId: z.string().uuid().nullable().optional(),
   notes: optionalText,
   giftIdeas: optionalText,
@@ -54,11 +60,12 @@ async function loadBirthdayItems(householdId: string, timezone: string) {
       name: row.name,
       birthDate: row.birthDate,
       kind: row.kind,
+      color: row.color,
       notes: row.notes,
       giftIdeas: row.giftIdeas,
       notifyDaysBefore: row.notifyDaysBefore,
     })),
-    localDateIn(timezone),
+    localDateIn(timezone)
   );
 }
 
@@ -82,19 +89,22 @@ export async function POST(request: Request) {
       throw new Error(
         input.kind === "anniversary"
           ? "The anniversary date cannot be in the future."
-          : "Birthday cannot be in the future.",
+          : "Birthday cannot be in the future."
       );
     }
 
     // An anniversary belongs to a couple or a group, not to one profile.
     const profileId: string | null =
-      input.kind === "anniversary" ? null : (input.profileId ?? null);
+      input.kind === "anniversary" ? null : input.profileId ?? null;
     if (profileId) {
       const profile = await db
         .select({ id: profiles.id })
         .from(profiles)
         .where(
-          and(eq(profiles.id, profileId), eq(profiles.householdId, household.id)),
+          and(
+            eq(profiles.id, profileId),
+            eq(profiles.householdId, household.id)
+          )
         )
         .limit(1);
       if (!profile[0]) throw new Error("Profile not found.");
@@ -108,6 +118,7 @@ export async function POST(request: Request) {
       name: input.name,
       birthDate: input.birthDate,
       kind: input.kind,
+      color: input.color ?? null,
       notes: input.notes?.trim() ? input.notes : null,
       giftIdeas: input.giftIdeas?.trim() ? input.giftIdeas : null,
       notifyDaysBefore: input.notifyDaysBefore ?? 7,
@@ -119,7 +130,7 @@ export async function POST(request: Request) {
         item: items.find((item) => item.id === id) ?? null,
         items,
       },
-      201,
+      201
     );
   } catch (error) {
     return handleMobileError(error);

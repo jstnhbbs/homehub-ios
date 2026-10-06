@@ -187,3 +187,53 @@ describe("birthdays and anniversaries", () => {
     await call("parent", "birthdays/[id]", "DELETE", undefined, { id: farOut.json.item.id });
   });
 });
+
+describe("celebration colors", () => {
+  const colorOf = async (id: string) => {
+    const list = await call("parent", "birthdays", "GET");
+    return (list.json.items as Array<Item & { color: string }>).find((item) => item.id === id)!.color;
+  };
+
+  it("keeps a chosen color, on the list and on Today", async () => {
+    const created = await call("parent", "birthdays", "POST", {
+      name: "Color Me",
+      birthDate: await birthdayDaysAhead(3),
+      color: "#b07aa1",
+    });
+    expect(created.status).toBe(201);
+    expect(created.json.item.color).toBe("#b07aa1");
+    expect(await colorOf(created.json.item.id)).toBe("#b07aa1");
+    const onToday = (await dashboard()).upcomingBirthdays.find((item) => item.id === created.json.item.id) as
+      | (Item & { color: string })
+      | undefined;
+    expect(onToday?.color).toBe("#b07aa1");
+    await call("parent", "birthdays/[id]", "DELETE", undefined, { id: created.json.item.id });
+  });
+
+  it("picks a color from the name when none is chosen", async () => {
+    const { colorForBirthdayName } = await import("@/lib/family-birthdays");
+    const created = await call("parent", "birthdays", "POST", { name: "No Choice", birthDate: "1990-01-01" });
+    expect(created.json.item.color).toBe(colorForBirthdayName("No Choice"));
+    await call("parent", "birthdays/[id]", "DELETE", undefined, { id: created.json.item.id });
+  });
+
+  it("changes the color when edited, and leaves it alone when an older app doesn't send one", async () => {
+    const created = await call("parent", "birthdays", "POST", { name: "Edit Color", birthDate: "1990-01-01", color: "#d19b45" });
+    const id = created.json.item.id as string;
+    const same = await call("parent", "birthdays/[id]", "PATCH", { name: "Edit Color renamed" }, { id });
+    expect(same.status).toBe(200);
+    expect(await colorOf(id)).toBe("#d19b45");
+    await call("parent", "birthdays/[id]", "PATCH", { color: "#5f8f8b" }, { id });
+    expect(await colorOf(id)).toBe("#5f8f8b");
+    await call("parent", "birthdays/[id]", "DELETE", undefined, { id });
+  });
+
+  it("refuses a color that is not in the palette", async () => {
+    const created = await call("parent", "birthdays", "POST", { name: "Bad Color", birthDate: "1990-01-01", color: "#123456" });
+    expect(created.status).toBe(400);
+    const ok = await call("parent", "birthdays", "POST", { name: "Fine", birthDate: "1990-01-01" });
+    const edited = await call("parent", "birthdays/[id]", "PATCH", { color: "red" }, { id: ok.json.item.id });
+    expect(edited.status).toBe(400);
+    await call("parent", "birthdays/[id]", "DELETE", undefined, { id: ok.json.item.id });
+  });
+});
