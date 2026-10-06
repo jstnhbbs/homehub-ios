@@ -70,7 +70,7 @@ beforeAll(async () => {
   await db.insert(schema.routineSteps).values({ id: ids.step, routineId: "r1", label: "Brush teeth" });
   await db.insert(schema.chores).values([
     { id: ids.daily, householdId: "h1", title: "Feed dog", cadence: "daily" },
-    { id: ids.weekly, householdId: "h1", title: "Mow", cadence: "weekly" },
+    { id: ids.weekly, householdId: "h1", title: "Mow", cadence: "weekly", repeatUnit: "week" },
   ]);
   for (const who of ["parent", "other"] as const) {
     const email = `${who}@example.com`;

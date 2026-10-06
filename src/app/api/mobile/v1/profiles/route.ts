@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, getTableColumns } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
-import { profiles } from "@/db/schema";
+import { householdMembers, profiles } from "@/db/schema";
 import { isProfileColor } from "@/lib/profile-colors";
 import {
   handleMobileError,
@@ -17,9 +17,18 @@ const shortText = z.string().trim().min(1).max(120);
 export async function GET() {
   try {
     const household = await requireMobileHousehold();
+    // `memberRole` is the role of the account a profile belongs to (null for a profile nobody signs
+    // in as), so the app can offer chores only to owners, parents and children.
     const rows = await db
-      .select()
+      .select({ ...getTableColumns(profiles), memberRole: householdMembers.role })
       .from(profiles)
+      .leftJoin(
+        householdMembers,
+        and(
+          eq(householdMembers.userId, profiles.userId),
+          eq(householdMembers.householdId, profiles.householdId),
+        ),
+      )
       .where(eq(profiles.householdId, household.id))
       .orderBy(asc(profiles.sortOrder));
     return mobileJson(rows);

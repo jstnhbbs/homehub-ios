@@ -17,7 +17,7 @@ import {
 } from "@/db/schema";
 import { birthdayEventsInRange } from "@/lib/birthdays";
 import { listHouseholdBirthdays } from "@/lib/family-birthdays";
-import { isChoreDueOnDate, isChoreOverdue } from "@/lib/chores";
+import { choreState } from "@/lib/chores";
 import { localDateIn, weekKey } from "@/lib/dates";
 import { parseSnackOptions, snackEatenLabels } from "@/lib/meals/snacks";
 import { fetchNapsForDate, serializeNap } from "@/lib/naps/store";
@@ -102,9 +102,9 @@ export async function buildDashboardPayload(
       .where(
         and(
           eq(chores.householdId, household.id),
-          // Weekly chores are keyed by week and everything else by day, so these two periods are
-          // all the dashboard reads. Without this every completion ever recorded came back.
-          inArray(choreCompletions.periodKey, [localDate, weeklyKey]),
+          // One-offs are keyed "once", weekly chores by week and everything else by day, so these
+          // are all the dashboard reads. Without this every completion ever recorded came back.
+          inArray(choreCompletions.periodKey, [localDate, weeklyKey, "once"]),
         ),
       ),
     db
@@ -151,14 +151,21 @@ export async function buildDashboardPayload(
   ]);
 
   const doneSteps = new Map(routineDone.map((item) => [item.stepId, item]));
-  const dueChores = choreRows.filter((chore) =>
-    isChoreDueOnDate(
-      chore.cadence,
-      chore.days,
+  const now = new Date();
+  const choreItems = choreRows.map((chore) => {
+    const completionFor = (periodKey: string) =>
+      choreDone.find(
+        (item) => item.choreId === chore.id && item.periodKey === periodKey,
+      );
+    const state = choreState(chore, {
       localDate,
-      household.timezone,
-    ),
-  );
+      timezone: household.timezone,
+      now,
+      completionFor,
+    });
+    return { chore, done: completionFor(state.periodKey), state };
+  });
+  const dueChores = choreItems.filter(({ state }) => state.dueToday);
 
   const birthdayItems = listHouseholdBirthdays(
     familyProfiles,
@@ -214,26 +221,22 @@ export async function buildDashboardPayload(
         completedByName: done?.completedByName ?? null,
       };
     }),
-    chores: dueChores.map((chore) => {
-      const periodKey = chore.cadence === "weekly" ? weeklyKey : localDate;
-      const done = choreDone.find(
-        (item) => item.choreId === chore.id && item.periodKey === periodKey,
-      );
-      const completed = Boolean(done);
-      return {
-        id: chore.id,
-        title: chore.title,
-        profileId: chore.profileId,
-        cadence: chore.cadence,
-        days: chore.days,
-        dueDate: chore.dueDate,
-        periodKey,
-        completed,
-        completedAt: done?.completedAt ?? null,
-        completedByName: done?.completedByName ?? null,
-        overdue: isChoreOverdue(chore.dueDate, localDate, completed),
-      };
-    }),
+    chores: dueChores.map(({ chore, done, state }) => ({
+      id: chore.id,
+      title: chore.title,
+      profileId: chore.profileId,
+      cadence: chore.cadence,
+      days: chore.days,
+      dueDate: chore.dueDate,
+      dueTime: chore.dueTime,
+      repeatUnit: chore.repeatUnit,
+      repeatInterval: chore.repeatInterval,
+      periodKey: state.periodKey,
+      completed: state.completed,
+      completedAt: done?.completedAt ?? null,
+      completedByName: done?.completedByName ?? null,
+      overdue: state.overdue,
+    })),
     meals: todayMeals,
     scheduleEvents: schedule.map((event) => ({
       eventId: event.eventId,

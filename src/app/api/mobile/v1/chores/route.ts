@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, eq } from "drizzle-orm";
-import { z } from "zod";
 import { db } from "@/db/client";
 import { choreCompletions, chores, profiles, users } from "@/db/schema";
-import { choreDaysForCadence, isChoreDueOnDate, isChoreOverdue } from "@/lib/chores";
-import { localDateIn, weekKey } from "@/lib/dates";
+import { choreInputSchema, choreScheduleColumns } from "@/lib/chore-input";
+import { choreState } from "@/lib/chores";
+import { localDateIn } from "@/lib/dates";
 import {
   handleMobileError,
   mobileJson,
@@ -13,18 +13,6 @@ import {
   requireMobileParentHousehold,
 } from "@/lib/mobile/http";
 
-const shortText = z.string().trim().min(1).max(120);
-
-const localDatePattern = /^\d{4}-\d{2}-\d{2}$/;
-
-const choreInputSchema = z.object({
-  title: shortText,
-  profileId: z.string().uuid().optional(),
-  cadence: z.enum(["daily", "weekly"]),
-  weekDay: z.enum(["0", "1", "2", "3", "4", "5", "6"]).optional(),
-  dueDate: z.string().regex(localDatePattern).optional(),
-});
-
 export async function GET(request: Request) {
   try {
     const household = await requireMobileHousehold();
@@ -32,7 +20,6 @@ export async function GET(request: Request) {
     const scope = params.get("scope") ?? "due";
     const localDate =
       params.get("localDate") ?? localDateIn(household.timezone);
-    const weeklyKey = weekKey(new Date(`${localDate}T12:00:00`));
 
     const choreRows = await db
       .select()
@@ -52,32 +39,25 @@ export async function GET(request: Request) {
       .leftJoin(users, eq(choreCompletions.completedBy, users.id))
       .where(eq(chores.householdId, household.id));
 
-    const rows =
-      scope === "all"
-        ? choreRows
-        : choreRows.filter((chore) =>
-            isChoreDueOnDate(
-              chore.cadence,
-              chore.days,
-              localDate,
-              household.timezone,
-            ),
-          );
-
-    return mobileJson(
-      rows.map((chore) => {
-        const periodKey = chore.cadence === "weekly" ? weeklyKey : localDate;
-        const done = choreDone.find(
+    const now = new Date();
+    const items = choreRows.map((chore) => {
+      const completionFor = (periodKey: string) =>
+        choreDone.find(
           (item) => item.choreId === chore.id && item.periodKey === periodKey,
         );
-        const dueToday = isChoreDueOnDate(
-          chore.cadence,
-          chore.days,
-          localDate,
-          household.timezone,
-        );
-        const completed = Boolean(done);
-        return {
+      const state = choreState(chore, {
+        localDate,
+        timezone: household.timezone,
+        now,
+        completionFor,
+      });
+      return { chore, done: completionFor(state.periodKey), state };
+    });
+
+    return mobileJson(
+      items
+        .filter(({ state }) => scope === "all" || state.dueToday)
+        .map(({ chore, done, state }) => ({
           id: chore.id,
           title: chore.title,
           profileId: chore.profileId,
@@ -85,14 +65,17 @@ export async function GET(request: Request) {
           days: chore.days,
           sortOrder: chore.sortOrder,
           dueDate: chore.dueDate,
-          periodKey,
-          completed,
+          dueTime: chore.dueTime,
+          repeatUnit: chore.repeatUnit,
+          repeatInterval: chore.repeatInterval,
+          periodKey: state.periodKey,
+          completed: state.completed,
           completedAt: done?.completedAt ?? null,
           completedByName: done?.completedByName ?? null,
-          dueToday,
-          overdue: isChoreOverdue(chore.dueDate, localDate, completed),
-        };
-      }),
+          dueToday: state.dueToday,
+          overdue: state.overdue,
+          nextDueDate: state.nextDueDate,
+        })),
     );
   } catch (error) {
     return handleMobileError(error);
@@ -124,9 +107,7 @@ export async function POST(request: Request) {
       householdId: household.id,
       title: input.title,
       profileId: input.profileId ?? null,
-      cadence: input.cadence,
-      days: choreDaysForCadence(input.cadence, input.weekDay),
-      dueDate: input.dueDate ?? null,
+      ...choreScheduleColumns(input),
     });
 
     const created = await db

@@ -227,8 +227,22 @@ export const chores = sqliteTable(
       .default("daily"),
     days: text("days").notNull().default("0,1,2,3,4,5,6"),
     sortOrder: integer("sort_order").notNull().default(0),
-    /** Optional deadline, independent of cadence/days — e.g. a one-off "due Friday" item. */
+    /**
+     * The date a one-off chore is due, or the date a repeating one starts and counts from (so
+     * "every 2 weeks" knows which weeks, and "monthly" which day).
+     */
     dueDate: text("due_date"),
+    /** "HH:mm" in the household's time zone. Optional, for any chore. */
+    dueTime: text("due_time"),
+    /**
+     * How the chore repeats: none, day, week, month or year, every `repeatInterval` of them.
+     * `cadence` is kept in step (daily for "day", weekly for the rest) so older apps still decode
+     * the row.
+     */
+    repeatUnit: text("repeat_unit", { enum: ["none", "day", "week", "month", "year"] })
+      .notNull()
+      .default("day"),
+    repeatInterval: integer("repeat_interval").notNull().default(1),
     ...timestamps,
   },
   (table) => [index("chores_household_idx").on(table.householdId)],

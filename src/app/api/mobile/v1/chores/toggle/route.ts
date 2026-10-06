@@ -3,15 +3,13 @@ import { z } from "zod";
 import { applyCompletion } from "@/lib/completion-state";
 import { db } from "@/db/client";
 import { choreCompletions, chores } from "@/db/schema";
+import { chorePeriodKeyPattern } from "@/lib/chores";
 import {
   handleMobileError,
   requireMobileContext,
   mobileJson,
   parseJsonBody,
 } from "@/lib/mobile/http";
-
-const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
-const WEEK_KEY = /^\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$/;
 
 export async function POST(request: Request) {
   try {
@@ -26,17 +24,20 @@ export async function POST(request: Request) {
       .parse(await parseJsonBody(request));
 
     const chore = await db
-      .select({ id: chores.id, cadence: chores.cadence })
+      .select({
+        id: chores.id,
+        repeatUnit: chores.repeatUnit,
+        repeatInterval: chores.repeatInterval,
+      })
       .from(chores)
       .where(
         and(eq(chores.id, input.choreId), eq(chores.householdId, household.id)),
       )
       .limit(1);
     if (!chore[0]) throw new Error("Chore not found.");
-    // Weekly chores are checked off by week and everything else by day. Anything else would be a
-    // completion for a period that doesn't exist, which nothing would ever read back.
-    const validKey = chore[0].cadence === "weekly" ? WEEK_KEY : DAY_KEY;
-    if (!validKey.test(input.periodKey)) throw new Error("That is not a valid period for this chore.");
+    // A one-off is checked off once, a weekly chore by week and everything else by day. Anything
+    // else would be a completion for a period that doesn't exist, which nothing would read back.
+    if (!chorePeriodKeyPattern(chore[0]).test(input.periodKey)) throw new Error("That is not a valid period for this chore.");
 
     const match = and(
       eq(choreCompletions.choreId, input.choreId),
