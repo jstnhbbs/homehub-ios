@@ -100,6 +100,19 @@ private struct RoutineCard: View {
         }
     }
 
+    private var runsToday: Bool {
+        RoutineDays.runsOn(routine.days, localDate: viewModel.localDate)
+    }
+
+    /// "ADA · MORNING", with the days after it when the routine doesn't run every day.
+    private func headerLabel(profile: Profile?) -> String {
+        var parts = ["\(profile?.name ?? "Everyone") · \(meta.label)"]
+        if RoutineDays.parse(routine.days) != RoutineDays.everyDay {
+            parts.append(RoutineDays.summary(routine.days))
+        }
+        return parts.joined(separator: " · ")
+    }
+
     var body: some View {
         let profile = viewModel.profile(for: routine.profileId)
         HubCard {
@@ -112,7 +125,7 @@ private struct RoutineCard: View {
                             Circle()
                                 .fill(HubTheme.profileColor(profile?.color))
                                 .frame(width: 8, height: 8)
-                            Text("\(profile?.name ?? "Everyone") · \(meta.label)".uppercased())
+                            Text(headerLabel(profile: profile).uppercased())
                                 .font(.caption2.weight(.heavy))
                                 .foregroundStyle(HubTheme.muted)
                                 .lineLimit(1)
@@ -130,7 +143,20 @@ private struct RoutineCard: View {
 
                 let pending = viewModel.pendingSteps(for: routine)
 
-                if pending.isEmpty, !(routine.steps ?? []).isEmpty {
+                if !runsToday {
+                    // Not on today: nothing to tap, and when it next runs is the useful part.
+                    VStack(spacing: 4) {
+                        Text("Not on today")
+                            .font(.subheadline.weight(.bold))
+                        Text(RoutineDays.summary(routine.days))
+                            .font(.caption.weight(.semibold))
+                    }
+                    .foregroundStyle(HubTheme.muted)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(HubTheme.tileQuiet)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                } else if pending.isEmpty, !(routine.steps ?? []).isEmpty {
                     HStack(spacing: 8) {
                         Text("All done for today!")
                             .font(.subheadline.weight(.bold))
@@ -218,6 +244,7 @@ private struct RoutineEditorSheet: View {
     let routines: [Routine]
     let profiles: [Profile]
     @ObservedObject var viewModel: RoutinesViewModel
+    @State private var confirmingDelete = false
 
     private var routine: Routine? {
         guard case .edit(let routineId) = editor else { return nil }
@@ -241,6 +268,7 @@ private struct RoutineEditorSheet: View {
                     case .add:
                         RoutineFormView(
                             profiles: profiles,
+                            weekStartsOn: viewModel.weekStartsOn,
                             submitLabel: "Add Routine"
                         ) { input in
                             let saved = await viewModel.createRoutine(input)
@@ -254,6 +282,7 @@ private struct RoutineEditorSheet: View {
                             RoutineFormView(
                                 profiles: profiles,
                                 routine: routine,
+                                weekStartsOn: viewModel.weekStartsOn,
                                 submitLabel: "Save Routine",
                                 onSubmit: { input in
                                     let saved = await viewModel.updateRoutine(id: routine.id, input: input)
@@ -261,13 +290,6 @@ private struct RoutineEditorSheet: View {
                                         dismiss()
                                     }
                                     return saved
-                                },
-                                onDelete: {
-                                    let deleted = await viewModel.deleteRoutine(id: routine.id)
-                                    if deleted {
-                                        dismiss()
-                                    }
-                                    return deleted
                                 }
                             )
                         } else {
@@ -280,8 +302,37 @@ private struct RoutineEditorSheet: View {
                     }
                 }
                 .padding()
+                // Room to scroll past the delete button pinned over the corner.
+                .padding(.bottom, routine == nil ? 0 : 72)
             }
             .background(HubTheme.canvas)
+            .overlay(alignment: .bottomTrailing) {
+                if let routine {
+                    // Away from Save, in the corner, and it asks before it deletes.
+                    Button {
+                        confirmingDelete = true
+                    } label: {
+                        Image(systemName: "trash")
+                            .frame(width: 20)
+                    }
+                    .buttonStyle(HubButtonStyle(emphasis: .danger))
+                    .accessibilityLabel("Delete routine")
+                    .padding(20)
+                    // Stay in the corner under the keyboard instead of riding up over the form.
+                    .ignoresSafeArea(.keyboard, edges: .bottom)
+                    .confirmationDialog("Delete \(routine.name)?", isPresented: $confirmingDelete, titleVisibility: .visible) {
+                        Button("Delete Routine", role: .destructive) {
+                            Task {
+                                if await viewModel.deleteRoutine(id: routine.id) {
+                                    dismiss()
+                                }
+                            }
+                        }
+                    } message: {
+                        Text("This removes the routine, its steps and their history.")
+                    }
+                }
+            }
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

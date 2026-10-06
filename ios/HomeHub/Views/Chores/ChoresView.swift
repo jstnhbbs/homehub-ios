@@ -307,6 +307,8 @@ private struct ChoreEditorSheet: View {
                     .buttonStyle(HubButtonStyle(emphasis: .danger))
                     .accessibilityLabel("Delete chore")
                     .padding(20)
+                    // Stay in the corner under the keyboard instead of riding up over the form.
+                    .ignoresSafeArea(.keyboard, edges: .bottom)
                     .confirmationDialog("Delete \(chore.title)?", isPresented: $confirmingDelete, titleVisibility: .visible) {
                         Button("Delete Chore", role: .destructive) {
                             Task {

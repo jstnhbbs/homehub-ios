@@ -20,6 +20,11 @@ final class RoutinesViewModel: ObservableObject {
         appState?.canManageHousehold ?? false
     }
 
+    /// The household's first day of the week, for laying out the day chips.
+    var weekStartsOn: Int {
+        WeekStart.parseWeekStartsOn(appState?.household?.weekStartsOn)
+    }
+
     var localDate: String {
         guard let appState,
               let timezone = appState.household.flatMap({ TimeZone(identifier: $0.timezone) }) else {
