@@ -534,9 +534,14 @@ struct HubButtonStyle: ButtonStyle {
         configuration.label
             .font(size.font)
             .foregroundStyle(foregroundColor)
-            .frame(minHeight: size.minHeight)
+            // The regular button's minimum height is its whole height (48pt), padding included, which is
+            // about what Apple's own buttons are; the padding used to be added on top, making it 68pt.
+            // A label that grows with the text size still pushes the button taller. Small and mini keep
+            // the sizes they have always had.
+            .frame(minHeight: size == .regular ? nil : size.minHeight)
             .padding(.horizontal, size.horizontalPadding)
             .padding(.vertical, size.verticalPadding)
+            .frame(minHeight: size == .regular ? size.minHeight : nil)
             .background(backgroundColor)
             .overlay {
                 if showsBorder {

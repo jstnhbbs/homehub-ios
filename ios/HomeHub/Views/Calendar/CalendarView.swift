@@ -259,7 +259,7 @@ struct CalendarView: View {
                 viewModel.goPrevious()
             } label: {
                 Image(systemName: "chevron.left")
-                    .frame(width: 40, height: 40)
+                    .frame(width: 28, height: 20)
             }
             .buttonStyle(HubButtonStyle(emphasis: .secondary))
 
@@ -270,7 +270,7 @@ struct CalendarView: View {
                 viewModel.goNext()
             } label: {
                 Image(systemName: "chevron.right")
-                    .frame(width: 40, height: 40)
+                    .frame(width: 28, height: 20)
             }
             .buttonStyle(HubButtonStyle(emphasis: .secondary))
         }
