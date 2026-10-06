@@ -21,30 +21,6 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
-  async redirects() {
-    return [
-      {
-        source: "/naps",
-        destination: "/sleep",
-        permanent: true,
-      },
-      {
-        source: "/snacks",
-        destination: "/meals/snacks",
-        permanent: true,
-      },
-      {
-        source: "/recipes",
-        destination: "/meals/recipes",
-        permanent: true,
-      },
-      {
-        source: "/recipes/:recipeId",
-        destination: "/meals/recipes/:recipeId",
-        permanent: true,
-      },
-    ];
-  },
   images: {
     remotePatterns: [
       {

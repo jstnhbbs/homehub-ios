@@ -1,5 +1,5 @@
+import Link from "next/link";
 import { HouseholdMark } from "@/components/household-mark";
-import { LiveClock } from "@/components/live-clock";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { requireHousehold } from "@/lib/household";
@@ -43,17 +43,14 @@ export default async function HubLayout({
             </div>
           </div>
           <div className="ml-3 flex shrink-0 items-center gap-4 max-md:gap-2">
-            <div className="font-display text-3xl font-semibold max-md:text-2xl">
-              <LiveClock timezone={household.timezone} />
-            </div>
             {isGuest(household.role) && (
               <SignOutButton className="hub-button secondary sm" />
             )}
             <ThemeToggle />
             {!isGuest(household.role) && (
-              <a href="/settings" className="hub-button secondary sm">
+              <Link href="/settings" className="hub-button secondary sm">
                 Settings
-              </a>
+              </Link>
             )}
           </div>
         </header>

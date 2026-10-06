@@ -1,4 +1,5 @@
 import { CalendarDays, CheckCircle2, Soup } from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -51,13 +52,13 @@ export default async function SignInPage() {
           </p>
           <AuthForm />
           <p className="mt-8 text-center text-xs leading-5 text-[var(--muted)]">
-            <a href="/privacy" className="font-bold text-[var(--sage)]">
+            <Link href="/privacy" className="font-bold text-[var(--sage)]">
               Privacy Policy
-            </a>
+            </Link>
             {" · "}
-            <a href="/terms" className="font-bold text-[var(--sage)]">
+            <Link href="/terms" className="font-bold text-[var(--sage)]">
               Terms of Service
-            </a>
+            </Link>
           </p>
         </div>
       </section>
