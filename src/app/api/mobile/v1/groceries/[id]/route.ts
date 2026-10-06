@@ -1,9 +1,7 @@
-import { randomUUID } from "node:crypto";
-import { addDays } from "date-fns";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
-import { groceryItems, recycleBinItems } from "@/db/schema";
+import { groceryItems } from "@/db/schema";
 import {
   handleMobileError,
   mobileJson,
@@ -55,18 +53,6 @@ export async function DELETE(_request: Request, context: RouteContext) {
       .limit(1);
 
     if (!item[0]) throw new Error("Grocery item not found.");
-
-    const deletedAt = new Date();
-    await db.insert(recycleBinItems).values({
-      id: randomUUID(),
-      householdId: household.id,
-      itemType: "grocery_item",
-      itemId: id,
-      label: item[0].title,
-      snapshot: JSON.stringify(item[0]),
-      deletedAt,
-      restoreBy: addDays(deletedAt, 30),
-    });
 
     await db.delete(groceryItems).where(eq(groceryItems.id, id));
     return mobileJson({ ok: true });
