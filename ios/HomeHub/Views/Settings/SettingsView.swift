@@ -26,9 +26,19 @@ struct SettingsView: View {
         Group {
             if presentation == .split {
                 NavigationStack {
-                    settingsContent
-                        .navigationTitle("Settings")
-                        .navigationBarTitleDisplayMode(.large)
+                    // The page title is drawn like every other iPad page's, instead of a system large title
+                    // that reserved an empty navigation bar's worth of space above it. Pushed pages
+                    // (General, Family, …) still get their own bar and back button.
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Settings")
+                            .font(HubTheme.pageTitle)
+                            .padding(.horizontal, 20)
+                            .accessibilityAddTraits(.isHeader)
+                        settingsContent
+                    }
+                    .navigationTitle("Settings")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar(.hidden, for: .navigationBar)
                 }
             } else {
                 settingsContent
@@ -77,8 +87,9 @@ struct SettingsView: View {
             if appState.needsEmailVerification {
                 Section {
                     VerifyEmailCard(canDismiss: false)
-                        .listRowInsets(EdgeInsets())
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                         .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                 }
             }
             statusMessagesSection

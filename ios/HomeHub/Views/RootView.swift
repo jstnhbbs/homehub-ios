@@ -21,6 +21,8 @@ struct RootView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(HubTheme.canvas)
+        // Dragging any scrolling screen or sheet puts the keyboard away. Set once here, it reaches all of them.
+        .scrollDismissesKeyboard(.interactively)
         .tint(appState.accentPalette.accent)
         .overlay(alignment: .top) {
             if let notice = appState.notice {
