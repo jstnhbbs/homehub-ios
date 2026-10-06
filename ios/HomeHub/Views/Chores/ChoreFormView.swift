@@ -110,8 +110,15 @@ struct ChoreFormView: View {
                 .pickerStyle(.menu)
 
                 if preset == .custom {
-                    HStack {
-                        Stepper("Every \(customInterval)", value: $customInterval, in: 1...99)
+                    // The number sits right beside its +/- (a Stepper with a label pushes them to
+                    // opposite ends of the row), then the unit.
+                    HStack(spacing: 10) {
+                        Text("Every")
+                        Text("\(customInterval)")
+                            .monospacedDigit()
+                            .frame(minWidth: 24, alignment: .trailing)
+                        Stepper("Every", value: $customInterval, in: 1...99)
+                            .labelsHidden()
                         Picker("Unit", selection: $customUnit) {
                             Text(customInterval == 1 ? "Day" : "Days").tag(ChoreRepeatUnit.day)
                             Text(customInterval == 1 ? "Week" : "Weeks").tag(ChoreRepeatUnit.week)
@@ -119,6 +126,7 @@ struct ChoreFormView: View {
                             Text(customInterval == 1 ? "Year" : "Years").tag(ChoreRepeatUnit.year)
                         }
                         .pickerStyle(.menu)
+                        Spacer(minLength: 0)
                     }
                 }
 
