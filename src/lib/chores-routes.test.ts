@@ -222,3 +222,16 @@ describe("who a chore can be given to", () => {
     expect(roles).toMatchObject({ parent: "parent", guest: "guest", Ava: null, Grandma: null });
   });
 });
+
+describe("timed chores in the dashboard", () => {
+  it("sends the next few days of chores with a time, for reminders", async () => {
+    const created = await call("parent", "chores", "POST", { title: "Take the bins out", repeatUnit: "day", dueTime: "07:30" });
+    const dashboard = await call("guest", "dashboard", "GET");
+    const mine = (dashboard.json.upcomingChores as { id: string; date: string; dueTime: string }[]).filter(
+      (entry) => entry.id === created.json.id,
+    );
+    expect(mine).toHaveLength(3);
+    expect(mine.every((entry) => entry.dueTime === "07:30")).toBe(true);
+    expect(new Set(mine.map((entry) => entry.date)).size).toBe(3);
+  });
+});

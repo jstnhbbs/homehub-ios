@@ -337,3 +337,55 @@ function pastDueTime(
   }).format(now);
   return clock > chore.dueTime;
 }
+
+/** A timed chore on a coming day, so the phone can schedule its reminder before that day arrives. */
+export type UpcomingChore = {
+  id: string;
+  title: string;
+  profileId: string | null;
+  /** The day it falls on ("YYYY-MM-DD"). */
+  date: string;
+  dueTime: string;
+  periodKey: string;
+};
+
+/** How many days after today the phone is told about. */
+export const UPCOMING_CHORE_DAYS = 3;
+
+/**
+ * The chores with a time that fall on each of the next few days, for reminders. Today is left to
+ * the dashboard's own chore list, which knows what has been done. A one-off that is already done
+ * is left out; a repeating chore's future turns can't have been.
+ */
+export function upcomingTimedChores(
+  chores: Array<ChoreSchedule & { id: string; title: string; profileId: string | null }>,
+  options: { localDate: string; days?: number; isDone: (choreId: string, periodKey: string) => boolean },
+): UpcomingChore[] {
+  const days = options.days ?? UPCOMING_CHORE_DAYS;
+  const today = dayNumber(options.localDate);
+  const found: UpcomingChore[] = [];
+  for (const chore of chores) {
+    if (!chore.dueTime) continue;
+    for (let offset = 1; offset <= days; offset++) {
+      const date = dateFromDayNumber(today + offset);
+      const falls =
+        chore.repeatUnit === "none"
+          ? chore.dueDate === date
+          : isChoreOccurrence(chore, date);
+      if (!falls) continue;
+      const periodKey = chorePeriodKey(chore, date);
+      if (options.isDone(chore.id, periodKey)) continue;
+      found.push({
+        id: chore.id,
+        title: chore.title,
+        profileId: chore.profileId,
+        date,
+        dueTime: chore.dueTime,
+        periodKey,
+      });
+    }
+  }
+  return found.sort((a, b) =>
+    `${a.date} ${a.dueTime}`.localeCompare(`${b.date} ${b.dueTime}`),
+  );
+}

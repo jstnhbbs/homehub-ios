@@ -17,7 +17,7 @@ import {
 } from "@/db/schema";
 import { birthdayEventsInRange } from "@/lib/birthdays";
 import { listHouseholdBirthdays } from "@/lib/family-birthdays";
-import { choreState } from "@/lib/chores";
+import { choreState, upcomingTimedChores } from "@/lib/chores";
 import { localDateIn, weekKey } from "@/lib/dates";
 import { parseSnackOptions, snackEatenLabels } from "@/lib/meals/snacks";
 import { fetchNapsForDate, serializeNap } from "@/lib/naps/store";
@@ -237,6 +237,13 @@ export async function buildDashboardPayload(
       completedByName: done?.completedByName ?? null,
       overdue: state.overdue,
     })),
+    upcomingChores: upcomingTimedChores(choreRows, {
+      localDate,
+      isDone: (choreId, periodKey) =>
+        choreDone.some(
+          (item) => item.choreId === choreId && item.periodKey === periodKey,
+        ),
+    }),
     meals: todayMeals,
     scheduleEvents: schedule.map((event) => ({
       eventId: event.eventId,

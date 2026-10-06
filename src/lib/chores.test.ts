@@ -5,6 +5,7 @@ import {
   isChoreOccurrence,
   nextChoreOccurrence,
   resolveChoreSchedule,
+  upcomingTimedChores,
   weeklyChoreDay,
   type ChoreSchedule,
 } from "./chores";
@@ -211,5 +212,45 @@ describe("a chore on a day", () => {
     const monthly = make({ repeatUnit: "month", dueDate: "2026-10-15" });
     expect(on(monthly, "2026-10-07")).toMatchObject({ dueToday: false, nextDueDate: "2026-10-15" });
     expect(on(monthly, "2026-10-15")).toMatchObject({ dueToday: true, nextDueDate: null });
+  });
+});
+
+describe("timed chores on the coming days", () => {
+  const item = (over: Partial<ChoreSchedule>) => ({ id: "c", title: "T", profileId: null, ...make({ dueTime: "07:00", ...over }) });
+  const upcoming = (chores: ReturnType<typeof item>[], days?: number, done = () => false) =>
+    upcomingTimedChores(chores, { localDate: "2026-10-07", days, isDone: done });
+
+  it("lists a daily chore with a time for each of the next days, not today", () => {
+    expect(upcoming([item({})]).map((entry) => entry.date)).toEqual(["2026-10-08", "2026-10-09", "2026-10-10"]);
+  });
+
+  it("leaves out chores with no time", () => {
+    expect(upcoming([item({ dueTime: null })])).toEqual([]);
+  });
+
+  it("lists only the days a chore falls on", () => {
+    const weekly = item({ repeatUnit: "week", days: "5" }); // Friday
+    expect(upcoming([weekly]).map((entry) => entry.date)).toEqual(["2026-10-09"]);
+  });
+
+  it("carries each turn's own period key", () => {
+    const [first] = upcoming([item({ repeatUnit: "week", days: "5" })]);
+    expect(first.periodKey).toBe("2026-W41");
+    expect(upcoming([item({})])[0].periodKey).toBe("2026-10-08");
+  });
+
+  it("lists a one-off on its day unless it is done", () => {
+    const oneOff = item({ repeatUnit: "none", dueDate: "2026-10-09" });
+    expect(upcoming([oneOff]).map((entry) => entry.date)).toEqual(["2026-10-09"]);
+    expect(upcoming([oneOff], 3, () => true)).toEqual([]);
+    expect(upcoming([item({ repeatUnit: "none", dueDate: "2026-10-07" })])).toEqual([]);
+    expect(upcoming([item({ repeatUnit: "none", dueDate: "2026-10-20" })])).toEqual([]);
+  });
+
+  it("is in date and time order", () => {
+    const late = { ...item({ dueTime: "20:00" }), id: "late" };
+    const early = { ...item({ dueTime: "06:30" }), id: "early" };
+    const entries = upcoming([late, early], 1);
+    expect(entries.map((entry) => entry.id)).toEqual(["early", "late"]);
   });
 });
