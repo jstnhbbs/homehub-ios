@@ -5,8 +5,39 @@ struct RecipesView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @StateObject private var viewModel = RecipesViewModel()
     @State private var activeRecipeSheet: RecipeSheetPresentation?
+    /// A recipe opened from the list when the page is too narrow for the detail panel beside it.
+    @State private var narrowDetailId: String?
+
+    /// The detail panel sits beside the list only when the page is wide enough to leave the list about
+    /// 300pt. Size class alone isn't enough: an iPad mini in portrait is "regular" but only about 590pt
+    /// wide, where a fixed 360pt panel squeezed the title and the Add Recipe button onto several lines.
+    private static let detailPanelMinimumWidth: CGFloat = 680
 
     var body: some View {
+        GeometryReader { proxy in
+            content(wideEnoughForPanel: proxy.size.width >= Self.detailPanelMinimumWidth)
+        }
+        .sheet(item: $activeRecipeSheet) { sheet in
+            RecipeManagementSheet(sheet: sheet, recipes: viewModel.recipes, viewModel: viewModel)
+        }
+        .sheet(isPresented: Binding(get: { narrowDetailId != nil }, set: { if !$0 { narrowDetailId = nil } })) {
+            if let id = narrowDetailId, let recipe = viewModel.recipes.first(where: { $0.id == id }) {
+                RecipeDetailPanel(recipe: recipe, viewModel: viewModel) {
+                    // One sheet at a time: close this one, then open the editor.
+                    narrowDetailId = nil
+                    activeRecipeSheet = .edit(recipe.id)
+                }
+                .padding(.top, 8)
+                .presentationDetents([.large])
+            }
+        }
+        .onAppear { viewModel.bind(to: appState) }
+        .task { await viewModel.load() }
+        .refreshable { await viewModel.load() }
+    }
+
+    @ViewBuilder
+    private func content(wideEnoughForPanel: Bool) -> some View {
         Group {
             if horizontalSizeClass == .compact {
                 ScrollView {
@@ -24,16 +55,29 @@ struct RecipesView: View {
                 .navigationDestination(for: RecipeRoute.self) { route in
                     recipeViewer(id: route.id)
                 }
-            } else {
+            } else if wideEnoughForPanel {
                 wideContent
+            } else {
+                narrowContent
             }
         }
-        .sheet(item: $activeRecipeSheet) { sheet in
-            RecipeManagementSheet(sheet: sheet, recipes: viewModel.recipes, viewModel: viewModel)
+    }
+
+    /// A regular-width page that is too narrow for the panel: the list takes the whole width and a
+    /// recipe opens in a sheet.
+    private var narrowContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                header
+                if let error = viewModel.errorMessage {
+                    Text(error).font(.footnote).foregroundStyle(.red)
+                }
+                if let success = viewModel.successMessage {
+                    Text(success).font(.footnote.weight(.semibold)).foregroundStyle(HubTheme.sage)
+                }
+                recipesGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16, alignment: .top)], opensSheet: true)
+            }
         }
-        .onAppear { viewModel.bind(to: appState) }
-        .task { await viewModel.load() }
-        .refreshable { await viewModel.load() }
     }
 
     private var wideContent: some View {
@@ -81,7 +125,7 @@ struct RecipesView: View {
     }
 
     @ViewBuilder
-    private func recipesGrid(columns: [GridItem]) -> some View {
+    private func recipesGrid(columns: [GridItem], opensSheet: Bool = false) -> some View {
         if viewModel.isLoading && viewModel.recipes.isEmpty {
             ProgressView().frame(maxWidth: .infinity, minHeight: 240)
         } else if viewModel.recipes.isEmpty {
@@ -103,8 +147,9 @@ struct RecipesView: View {
                         }
                         .buttonStyle(.plain)
                     } else {
-                        RecipeCard(recipe: recipe, isSelected: viewModel.selectedRecipeId == recipe.id) {
+                        RecipeCard(recipe: recipe, isSelected: !opensSheet && viewModel.selectedRecipeId == recipe.id) {
                             viewModel.selectedRecipeId = recipe.id
+                            if opensSheet { narrowDetailId = recipe.id }
                         }
                     }
                 }

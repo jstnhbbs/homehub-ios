@@ -5,9 +5,17 @@ struct GroceriesView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @StateObject private var viewModel = GroceriesViewModel()
 
+    /// The checked-off panel sits beside the list only when the page is wide enough to leave the list
+    /// about 300pt or more. Size class alone isn't enough: an iPad mini in portrait, or an iPad window
+    /// squeezed beside another app, is "regular" but only a little over 590pt wide, and a fixed 330pt
+    /// panel left the list too narrow to read (one word per line).
+    private static let sidePanelMinimumWidth: CGFloat = 660
+
     var body: some View {
-        Group {
-            if horizontalSizeClass == .compact {
+        GeometryReader { proxy in
+            if horizontalSizeClass != .compact, proxy.size.width >= Self.sidePanelMinimumWidth {
+                wideContent
+            } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         header
@@ -20,8 +28,6 @@ struct GroceriesView: View {
                         checkedPanel
                     }
                 }
-            } else {
-                wideContent
             }
         }
         .onAppear { viewModel.bind(to: appState) }
