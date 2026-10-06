@@ -85,11 +85,11 @@ final class BirthdaysViewModel: ObservableObject {
         }
     }
 
-    func createExtraPerson(name: String, birthDate: String, kind: CelebrationKind = .birthday) async -> Bool {
+    func createExtraPerson(name: String, birthDate: String, kind: CelebrationKind = .birthday, color: String? = nil) async -> Bool {
         guard let appState else { return false }
         do {
             let response = try await appState.api.addBirthday(
-                BirthdayWriteInput(name: name, birthDate: birthDate, kind: kind)
+                BirthdayWriteInput(name: name, birthDate: birthDate, kind: kind, color: color)
             )
             apply(response.items)
             await appState.refreshDashboard()
@@ -129,7 +129,8 @@ final class BirthdaysViewModel: ObservableObject {
         _ item: BirthdayItem,
         name: String,
         birthDate: String,
-        kind: CelebrationKind
+        kind: CelebrationKind,
+        color: String? = nil
     ) async -> Bool {
         guard let appState else { return false }
         do {
@@ -139,6 +140,7 @@ final class BirthdaysViewModel: ObservableObject {
                     name: name,
                     birthDate: birthDate,
                     kind: kind,
+                    color: color,
                     profileId: item.profileId,
                     notes: item.notes,
                     giftIdeas: item.giftIdeas,

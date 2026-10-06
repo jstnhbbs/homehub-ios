@@ -551,13 +551,6 @@ private struct RecipeManagementSheet: View {
                                     }
                                     return saved
                                 },
-                                onDelete: {
-                                    let deleted = await viewModel.deleteRecipe(id: recipe.id)
-                                    if deleted {
-                                        dismiss()
-                                    }
-                                    return deleted
-                                },
                                 onSuggestTags: { title, ingredients in
                                     await viewModel.suggestTags(title: title, ingredients: ingredients)
                                 }
@@ -580,8 +573,22 @@ private struct RecipeManagementSheet: View {
                     }
                 }
                 .padding()
+                // Room to scroll past the delete button pinned over the corner.
+                .padding(.bottom, recipe == nil ? 0 : 72)
             }
             .background(HubTheme.canvas)
+            .cornerDeleteButton(
+                isShown: recipe != nil,
+                accessibilityLabel: "Delete recipe",
+                confirmTitle: "Delete \(recipe?.title ?? "this recipe")?",
+                confirmButton: "Delete Recipe",
+                message: "This removes the recipe for everyone."
+            ) {
+                guard let recipe else { return }
+                if await viewModel.deleteRecipe(id: recipe.id) {
+                    dismiss()
+                }
+            }
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

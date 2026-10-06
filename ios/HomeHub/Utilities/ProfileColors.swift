@@ -18,4 +18,14 @@ enum ProfileColors {
         .init(value: "#b86f4d", label: "Terracotta"),
         .init(value: "#7f8757", label: "Olive"),
     ]
+
+    /// The color an entry gets when nobody has chosen one: picked from the name so it stays the
+    /// same. This is `colorForBirthdayName` on the server, so a new entry starts out showing the
+    /// color it would have been given.
+    static func automatic(forName name: String) -> String {
+        let sum = name.unicodeScalars.reduce(0) { total, scalar in
+            total + Int(String(scalar).utf16.first ?? 0)
+        }
+        return options[sum % options.count].value
+    }
 }

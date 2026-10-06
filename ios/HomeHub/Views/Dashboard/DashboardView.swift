@@ -2388,6 +2388,7 @@ private struct NotesDashboardPanel: View {
     @State private var draft = ""
     @State private var isSaving = false
     @State private var deletingId: String?
+    @State private var noteToDelete: HouseholdNote?
 
     private var trimmedDraft: String {
         draft.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -2439,9 +2440,24 @@ private struct NotesDashboardPanel: View {
                         canDelete: appState.canManageHousehold,
                         isDeleting: deletingId == note.id
                     ) {
-                        await delete(note)
+                        // Asks first: the × is small and sits among rows people tap.
+                        noteToDelete = note
                     }
                 }
+            }
+        }
+        .confirmationDialog(
+            "Delete \(noteToDelete?.title ?? "this note")?",
+            isPresented: Binding(
+                get: { noteToDelete != nil },
+                set: { if !$0 { noteToDelete = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete Note", role: .destructive) {
+                guard let note = noteToDelete else { return }
+                noteToDelete = nil
+                Task { await delete(note) }
             }
         }
     }
@@ -2494,7 +2510,9 @@ private struct NoteRow: View {
                 } label: {
                     Image(systemName: isDeleting ? "hourglass" : "xmark")
                         .font(.caption.weight(.bold))
-                        .frame(width: 28, height: 28)
+                        // A full-size touch target around the small icon.
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(HubTheme.muted)

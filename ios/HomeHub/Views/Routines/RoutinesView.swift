@@ -269,7 +269,6 @@ private struct RoutineEditorSheet: View {
     let routines: [Routine]
     let profiles: [Profile]
     @ObservedObject var viewModel: RoutinesViewModel
-    @State private var confirmingDelete = false
 
     private var routine: Routine? {
         guard case .edit(let routineId) = editor else { return nil }
@@ -331,31 +330,16 @@ private struct RoutineEditorSheet: View {
                 .padding(.bottom, routine == nil ? 0 : 72)
             }
             .background(HubTheme.canvas)
-            .overlay(alignment: .bottomTrailing) {
-                if let routine {
-                    // Away from Save, in the corner, and it asks before it deletes.
-                    Button {
-                        confirmingDelete = true
-                    } label: {
-                        Image(systemName: "trash")
-                            .frame(width: 20)
-                    }
-                    .buttonStyle(HubButtonStyle(emphasis: .danger))
-                    .accessibilityLabel("Delete routine")
-                    .padding(20)
-                    // Stay in the corner under the keyboard instead of riding up over the form.
-                    .ignoresSafeArea(.keyboard, edges: .bottom)
-                    .confirmationDialog("Delete \(routine.name)?", isPresented: $confirmingDelete, titleVisibility: .visible) {
-                        Button("Delete Routine", role: .destructive) {
-                            Task {
-                                if await viewModel.deleteRoutine(id: routine.id) {
-                                    dismiss()
-                                }
-                            }
-                        }
-                    } message: {
-                        Text("This removes the routine, its steps and their history.")
-                    }
+            .cornerDeleteButton(
+                isShown: routine != nil,
+                accessibilityLabel: "Delete routine",
+                confirmTitle: "Delete \(routine?.name ?? "this routine")?",
+                confirmButton: "Delete Routine",
+                message: "This removes the routine, its steps and their history."
+            ) {
+                guard let routine else { return }
+                if await viewModel.deleteRoutine(id: routine.id) {
+                    dismiss()
                 }
             }
             .navigationTitle(title)

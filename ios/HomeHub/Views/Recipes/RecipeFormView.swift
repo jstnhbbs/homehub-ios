@@ -4,7 +4,6 @@ struct RecipeFormView: View {
     var recipe: Recipe?
     let submitLabel: String
     var onSubmit: (RecipeInput) async -> Bool
-    var onDelete: (() async -> Bool)?
     var onSuggestTags: ((String, [String]) async -> [String])?
 
     @State private var title = ""
@@ -151,17 +150,6 @@ struct RecipeFormView: View {
             }
             .buttonStyle(HubButtonStyle(emphasis: .primary))
             .disabled(isSaving || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-            if let onDelete {
-                Button("Delete recipe", role: .destructive) {
-                    Task {
-                        isSaving = true
-                        defer { isSaving = false }
-                        _ = await onDelete()
-                    }
-                }
-                .disabled(isSaving)
-            }
         }
         .onAppear(perform: populate)
         .onChange(of: recipe?.id) { _, _ in populate() }

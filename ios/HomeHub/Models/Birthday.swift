@@ -61,6 +61,8 @@ struct BirthdayWriteInput: Codable, Sendable {
     var name: String
     var birthDate: String
     var kind: CelebrationKind?
+    /// One of `ProfileColors.options`. Left out, the server keeps what it has (or picks from the name).
+    var color: String?
     var profileId: String?
     var notes: String?
     var giftIdeas: String?

@@ -167,7 +167,6 @@ struct SleepEntrySheet: View {
     @State private var startedAt: Date
     @State private var endedAt: Date
     @State private var includeEndTime: Bool
-    @State private var confirmingDelete = false
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -251,36 +250,32 @@ struct SleepEntrySheet: View {
                     .buttonStyle(HubButtonStyle(emphasis: .primary))
                     .disabled(!isValid || isSaving)
 
-                    Button(role: .destructive) {
-                        confirmingDelete = true
-                    } label: {
-                        Text("Delete entry").frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(HubButtonStyle(emphasis: .secondaryDestructive))
-                    .disabled(isSaving)
                 }
                 .padding()
+                // Room to scroll past the delete button pinned over the corner.
+                .padding(.bottom, 72)
             }
             .background(HubTheme.canvas)
+            .cornerDeleteButton(
+                accessibilityLabel: "Delete entry",
+                confirmTitle: "Delete this entry?",
+                confirmButton: "Delete",
+                isDisabled: isSaving
+            ) {
+                isSaving = true
+                errorMessage = nil
+                if let failure = await deleteAction() {
+                    errorMessage = failure
+                    isSaving = false
+                } else {
+                    dismiss()
+                }
+            }
             .navigationTitle("Edit sleep")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
-                }
-            }
-            .confirmationDialog("Delete this entry?", isPresented: $confirmingDelete, titleVisibility: .visible) {
-                Button("Delete", role: .destructive) {
-                    Task {
-                        isSaving = true
-                        errorMessage = nil
-                        if let failure = await deleteAction() {
-                            errorMessage = failure
-                            isSaving = false
-                        } else {
-                            dismiss()
-                        }
-                    }
                 }
             }
         }

@@ -233,7 +233,6 @@ private struct ChoreEditorSheet: View {
     let chores: [ChoreRow]
     let profiles: [Profile]
     @ObservedObject var viewModel: ChoresViewModel
-    @State private var confirmingDelete = false
 
     private var chore: ChoreRow? {
         guard case .edit(let choreId) = editor else { return nil }
@@ -295,31 +294,16 @@ private struct ChoreEditorSheet: View {
                 .padding(.bottom, chore == nil ? 0 : 72)
             }
             .background(HubTheme.canvas)
-            .overlay(alignment: .bottomTrailing) {
-                if let chore {
-                    // Away from Save, in the corner, and it asks before it deletes.
-                    Button {
-                        confirmingDelete = true
-                    } label: {
-                        Image(systemName: "trash")
-                            .frame(width: 20)
-                    }
-                    .buttonStyle(HubButtonStyle(emphasis: .danger))
-                    .accessibilityLabel("Delete chore")
-                    .padding(20)
-                    // Stay in the corner under the keyboard instead of riding up over the form.
-                    .ignoresSafeArea(.keyboard, edges: .bottom)
-                    .confirmationDialog("Delete \(chore.title)?", isPresented: $confirmingDelete, titleVisibility: .visible) {
-                        Button("Delete Chore", role: .destructive) {
-                            Task {
-                                if await viewModel.deleteChore(id: chore.id) {
-                                    dismiss()
-                                }
-                            }
-                        }
-                    } message: {
-                        Text("This removes the chore and its history for everyone.")
-                    }
+            .cornerDeleteButton(
+                isShown: chore != nil,
+                accessibilityLabel: "Delete chore",
+                confirmTitle: "Delete \(chore?.title ?? "this chore")?",
+                confirmButton: "Delete Chore",
+                message: "This removes the chore and its history for everyone."
+            ) {
+                guard let chore else { return }
+                if await viewModel.deleteChore(id: chore.id) {
+                    dismiss()
                 }
             }
             .navigationTitle(title)

@@ -450,7 +450,9 @@ private struct BirthdayFormView: View {
     @State private var target: FormTarget = .newPerson
     @State private var birthdayDate = Date.now
     @State private var isSaving = false
-    @State private var confirmDelete = false
+    @State private var color = ProfileColors.options[0].value
+    /// Until a color is picked, a new entry shows the color the server would give it from its name.
+    @State private var colorTouched = false
 
     private enum FormTarget: Hashable {
         case newPerson
@@ -485,53 +487,76 @@ private struct BirthdayFormView: View {
         GeometryReader { proxy in
             if proxy.size.width >= Self.sideBySideWidth {
                 // Fields and buttons on the left, calendar on the right: everything in view.
-                ScrollView {
-                    HStack(alignment: .top, spacing: 24) {
-                        VStack(alignment: .leading, spacing: 14) {
-                            fields
-                            actions
-                        }
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                        dateField
+                withDeleteButton(
+                    ScrollView {
+                        HStack(alignment: .top, spacing: 24) {
+                            VStack(alignment: .leading, spacing: 14) {
+                                fields
+                                actions
+                            }
                             .frame(maxWidth: .infinity, alignment: .topLeading)
-                    }
-                    .padding(20)
-                }
+                            dateField
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                        }
+                        // Room to scroll past the delete button in the corner.
+                        .padding(EdgeInsets(top: 20, leading: 20, bottom: canDelete ? 84 : 20, trailing: 20))
+                    },
+                    bottomBar: false
+                )
             } else {
                 // The calendar is tall, so the buttons stay pinned at the bottom rather than
                 // scrolling out of sight.
-                VStack(spacing: 0) {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 14) {
-                            fields
-                            dateField
+                withDeleteButton(
+                    VStack(spacing: 0) {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 14) {
+                                fields
+                                dateField
+                            }
+                            .padding(20)
                         }
-                        .padding(20)
-                    }
-                    Divider()
-                    actions
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
-                }
+                        Divider()
+                        actions
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                    },
+                    bottomBar: true
+                )
             }
         }
         .onAppear(perform: populate)
-        .alert("Remove this \(kind.noun)?", isPresented: $confirmDelete) {
-            Button("Cancel", role: .cancel) {}
-            Button("Remove", role: .destructive) {
-                Task {
-                    guard let item = editingItem else { return }
-                    isSaving = true
-                    defer { isSaving = false }
-                    if await viewModel.delete(item) {
-                        onFinished()
-                    }
-                }
+        .onChange(of: name) { _, newName in
+            if editorIsAdd, !colorTouched {
+                color = ProfileColors.automatic(forName: newName.trimmingCharacters(in: .whitespacesAndNewlines))
             }
-        } message: {
-            Text("Household members stay in the family list. Extra entries are removed from \(CelebrationNaming.current).")
         }
+    }
+
+    /// The corner trash button for this sheet. With Save pinned in a bar along the bottom it is
+    /// lined up with that bar; beside the calendar on a wide sheet it sits in the corner.
+    private func withDeleteButton<Content: View>(_ content: Content, bottomBar: Bool) -> some View {
+        content.cornerDeleteButton(
+            isShown: canDelete,
+            accessibilityLabel: "\(editingItem?.source == .profile ? "Remove" : "Delete") \(kind.noun)",
+            confirmTitle: "Remove this \(kind.noun)?",
+            confirmButton: editingItem?.source == .profile ? "Remove" : "Delete",
+            message: "Household members stay in the family list. Extra entries are removed from \(CelebrationNaming.current).",
+            isDisabled: isSaving,
+            insets: EdgeInsets(top: 20, leading: 20, bottom: bottomBar ? 12 : 20, trailing: 20)
+        ) {
+            guard let item = editingItem else { return }
+            isSaving = true
+            defer { isSaving = false }
+            if await viewModel.delete(item) {
+                onFinished()
+            }
+        }
+    }
+
+    private var canDelete: Bool {
+        guard let item = editingItem else { return false }
+        return viewModel.canManage || viewModel.canEdit(item)
     }
 
     private var fields: some View {
@@ -566,10 +591,21 @@ private struct BirthdayFormView: View {
                     TextField(kind == .anniversary ? "Alex & Sam" : "Justin Hobbs", text: $name)
                         .textFieldStyle(.roundedBorder)
                 }
+                // The color on the year wheel and in the lists. Someone with a household profile
+                // uses that profile's color, so there is nothing to pick for them.
+                if editingItem?.profileId == nil {
+                    ProfileColorPickerView(selectedColor: Binding(
+                        get: { color },
+                        set: { newColor in
+                            color = newColor
+                            colorTouched = true
+                        }
+                    ))
+                }
             } else if let profile = selectedProfile ?? linkedProfile {
                 Text(profile.name)
                     .font(.title3.weight(.semibold))
-                Text("Saved on their household profile.")
+                Text("Saved on their household profile, and shown in their profile color.")
                     .font(.caption)
                     .foregroundStyle(HubTheme.muted)
             } else if editingItem?.source == .family {
@@ -600,13 +636,6 @@ private struct BirthdayFormView: View {
             }
             .buttonStyle(HubButtonStyle(emphasis: .primary))
             .disabled(isSaving || (!isProfileBirthday && name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
-
-            if editingItem != nil, viewModel.canManage || (editingItem.map(viewModel.canEdit) ?? false) {
-                Button(editingItem?.source == .profile ? "Remove \(kind.noun)" : "Delete \(kind.noun)", role: .destructive) {
-                    confirmDelete = true
-                }
-                .disabled(isSaving)
-            }
         }
     }
 
@@ -630,9 +659,13 @@ private struct BirthdayFormView: View {
         case .add:
             name = ""
             target = .newPerson
+            color = ProfileColors.automatic(forName: "")
+            colorTouched = false
         case .edit(let item):
             name = item.name
             kind = item.kind
+            color = item.color
+            colorTouched = true
             if item.source == .profile {
                 target = .profile(item.id)
             } else {
@@ -655,13 +688,13 @@ private struct BirthdayFormView: View {
             if kind == .birthday, let profile = selectedProfile {
                 saved = await viewModel.saveProfileBirthday(profile: profile, birthDate: birthDate)
             } else {
-                saved = await viewModel.createExtraPerson(name: trimmed, birthDate: birthDate, kind: kind)
+                saved = await viewModel.createExtraPerson(name: trimmed, birthDate: birthDate, kind: kind, color: color)
             }
         case .edit(let item):
             if item.source == .profile, let profile = viewModel.profiles.first(where: { $0.id == item.id }) {
                 saved = await viewModel.saveProfileBirthday(profile: profile, birthDate: birthDate)
             } else {
-                saved = await viewModel.updateExtraPerson(item, name: trimmed, birthDate: birthDate, kind: kind)
+                saved = await viewModel.updateExtraPerson(item, name: trimmed, birthDate: birthDate, kind: kind, color: item.profileId == nil ? color : nil)
             }
         }
         if saved {
