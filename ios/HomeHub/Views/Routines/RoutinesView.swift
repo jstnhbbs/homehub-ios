@@ -58,10 +58,20 @@ struct RoutinesView: View {
         } else if viewModel.routines.isEmpty {
             EmptyStateView(text: "Your first routine will appear here.")
         } else {
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
-                ForEach(viewModel.routines) { routine in
-                    RoutineCard(routine: routine, viewModel: viewModel) {
-                        activeRoutineEditor = .edit(routine.id)
+            VStack(alignment: .leading, spacing: 24) {
+                ForEach(viewModel.groups) { group in
+                    VStack(alignment: .leading, spacing: 12) {
+                        // A name over each person's routines when there is more than one group to tell apart.
+                        if viewModel.groups.count > 1 {
+                            GroupHeading(group: group)
+                        }
+                        LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
+                            ForEach(group.routines) { routine in
+                                RoutineCard(routine: routine, viewModel: viewModel) {
+                                    activeRoutineEditor = .edit(routine.id)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -84,6 +94,21 @@ struct RoutinesView: View {
                 .buttonStyle(HubButtonStyle(emphasis: .primary))
             }
         }
+    }
+}
+
+private struct GroupHeading: View {
+    let group: RoutineGroup
+
+    var body: some View {
+        HStack(spacing: 10) {
+            if let profile = group.profile {
+                ProfileAvatarView(name: profile.name, avatar: profile.avatar, color: profile.color, size: 32)
+            }
+            Text(group.profile?.name ?? "Everyone")
+                .font(.title3.weight(.semibold))
+        }
+        .accessibilityAddTraits(.isHeader)
     }
 }
 

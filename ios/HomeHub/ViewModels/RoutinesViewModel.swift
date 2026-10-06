@@ -20,6 +20,11 @@ final class RoutinesViewModel: ObservableObject {
         appState?.canManageHousehold ?? false
     }
 
+    /// The routines by person, for the page.
+    var groups: [RoutineGroup] {
+        RoutineGrouping.groups(routines: routines, profiles: profiles)
+    }
+
     /// The household's first day of the week, for laying out the day chips.
     var weekStartsOn: Int {
         WeekStart.parseWeekStartsOn(appState?.household?.weekStartsOn)
