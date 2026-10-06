@@ -60,7 +60,7 @@ struct TagChip: View {
                 .font(.caption.weight(.bold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
-                .foregroundStyle(isSelected ? Color.white : Color.primary)
+                .foregroundStyle(isSelected ? HubTheme.onAccent : Color.primary)
                 .background(isSelected ? HubTheme.sage : HubTheme.tileQuiet)
                 .clipShape(Capsule())
                 .overlay(Capsule().stroke(isSelected ? Color.clear : HubTheme.line, lineWidth: 1))

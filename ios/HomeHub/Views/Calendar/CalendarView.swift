@@ -469,7 +469,7 @@ private struct CalendarDayCell: View {
                     .font(.caption.weight(.heavy))
                     .frame(width: 28, height: 28)
                     .background(isToday ? HubTheme.sage : Color.clear)
-                    .foregroundStyle(isToday ? .white : .primary)
+                    .foregroundStyle(isToday ? HubTheme.onAccent : .primary)
                     .clipShape(Circle())
                     .overlay {
                         if isSelected && !isToday {

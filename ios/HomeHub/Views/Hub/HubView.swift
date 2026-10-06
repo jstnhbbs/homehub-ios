@@ -14,6 +14,9 @@ struct HubView: View {
                 TabView(selection: compactTabSelection) {
                     ForEach(compactPrimaryDestinations, id: \.rawValue) { destination in
                         compactTab(for: destination)
+                            // The tab container paints the system background, which is true black
+                            // in dark mode; every page paints the app's own page color over it.
+                            .background(HubTheme.canvas.ignoresSafeArea())
                             .id("tab-\(compactTabLayoutID)-\(destination.rawValue)")
                             .tabItem {
                                 Label(destination.label, systemImage: destination.systemImage)
@@ -23,6 +26,7 @@ struct HubView: View {
                     }
                     if !compactOverflowDestinations.isEmpty {
                         compactMoreTab
+                            .background(HubTheme.canvas.ignoresSafeArea())
                             .id("tab-\(compactTabLayoutID)-\(HubDestination.more.rawValue)")
                             .tabItem {
                                 Label(HubDestination.more.label, systemImage: HubDestination.more.systemImage)
@@ -128,10 +132,12 @@ struct HubView: View {
         } else if destination == .settings {
             NavigationStack(path: $compactSettingsPath) {
                 SettingsView(presentation: .tabRoot)
+                    .hubPageBackground()
             }
         } else if destination == .meals {
             NavigationStack(path: $compactMealsPath) {
                 compactPage(for: destination)
+                    .hubPageBackground()
             }
         } else {
             compactPage(for: destination)

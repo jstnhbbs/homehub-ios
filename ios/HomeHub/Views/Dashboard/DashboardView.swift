@@ -22,11 +22,13 @@ struct DashboardView: View {
                     compactDashboardContent
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
+                    .hubPageBackground()
                     .navigationTitle("Today")
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar(.hidden, for: .navigationBar)
                     .navigationDestination(for: HubDestination.self) { destination in
                         compactDestinationPage(destination)
+                            .hubPageBackground()
                     }
                 }
                 .environment(\.openHubDestination) { destination in
@@ -1240,7 +1242,7 @@ private struct CompactNotesSummary: View {
                         .frame(width: 26, height: 26)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.white)
+                .foregroundStyle(HubTheme.onAccent)
                 .background(HubTheme.sage)
                 .clipShape(Circle())
                 .disabled(isSaving || trimmedDraft.isEmpty)
@@ -2417,7 +2419,7 @@ private struct NotesDashboardPanel: View {
                         .frame(width: 38, height: 38)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.white)
+                .foregroundStyle(HubTheme.onAccent)
                 .background(HubTheme.sage)
                 .clipShape(Circle())
                 .disabled(isSaving || trimmedDraft.isEmpty)

@@ -27,63 +27,63 @@ struct RecipeFormView: View {
         VStack(alignment: .leading, spacing: 10) {
             FormField(label: "Title") {
                 TextField("Recipe title", text: $title)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(HubFieldStyle())
             }
 
             FormField(label: "Description") {
                 TextField("Short description (optional)", text: $description, axis: .vertical)
                     .lineLimit(2...4)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(HubFieldStyle())
             }
 
             HStack(spacing: 8) {
                 FormField(label: "Servings") {
-                    TextField("4", text: $servings).textFieldStyle(.roundedBorder)
+                    TextField("4", text: $servings).textFieldStyle(HubFieldStyle())
                 }
                 FormField(label: "Total time") {
-                    TextField("45 min", text: $totalTime).textFieldStyle(.roundedBorder)
+                    TextField("45 min", text: $totalTime).textFieldStyle(HubFieldStyle())
                 }
             }
 
             HStack(spacing: 8) {
                 FormField(label: "Prep time") {
-                    TextField("15 min", text: $prepTime).textFieldStyle(.roundedBorder)
+                    TextField("15 min", text: $prepTime).textFieldStyle(HubFieldStyle())
                 }
                 FormField(label: "Cook time") {
-                    TextField("30 min", text: $cookTime).textFieldStyle(.roundedBorder)
+                    TextField("30 min", text: $cookTime).textFieldStyle(HubFieldStyle())
                 }
             }
 
             FormField(label: "Ingredients") {
                 TextField("One ingredient per line", text: $ingredientsText, axis: .vertical)
                     .lineLimit(4...8)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(HubFieldStyle())
                     .font(.system(.body, design: .monospaced))
             }
 
             FormField(label: "Directions") {
                 TextField("One step per line", text: $directionsText, axis: .vertical)
                     .lineLimit(4...10)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(HubFieldStyle())
             }
 
             FormField(label: "Nutrition") {
                 TextField("Calories: 420", text: $nutritionText, axis: .vertical)
                     .lineLimit(2...6)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(HubFieldStyle())
                     .font(.system(.body, design: .monospaced))
             }
 
             FormField(label: "Source URL") {
                 TextField("Optional", text: $sourceUrl)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(HubFieldStyle())
                     .textInputAutocapitalization(.never)
                     .keyboardType(.URL)
             }
 
             FormField(label: "Image URL") {
                 TextField("Optional", text: $imageUrl)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(HubFieldStyle())
                     .textInputAutocapitalization(.never)
                     .keyboardType(.URL)
             }
@@ -100,7 +100,7 @@ struct RecipeFormView: View {
 
                     HStack(spacing: 8) {
                         TextField("Add your own tag", text: $newTag)
-                            .textFieldStyle(.roundedBorder)
+                            .textFieldStyle(HubFieldStyle())
                             .submitLabel(.done)
                             .onSubmit(addNewTag)
                         Button("Add", action: addNewTag)
@@ -123,7 +123,7 @@ struct RecipeFormView: View {
             FormField(label: "Family notes") {
                 TextField("Optional", text: $notes, axis: .vertical)
                     .lineLimit(2...4)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(HubFieldStyle())
             }
 
             Button(submitLabel) {

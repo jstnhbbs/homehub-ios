@@ -207,7 +207,8 @@ private extension AccentPalette {
     }
 
     var appIconPreviewAssetName: String {
-        "AppIcon\(label)Preview"
+        // Named for the palette's saved name, so renaming the colors didn't touch the art.
+        "AppIcon\(rawValue.capitalized)Preview"
     }
 
     static var currentAppIconPalette: AccentPalette {

@@ -613,7 +613,7 @@ private struct RecipeImportForm: View {
                 .foregroundStyle(HubTheme.muted)
 
             TextField("https://example.com/recipe", text: $viewModel.importURL)
-                .textFieldStyle(.roundedBorder)
+                .textFieldStyle(HubFieldStyle())
                 .textInputAutocapitalization(.never)
                 .keyboardType(.URL)
                 .submitLabel(.go)

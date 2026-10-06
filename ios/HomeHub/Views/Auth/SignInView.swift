@@ -36,7 +36,7 @@ struct SignInView: View {
                 if mode == .signUp {
                     TextField("Name", text: $name)
                         .textContentType(.name)
-                        .textFieldStyle(.roundedBorder)
+                        .textFieldStyle(HubFieldStyle())
                 }
                 // The account field is an email, but Password AutoFill keys off
                 // `.username` to pair it with the password; `.emailAddress` only
@@ -46,12 +46,12 @@ struct SignInView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .keyboardType(.emailAddress)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(HubFieldStyle())
                 // `.newPassword` is what prompts iOS to offer a generated strong
                 // password when creating an account; `.password` fills an existing one.
                 SecureField("Password (min 10 characters)", text: $password)
                     .textContentType(mode == .signIn ? .password : .newPassword)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(HubFieldStyle())
             }
             .frame(maxWidth: 420)
 

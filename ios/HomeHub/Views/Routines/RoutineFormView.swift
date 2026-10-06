@@ -21,7 +21,7 @@ struct RoutineFormView: View {
         VStack(alignment: .leading, spacing: 10) {
             FormField(label: "Routine name") {
                 TextField("Bedtime routine", text: $name)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(HubFieldStyle())
             }
 
             FormField(label: "Assign to") {
@@ -219,7 +219,7 @@ private struct DayChip: View {
                 .font(.subheadline.weight(.bold))
                 .frame(maxWidth: .infinity)
                 .frame(height: 44)
-                .foregroundStyle(isOn ? Color.white : Color.primary)
+                .foregroundStyle(isOn ? HubTheme.onAccent : Color.primary)
                 .background(isOn ? HubTheme.sage : HubTheme.tileQuiet)
                 .clipShape(Circle())
                 .overlay(Circle().stroke(isOn ? Color.clear : HubTheme.line, lineWidth: 1))
@@ -275,7 +275,7 @@ private struct RoutineStepDraftRow: View {
             .buttonStyle(.plain)
 
             TextField("Brush teeth", text: $draft.label)
-                .textFieldStyle(.roundedBorder)
+                .textFieldStyle(HubFieldStyle())
                 .focused(focus, equals: draft.id)
                 .submitLabel(.next)
                 .onSubmit(onSubmit)

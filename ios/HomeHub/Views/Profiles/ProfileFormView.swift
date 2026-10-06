@@ -35,7 +35,7 @@ struct ProfileFormView: View {
             if includeName {
                 FormField(label: "Name") {
                     TextField("Name", text: $name)
-                        .textFieldStyle(.roundedBorder)
+                        .textFieldStyle(HubFieldStyle())
                 }
             }
 

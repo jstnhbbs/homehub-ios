@@ -53,6 +53,7 @@ struct MyProfileView: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
+            .hubPageBackground()
             .sheet(isPresented: $showDeleteAccount) {
                 DeleteAccountSheet()
                     .environmentObject(appState)

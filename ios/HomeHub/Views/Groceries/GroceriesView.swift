@@ -143,7 +143,7 @@ struct GroceriesView: View {
         HubCard {
             HStack(spacing: 10) {
                 TextField("Add milk, apples, 2 lb pasta...", text: $viewModel.newItemTitle)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(HubFieldStyle())
                     .onSubmit {
                         Task { await viewModel.addItem() }
                     }

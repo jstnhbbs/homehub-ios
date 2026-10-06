@@ -49,7 +49,7 @@ struct SnackChildChips: View {
                 if isEaten {
                     Image(systemName: "checkmark")
                         .font(.caption.weight(.heavy))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(HubTheme.readableText(on: tint))
                 } else {
                     Text(initials(for: child))
                         .font(.caption.weight(.heavy))

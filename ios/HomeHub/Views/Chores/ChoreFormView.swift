@@ -65,7 +65,7 @@ struct ChoreFormView: View {
         VStack(alignment: .leading, spacing: 10) {
             FormField(label: "Chore") {
                 TextField("Feed the dog", text: $title)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(HubFieldStyle())
             }
 
             FormField(label: "Assign to") {

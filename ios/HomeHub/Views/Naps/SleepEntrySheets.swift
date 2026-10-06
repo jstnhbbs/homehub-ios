@@ -105,7 +105,7 @@ struct AddSleepSheet: View {
                             }
                         } label: {
                             HStack(spacing: 8) {
-                                if isSaving { ProgressView().tint(.white) }
+                                if isSaving { ProgressView().tint(HubTheme.onAccent) }
                                 Text(saveTitle)
                             }
                             .frame(maxWidth: .infinity)
@@ -242,7 +242,7 @@ struct SleepEntrySheet: View {
                         }
                     } label: {
                         HStack(spacing: 8) {
-                            if isSaving { ProgressView().tint(.white) }
+                            if isSaving { ProgressView().tint(HubTheme.onAccent) }
                             Text("Save")
                         }
                         .frame(maxWidth: .infinity)

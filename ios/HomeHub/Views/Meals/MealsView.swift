@@ -269,6 +269,7 @@ struct MealsView: View {
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
+            .hubPageBackground()
             .refreshable { await viewModel.load(refreshRecipes: true) }
             .onChange(of: viewModel.isLoading) { _, loading in
                 // Jump to today (or the first day) when a week appears, not on every refresh.
@@ -342,7 +343,7 @@ struct MealsView: View {
     private var todayBadge: some View {
         Text("Today")
             .font(.caption2.weight(.heavy))
-            .foregroundStyle(.white)
+            .foregroundStyle(HubTheme.onAccent)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
             .background(HubTheme.sage)

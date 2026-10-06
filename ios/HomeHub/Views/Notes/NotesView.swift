@@ -79,7 +79,7 @@ struct NotesView: View {
                     .frame(width: 42, height: 42)
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.white)
+            .foregroundStyle(HubTheme.onAccent)
             .background(HubTheme.sage)
             .clipShape(Circle())
             .disabled(isSaving || trimmedDraft.isEmpty)

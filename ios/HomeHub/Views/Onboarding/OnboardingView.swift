@@ -56,7 +56,7 @@ struct OnboardingView: View {
                         .textInputAutocapitalization(.characters)
                 }
             }
-            .textFieldStyle(.roundedBorder)
+            .textFieldStyle(HubFieldStyle())
             .frame(maxWidth: 420)
 
             if let errorMessage {

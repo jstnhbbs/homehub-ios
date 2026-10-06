@@ -18,6 +18,21 @@ struct ProfilePickerField: View {
     }
 }
 
+/// The app's text field: the card color with a hairline edge, instead of the system's rounded
+/// border, which is a true-black well in dark mode.
+struct HubFieldStyle: TextFieldStyle {
+    func _body(configuration: TextField<Self._Label>) -> some View {
+        configuration
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(HubTheme.tile, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(HubTheme.line.opacity(0.7), lineWidth: 1)
+            )
+    }
+}
+
 struct FormField<Content: View>: View {
     let label: String
     @ViewBuilder var content: () -> Content

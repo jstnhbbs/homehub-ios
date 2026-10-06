@@ -21,7 +21,7 @@ struct ProfileColorPickerView: View {
                                 if selectedColor == option.value {
                                     Image(systemName: "checkmark")
                                         .font(.caption.weight(.bold))
-                                        .foregroundStyle(.white)
+                                        .foregroundStyle(HubTheme.readableText(on: HubTheme.profileColor(option.value)))
                                 }
                             }
                     }

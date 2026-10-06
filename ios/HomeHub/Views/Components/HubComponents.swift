@@ -2,6 +2,9 @@ import SwiftUI
 import UIKit
 
 enum AccentPalette: String, CaseIterable, Identifiable, Sendable {
+    // The raw values are what is saved on the device and what names the alternate app icons and
+    // their previews, so they keep the names of the original, earthier palette (sage is now an
+    // emerald, ochre a sunflower). `label` is what people see.
     case sage
     case ocean
     case clay
@@ -17,108 +20,83 @@ enum AccentPalette: String, CaseIterable, Identifiable, Sendable {
 
     var label: String {
         switch self {
-        case .sage: "Sage"
-        case .ocean: "Ocean"
-        case .clay: "Clay"
-        case .plum: "Plum"
+        case .sage: "Emerald"
+        case .ocean: "Azure"
+        case .clay: "Tangerine"
+        case .plum: "Grape"
         case .slate: "Slate"
-        case .forest: "Forest"
-        case .teal: "Teal"
+        case .forest: "Lime"
+        case .teal: "Lagoon"
         case .indigo: "Indigo"
-        case .rose: "Rose"
-        case .ochre: "Ochre"
+        case .rose: "Flamingo"
+        case .ochre: "Sunflower"
         }
     }
 
     var accent: Color { Color(uiColor: accentUIColor) }
     var soft: Color { Color(uiColor: softUIColor) }
-    var swatch: Color { Color(red: swatchRGB.0, green: swatchRGB.1, blue: swatchRGB.2) }
+    /// Text and icons on a fill of this accent.
+    var onAccent: Color { Color(uiColor: onAccentUIColor) }
+    var swatch: Color { Color(uiColor: darkAccent) }
     var swatchIcon: some View {
         Circle()
             .fill(swatch)
             .frame(width: 14, height: 14)
     }
 
-    private var swatchRGB: (Double, Double, Double) {
+    /// The accent in light mode: deep enough that white text on it can be read.
+    private var lightAccent: UIColor {
         switch self {
-        case .sage: (0.31, 0.49, 0.43)
-        case .ocean: (0.25, 0.44, 0.56)
-        case .clay: (0.71, 0.42, 0.30)
-        case .plum: (0.48, 0.36, 0.49)
-        case .slate: (0.36, 0.42, 0.48)
-        case .forest: (0.22, 0.40, 0.25)
-        case .teal: (0.16, 0.48, 0.47)
-        case .indigo: (0.33, 0.37, 0.64)
-        case .rose: (0.63, 0.31, 0.41)
-        case .ochre: (0.54, 0.41, 0.15)
+        case .sage: UIColor(red: 0.02, green: 0.59, blue: 0.41, alpha: 1)
+        case .ocean: UIColor(red: 0.18, green: 0.46, blue: 0.90, alpha: 1)
+        case .clay: UIColor(red: 0.92, green: 0.35, blue: 0.05, alpha: 1)
+        case .plum: UIColor(red: 0.58, green: 0.20, blue: 0.92, alpha: 1)
+        case .slate: UIColor(red: 0.36, green: 0.42, blue: 0.51, alpha: 1)
+        case .forest: UIColor(red: 0.35, green: 0.62, blue: 0.08, alpha: 1)
+        case .teal: UIColor(red: 0.03, green: 0.57, blue: 0.64, alpha: 1)
+        case .indigo: UIColor(red: 0.31, green: 0.27, blue: 0.90, alpha: 1)
+        case .rose: UIColor(red: 0.86, green: 0.15, blue: 0.47, alpha: 1)
+        case .ochre: UIColor(red: 0.92, green: 0.70, blue: 0.03, alpha: 1)
+        }
+    }
+
+    /// The accent in dark mode: brighter, so it glows against the dark surfaces.
+    private var darkAccent: UIColor {
+        switch self {
+        case .sage: UIColor(red: 0.20, green: 0.83, blue: 0.60, alpha: 1)
+        case .ocean: UIColor(red: 0.38, green: 0.65, blue: 0.98, alpha: 1)
+        case .clay: UIColor(red: 0.98, green: 0.57, blue: 0.24, alpha: 1)
+        case .plum: UIColor(red: 0.75, green: 0.52, blue: 0.99, alpha: 1)
+        case .slate: UIColor(red: 0.58, green: 0.64, blue: 0.72, alpha: 1)
+        case .forest: UIColor(red: 0.64, green: 0.90, blue: 0.21, alpha: 1)
+        case .teal: UIColor(red: 0.13, green: 0.83, blue: 0.93, alpha: 1)
+        case .indigo: UIColor(red: 0.51, green: 0.55, blue: 0.97, alpha: 1)
+        case .rose: UIColor(red: 0.96, green: 0.45, blue: 0.71, alpha: 1)
+        case .ochre: UIColor(red: 0.98, green: 0.80, blue: 0.08, alpha: 1)
         }
     }
 
     private var accentUIColor: UIColor {
-        UIColor { traits in
-            let dark = traits.userInterfaceStyle == .dark
-            switch self {
-            case .sage:
-                return dark
-                    ? UIColor(red: 0.44, green: 0.68, blue: 0.60, alpha: 1)
-                    : UIColor(red: 0.31, green: 0.49, blue: 0.43, alpha: 1)
-            case .ocean:
-                return dark
-                    ? UIColor(red: 0.48, green: 0.65, blue: 0.76, alpha: 1)
-                    : UIColor(red: 0.25, green: 0.44, blue: 0.56, alpha: 1)
-            case .clay:
-                return dark
-                    ? UIColor(red: 0.83, green: 0.55, blue: 0.43, alpha: 1)
-                    : UIColor(red: 0.71, green: 0.42, blue: 0.30, alpha: 1)
-            case .plum:
-                return dark
-                    ? UIColor(red: 0.69, green: 0.54, blue: 0.69, alpha: 1)
-                    : UIColor(red: 0.48, green: 0.36, blue: 0.49, alpha: 1)
-            case .slate:
-                return dark
-                    ? UIColor(red: 0.56, green: 0.63, blue: 0.69, alpha: 1)
-                    : UIColor(red: 0.36, green: 0.42, blue: 0.48, alpha: 1)
-            case .forest:
-                return dark
-                    ? UIColor(red: 0.44, green: 0.68, blue: 0.47, alpha: 1)
-                    : UIColor(red: 0.22, green: 0.40, blue: 0.25, alpha: 1)
-            case .teal:
-                return dark
-                    ? UIColor(red: 0.37, green: 0.69, blue: 0.67, alpha: 1)
-                    : UIColor(red: 0.16, green: 0.48, blue: 0.47, alpha: 1)
-            case .indigo:
-                return dark
-                    ? UIColor(red: 0.53, green: 0.57, blue: 0.82, alpha: 1)
-                    : UIColor(red: 0.33, green: 0.37, blue: 0.64, alpha: 1)
-            case .rose:
-                return dark
-                    ? UIColor(red: 0.82, green: 0.52, blue: 0.61, alpha: 1)
-                    : UIColor(red: 0.63, green: 0.31, blue: 0.41, alpha: 1)
-            case .ochre:
-                return dark
-                    ? UIColor(red: 0.77, green: 0.64, blue: 0.36, alpha: 1)
-                    : UIColor(red: 0.54, green: 0.41, blue: 0.15, alpha: 1)
-            }
+        UIColor { [self] traits in
+            traits.userInterfaceStyle == .dark ? darkAccent : lightAccent
         }
     }
 
+    /// A tint of the accent for selected rows and highlights.
     private var softUIColor: UIColor {
-        UIColor { traits in
-            if traits.userInterfaceStyle == .dark {
-                return .tertiarySystemFill
-            }
-            switch self {
-            case .sage: return UIColor(red: 0.88, green: 0.93, blue: 0.90, alpha: 1)
-            case .ocean: return UIColor(red: 0.84, green: 0.89, blue: 0.93, alpha: 1)
-            case .clay: return UIColor(red: 0.95, green: 0.87, blue: 0.83, alpha: 1)
-            case .plum: return UIColor(red: 0.92, green: 0.86, blue: 0.93, alpha: 1)
-            case .slate: return UIColor(red: 0.86, green: 0.89, blue: 0.92, alpha: 1)
-            case .forest: return UIColor(red: 0.86, green: 0.91, blue: 0.87, alpha: 1)
-            case .teal: return UIColor(red: 0.84, green: 0.92, blue: 0.91, alpha: 1)
-            case .indigo: return UIColor(red: 0.88, green: 0.89, blue: 0.95, alpha: 1)
-            case .rose: return UIColor(red: 0.95, green: 0.86, blue: 0.89, alpha: 1)
-            case .ochre: return UIColor(red: 0.93, green: 0.90, blue: 0.80, alpha: 1)
-            }
+        UIColor { [self] traits in
+            traits.userInterfaceStyle == .dark
+                ? darkAccent.withAlphaComponent(0.22)
+                : lightAccent.withAlphaComponent(0.14)
+        }
+    }
+
+    private var onAccentUIColor: UIColor {
+        UIColor { [self] traits in
+            let dark = traits.userInterfaceStyle == .dark
+            // The bright accents of dark mode, and yellow in either, want dark text, not white.
+            if dark || self == .ochre { return HubTheme.darkInk }
+            return .white
         }
     }
 }
@@ -131,18 +109,37 @@ enum HubTheme {
     static var selectionBackground: Color { currentAccent.soft }
     static var sageSoft: Color { selectionBackground }
 
+    /// Text and icons on an accent-colored fill: white in light mode, near-black on the brighter
+    /// accents of dark mode (and on yellow).
+    static var onAccent: Color { currentAccent.onAccent }
+
+    /// The same for fills that aren't the accent (the destructive coral, a red banner).
+    static let onFill = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark ? darkInk : .white
+    })
+
+    /// Near-black with a little blue, softer than pure black on a bright fill.
+    static let darkInk = UIColor(red: 0.07, green: 0.08, blue: 0.10, alpha: 1)
+
     /// Warm highlight panels (calendar day, guest badge). Dark: neutral grey, not green/cream.
     static let sunSoft = Color(UIColor { traits in
         traits.userInterfaceStyle == .dark
-            ? UIColor.secondarySystemGroupedBackground
+            ? UIColor(red: 0.173, green: 0.173, blue: 0.180, alpha: 1)
             : UIColor(red: 0.98, green: 0.95, blue: 0.88, alpha: 1)
     })
 
-    static let canvas = Color(.systemGroupedBackground)
-    static let surface = Color(.systemBackground)
-    static let surfaceStrong = Color(.tertiarySystemGroupedBackground)
-    static let tile = Color(.secondarySystemGroupedBackground)
-    static let tileQuiet = Color(.tertiarySystemGroupedBackground)
+    // Light mode keeps the system's colors. Dark mode is a soft charcoal rather than the system's
+    // true black: the page is #1C1C1E, cards sit a step lighter at #2C2C2E and the things inside
+    // cards a step lighter again at #3A3A3C.
+    private static func surface(light: UIColor, dark: UIColor) -> Color {
+        Color(UIColor { $0.userInterfaceStyle == .dark ? dark : light })
+    }
+
+    static let canvas = surface(light: .systemGroupedBackground, dark: UIColor(red: 0.110, green: 0.110, blue: 0.118, alpha: 1))
+    static let surface = surface(light: .systemBackground, dark: UIColor(red: 0.110, green: 0.110, blue: 0.118, alpha: 1))
+    static let surfaceStrong = surface(light: .tertiarySystemGroupedBackground, dark: UIColor(red: 0.227, green: 0.227, blue: 0.235, alpha: 1))
+    static let tile = surface(light: .secondarySystemGroupedBackground, dark: UIColor(red: 0.173, green: 0.173, blue: 0.180, alpha: 1))
+    static let tileQuiet = surface(light: .tertiarySystemGroupedBackground, dark: UIColor(red: 0.227, green: 0.227, blue: 0.235, alpha: 1))
     static let line = Color(.separator)
     static let muted = Color(.secondaryLabel)
 
@@ -152,13 +149,44 @@ enum HubTheme {
     static let pageTitle = Font.system(.largeTitle, design: .rounded).weight(.semibold)
     static let sectionTitle = Font.system(.title, design: .rounded).weight(.semibold)
 
+    /// The colors people can give a profile are stored as the muted hex values of the original
+    /// palette (the server and the web settings still know them by those), and shown as the
+    /// livelier colors here. Anything else is shown as it is.
+    private static let vividProfileColors: [String: (Double, Double, Double)] = [
+        "#d87861": (0.95, 0.40, 0.31),  // Coral
+        "#6689a3": (0.25, 0.55, 0.91),  // Blue
+        "#4f7c6d": (0.12, 0.68, 0.50),  // Sage, now a clear green
+        "#b07aa1": (0.78, 0.38, 0.71),  // Plum
+        "#d19b45": (0.94, 0.66, 0.10),  // Gold
+        "#5f8f8b": (0.08, 0.70, 0.72),  // Teal
+        "#8c7ca8": (0.56, 0.42, 0.94),  // Lavender
+        "#b86f4d": (0.93, 0.48, 0.17),  // Terracotta, now orange
+        "#7f8757": (0.56, 0.72, 0.12),  // Olive, now lime
+    ]
+
     static func profileColor(_ hex: String?) -> Color {
         guard let hex, hex.hasPrefix("#"), hex.count == 7 else { return accent }
+        if let vivid = vividProfileColors[hex.lowercased()] {
+            return Color(red: vivid.0, green: vivid.1, blue: vivid.2)
+        }
         let start = hex.index(hex.startIndex, offsetBy: 1)
         let r = Int(hex[start..<hex.index(start, offsetBy: 2)], radix: 16) ?? 79
         let g = Int(hex[hex.index(start, offsetBy: 2)..<hex.index(start, offsetBy: 4)], radix: 16) ?? 124
         let b = Int(hex[hex.index(start, offsetBy: 4)..<hex.index(start, offsetBy: 6)], radix: 16) ?? 109
         return Color(red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255)
+    }
+
+    /// White or near-black, whichever reads better on `color`: white while the fill is deep enough
+    /// for it (about 3:1, the bar for bold text), dark on the bright ones.
+    static func readableText(on color: Color) -> Color {
+        let ui = UIColor(color).resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+        ui.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        func linear(_ value: CGFloat) -> CGFloat {
+            value <= 0.03928 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+        }
+        let luminance = 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
+        return luminance > 0.32 ? Color(darkInk) : .white
     }
 }
 
@@ -170,6 +198,15 @@ extension EnvironmentValues {
     var openHubDestination: (HubDestination) -> Void {
         get { self[OpenHubDestinationKey.self] }
         set { self[OpenHubDestinationKey.self] = newValue }
+    }
+}
+
+extension View {
+    /// Paints the app's page color behind a whole screen. The tab bar and navigation stacks fill
+    /// themselves with the system background, which is true black in dark mode, so every screen
+    /// that sits directly in one asks for the page color itself.
+    func hubPageBackground() -> some View {
+        background(HubTheme.canvas.ignoresSafeArea())
     }
 }
 
@@ -393,7 +430,7 @@ struct ProfileAvatarView: View {
     private var initialsView: some View {
         Text(String(name.prefix(1)).uppercased())
             .font(.system(size: size * 0.42, weight: .bold, design: .rounded))
-            .foregroundStyle(.white)
+            .foregroundStyle(HubTheme.readableText(on: HubTheme.profileColor(color)))
             .frame(width: size, height: size)
             .background(HubTheme.profileColor(color))
     }
@@ -454,7 +491,7 @@ struct HouseholdMarkView: View {
     private var initialView: some View {
         Text(HouseholdNameHelpers.initial(name: name, ownerName: ownerName))
             .font(.system(size: size * 0.5, weight: .bold, design: .rounded))
-            .foregroundStyle(.white)
+            .foregroundStyle(HubTheme.onAccent)
             .frame(width: size, height: size)
             .background(HubTheme.sage)
     }
@@ -571,7 +608,8 @@ struct HubButtonStyle: ButtonStyle {
 
     private var foregroundColor: Color {
         switch emphasis {
-        case .primary, .danger: .white
+        case .primary: HubTheme.onAccent
+        case .danger: HubTheme.onFill
         case .secondary: .primary
         case .secondaryDestructive: HubTheme.coral
         }
@@ -581,8 +619,8 @@ struct HubButtonStyle: ButtonStyle {
 extension HubTheme {
     static let coral = Color(UIColor { traits in
         traits.userInterfaceStyle == .dark
-            ? UIColor(red: 0.87, green: 0.53, blue: 0.44, alpha: 1)
-            : UIColor(red: 0.85, green: 0.47, blue: 0.38, alpha: 1)
+            ? UIColor(red: 1.00, green: 0.48, blue: 0.40, alpha: 1)
+            : UIColor(red: 0.93, green: 0.33, blue: 0.25, alpha: 1)
     })
 }
 

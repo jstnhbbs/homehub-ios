@@ -589,7 +589,7 @@ private struct BirthdayFormView: View {
             if !isProfileBirthday {
                 FormField(label: kind == .anniversary ? "Names" : "Name") {
                     TextField(kind == .anniversary ? "Alex & Sam" : "Justin Hobbs", text: $name)
-                        .textFieldStyle(.roundedBorder)
+                        .textFieldStyle(HubFieldStyle())
                 }
                 // The color on the year wheel and in the lists. Someone with a household profile
                 // uses that profile's color, so there is nothing to pick for them.

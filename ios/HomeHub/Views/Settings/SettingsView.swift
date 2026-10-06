@@ -120,6 +120,7 @@ struct SettingsView: View {
             }
         }
         .scrollContentBackground(.hidden)
+        .hubPageBackground()
         .refreshable {
             await viewModel.load()
             await membersViewModel.load()
@@ -319,6 +320,7 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+        .hubPageBackground()
         .confirmationDialog("Sign out of Beacon?", isPresented: $confirmingSignOut, titleVisibility: .visible) {
             Button("Sign Out", role: .destructive) {
                 Task { await appState.signOut() }
@@ -365,6 +367,7 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+        .hubPageBackground()
     }
 
     private var dateSection: some View {
@@ -431,6 +434,7 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+        .hubPageBackground()
         .confirmationDialog(
             "Remove \(guestToRemove?.name ?? "this guest")?",
             isPresented: Binding(get: { guestToRemove != nil }, set: { if !$0 { guestToRemove = nil } }),
@@ -471,6 +475,7 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+        .hubPageBackground()
     }
 
     private var aboutTab: some View {
@@ -492,6 +497,7 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+        .hubPageBackground()
     }
 
     private var appVersionLabel: String {
@@ -774,6 +780,7 @@ private struct SettingsFAQView: View {
             }
         }
         .scrollContentBackground(.hidden)
+        .hubPageBackground()
         .searchable(text: $searchText, prompt: "Search questions")
         .overlay {
             if filteredSections.isEmpty {
@@ -920,6 +927,7 @@ private struct PrivacyAccessSettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+        .hubPageBackground()
         .task {
             await refreshPermissionStatuses()
         }
@@ -1328,6 +1336,7 @@ private struct NativeNotificationsSettingView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+        .hubPageBackground()
         .task {
             // Reminders are already planned; only re-plan if the permission changed while away
             // (for instance in iOS Settings).

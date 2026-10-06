@@ -281,7 +281,7 @@ struct NapsView: View {
                                 if bar.widthPercent > 10 {
                                     Text(bar.durationLabel)
                                         .font(.caption2.weight(.bold))
-                                        .foregroundStyle(.white)
+                                        .foregroundStyle(HubTheme.readableText(on: HubTheme.profileColor(profile.color)))
                                 }
                             }
                             .contentShape(Rectangle())
