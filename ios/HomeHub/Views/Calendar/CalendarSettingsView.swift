@@ -223,33 +223,30 @@ struct CalendarSettingsView: View {
 
             Section {
                 Button {
-                    Task { _ = await viewModel.saveCalendarSelection() }
-                } label: {
-                    Label("Save Selection", systemImage: "checkmark")
-                }
-                .disabled(viewModel.isWorking)
-
-                Button {
-                    Task { await viewModel.selectAllCalendars() }
+                    viewModel.selectAllCalendars()
                 } label: {
                     Label("Select All", systemImage: "checklist.checked")
                 }
-                .disabled(viewModel.isWorking)
+                .disabled(viewModel.isWorking || allCalendarsSelected)
             } footer: {
-                Text("Unselected calendars stay hidden in Beacon.")
+                if viewModel.selectedCalendarIds.isEmpty {
+                    Text("No calendars are on, so Beacon shows no events. Changes apply as soon as you make them.")
+                } else {
+                    Text("Changes apply as soon as you make them. Calendars that are off stay hidden in Beacon.")
+                }
             }
         }
+    }
+
+    private var allCalendarsSelected: Bool {
+        Set(viewModel.calendars.map(\.id)).isSubset(of: viewModel.selectedCalendarIds)
     }
 
     private func calendarToggle(_ calendar: CalendarPickerOption) -> some View {
         Toggle(isOn: Binding(
             get: { viewModel.selectedCalendarIds.contains(calendar.id) },
             set: { enabled in
-                if enabled {
-                    viewModel.selectedCalendarIds.insert(calendar.id)
-                } else {
-                    viewModel.selectedCalendarIds.remove(calendar.id)
-                }
+                viewModel.setCalendar(calendar.id, enabled: enabled)
             }
         )) {
             Label {

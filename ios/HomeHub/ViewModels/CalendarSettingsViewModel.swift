@@ -122,33 +122,37 @@ final class CalendarSettingsViewModel: ObservableObject {
         Task { await appState.refreshNativeGroceryItems() }
     }
 
-    func saveCalendarSelection() async -> Bool {
-        guard let appState else { return false }
-        isWorking = true
-        errorMessage = nil
-        successMessage = nil
-        defer { isWorking = false }
-
-        appState.nativeCalendar.saveSelectedCalendarIds(selectedCalendarIds)
-        refreshFromNativeServices()
-        await appState.refreshNativeTodaySchedule()
-        await appState.refreshDashboard()
-        successMessage = "Calendar selection saved."
-        return true
+    /// Turns one calendar on or off. The choice is saved on the spot: there is no Save button to
+    /// forget to press. The screen's own state updates at once, the choice is written to the device's
+    /// preferences before this returns, and Today's schedule is refreshed shortly after (a short wait so
+    /// flipping several toggles in a row refreshes once, not once each).
+    func setCalendar(_ id: String, enabled: Bool) {
+        guard let appState else { return }
+        var ids = selectedCalendarIds
+        if enabled { ids.insert(id) } else { ids.remove(id) }
+        selectedCalendarIds = ids
+        appState.nativeCalendar.saveSelectedCalendarIds(ids)
+        refreshScheduleSoon(appState)
     }
 
-    func selectAllCalendars() async {
+    func selectAllCalendars() {
         guard let appState else { return }
-        isWorking = true
-        errorMessage = nil
-        successMessage = nil
-        defer { isWorking = false }
-
         appState.nativeCalendar.selectAllCalendars()
-        refreshFromNativeServices()
-        await appState.refreshNativeTodaySchedule()
-        await appState.refreshDashboard()
-        successMessage = "All calendars selected."
+        selectedCalendarIds = appState.nativeCalendar.effectiveSelectedCalendarIds()
+        refreshScheduleSoon(appState)
+    }
+
+    private var scheduleRefreshTask: Task<Void, Never>?
+
+    /// Holds on to `appState` itself (not this screen) so the refresh still happens if the person
+    /// leaves the screen straight after a change.
+    private func refreshScheduleSoon(_ appState: AppState) {
+        scheduleRefreshTask?.cancel()
+        scheduleRefreshTask = Task {
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            guard !Task.isCancelled else { return }
+            await appState.refreshNativeTodaySchedule()
+        }
     }
 
     func saveWeekStart() async -> Bool {
