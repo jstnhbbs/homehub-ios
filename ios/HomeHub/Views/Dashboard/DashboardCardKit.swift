@@ -21,19 +21,19 @@ extension EnvironmentValues {
 struct DashboardRow<Leading: View, Trailing: View>: View {
     /// Matches the Meals tiles: room for a title that wraps to two lines, or a title with a line
     /// under it.
-    static var height: CGFloat { 60 }
+    static var height: CGFloat { DashboardMetrics.scaled(60) }
 
     /// The tighter height a card may use when that lets another row show. A title that wraps to two
     /// lines still fits; a title with a subtitle drops to one line.
-    static var compactHeight: CGFloat { 48 }
+    static var compactHeight: CGFloat { DashboardMetrics.scaled(48) }
 
     /// The narrowest a row can be and still read: a marker, then room for a short title that wraps
     /// to two lines. Every card uses this to decide how many columns of rows fit, so they all make
     /// the same call.
-    static var minimumWidth: CGFloat { 124 }
+    static var minimumWidth: CGFloat { DashboardMetrics.scaled(124) }
 
     /// A row whose subtitle is a sentence ("No sleep logged today") needs more width than that.
-    static var minimumWidthWithStatus: CGFloat { 190 }
+    static var minimumWidthWithStatus: CGFloat { DashboardMetrics.scaled(190) }
 
     let title: String
     var subtitle: String?
@@ -96,7 +96,7 @@ struct DashboardCheckMarker: View {
 
 /// The "+N more" line under a card that has more items than fit. Tapping it opens the full list.
 struct DashboardMoreFooter: View {
-    static let height: CGFloat = 22
+    static var height: CGFloat { DashboardMetrics.scaled(22, .caption1) }
 
     let count: Int
     /// Extra text after the count, e.g. "25 to buy", so a card's summary shares this one line
@@ -167,7 +167,7 @@ struct WholeRowsGrid<Item: Identifiable, Tile: View>: View {
     var allowsCompactRows = false
     @ViewBuilder let tile: (Item, CGFloat) -> Tile
 
-    private let hintHeight: CGFloat = 30
+    private var hintHeight: CGFloat { DashboardMetrics.scaled(30, .caption1) }
     /// The footer sits against the bottom of the card, partly in its padding, so it costs the rows
     /// less space and the card does not look like it has an empty strip under it.
     private let footerOverlap: CGFloat = 8

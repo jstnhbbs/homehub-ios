@@ -4,6 +4,8 @@ import UIKit
 struct DashboardView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    private static let gridMinimumWidth: CGFloat = 520
     @State private var compactNavigationPath = NavigationPath()
     /// The moment the day-dependent parts (header date, birthday banner) were last drawn for. It is
     /// only replaced when the day changes, so the banner appears and goes away at midnight on its own
@@ -32,14 +34,18 @@ struct DashboardView: View {
                 }
             } else {
                 GeometryReader { proxy in
-                    let isCompact = proxy.size.width < 620
+                    // Under this width the page is a single column of fixed-height cards; above it, the real
+                    // grid. 520 lets an iPad mini in portrait (about 550pt of page beside the sidebar) have two
+                    // columns and honour each card's Standard/Expanded size, as larger iPads do.
+                    let isCompact = proxy.size.width < Self.gridMinimumWidth
                     let cards = dashboardCards(for: .tablet)
                     let layout = DashboardCardLayout(
                         cards: cards,
                         cardSizes: appState.hubModules.dashboardCardSizes(for: .tablet),
                         availableSize: proxy.size,
                         isCompact: isCompact,
-                        usesFlexibleMacLayout: isRunningAsIPadAppOnMac
+                        usesFlexibleMacLayout: isRunningAsIPadAppOnMac,
+                        usesAccessibilityLayout: DashboardMetrics.usesAccessibilityLayout(dynamicTypeSize)
                     )
                     let contentMaxWidth: CGFloat? = isRunningAsIPadAppOnMac ? nil : 1_500
                     dashboardContent(cards: cards, layout: layout, isCompact: isCompact)
@@ -107,7 +113,11 @@ struct DashboardView: View {
 
                         // Hand-packed rows rather than a LazyVGrid, because a grid with a
                         // fixed column count can't let a card span both columns.
-                        let cardSizes = appState.hubModules.dashboardCardSizes(for: .phone)
+                        // At the largest text sizes a half-width tile cannot hold its text, so every tile takes the
+                        // full width, whatever size was chosen for it in Settings.
+                        let cardSizes: [DashboardCardId: DashboardCardSize] = DashboardMetrics.usesAccessibilityLayout(dynamicTypeSize)
+                            ? Dictionary(uniqueKeysWithValues: DashboardCardId.allCases.map { ($0, DashboardCardSize.expanded) })
+                            : appState.hubModules.dashboardCardSizes(for: .phone)
                         let tileRows = compactTileRows(
                             compactGridCards(cards, dashboard: dashboard),
                             sizes: cardSizes
@@ -177,6 +187,7 @@ struct DashboardView: View {
                     .font(.caption.weight(.bold))
                     .foregroundStyle(HubTheme.muted)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.6)
                 Text("Today")
                     .font(.title2.weight(.bold))
             }
@@ -1319,6 +1330,8 @@ private struct DashboardCardLayout {
     let availableSize: CGSize
     let isCompact: Bool
     let usesFlexibleMacLayout: Bool
+    /// The very largest text sizes: one card per row, since half a screen cannot hold the text.
+    var usesAccessibilityLayout = false
 
     private var cardCount: Int { cards.count }
     private var spacing: CGFloat { 16 }
@@ -1328,7 +1341,7 @@ private struct DashboardCardLayout {
     }
 
     var columnCount: Int {
-        guard !isCompact else { return 1 }
+        guard !isCompact, !usesAccessibilityLayout else { return 1 }
         guard cardCount > 0 else { return 1 }
 
         let widthCap: Int
@@ -1368,12 +1381,13 @@ private struct DashboardCardLayout {
     }
 
     var rowHeight: CGFloat {
-        guard !isCompact else { return 300 }
+        // A card's own title and padding grow with the text, so its smallest height does too.
+        guard !isCompact else { return DashboardMetrics.scaled(300, .body) }
 
         let rows = max(1, rowCount)
         let rowSpacing = CGFloat(rows - 1) * spacing
         let availableHeight = max(360, availableSize.height - 72 - rowSpacing)
-        return max(170, floor(availableHeight / CGFloat(rows)))
+        return max(DashboardMetrics.scaled(170, .body), floor(availableHeight / CGFloat(rows)))
     }
 
     private var rowCount: Int {
@@ -1890,13 +1904,15 @@ private struct RoutineProgressRow: View {
     static func fullHeight(for group: RoutineProgressGroup) -> CGFloat {
         let remaining = group.remainingSteps.count
         let shownSteps = min(3, remaining)
+        // Line heights follow the text size; the paddings and the 52pt ring do not.
+        let stepLine = DashboardMetrics.scaled(16, .caption1)
         let stepsHeight: CGFloat
         if shownSteps == 0 {
-            stepsHeight = 16
+            stepsHeight = stepLine
         } else {
-            stepsHeight = CGFloat(shownSteps) * 16 + CGFloat(shownSteps - 1) * 4 + (remaining > 3 ? 20 : 0)
+            stepsHeight = CGFloat(shownSteps) * stepLine + CGFloat(shownSteps - 1) * 4 + (remaining > 3 ? DashboardMetrics.scaled(20, .caption1) : 0)
         }
-        return max(72, 20 + 6 + stepsHeight + 20)
+        return max(72, DashboardMetrics.scaled(20) + 6 + stepsHeight + 20)
     }
 
     private var tint: Color {
@@ -2104,11 +2120,11 @@ private struct MealSlotRow: View {
         let firstLineCount = DashboardRowHelpers.estimatedLineCount(
             characterCount: lines.first?.count ?? 0,
             availableWidth: columnWidth - 24,
-            averageCharacterWidth: 9,
+            averageCharacterWidth: DashboardMetrics.scaled(9),
             maxLines: 2
         )
         let textLines = firstLineCount + (count - 1)
-        return 24 + 13 + 4 + CGFloat(textLines) * 20 + CGFloat(count - 1) * 4
+        return 24 + DashboardMetrics.scaled(13, .caption2) + 4 + CGFloat(textLines) * DashboardMetrics.scaled(20) + CGFloat(count - 1) * 4
     }
 
     var body: some View {
@@ -2750,7 +2766,7 @@ private enum DashboardCheckTile {
         let titleLineCount = DashboardRowHelpers.estimatedLineCount(
             characterCount: title.count,
             availableWidth: columnWidth - 20,
-            averageCharacterWidth: 9,
+            averageCharacterWidth: DashboardMetrics.scaled(9),
             maxLines: 2
         )
         let chipRows = DashboardRowHelpers.chipRowCount(
@@ -2760,7 +2776,7 @@ private enum DashboardCheckTile {
             spacing: SnackChildChips.spacing
         )
         let chips = CGFloat(chipRows) * SnackChildChips.chipSize + CGFloat(max(0, chipRows - 1)) * SnackChildChips.spacing
-        return 20 + CGFloat(titleLineCount) * 20 + 6 + chips
+        return 20 + CGFloat(titleLineCount) * DashboardMetrics.scaled(20) + 6 + chips
     }
 }
 

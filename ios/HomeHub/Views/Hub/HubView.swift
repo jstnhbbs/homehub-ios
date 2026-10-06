@@ -71,9 +71,15 @@ struct HubView: View {
                 }
             } else {
                 HStack(spacing: 0) {
+                    // The sidebar and the top bar are navigation chrome, like a tab bar: they grow with the text
+                    // up to a point and then stop, because a fixed-width sidebar cannot wrap its labels
+                    // ("Chore / s") and nothing is gained by a header that fills the screen. The page itself
+                    // keeps scaling all the way.
                     HubNavView()
+                        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     VStack(spacing: 0) {
                         HubHeaderView()
+                            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                         content(for: appState.selectedDestination)
                             .frame(
                                 maxWidth: regularContentMaxWidth(for: appState.selectedDestination),
