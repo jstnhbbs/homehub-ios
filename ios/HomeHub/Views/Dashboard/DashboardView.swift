@@ -85,6 +85,8 @@ struct DashboardView: View {
                 LazyVStack(alignment: .leading, spacing: 12) {
                     compactHeader(dashboard: dashboard)
 
+                    VerifyEmailCard()
+
                     if !todaysBirthdays.items.isEmpty {
                         BirthdayTodayBanners(items: todaysBirthdays.items, localDate: todaysBirthdays.localDate)
                     }
@@ -235,6 +237,8 @@ struct DashboardView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             header
+
+            VerifyEmailCard()
 
             if let dashboard = appState.dashboard {
                 let scheduleEvents = appState.nativeCalendar.hasFullAccess

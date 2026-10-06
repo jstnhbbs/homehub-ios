@@ -74,6 +74,13 @@ struct SettingsView: View {
     private var settingsIndex: some View {
         List {
             accountHeader
+            if appState.needsEmailVerification {
+                Section {
+                    VerifyEmailCard(canDismiss: false)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                }
+            }
             statusMessagesSection
 
             Section {

@@ -92,6 +92,16 @@ final class AuthService: ObservableObject {
         currentUser = response.user
     }
 
+    /// Emails a fresh confirmation link. The link opens the page on the website that says the address
+    /// is confirmed; the app notices the next time it comes to the front (`AppState.refreshSession`).
+    func sendVerificationEmail(to email: String) async throws {
+        try await client.requestVoid(
+            "/api/auth/send-verification-email",
+            method: "POST",
+            body: SendVerificationRequest(email: email, callbackURL: "/email-verified")
+        )
+    }
+
     /// Ends the session on the server (so the cookie stops working everywhere), then forgets it here
     /// whether or not the server could be reached.
     func signOut() async {
@@ -104,6 +114,11 @@ final class AuthService: ObservableObject {
 }
 
 private struct EmptyJSONBody: Encodable {}
+
+private struct SendVerificationRequest: Encodable {
+    let email: String
+    let callbackURL: String
+}
 
 private struct SignInRequest: Encodable {
     let email: String

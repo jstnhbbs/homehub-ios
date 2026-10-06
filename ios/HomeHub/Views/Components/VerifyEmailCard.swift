@@ -1,0 +1,99 @@
+import SwiftUI
+
+/// Reminds someone whose email address is not confirmed yet, and sends the link again. Nothing is
+/// blocked while it shows; it goes away on its own once the address is confirmed.
+struct VerifyEmailCard: View {
+    @EnvironmentObject private var appState: AppState
+
+    /// On Today the reminder can be closed for the rest of the session; in Settings it stays.
+    var canDismiss = true
+
+    private enum SendState: Equatable {
+        case idle
+        case sending
+        case sent
+        case failed(String)
+    }
+
+    @State private var state: SendState = .idle
+
+    var body: some View {
+        if appState.needsEmailVerification, !(canDismiss && appState.emailReminderDismissed) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "envelope.badge")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(HubTheme.sage)
+                    .frame(width: 34, height: 34)
+                    .background(HubTheme.sage.opacity(0.14))
+                    .clipShape(Circle())
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Confirm your email")
+                        .font(.subheadline.weight(.heavy))
+                    Text(message)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(HubTheme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if state != .sent {
+                        Button {
+                            Task { await send() }
+                        } label: {
+                            Text(state == .sending ? "Sending…" : "Send confirmation link")
+                        }
+                        .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
+                        .disabled(state == .sending)
+                    }
+                }
+
+                Spacer(minLength: 0)
+
+                if canDismiss {
+                    Button {
+                        appState.emailReminderDismissed = true
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(HubTheme.muted)
+                            .frame(width: 28, height: 28)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Dismiss")
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(HubTheme.tile)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(HubTheme.sage.opacity(0.3), lineWidth: 1)
+            )
+            .accessibilityElement(children: .contain)
+        }
+    }
+
+    private var message: String {
+        let email = appState.currentUser?.email ?? "your email"
+        switch state {
+        case .idle, .sending:
+            return "\(email) isn't confirmed yet. It only takes a tap on a link."
+        case .sent:
+            return "We sent a link to \(email). Open it, then come back to Beacon."
+        case .failed(let reason):
+            return reason
+        }
+    }
+
+    private func send() async {
+        state = .sending
+        do {
+            try await appState.sendVerificationEmail()
+            state = .sent
+        } catch {
+            // Already confirmed on another device, or too many requests: say what the server said.
+            if let reason = error.userFacingMessage { state = .failed(reason) } else { state = .idle }
+            await appState.refreshSession()
+        }
+    }
+}

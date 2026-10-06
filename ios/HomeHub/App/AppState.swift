@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import SwiftUI
 
@@ -41,6 +42,11 @@ final class AppState: ObservableObject {
     /// otherwise say nothing at all. Use `report(_:)` from views.
     @Published private(set) var notice: String?
     private var noticeTask: Task<Void, Never>?
+    /// Passes `AuthService` changes on, so screens that read `currentUser` (such as whether the email
+    /// address is confirmed yet) redraw when it changes.
+    private var authObserver: AnyCancellable?
+    /// Set when someone closes the "confirm your email" reminder; it comes back next launch.
+    @Published var emailReminderDismissed = false
     @Published var accentPalette: AccentPalette {
         didSet {
             HubTheme.currentAccent = accentPalette
@@ -99,6 +105,9 @@ final class AppState: ObservableObject {
         let storedMode = UserDefaults.standard.string(forKey: Self.appearanceStorageKey) ?? ""
         self.appearanceMode = AppearanceMode(rawValue: storedMode) ?? .system
         observeEventKitChanges()
+        authObserver = auth.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }
     }
 
     deinit {
@@ -448,6 +457,18 @@ final class AppState: ObservableObject {
         if let pending = pendingFoodSection, !pending.isVisible(in: hubModules) {
             pendingFoodSection = nil
         }
+    }
+
+    /// True while the signed-in person's email address has not been confirmed. They can still use
+    /// everything; this only decides whether to remind them.
+    var needsEmailVerification: Bool {
+        guard let user = currentUser else { return false }
+        return !user.emailVerified
+    }
+
+    func sendVerificationEmail() async throws {
+        guard let email = currentUser?.email else { return }
+        try await auth.sendVerificationEmail(to: email)
     }
 
     func refreshSession() async {

@@ -217,6 +217,28 @@ func run() async {
         check("and the new session replaces the old", app.credentials.cookieHeader(for: base) ?? "none", "better-auth.session_token=NEW.sig")
     }
 
+    // Asking for another confirmation email.
+    do {
+        let app = makeApp()
+        respond(200, "{}", headers: setSession)
+        let _: [String: String]? = try? await app.client.request("/api/mobile/v1/x")
+        StubServer.seen = []
+        respond(200, #"{"status":true}"#)
+        try? await app.auth.sendVerificationEmail(to: "pat@example.com")
+        let sent = StubServer.seen.first
+        check("a confirmation email is asked for from the sign-in service", sent?.url?.path ?? "nil", "/api/auth/send-verification-email")
+        check("as a POST", sent?.httpMethod ?? "nil", "POST")
+        check("with the server's origin", sent?.value(forHTTPHeaderField: "Origin") ?? "nil", "http://localhost:3000")
+        let body = (try? JSONSerialization.jsonObject(with: StubServer.lastBody ?? Data())) as? [String: String]
+        check("naming the address", body?["email"] ?? "nil", "pat@example.com")
+        check("and the page the link should end on", body?["callbackURL"] ?? "nil", "/email-verified")
+
+        respond(429, #"{"message":"Too many requests. Please try again later."}"#)
+        var reason = "no error"
+        do { try await app.auth.sendVerificationEmail(to: "pat@example.com") } catch { reason = error.localizedDescription }
+        check("too many requests reads as a sentence", reason, "Too many requests. Please try again later.")
+    }
+
     // A wrong password reads as a sentence, not JSON.
     do {
         let app = makeApp()

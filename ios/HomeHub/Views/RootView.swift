@@ -33,7 +33,11 @@ struct RootView: View {
         .animation(.easeInOut(duration: 0.2), value: appState.notice)
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active, appState.auth.isSignedIn else { return }
-            Task { await appState.refreshHousehold() }
+            Task {
+                await appState.refreshHousehold()
+                // Someone who went to their mail app to confirm their address comes back here.
+                if appState.needsEmailVerification { await appState.refreshSession() }
+            }
         }
         .task(id: appState.auth.isSignedIn) {
             guard appState.auth.isSignedIn else { return }
