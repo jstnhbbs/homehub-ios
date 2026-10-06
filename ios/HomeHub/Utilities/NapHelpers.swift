@@ -307,21 +307,53 @@ struct AwakeGap: Identifiable, Sendable {
 struct HeatmapBlock: Sendable {
     let startHour: Int
     let endHour: Int
-    let label: String
+
+    /// "5–8a" on a 12-hour clock, "5–8" on a 24-hour one.
+    var label: String {
+        NapTimelineHelpers.rangeLabel(startHour: startHour, endHour: endHour)
+    }
 }
 
 enum NapTimelineHelpers {
     static let startHour = 5
     static let endHour = 23
-    static let hourLabels = ["5a", "8a", "11a", "2p", "5p", "8p", "11p"]
+    /// The hours labelled under the timeline, three hours apart.
+    static let axisHours = [5, 8, 11, 14, 17, 20, 23]
+
+    static var hourLabels: [String] {
+        axisHours.map { compactHourLabel($0) }
+    }
+
     static let heatmapBlocks: [HeatmapBlock] = [
-        HeatmapBlock(startHour: 5, endHour: 8, label: "5–8a"),
-        HeatmapBlock(startHour: 8, endHour: 11, label: "8–11a"),
-        HeatmapBlock(startHour: 11, endHour: 14, label: "11–2p"),
-        HeatmapBlock(startHour: 14, endHour: 17, label: "2–5p"),
-        HeatmapBlock(startHour: 17, endHour: 20, label: "5–8p"),
-        HeatmapBlock(startHour: 20, endHour: 23, label: "8–11p"),
+        HeatmapBlock(startHour: 5, endHour: 8),
+        HeatmapBlock(startHour: 8, endHour: 11),
+        HeatmapBlock(startHour: 11, endHour: 14),
+        HeatmapBlock(startHour: 14, endHour: 17),
+        HeatmapBlock(startHour: 17, endHour: 20),
+        HeatmapBlock(startHour: 20, endHour: 23),
     ]
+
+    /// Whether the person's region uses a 24-hour clock (14:00) rather than AM/PM.
+    static func uses24HourClock(locale: Locale = .autoupdatingCurrent) -> Bool {
+        let template = DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: locale) ?? ""
+        return !template.contains("a")
+    }
+
+    /// An hour as short as the timeline needs: "5a" and "2p", or "5" and "14".
+    static func compactHourLabel(_ hour: Int, locale: Locale = .autoupdatingCurrent) -> String {
+        if uses24HourClock(locale: locale) { return String(hour) }
+        return "\(twelveHour(hour))\(hour < 12 ? "a" : "p")"
+    }
+
+    /// "5–8a" or "11–2p" (the am/pm mark is the end hour's), or "5–8" on a 24-hour clock.
+    static func rangeLabel(startHour: Int, endHour: Int, locale: Locale = .autoupdatingCurrent) -> String {
+        if uses24HourClock(locale: locale) { return "\(startHour)–\(endHour)" }
+        return "\(twelveHour(startHour))–\(twelveHour(endHour))\(endHour < 12 ? "a" : "p")"
+    }
+
+    private static func twelveHour(_ hour: Int) -> Int {
+        hour % 12 == 0 ? 12 : hour % 12
+    }
 
     static func minutesOnLocalDate(_ date: Date, localDate: String, timezone: TimeZone) -> Int? {
         guard DateHelpers.localDateIn(timezone: timezone, date: date) == localDate else { return nil }

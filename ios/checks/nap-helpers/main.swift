@@ -80,6 +80,18 @@ payload.remove(id: "b")
 check("remove drops it from the week", String(payload.weekLogs.contains { $0.id == "b" }), "false")
 check("and from today's naps", String(payload.naps.contains { $0.id == "b" }), "false")
 
+// MARK: The timeline reads in the person's own clock
+
+let usLocale = Locale(identifier: "en_US")
+let germanLocale = Locale(identifier: "de_DE")
+check("US axis labels are as they always were", NapTimelineHelpers.axisHours.map { NapTimelineHelpers.compactHourLabel($0, locale: usLocale) }.joined(separator: " "), "5a 8a 11a 2p 5p 8p 11p")
+check("US heatmap ranges are as they always were", NapTimelineHelpers.heatmapBlocks.map { NapTimelineHelpers.rangeLabel(startHour: $0.startHour, endHour: $0.endHour, locale: usLocale) }.joined(separator: " "), "5–8a 8–11a 11–2p 2–5p 5–8p 8–11p")
+check("a 24-hour region gets 24-hour axis labels", NapTimelineHelpers.axisHours.map { NapTimelineHelpers.compactHourLabel($0, locale: germanLocale) }.joined(separator: " "), "5 8 11 14 17 20 23")
+check("and 24-hour ranges", NapTimelineHelpers.rangeLabel(startHour: 11, endHour: 14, locale: germanLocale), "11–14")
+check("US uses AM/PM", String(NapTimelineHelpers.uses24HourClock(locale: usLocale)), "false")
+check("Germany does not", String(NapTimelineHelpers.uses24HourClock(locale: germanLocale)), "true")
+check("midday is 12p, not 0p", NapTimelineHelpers.compactHourLabel(12, locale: usLocale), "12p")
+
 if failures > 0 {
     print("\(failures) failed")
     exit(1)

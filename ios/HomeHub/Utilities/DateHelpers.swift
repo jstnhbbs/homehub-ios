@@ -35,11 +35,16 @@ enum DateHelpers {
         cache.calendar(in: timezone)
     }
 
-    private static func patternFormatter(_ pattern: String, timezone: TimeZone) -> DateFormatter {
-        cache.formatter(key: "\(timezone.identifier)|\(pattern)") {
+    /// A formatter for `pattern`, read as a *template*: the letters say which parts to show ("EEE, MMM d"
+    /// means weekday, month and day) and the person's region decides the wording, order and
+    /// punctuation. A US household sees exactly what the pattern spells out ("Mon, Oct 5"); a UK one sees
+    /// "Mon, 5 Oct". The literal punctuation in the pattern is ignored for that reason.
+    private static func patternFormatter(_ pattern: String, timezone: TimeZone, locale: Locale) -> DateFormatter {
+        cache.formatter(key: "\(timezone.identifier)|\(locale.identifier)|\(pattern)") {
             let formatter = DateFormatter()
+            formatter.locale = locale
             formatter.timeZone = timezone
-            formatter.dateFormat = pattern
+            formatter.setLocalizedDateFormatFromTemplate(String(pattern.filter { $0.isLetter }))
             return formatter
         }
     }
@@ -65,8 +70,8 @@ enum DateHelpers {
         return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
     }
 
-    static func weekdayShort(_ date: Date, timezone: TimeZone) -> String {
-        patternFormatter("EEE", timezone: timezone).string(from: date)
+    static func weekdayShort(_ date: Date, timezone: TimeZone, locale: Locale = .autoupdatingCurrent) -> String {
+        patternFormatter("EEE", timezone: timezone, locale: locale).string(from: date)
     }
 
     static func dayNumber(_ date: Date, timezone: TimeZone) -> String {
@@ -86,9 +91,9 @@ enum DateHelpers {
         return formatter.string(from: date)
     }
 
-    static func formatLocalDate(_ localDate: String, timezone: TimeZone, pattern: String) -> String {
+    static func formatLocalDate(_ localDate: String, timezone: TimeZone, pattern: String, locale: Locale = .autoupdatingCurrent) -> String {
         guard let date = dateFromLocalDate(localDate, timezone: timezone) else { return localDate }
-        return patternFormatter(pattern, timezone: timezone).string(from: date)
+        return patternFormatter(pattern, timezone: timezone, locale: locale).string(from: date)
     }
 
     static func dateFromLocalDate(_ localDate: String, timezone: TimeZone) -> Date? {
@@ -115,7 +120,7 @@ enum DateHelpers {
         return formatter.string(from: date)
     }
 
-    static func headerDateLabel(timezone: TimeZone, date: Date = .now) -> String {
-        patternFormatter("EEEE, MMMM d", timezone: timezone).string(from: date)
+    static func headerDateLabel(timezone: TimeZone, date: Date = .now, locale: Locale = .autoupdatingCurrent) -> String {
+        patternFormatter("EEEE, MMMM d", timezone: timezone, locale: locale).string(from: date)
     }
 }

@@ -24,21 +24,22 @@ enum CalendarHelpers {
         DateHelpers.localDateIn(timezone: timezone, date: date)
     }
 
-    static func monthTitle(_ date: Date, timezone: TimeZone) -> String {
+    private static func formatter(_ template: String, timezone: TimeZone, locale: Locale) -> DateFormatter {
         let formatter = DateFormatter()
+        formatter.locale = locale
         formatter.timeZone = timezone
-        formatter.dateFormat = "MMMM yyyy"
-        return formatter.string(from: date)
+        formatter.setLocalizedDateFormatFromTemplate(template)
+        return formatter
     }
 
-    static func weekTitle(start: Date, end: Date, timezone: TimeZone) -> String {
-        let formatter = DateFormatter()
-        formatter.timeZone = timezone
-        formatter.dateFormat = "MMM d"
-        let yearFormatter = DateFormatter()
-        yearFormatter.timeZone = timezone
-        yearFormatter.dateFormat = "yyyy"
-        return "\(formatter.string(from: start)) – \(formatter.string(from: end)), \(yearFormatter.string(from: end))"
+    static func monthTitle(_ date: Date, timezone: TimeZone, locale: Locale = .autoupdatingCurrent) -> String {
+        formatter("MMMMyyyy", timezone: timezone, locale: locale).string(from: date)
+    }
+
+    static func weekTitle(start: Date, end: Date, timezone: TimeZone, locale: Locale = .autoupdatingCurrent) -> String {
+        let day = formatter("MMMd", timezone: timezone, locale: locale)
+        let year = formatter("yyyy", timezone: timezone, locale: locale)
+        return "\(day.string(from: start)) – \(day.string(from: end)), \(year.string(from: end))"
     }
 
     static func agendaTitle(_ localDate: String, timezone: TimeZone) -> String {
@@ -114,17 +115,15 @@ enum CalendarHelpers {
         }
     }
 
-    static func hourLabel(_ hour: Int, selectedDate: String, timezone: TimeZone) -> String {
+    static func hourLabel(_ hour: Int, selectedDate: String, timezone: TimeZone, locale: Locale = .autoupdatingCurrent) -> String {
         guard let date = parseLocalDate(selectedDate, timezone: timezone) else { return "" }
         let cal = calendar(timezone: timezone, weekStartsOn: 1)
         var components = cal.dateComponents([.year, .month, .day], from: date)
         components.hour = hour
         components.minute = 0
         guard let value = cal.date(from: components) else { return "" }
-        let formatter = DateFormatter()
-        formatter.timeZone = timezone
-        formatter.dateFormat = "h a"
-        return formatter.string(from: value)
+        // "j" is the hour in the person's own style: "3 PM", or "15" with a 24-hour clock.
+        return formatter("j", timezone: timezone, locale: locale).string(from: value)
     }
 
 }

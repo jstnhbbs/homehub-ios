@@ -76,14 +76,14 @@ enum MealPlanHelpers {
 
         func format(_ date: Date, _ pattern: String) -> String {
             let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.locale = .autoupdatingCurrent
             formatter.timeZone = timezone
-            formatter.dateFormat = pattern
+            formatter.setLocalizedDateFormatFromTemplate(pattern)
             return formatter.string(from: date)
         }
 
-        let left = format(start, "MMM d")
-        let right = sameMonth ? format(end, "d") : format(end, "MMM d")
+        let left = format(start, "MMMd")
+        let right = sameMonth ? format(end, "d") : format(end, "MMMd")
         return showsYear ? "\(left) – \(right), \(format(end, "yyyy"))" : "\(left) – \(right)"
     }
 
