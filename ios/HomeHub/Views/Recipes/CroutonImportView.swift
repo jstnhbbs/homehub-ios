@@ -93,6 +93,18 @@ struct CroutonImportView: View {
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(HubTheme.muted)
             }
+            if model.photosQueued > 0 {
+                HStack {
+                    Label("Photos", systemImage: "photo")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(HubTheme.muted)
+                    Spacer()
+                    Text("\(min(model.photosSaved + model.photosFailed, model.photosQueued)) of \(model.photosQueued)")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(HubTheme.muted)
+                        .monospacedDigit()
+                }
+            }
             if !model.currentTitle.isEmpty {
                 Text(model.currentTitle)
                     .font(.footnote)

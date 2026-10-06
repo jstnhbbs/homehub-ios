@@ -25,6 +25,9 @@ final class CroutonImportViewModel: ObservableObject {
     @Published private(set) var duplicates = 0
     @Published private(set) var photosSaved = 0
     @Published private(set) var photosFailed = 0
+    /// How many photos have been queued for upload so far, so the screen can show their progress
+    /// separately from the recipes (photos are the slow part and finish after their recipes).
+    @Published private(set) var photosQueued = 0
     @Published private(set) var problems: [Problem] = []
     /// Set when photos can't be stored at all (the server isn't set up for it), so the summary says why.
     @Published private(set) var photoNote: String?
@@ -79,6 +82,7 @@ final class CroutonImportViewModel: ObservableObject {
         duplicates = 0
         photosSaved = 0
         photosFailed = 0
+        photosQueued = 0
         problems = []
         photoNote = nil
         wasCancelled = false
@@ -113,11 +117,12 @@ final class CroutonImportViewModel: ObservableObject {
                 problems.append(Problem(title: failure.name, reason: "This file couldn't be read as a Crouton recipe."))
             }
 
+            var photoJobs: [(id: String, photo: String)] = []
             if !read.recipes.isEmpty {
                 do {
                     let response = try await api.importCroutonRecipes(read.recipes.map(\.recipe))
                     failedBatches = 0
-                    await handle(response, for: read.recipes, api: api)
+                    photoJobs = record(response, for: read.recipes)
                 } catch {
                     failedBatches += 1
                     let reason = error.userFacingMessage ?? "The import was interrupted."
@@ -132,17 +137,18 @@ final class CroutonImportViewModel: ObservableObject {
                     }
                 }
             }
+            // The recipes in this batch are done once the server has answered. Their photos upload
+            // next and are counted on their own; waiting for them here made "N of total" trail well
+            // behind "N added".
             processed = min(total, processed + batch.count)
+            await upload(photoJobs, api: api)
         }
 
         phase = .finished
     }
 
-    private func handle(
-        _ response: CroutonImportResponse,
-        for items: [ReadRecipe],
-        api: HomeHubAPI
-    ) async {
+    /// Counts what the server did with a batch and returns the photos still to send.
+    private func record(_ response: CroutonImportResponse, for items: [ReadRecipe]) -> [(id: String, photo: String)] {
         var photoJobs: [(id: String, photo: String)] = []
         for result in response.results {
             guard items.indices.contains(result.index) else { continue }
@@ -162,12 +168,13 @@ final class CroutonImportViewModel: ObservableObject {
                 problems.append(Problem(title: result.title, reason: result.error ?? "This recipe couldn't be imported."))
             }
         }
-        await upload(photoJobs, api: api)
+        return photoJobs
     }
 
     /// Sends photos a few at a time. Resizing happens off the main thread.
     private func upload(_ jobs: [(id: String, photo: String)], api: HomeHubAPI) async {
         guard photosEnabled, !jobs.isEmpty else { return }
+        photosQueued += jobs.count
         var pending = jobs[...]
 
         await withTaskGroup(of: PhotoOutcome.self) { group in
