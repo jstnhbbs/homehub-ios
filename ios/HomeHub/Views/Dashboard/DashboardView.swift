@@ -2587,6 +2587,19 @@ private struct ChoreCheckRow: View {
         appState.dashboard?.profiles.first { $0.id == chore.profileId }
     }
 
+    /// Who it is for and, when it has one, the time it is due ("Overdue" once that has passed).
+    private var subtitle: String? {
+        var parts: [String] = []
+        if showsAssignee { parts.append(assignee?.name ?? "Anyone") }
+        if let time = chore.dueTime {
+            let label = ChoreHelpers.timeLabel(time)
+            parts.append(chore.overdue == true && !isChecked ? "Overdue · \(label)" : label)
+        } else if chore.overdue == true, !isChecked {
+            parts.append("Overdue")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
     var body: some View {
         if !isHidden {
             Button {
@@ -2594,7 +2607,7 @@ private struct ChoreCheckRow: View {
             } label: {
                 DashboardRow(
                     title: chore.title,
-                    subtitle: showsAssignee ? (assignee?.name ?? "Anyone") : nil,
+                    subtitle: subtitle,
                     isDone: isChecked
                 ) {
                     DashboardCheckMarker(isChecked: isChecked)

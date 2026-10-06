@@ -31,6 +31,24 @@ enum ChoreCadence: String, Codable, Sendable {
     case weekly
 }
 
+/// How a chore repeats, every `repeatInterval` of the unit. The server also sends `cadence`
+/// (daily or weekly) for apps that predate this.
+enum ChoreRepeatUnit: String, Codable, Sendable, CaseIterable {
+    /// Named `never` because `.none` would be read as an optional's nothing.
+    case never = "none"
+    case day
+    case week
+    case month
+    case year
+
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        // A unit this version doesn't know is read as the everyday chore it replaced, not an error
+        // that would stop the whole list loading.
+        self = ChoreRepeatUnit(rawValue: raw) ?? .day
+    }
+}
+
 enum MealSlot: String, Codable, Sendable, CaseIterable {
     case breakfast
     case lunch

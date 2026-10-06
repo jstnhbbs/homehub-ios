@@ -8,8 +8,12 @@ struct Chore: Codable, Identifiable, Sendable {
     var cadence: ChoreCadence
     var days: String
     var sortOrder: Int
-    /// Optional deadline ("YYYY-MM-DD"), independent of cadence — e.g. a one-off "due Friday" item.
+    /// The day a one-off is due, or the day a repeating chore starts and counts from ("YYYY-MM-DD").
     var dueDate: String?
+    /// "HH:mm" in the household's time zone.
+    var dueTime: String?
+    var repeatUnit: ChoreRepeatUnit?
+    var repeatInterval: Int?
     var createdAt: Date?
     var updatedAt: Date?
 }
@@ -22,20 +26,33 @@ struct ChoreRow: Codable, Identifiable, Sendable {
     var days: String
     var sortOrder: Int?
     var dueDate: String?
+    var dueTime: String?
+    /// Nil from a server that predates repeat rules; `ChoreHelpers.repeatRule` falls back to `cadence`.
+    var repeatUnit: ChoreRepeatUnit?
+    var repeatInterval: Int?
     var periodKey: String
     var completed: Bool
     var completedAt: Date?
     var completedByName: String?
     var dueToday: Bool?
     var overdue: Bool?
+    /// For a chore not due today, the next day it is ("YYYY-MM-DD").
+    var nextDueDate: String?
 }
 
 struct ChoreInput: Codable, Sendable {
     var title: String
     var profileId: String?
+    /// Always sent (daily for a daily chore, weekly for anything else) so a server that predates
+    /// repeat rules can still read the chore.
     var cadence: ChoreCadence
+    var repeatUnit: ChoreRepeatUnit?
+    var repeatInterval: Int?
     var weekDay: String?
+    /// Limits a daily chore to these weekdays (0 = Sunday), as "Weekdays" does.
+    var weekdays: [String]?
     var dueDate: String?
+    var dueTime: String?
 }
 
 struct ToggleChoreRequest: Codable, Sendable {

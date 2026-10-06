@@ -142,11 +142,25 @@ private struct ChoreItemRow: View {
         _isChecked = State(initialValue: chore.completed)
     }
 
+    /// A repeating chore whose next turn isn't today. A one-off can be ticked off early, as in
+    /// Reminders.
+    private var isWaitingForItsDay: Bool {
+        chore.dueToday == false && ChoreHelpers.repeatRule(for: chore).unit != .never
+    }
+
+    /// "Next Mon, Oct 12", or "Not due today" from a server that doesn't say when it is next.
+    private var nextLine: String {
+        guard let next = chore.nextDueDate else { return "Not due today" }
+        let day = DateHelpers.formatLocalDate(next, timezone: viewModel.timezone, pattern: "EEE, MMM d")
+        guard let time = chore.dueTime else { return "Next \(day)" }
+        return "Next \(day) · \(ChoreHelpers.timeLabel(time))"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             CheckItemView(
                 label: chore.title,
-                detail: ChoreHelpers.choreCadenceDetail(cadence: chore.cadence, days: chore.days),
+                detail: ChoreHelpers.repeatDetail(for: chore, timezone: viewModel.timezone),
                 color: groupColor,
                 isChecked: $isChecked
             ) {
@@ -154,19 +168,16 @@ private struct ChoreItemRow: View {
                 await viewModel.toggleChore(chore, completed: !isChecked)
                 await viewModel.load()
             }
-            .disabled(chore.dueToday == false)
-            .opacity(chore.dueToday == false ? 0.55 : 1)
+            .disabled(isWaitingForItsDay)
+            .opacity(isWaitingForItsDay ? 0.55 : 1)
 
-            if chore.dueToday == false {
-                Text("Not due today")
+            if isWaitingForItsDay {
+                Text(nextLine)
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(HubTheme.muted)
                     .padding(.leading, 8)
-            }
-
-            if let dueDate = chore.dueDate {
-                let label = DateHelpers.formatLocalDate(dueDate, timezone: viewModel.timezone, pattern: "EEE, MMM d")
-                Text(chore.overdue == true ? "Overdue · \(label)" : "Due \(label)")
+            } else if let dueLine = ChoreHelpers.dueLine(for: chore, timezone: viewModel.timezone) {
+                Text(dueLine)
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(chore.overdue == true ? .red : HubTheme.muted)
                     .padding(.leading, 8)

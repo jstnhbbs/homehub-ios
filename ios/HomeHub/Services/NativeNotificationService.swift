@@ -174,13 +174,33 @@ final class NativeNotificationService: ObservableObject {
         today: Date
     ) -> [UNNotificationRequest] {
         let pendingChores = chores.filter { !$0.completed && $0.dueToday != false }
-        guard !pendingChores.isEmpty,
-              let fireDate = fireDate(today: today, minuteOfDay: settings.choreMinute, calendar: calendar) else {
-            return []
+        var requests: [UNNotificationRequest] = []
+
+        // A chore with a time of its own reminds at that time, by name. The rest share the
+        // evening check-in.
+        for chore in pendingChores {
+            guard let time = chore.dueTime,
+                  let minute = ChoreHelpers.minuteOfDay(time),
+                  let fireDate = fireDate(today: today, minuteOfDay: minute, calendar: calendar) else {
+                continue
+            }
+            requests.append(request(
+                id: "chore.\(chore.id).\(chore.periodKey)",
+                title: chore.title,
+                body: "This chore is due now.",
+                fireDate: fireDate,
+                calendar: calendar
+            ))
         }
 
-        let body = "\(pendingChores.count) \(pendingChores.count == 1 ? "chore is" : "chores are") still waiting today."
-        return [
+        let untimed = pendingChores.filter { $0.dueTime == nil }
+        guard !untimed.isEmpty,
+              let fireDate = fireDate(today: today, minuteOfDay: settings.choreMinute, calendar: calendar) else {
+            return requests
+        }
+
+        let body = "\(untimed.count) \(untimed.count == 1 ? "chore is" : "chores are") still waiting today."
+        requests.append(
             request(
                 id: "chores.today",
                 title: "Chore check-in",
@@ -188,7 +208,8 @@ final class NativeNotificationService: ObservableObject {
                 fireDate: fireDate,
                 calendar: calendar
             )
-        ]
+        )
+        return requests
     }
 
     private func sleepRequests(
