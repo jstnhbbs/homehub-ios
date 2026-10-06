@@ -128,8 +128,3 @@ enum NativeCalendarPreferenceKeys {
 struct UpdateCalendarSettingsRequest: Codable, Sendable {
     var weekStartsOn: Int?
 }
-
-struct OkResponse: Codable, Sendable {
-    var ok: Bool?
-    var id: String?
-}

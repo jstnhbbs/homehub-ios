@@ -10,24 +10,6 @@ extension Recipe {
     var asOption: RecipeOption {
         RecipeOption(id: id, title: title, tags: tags)
     }
-
-    func toInput() -> RecipeInput {
-        RecipeInput(
-            title: title,
-            description: description,
-            servings: servings,
-            prepTime: prepTime,
-            cookTime: cookTime,
-            totalTime: totalTime,
-            ingredients: ingredients,
-            directions: directions,
-            nutrition: nutrition,
-            sourceUrl: sourceUrl,
-            imageUrl: imageUrl,
-            notes: notes,
-            tags: tags
-        )
-    }
 }
 
 enum RecipeFormHelpers {

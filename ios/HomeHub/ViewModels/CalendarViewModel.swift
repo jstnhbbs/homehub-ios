@@ -67,10 +67,6 @@ final class CalendarViewModel: ObservableObject {
         }
     }
 
-    var selectedDayEvents: [CalendarOccurrence] {
-        CalendarHelpers.eventsForDate(filteredOccurrences, on: selectedDate, timezone: timezone)
-    }
-
     var filteredOccurrences: [CalendarOccurrence] {
         let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !query.isEmpty else { return occurrences }

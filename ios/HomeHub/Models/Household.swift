@@ -17,13 +17,6 @@ struct Household: Codable, Identifiable, Sendable {
     var updatedAt: Date?
 }
 
-struct HouseholdMember: Codable, Sendable {
-    let householdId: String
-    let userId: String
-    var role: HouseholdRole
-    var joinedAt: Date
-}
-
 struct HouseholdMemberSummary: Codable, Identifiable, Sendable {
     let userId: String
     var role: HouseholdRole

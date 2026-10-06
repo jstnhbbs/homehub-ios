@@ -18,8 +18,4 @@ enum ProfileColors {
         .init(value: "#b86f4d", label: "Terracotta"),
         .init(value: "#7f8757", label: "Olive"),
     ]
-
-    static func isProfileColor(_ value: String) -> Bool {
-        options.contains { $0.value == value }
-    }
 }

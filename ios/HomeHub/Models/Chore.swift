@@ -14,12 +14,6 @@ struct Chore: Codable, Identifiable, Sendable {
     var updatedAt: Date?
 }
 
-struct ChoreCompletion: Codable, Sendable {
-    let choreId: String
-    let periodKey: String
-    var completedAt: Date
-}
-
 struct ChoreRow: Codable, Identifiable, Sendable {
     let id: String
     var title: String

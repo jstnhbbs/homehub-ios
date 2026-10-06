@@ -149,10 +149,6 @@ enum BirthdayHelpers {
         )
     }
 
-    static func birthDateLabel(_ birthDate: String, timezone: TimeZone) -> String {
-        DateHelpers.formatLocalDate(birthDate, timezone: timezone, pattern: "MMM d, yyyy")
-    }
-
     static func dayOfYear(localDate: String) -> Int {
         let parts = localDate.split(separator: "-").compactMap { Int($0) }
         guard parts.count == 3 else { return 1 }

@@ -141,10 +141,6 @@ final class HomeHubAPI: ObservableObject {
 
     // MARK: - Hub modules
 
-    func fetchHubModules() async throws -> HubModules {
-        try await client.request("/api/mobile/v1/hub-modules")
-    }
-
     func saveHubModules(_ modules: HubModules) async throws -> HubModules {
         try await client.request("/api/mobile/v1/hub-modules", method: "PATCH", body: modules)
     }
@@ -291,10 +287,6 @@ final class HomeHubAPI: ObservableObject {
 
     func fetchRecipes() async throws -> [Recipe] {
         try await client.request("/api/mobile/v1/recipes")
-    }
-
-    func fetchRecipe(id: String) async throws -> Recipe {
-        try await client.request("/api/mobile/v1/recipes/\(id)")
     }
 
     func addRecipe(_ input: RecipeInput) async throws -> Recipe {

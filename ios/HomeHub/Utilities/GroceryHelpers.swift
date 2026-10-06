@@ -15,11 +15,4 @@ enum GroceryHelpers {
             return (lhs.createdAt ?? .distantPast) < (rhs.createdAt ?? .distantPast)
         }
     }
-
-    static func displayTitle(_ item: GroceryItem) -> String {
-        guard let quantity = item.quantity, !quantity.isEmpty else {
-            return item.title
-        }
-        return "\(quantity) \(item.title)"
-    }
 }

@@ -21,9 +21,3 @@ struct SessionToken: Codable, Sendable {
     let expiresAt: Date
     let userId: String
 }
-
-struct AuthResponse: Codable, Sendable {
-    let user: User?
-    let session: SessionToken?
-    let token: String?
-}

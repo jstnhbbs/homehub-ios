@@ -576,15 +576,6 @@ struct HubModules: Codable, Sendable, Equatable {
         return copy
     }
 
-    func movingDashboardCard(_ card: DashboardCardId, by offset: Int, for target: DashboardLayoutTarget) -> HubModules {
-        var copy = self
-        switch target {
-        case .phone: copy.dashboardOrderPhone = Self.moving(card, in: dashboardOrderPhone, by: offset)
-        case .tablet: copy.dashboardOrderTablet = Self.moving(card, in: dashboardOrderTablet, by: offset)
-        }
-        return copy
-    }
-
     private static func normalizedDashboardCards(_ cards: [DashboardCardId: Bool]) -> [DashboardCardId: Bool] {
         var normalized = Dictionary(uniqueKeysWithValues: DashboardCardId.allCases.map { ($0, true) })
         for card in DashboardCardId.allCases {

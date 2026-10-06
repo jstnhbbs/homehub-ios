@@ -73,14 +73,6 @@ enum DateHelpers {
         String(gregorian(in: timezone).component(.day, from: date))
     }
 
-    static func weekKey(for date: Date = .now) -> String {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.firstWeekday = 2
-        let year = calendar.component(.yearForWeekOfYear, from: date)
-        let week = calendar.component(.weekOfYear, from: date)
-        return String(format: "%04d-W%02d", year, week)
-    }
-
     static func formatLocalDate(_ localDate: String, timezone: TimeZone, style: DateFormatter.Style = .medium) -> String {
         guard let date = dateFromLocalDate(localDate, timezone: timezone) else { return localDate }
         let formatter = cache.formatter(key: "\(timezone.identifier)|style|\(style.rawValue)") {

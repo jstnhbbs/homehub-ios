@@ -20,12 +20,6 @@ struct RoutineStep: Codable, Identifiable, Sendable {
     var sortOrder: Int
 }
 
-struct RoutineCompletion: Codable, Sendable {
-    let stepId: String
-    let localDate: String
-    var completedAt: Date
-}
-
 struct RoutineStepRow: Codable, Identifiable, Sendable {
     let id: String
     var label: String

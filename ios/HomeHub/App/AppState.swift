@@ -53,11 +53,6 @@ final class AppState: ObservableObject {
             UserDefaults.standard.set(accentPalette.rawValue, forKey: Self.accentStorageKey)
         }
     }
-    @Published var appearanceMode: AppearanceMode {
-        didSet {
-            UserDefaults.standard.set(appearanceMode.rawValue, forKey: Self.appearanceStorageKey)
-        }
-    }
 
     /// Shows the failure as a banner for a few seconds. A cancelled request says nothing.
     func report(_ error: Error) {
@@ -81,7 +76,6 @@ final class AppState: ObservableObject {
     }
 
     private static let accentStorageKey = "homehub.accentPalette"
-    private static let appearanceStorageKey = "homehub.appearanceMode"
 
     private var eventKitObserver: NSObjectProtocol?
     private var eventKitRefreshTask: Task<Void, Never>?
@@ -102,8 +96,6 @@ final class AppState: ObservableObject {
         let palette = AccentPalette(rawValue: stored) ?? .sage
         self.accentPalette = palette
         HubTheme.currentAccent = palette
-        let storedMode = UserDefaults.standard.string(forKey: Self.appearanceStorageKey) ?? ""
-        self.appearanceMode = AppearanceMode(rawValue: storedMode) ?? .system
         observeEventKitChanges()
         authObserver = auth.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()

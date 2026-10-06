@@ -76,14 +76,6 @@ enum NapHelpers {
         profiles.filter { $0.profileType == .child }
     }
 
-    static func activeNap(for profileId: String, in naps: [NapLog]) -> NapLog? {
-        naps.first { $0.profileId == profileId && $0.kind == "nap" && $0.endedAt == nil }
-    }
-
-    static func activeNight(for profileId: String, in logs: [NapLog]) -> NapLog? {
-        logs.first { $0.profileId == profileId && $0.kind == "night" && $0.endedAt == nil }
-    }
-
     static func activeSleep(for profileId: String, in logs: [NapLog]) -> NapLog? {
         logs.first { $0.profileId == profileId && $0.endedAt == nil }
     }
@@ -172,30 +164,6 @@ enum NapHelpers {
             todayTotalMinutes: totalMinutes,
             hasCompletedToday: true
         )
-    }
-
-    static func dashboardSleepSecondary(for status: ChildDashboardSleepStatus) -> String? {
-        switch status.state {
-        case .inBed:
-            return "Night in progress"
-        case .napping:
-            if status.hasCompletedToday {
-                return daySummary(
-                    napCount: status.todayNapCount,
-                    nightCount: status.todayNightCount,
-                    totalMinutes: status.todayTotalMinutes
-                )
-            }
-            return "Nap in progress"
-        case .awake:
-            return daySummary(
-                napCount: status.todayNapCount,
-                nightCount: status.todayNightCount,
-                totalMinutes: status.todayTotalMinutes
-            )
-        case .empty:
-            return nil
-        }
     }
 
     static func sleepOverlapsLocalDate(_ log: NapLog, localDate: String, timezone: TimeZone, now: Date = .now) -> Bool {
