@@ -65,9 +65,11 @@ struct VerifyEmailCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(HubTheme.tile)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            // Drawn inside the edge: a stroke centered on it has half outside the card, which the
+            // list row it sits in clips away.
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(HubTheme.sage.opacity(0.3), lineWidth: 1)
+                    .strokeBorder(HubTheme.sage.opacity(0.45), lineWidth: 1.5)
             )
             .accessibilityElement(children: .contain)
         }

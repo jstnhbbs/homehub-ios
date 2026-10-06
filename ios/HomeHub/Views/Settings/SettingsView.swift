@@ -36,6 +36,7 @@ struct SettingsView: View {
                             .accessibilityAddTraits(.isHeader)
                         settingsContent
                     }
+                    .hubPageBackground()
                     .navigationTitle("Settings")
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar(.hidden, for: .navigationBar)

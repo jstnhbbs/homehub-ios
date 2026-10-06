@@ -23,12 +23,12 @@ enum AccentPalette: String, CaseIterable, Identifiable, Sendable {
         case .sage: "Emerald"
         case .ocean: "Azure"
         case .clay: "Tangerine"
-        case .plum: "Grape"
+        case .plum: "Blossom"
         case .slate: "Slate"
-        case .forest: "Lime"
+        case .forest: "Meadow"
         case .teal: "Lagoon"
-        case .indigo: "Indigo"
-        case .rose: "Flamingo"
+        case .indigo: "Orchid"
+        case .rose: "Raspberry"
         case .ochre: "Sunflower"
         }
     }
@@ -47,32 +47,32 @@ enum AccentPalette: String, CaseIterable, Identifiable, Sendable {
     /// The accent in light mode: deep enough that white text on it can be read.
     private var lightAccent: UIColor {
         switch self {
-        case .sage: UIColor(red: 0.02, green: 0.59, blue: 0.41, alpha: 1)
-        case .ocean: UIColor(red: 0.18, green: 0.46, blue: 0.90, alpha: 1)
-        case .clay: UIColor(red: 0.92, green: 0.35, blue: 0.05, alpha: 1)
-        case .plum: UIColor(red: 0.58, green: 0.20, blue: 0.92, alpha: 1)
-        case .slate: UIColor(red: 0.36, green: 0.42, blue: 0.51, alpha: 1)
-        case .forest: UIColor(red: 0.35, green: 0.62, blue: 0.08, alpha: 1)
-        case .teal: UIColor(red: 0.03, green: 0.57, blue: 0.64, alpha: 1)
-        case .indigo: UIColor(red: 0.31, green: 0.27, blue: 0.90, alpha: 1)
-        case .rose: UIColor(red: 0.86, green: 0.15, blue: 0.47, alpha: 1)
-        case .ochre: UIColor(red: 0.92, green: 0.70, blue: 0.03, alpha: 1)
+        case .sage: UIColor(red: 0.09, green: 0.59, blue: 0.39, alpha: 1)
+        case .ocean: UIColor(red: 0.11, green: 0.48, blue: 0.77, alpha: 1)
+        case .clay: UIColor(red: 0.85, green: 0.42, blue: 0.07, alpha: 1)
+        case .plum: UIColor(red: 0.79, green: 0.21, blue: 0.54, alpha: 1)
+        case .slate: UIColor(red: 0.35, green: 0.42, blue: 0.51, alpha: 1)
+        case .forest: UIColor(red: 0.34, green: 0.61, blue: 0.11, alpha: 1)
+        case .teal: UIColor(red: 0.06, green: 0.58, blue: 0.55, alpha: 1)
+        case .indigo: UIColor(red: 0.52, green: 0.28, blue: 0.80, alpha: 1)
+        case .rose: UIColor(red: 0.83, green: 0.17, blue: 0.27, alpha: 1)
+        case .ochre: UIColor(red: 0.89, green: 0.69, blue: 0.07, alpha: 1)
         }
     }
 
     /// The accent in dark mode: brighter, so it glows against the dark surfaces.
     private var darkAccent: UIColor {
         switch self {
-        case .sage: UIColor(red: 0.20, green: 0.83, blue: 0.60, alpha: 1)
-        case .ocean: UIColor(red: 0.38, green: 0.65, blue: 0.98, alpha: 1)
-        case .clay: UIColor(red: 0.98, green: 0.57, blue: 0.24, alpha: 1)
-        case .plum: UIColor(red: 0.75, green: 0.52, blue: 0.99, alpha: 1)
-        case .slate: UIColor(red: 0.58, green: 0.64, blue: 0.72, alpha: 1)
-        case .forest: UIColor(red: 0.64, green: 0.90, blue: 0.21, alpha: 1)
-        case .teal: UIColor(red: 0.13, green: 0.83, blue: 0.93, alpha: 1)
-        case .indigo: UIColor(red: 0.51, green: 0.55, blue: 0.97, alpha: 1)
-        case .rose: UIColor(red: 0.96, green: 0.45, blue: 0.71, alpha: 1)
-        case .ochre: UIColor(red: 0.98, green: 0.80, blue: 0.08, alpha: 1)
+        case .sage: UIColor(red: 0.34, green: 0.82, blue: 0.63, alpha: 1)
+        case .ocean: UIColor(red: 0.40, green: 0.67, blue: 0.88, alpha: 1)
+        case .clay: UIColor(red: 0.89, green: 0.57, blue: 0.31, alpha: 1)
+        case .plum: UIColor(red: 0.87, green: 0.45, blue: 0.69, alpha: 1)
+        case .slate: UIColor(red: 0.58, green: 0.63, blue: 0.70, alpha: 1)
+        case .forest: UIColor(red: 0.50, green: 0.79, blue: 0.25, alpha: 1)
+        case .teal: UIColor(red: 0.25, green: 0.79, blue: 0.75, alpha: 1)
+        case .indigo: UIColor(red: 0.69, green: 0.51, blue: 0.89, alpha: 1)
+        case .rose: UIColor(red: 0.86, green: 0.38, blue: 0.45, alpha: 1)
+        case .ochre: UIColor(red: 0.88, green: 0.72, blue: 0.24, alpha: 1)
         }
     }
 
@@ -153,15 +153,15 @@ enum HubTheme {
     /// palette (the server and the web settings still know them by those), and shown as the
     /// livelier colors here. Anything else is shown as it is.
     private static let vividProfileColors: [String: (Double, Double, Double)] = [
-        "#d87861": (0.95, 0.40, 0.31),  // Coral
-        "#6689a3": (0.25, 0.55, 0.91),  // Blue
-        "#4f7c6d": (0.12, 0.68, 0.50),  // Sage, now a clear green
-        "#b07aa1": (0.78, 0.38, 0.71),  // Plum
-        "#d19b45": (0.94, 0.66, 0.10),  // Gold
-        "#5f8f8b": (0.08, 0.70, 0.72),  // Teal
-        "#8c7ca8": (0.56, 0.42, 0.94),  // Lavender
-        "#b86f4d": (0.93, 0.48, 0.17),  // Terracotta, now orange
-        "#7f8757": (0.56, 0.72, 0.12),  // Olive, now lime
+        "#d87861": (0.85, 0.46, 0.39),  // Coral
+        "#6689a3": (0.38, 0.65, 0.86),  // Blue
+        "#4f7c6d": (0.22, 0.78, 0.57),  // Sage, now a clear green
+        "#b07aa1": (0.79, 0.45, 0.67),  // Plum
+        "#d19b45": (0.84, 0.65, 0.28),  // Gold
+        "#5f8f8b": (0.23, 0.69, 0.67),  // Teal
+        "#8c7ca8": (0.58, 0.48, 0.80),  // Lavender
+        "#b86f4d": (0.83, 0.49, 0.29),  // Terracotta, now orange
+        "#7f8757": (0.61, 0.73, 0.27),  // Olive, now a leafy green
     ]
 
     static func profileColor(_ hex: String?) -> Color {
