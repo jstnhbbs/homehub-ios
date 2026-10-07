@@ -7,7 +7,7 @@
       "layers" : [
         {
           "fill" : {
-            "solid" : "display-p3:0.21176,0.36863,0.43529,1.00000"
+            "solid" : "srgb:0.14118,0.19216,0.25882,1.00000"
           },
           "image-name" : "check-sage.svg",
           "name" : "check-sage",
@@ -21,7 +21,7 @@
         },
         {
           "fill" : {
-            "solid" : "display-p3:0.89020,0.66275,0.29020,1.00000"
+            "solid" : "srgb:0.89020,0.66275,0.29020,1.00000"
           },
           "image-name" : "check-gold.svg",
           "name" : "check-gold",
@@ -48,13 +48,13 @@
           "fill-specializations" : [
             {
               "value" : {
-                "solid" : "display-p3:0.47843,0.35686,0.48627,1.00000"
+                "solid" : "srgb:0.90196,0.29804,0.64314,1.00000"
               }
             },
             {
               "appearance" : "dark",
               "value" : {
-                "solid" : "display-p3:0.47843,0.35686,0.48627,1.00000"
+                "solid" : "srgb:0.90196,0.33725,0.65882,1.00000"
               }
             }
           ],

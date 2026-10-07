@@ -18,7 +18,7 @@ ALTERNATE_APP_ICON_NAMES = (
     "BeaconClay",
     "BeaconPlum",
     "BeaconSlate",
-    "BeaconForest",
+    "BeaconRosewood",
     "BeaconTeal",
     "BeaconIndigo",
     "BeaconRose",

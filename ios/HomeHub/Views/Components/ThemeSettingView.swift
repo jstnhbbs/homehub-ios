@@ -192,14 +192,14 @@ private struct ThemeColorGrid: View {
     }
 }
 
-/// The alternate app icons. They are drawn in the colors of the original, earthier palette and
-/// keep its names. They are separate from the theme colors (which have new colors and names) and
-/// will change when new icon art does.
+/// The alternate app icons: the house in each of the ten theme colors. The ids are the theme's
+/// saved ids (sage is Emerald, and so on), so the icon and the theme color share a name and a
+/// color. The default icon is the first (Emerald); the others are `Beacon<Id>.icon`.
 private enum AppIconOption: String, CaseIterable, Identifiable {
-    case sage, ocean, clay, plum, slate, forest, teal, indigo, rose, ochre
+    case sage, ocean, clay, plum, slate, rosewood, teal, indigo, rose, ochre
 
     var id: String { rawValue }
-    var label: String { rawValue.capitalized }
+    var label: String { AccentColorTable.labels[rawValue] ?? rawValue.capitalized }
 
     var alternateAppIconName: String? {
         self == .sage ? nil : "Beacon\(rawValue.capitalized)"
