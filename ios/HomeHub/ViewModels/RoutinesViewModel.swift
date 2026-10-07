@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 @MainActor
 final class RoutinesViewModel: ObservableObject {
@@ -11,9 +12,15 @@ final class RoutinesViewModel: ObservableObject {
     @Published var showAddForm = false
 
     private var appState: AppState?
+    private var dashboardSubscription: AnyCancellable?
+    private var completionDates: [String: String] = [:]
 
     func bind(to appState: AppState) {
+        guard self.appState !== appState else { return }
         self.appState = appState
+        dashboardSubscription = appState.$dashboard.sink { [weak self] dashboard in
+            self?.syncCompletedSteps(from: dashboard)
+        }
     }
 
     var canManage: Bool {
@@ -53,13 +60,13 @@ final class RoutinesViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
+        await refreshCompletedSteps()
 
         do {
             async let routinesTask = appState.api.fetchRoutines()
             async let profilesTask = appState.api.fetchProfiles()
             routines = try await routinesTask
             profiles = try await profilesTask
-            await refreshCompletedSteps()
         } catch {
             if let message = error.userFacingMessage {
                 errorMessage = message
@@ -69,11 +76,14 @@ final class RoutinesViewModel: ObservableObject {
 
     private func refreshCompletedSteps() async {
         guard let appState else { return }
-        if appState.dashboard == nil {
-            await appState.refreshDashboard()
-        }
+        await appState.refreshDashboard()
+        syncCompletedSteps(from: appState.dashboard)
+    }
+
+    private func syncCompletedSteps(from dashboard: DashboardData?) {
+        if dashboard == nil { completionDates = [:] }
         completedStepIds = Set(
-            (appState.dashboard?.routineSteps ?? [])
+            (dashboard?.localDate == localDate ? dashboard?.routineSteps ?? [] : [])
                 .filter(\.completed)
                 .map(\.id)
         )
@@ -82,8 +92,13 @@ final class RoutinesViewModel: ObservableObject {
     /// Steps are only checked off from the list, never unchecked, so the wanted state is "done".
     func toggleStep(_ stepId: String) async -> Bool {
         guard let appState else { return false }
+        let date = localDate
+        let session = appState.auth.sessionVersion
         do {
-            try await appState.toggleRoutineStep(stepId: stepId, localDate: localDate, completed: true)
+            // Refresh after the row's celebration, rather than remove it halfway through.
+            try await appState.toggleRoutineStep(stepId: stepId, localDate: date, completed: true, refreshingDashboard: false)
+            guard session == appState.auth.sessionVersion else { return false }
+            completionDates[stepId] = date
             return true
         } catch {
             if let message = error.userFacingMessage {
@@ -95,7 +110,7 @@ final class RoutinesViewModel: ObservableObject {
 
     /// Steps already done today with who did them and when, for the "Done today" list.
     func completedSteps(for routine: Routine) -> [(step: RoutineStep, caption: String?)] {
-        guard let appState else { return [] }
+        guard let appState, appState.dashboard?.localDate == localDate else { return [] }
         let timezone = appState.household.flatMap { TimeZone(identifier: $0.timezone) } ?? .current
         let rows = Dictionary(
             (appState.dashboard?.routineSteps ?? []).map { ($0.id, $0) },
@@ -111,7 +126,9 @@ final class RoutinesViewModel: ObservableObject {
     }
 
     func markStepCompleted(_ stepId: String) {
-        completedStepIds.insert(stepId)
+        guard let appState, let date = completionDates.removeValue(forKey: stepId) else { return }
+        if date == localDate { completedStepIds.insert(stepId) }
+        Task { await appState.refreshDashboard() }
     }
 
     func createRoutine(_ input: RoutineInput) async -> Bool {
@@ -120,7 +137,6 @@ final class RoutinesViewModel: ObservableObject {
             _ = try await appState.api.addRoutine(input)
             showAddForm = false
             await load()
-            await appState.refreshDashboard()
             return true
         } catch {
             if let message = error.userFacingMessage {
@@ -136,7 +152,6 @@ final class RoutinesViewModel: ObservableObject {
             _ = try await appState.api.updateRoutine(id: id, input: input)
             editingRoutineId = nil
             await load()
-            await appState.refreshDashboard()
             return true
         } catch {
             if let message = error.userFacingMessage {
@@ -152,7 +167,6 @@ final class RoutinesViewModel: ObservableObject {
             try await appState.api.deleteRoutine(id: id)
             editingRoutineId = nil
             await load()
-            await appState.refreshDashboard()
             return true
         } catch {
             if let message = error.userFacingMessage {

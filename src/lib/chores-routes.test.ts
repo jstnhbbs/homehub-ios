@@ -1,6 +1,8 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import type { InStatement } from "@libsql/client";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const request = vi.hoisted(() => ({ headers: new Headers() }));
@@ -34,11 +36,11 @@ type Item = {
 const password = "correct-horse-battery";
 const cookies: Partial<Record<Role, string>> = {};
 
-async function call(role: Role, route: string, method: string, body?: unknown, params: Record<string, string> = {}) {
+async function call(role: Role, route: string, method: string, body?: unknown, params: Record<string, string> = {}, query = "scope=all") {
   request.headers = new Headers({ cookie: cookies[role]! });
   const routeModule = (await import(/* @vite-ignore */ `@/app/api/mobile/v1/${route}/route`)) as Record<string, Handler>;
   const response = await routeModule[method](
-    new Request(`http://localhost:3000/api/mobile/v1/${route}?scope=all`, {
+    new Request(`http://localhost:3000/api/mobile/v1/${route}?${query}`, {
       method,
       headers: { "content-type": "application/json" },
       body: method === "GET" || method === "DELETE" ? undefined : JSON.stringify(body ?? {}),
@@ -67,6 +69,66 @@ beforeAll(async () => {
       .join("; ");
     await db.insert(schema.householdMembers).values({ householdId: "h1", userId: created.user.id, role });
   }
+});
+
+describe("bounded chore completion reads", () => {
+  it("reads only the requested periods while preserving old one-off completions", async () => {
+    const { db, turso } = await import("@/db/client");
+    const schema = await import("@/db/schema");
+    const localDate = "2026-10-07";
+    const ids = ["history-daily", "history-weekly", "history-monthly", "history-once", "history-open"];
+    await db.insert(schema.chores).values([
+      { id: ids[0], householdId: "h1", title: "Daily", repeatUnit: "day" },
+      { id: ids[1], householdId: "h1", title: "Weekly", cadence: "weekly", repeatUnit: "week", days: "3" },
+      { id: ids[2], householdId: "h1", title: "Monthly", cadence: "weekly", repeatUnit: "month", dueDate: "2026-01-07" },
+      { id: ids[3], householdId: "h1", title: "Old one-off", cadence: "weekly", repeatUnit: "none" },
+      { id: ids[4], householdId: "h1", title: "No current completion", repeatUnit: "day" },
+    ]);
+    const historical = Array.from({ length: 500 }, (_, index) => {
+      const date = new Date(Date.UTC(2000, 0, 1 + index)).toISOString().slice(0, 10);
+      return { choreId: ids[index % 2 === 0 ? 0 : 4], periodKey: date };
+    });
+    await db.insert(schema.choreCompletions).values([
+      ...historical,
+      { choreId: ids[0], periodKey: localDate },
+      { choreId: ids[1], periodKey: "2026-W41" },
+      { choreId: ids[2], periodKey: localDate },
+      { choreId: ids[3], periodKey: "once", completedAt: new Date("2000-01-01T12:00:00Z") },
+    ]);
+    const reads = vi.spyOn(turso, "execute");
+    try {
+      const result = await call("guest", "chores", "GET", undefined, {}, `scope=all&localDate=${localDate}`);
+      expect(result.status).toBe(200);
+      const listed = result.json as Item[];
+      for (const id of ids.slice(0, 4)) {
+        expect(listed.find((item) => item.id === id), id).toMatchObject({ completed: true });
+      }
+      expect(listed.find((item) => item.id === ids[4])).toMatchObject({ completed: false });
+      expect(listed.find((item) => item.id === ids[3])).toMatchObject({ completed: true, dueToday: false });
+
+      const completionReads = reads.mock.calls.flatMap(([statement], index) => {
+        const input = statement as InStatement;
+        const query = typeof input === "string" ? input : input.sql;
+        return query.toLowerCase().startsWith("select") && query.includes("chore_completions")
+          ? [reads.mock.results[index].value]
+          : [];
+      });
+      expect(completionReads).toHaveLength(1);
+      const returned = await completionReads[0];
+      // This inspects what the database returned, not just what the handler filtered afterward.
+      expect(returned.rows.length).toBeLessThan(20);
+      expect(returned.rows.every((row: Record<string, unknown>) =>
+        [localDate, "2026-W41", "once"].includes(String(row.period_key)),
+      )).toBe(true);
+
+      const due = await call("guest", "chores", "GET", undefined, {}, `localDate=${localDate}`);
+      expect((due.json as Item[]).some((item) => item.id === ids[3])).toBe(false);
+      expect((due.json as Item[]).find((item) => item.id === ids[1])).toMatchObject({ completed: true, periodKey: "2026-W41" });
+    } finally {
+      reads.mockRestore();
+      for (const id of ids) await db.delete(schema.chores).where(eq(schema.chores.id, id));
+    }
+  });
 });
 
 afterAll(() => {
@@ -233,5 +295,40 @@ describe("timed chores in the dashboard", () => {
     expect(mine).toHaveLength(3);
     expect(mine.every((entry) => entry.dueTime === "07:30")).toBe(true);
     expect(new Set(mine.map((entry) => entry.date)).size).toBe(3);
+  });
+});
+
+describe("weekly completions use the household's calendar date", () => {
+  it.each([
+    ["Asia/Tokyo", "2026-10-05", "2026-W41"],
+    ["Pacific/Kiritimati", "2027-01-04", "2027-W01"],
+    ["Pacific/Auckland", "2026-12-28", "2026-W53"],
+    ["America/Chicago", "2026-10-04", "2026-W40"],
+  ])("%s on %s loads the correct completion", async (timezone, localDate, periodKey) => {
+    const { db } = await import("@/db/client");
+    const schema = await import("@/db/schema");
+    const dates = await import("@/lib/dates");
+    const id = `weekly-${timezone}-${localDate}`;
+    const [household] = await db.select().from(schema.households).where(eq(schema.households.id, "h1"));
+    await db.update(schema.households).set({ timezone }).where(eq(schema.households.id, "h1"));
+    await db.insert(schema.chores).values({
+      id, householdId: "h1", title: "Weekly test", cadence: "weekly", repeatUnit: "week",
+      repeatInterval: 1, days: localDate === "2026-10-04" ? "0" : "1",
+    });
+    await db.insert(schema.choreCompletions).values({ choreId: id, periodKey });
+    // Fix the household date without advancing the auth session's clock or its expiry.
+    const date = vi.spyOn(dates, "localDateIn").mockReturnValue(localDate);
+    try {
+      const dashboard = await call("guest", "dashboard", "GET");
+      expect(dashboard.status).toBe(200);
+      expect(dashboard.json.localDate).toBe(localDate);
+      expect(dashboard.json.chores.find((chore: Item) => chore.id === id)).toMatchObject({
+        periodKey, completed: true, completedAt: expect.any(String),
+      });
+    } finally {
+      date.mockRestore();
+      await db.delete(schema.chores).where(eq(schema.chores.id, id));
+      await db.update(schema.households).set({ timezone: household.timezone }).where(eq(schema.households.id, "h1"));
+    }
   });
 });

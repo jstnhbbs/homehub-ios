@@ -1,5 +1,4 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { fromZonedTime } from "date-fns-tz";
 import { db } from "@/db/client";
 import {
   choreCompletions,
@@ -17,9 +16,9 @@ import {
 } from "@/db/schema";
 import { birthdayEventsInRange } from "@/lib/birthdays";
 import { listHouseholdBirthdays } from "@/lib/family-birthdays";
-import { choreState, upcomingTimedChores } from "@/lib/chores";
+import { chorePeriodKey, choreState, upcomingTimedChores } from "@/lib/chores";
 import { routineRunsOn } from "@/lib/routines";
-import { localDateIn, weekKey } from "@/lib/dates";
+import { localDateIn } from "@/lib/dates";
 import { parseSnackOptions, snackEatenLabels } from "@/lib/meals/snacks";
 import { fetchNapsForDate, serializeNap } from "@/lib/naps/store";
 import type { getCurrentHousehold } from "@/lib/household";
@@ -34,8 +33,7 @@ export async function buildDashboardPayload(
   userId: string
 ) {
   const localDate = localDateIn(household.timezone);
-  const dayStart = fromZonedTime(`${localDate}T00:00:00`, household.timezone);
-  const weeklyKey = weekKey(dayStart);
+  const weeklyKey = chorePeriodKey({ repeatUnit: "week", repeatInterval: 1 }, localDate);
 
   const [
     familyProfiles,

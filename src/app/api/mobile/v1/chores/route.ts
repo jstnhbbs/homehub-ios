@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { choreCompletions, chores, profiles, users } from "@/db/schema";
 import { choreInputSchema, choreScheduleColumns } from "@/lib/chore-input";
-import { choreState } from "@/lib/chores";
+import { chorePeriodKey, choreState } from "@/lib/chores";
 import { localDateIn } from "@/lib/dates";
 import {
   handleMobileError,
@@ -37,14 +37,31 @@ export async function GET(request: Request) {
       .from(choreCompletions)
       .innerJoin(chores, eq(choreCompletions.choreId, chores.id))
       .leftJoin(users, eq(choreCompletions.completedBy, users.id))
-      .where(eq(chores.householdId, household.id));
+      .where(
+        and(
+          eq(chores.householdId, household.id),
+          inArray(choreCompletions.periodKey, [
+            localDate,
+            chorePeriodKey({ repeatUnit: "week", repeatInterval: 1 }, localDate),
+            "once",
+          ]),
+        ),
+      );
+
+    const completionsByChore = new Map<string, Map<string, (typeof choreDone)[number]>>();
+    for (const completion of choreDone) {
+      let periods = completionsByChore.get(completion.choreId);
+      if (!periods) {
+        periods = new Map();
+        completionsByChore.set(completion.choreId, periods);
+      }
+      periods.set(completion.periodKey, completion);
+    }
 
     const now = new Date();
     const items = choreRows.map((chore) => {
       const completionFor = (periodKey: string) =>
-        choreDone.find(
-          (item) => item.choreId === chore.id && item.periodKey === periodKey,
-        );
+        completionsByChore.get(chore.id)?.get(periodKey);
       const state = choreState(chore, {
         localDate,
         timezone: household.timezone,

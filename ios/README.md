@@ -115,7 +115,15 @@ ios/checks/meal-slot-clock/run.sh
 ios/checks/celebration-text/run.sh
 ios/checks/dashboard-row-helpers/run.sh
 sh ios/checks/async-lifecycle/run.sh
+sh ios/checks/routines-refresh/run.sh
+sh ios/checks/remote-image-state/run.sh
+sh ios/checks/local-store/run.sh
 ios/checks/notification-diff/run.sh
 ```
+
+The local-store checks use a temporary SwiftData disk store. Add `--benchmark` to
+compare equal dashboard refreshes with the previous fetch-and-write-every-time
+path. The cache keeps its snapshot in memory and writes only changed data; saves
+remain synchronous so sign-out cannot race with a delayed write.
 
 iOS (after opening in Xcode): **Product → Build** (⌘B), then run on iPhone and iPad simulators. Landscape remains recommended for a dedicated shared iPad display.

@@ -33,30 +33,39 @@ final class HomeHubLocalStore {
     private let snapshotId = "current"
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
+    private var snapshotLoaded = false
+    private var snapshot: HomeHubLocalSnapshot?
 
-    init() {
+    init(container suppliedContainer: ModelContainer? = nil) {
         let schema = Schema([HomeHubLocalSnapshot.self])
-        do {
-            let support = try FileManager.default.url(
-                for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
-            )
-            LocalStoreLocation.removeLegacyStore(in: support)
-            let configuration = ModelConfiguration(schema: schema, url: try LocalStoreLocation.prepare(in: support))
-            container = try ModelContainer(for: schema, configurations: [configuration])
-        } catch {
-            // Including the device being locked when the app starts, which the protected folder
-            // refuses: this launch runs without an offline copy.
-            let fallback = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        if let suppliedContainer {
+            container = suppliedContainer
+        } else {
             do {
-                container = try ModelContainer(for: schema, configurations: [fallback])
+                let support = try FileManager.default.url(
+                    for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
+                )
+                LocalStoreLocation.removeLegacyStore(in: support)
+                let configuration = ModelConfiguration(schema: schema, url: try LocalStoreLocation.prepare(in: support))
+                container = try ModelContainer(for: schema, configurations: [configuration])
             } catch {
-                preconditionFailure("Could not create SwiftData cache container: \(error.localizedDescription)")
+                // Including the device being locked when the app starts, which the protected folder
+                // refuses: this launch runs without an offline copy.
+                let fallback = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+                do {
+                    container = try ModelContainer(for: schema, configurations: [fallback])
+                } catch {
+                    preconditionFailure("Could not create SwiftData cache container: \(error.localizedDescription)")
+                }
             }
         }
 
         context = ModelContext(container)
+        context.autosaveEnabled = false
         encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
+        // Key order must be stable for equal snapshots to have equal encoded bytes.
+        encoder.outputFormatting = .sortedKeys
         decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
     }
@@ -74,7 +83,10 @@ final class HomeHubLocalStore {
     func saveUser(_ user: User?) {
         guard let user, let data = try? encoder.encode(user) else { return }
         let snapshot = editableSnapshot()
-        guard snapshot.userData != data else { return }
+        guard snapshot.userData != data else {
+            save()
+            return
+        }
         snapshot.userData = data
         save()
     }
@@ -94,27 +106,41 @@ final class HomeHubLocalStore {
     }
 
     func saveHousehold(_ household: Household?) {
-        guard let household else { return }
+        guard let household, let data = try? encoder.encode(Self.withoutInviteCodes(household)) else { return }
         let snapshot = editableSnapshot()
-        snapshot.householdData = try? encoder.encode(Self.withoutInviteCodes(household))
+        guard snapshot.householdData != data else {
+            save()
+            return
+        }
+        snapshot.householdData = data
         snapshot.updatedAt = .now
         save()
     }
 
     func saveDashboard(_ dashboard: DashboardData?) {
         guard let dashboard else { return }
-        let snapshot = editableSnapshot()
         var stored = dashboard
         stored.household = Self.withoutInviteCodes(dashboard.household)
-        snapshot.householdData = try? encoder.encode(stored.household)
-        snapshot.dashboardData = try? encoder.encode(stored)
+        guard let householdData = try? encoder.encode(stored.household),
+              let dashboardData = try? encoder.encode(stored) else { return }
+        let snapshot = editableSnapshot()
+        guard snapshot.householdData != householdData || snapshot.dashboardData != dashboardData else {
+            save()
+            return
+        }
+        snapshot.householdData = householdData
+        snapshot.dashboardData = dashboardData
         snapshot.updatedAt = .now
         save()
     }
 
     func clear() {
-        guard let snapshot = currentSnapshot() else { return }
+        guard let snapshot = currentSnapshot() else {
+            save()
+            return
+        }
         context.delete(snapshot)
+        self.snapshot = nil
         save()
     }
 
@@ -125,20 +151,32 @@ final class HomeHubLocalStore {
 
         let snapshot = HomeHubLocalSnapshot(id: snapshotId)
         context.insert(snapshot)
+        self.snapshot = snapshot
+        snapshotLoaded = true
         return snapshot
     }
 
     private func currentSnapshot() -> HomeHubLocalSnapshot? {
+        if snapshotLoaded { return snapshot }
         var descriptor = FetchDescriptor<HomeHubLocalSnapshot>(
             predicate: #Predicate { snapshot in
                 snapshot.id == snapshotId
             }
         )
         descriptor.fetchLimit = 1
-        return try? context.fetch(descriptor).first
+        do {
+            snapshot = try context.fetch(descriptor).first
+            snapshotLoaded = true
+            return snapshot
+        } catch {
+            // A failed fetch is not an empty store; let the next load retry it.
+            return nil
+        }
     }
 
     private func save() {
+        // A failed save leaves changes pending, so an equal later refresh retries it.
+        guard context.hasChanges else { return }
         try? context.save()
     }
 }

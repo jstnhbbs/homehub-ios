@@ -60,14 +60,20 @@ struct RemoteImage<Placeholder: View>: View {
     var maxPixelSize: Int = 800
     @ViewBuilder var placeholder: () -> Placeholder
 
-    @State private var image: UIImage?
+    @State private var imageState = RemoteImageState<UIImage>()
+
+    private var request: RemoteImageRequest {
+        RemoteImageRequest(url: url, maxPixelSize: maxPixelSize)
+    }
 
     init(url: URL, maxPixelSize: Int = 800, @ViewBuilder placeholder: @escaping () -> Placeholder) {
         self.url = url
         self.maxPixelSize = maxPixelSize
         self.placeholder = placeholder
         // From the cache when it is there, so a row that is recreated doesn't flash its placeholder.
-        _image = State(initialValue: RemoteImageLoader.shared.cachedImage(for: url, maxPixelSize: maxPixelSize))
+        var state = RemoteImageState<UIImage>()
+        state.begin(RemoteImageRequest(url: url, maxPixelSize: maxPixelSize), cachedImage: RemoteImageLoader.shared.cachedImage(for: url, maxPixelSize: maxPixelSize))
+        _imageState = State(initialValue: state)
     }
 
     var body: some View {
@@ -79,7 +85,7 @@ struct RemoteImage<Placeholder: View>: View {
         Color.clear
             .overlay {
                 Group {
-                    if let image {
+                    if let image = imageState.image(for: request) {
                         Image(uiImage: image)
                             .resizable()
                             .scaledToFill()
@@ -91,14 +97,15 @@ struct RemoteImage<Placeholder: View>: View {
             }
             .clipped()
             .contentShape(Rectangle())
-            .task(id: url) {
-                guard image == nil else { return }
-                if let cached = RemoteImageLoader.shared.cachedImage(for: url, maxPixelSize: maxPixelSize) {
-                    image = cached
-                } else {
-                    image = await RemoteImageLoader.shared.image(for: url, maxPixelSize: maxPixelSize)
-                }
+            .task(id: request) {
+                let request = request
+                guard !Task.isCancelled else { return }
+                let cached = RemoteImageLoader.shared.cachedImage(for: request.url, maxPixelSize: request.maxPixelSize)
+                imageState.begin(request, cachedImage: cached)
+                guard cached == nil else { return }
+                let image = await RemoteImageLoader.shared.image(for: request.url, maxPixelSize: request.maxPixelSize)
+                imageState.finish(image, for: request, isCancelled: Task.isCancelled)
             }
-            .onDisappear { image = nil }
+            .onDisappear { imageState.clear() }
     }
 }
