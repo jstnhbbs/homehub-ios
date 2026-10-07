@@ -78,6 +78,7 @@ final class AppState: ObservableObject {
     private static let accentStorageKey = "homehub.accentPalette"
 
     private var eventKitObserver: NSObjectProtocol?
+    private var dataChangedObserver: NSObjectProtocol?
     private var eventKitRefreshTask: Task<Void, Never>?
     private var lastDeviceRefreshAt: Date?
     private var hubModulesSaveVersion = 0
@@ -97,6 +98,12 @@ final class AppState: ObservableObject {
         self.accentPalette = palette
         HubTheme.currentAccent = palette
         observeEventKitChanges()
+        // A button on a notification (Done on a chore, End Nap) changed something: show it.
+        dataChangedObserver = NotificationCenter.default.addObserver(
+            forName: .homeHubDataChanged, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in await self?.refreshDashboard() }
+        }
         authObserver = auth.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }
@@ -106,6 +113,9 @@ final class AppState: ObservableObject {
         eventKitRefreshTask?.cancel()
         if let eventKitObserver {
             NotificationCenter.default.removeObserver(eventKitObserver)
+        }
+        if let dataChangedObserver {
+            NotificationCenter.default.removeObserver(dataChangedObserver)
         }
     }
 

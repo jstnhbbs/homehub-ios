@@ -47,6 +47,10 @@ check("tomorrow's chore is planned before the day", summary(plan(upcoming: [ahea
 check("the same chore on two days has two reminders", summary(plan(today: [row("a", time: "07:00")], upcoming: [ahead("a", "2026-10-08", "07:00")], now: "2026-10-07 05:00")),
       "chore.a.2026-10-07@2026-10-07 07:00 chore.a.2026-10-08@2026-10-08 07:00")
 
+// What a Done button needs
+let withButtons = plan(today: [row("a", time: "17:30")], upcoming: [ahead("b", "2026-10-08", "07:00")])
+check("a reminder knows its chore and period", withButtons.map { "\($0.choreId)@\($0.periodKey)" }.joined(separator: " "), "a@2026-10-07 b@2026-10-08")
+
 // Lead time
 check("15 minutes before", summary(plan(today: [row("a", time: "17:30")], lead: 15)), "chore.a.2026-10-07@2026-10-07 17:15")
 check("an hour before a morning chore reaches into the early morning", summary(plan(upcoming: [ahead("a", "2026-10-08", "00:30")], lead: 60)), "chore.a.2026-10-08@2026-10-07 23:30")

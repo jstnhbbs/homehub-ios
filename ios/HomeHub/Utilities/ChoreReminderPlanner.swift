@@ -3,6 +3,9 @@ import Foundation
 /// A reminder for one chore that has a time.
 struct ChoreReminder: Equatable, Sendable {
     var id: String
+    /// Which chore, and the period it is for, so a Done button on the notification can complete it.
+    var choreId: String
+    var periodKey: String
     var title: String
     var body: String
     var fireDate: Date
@@ -35,9 +38,9 @@ enum ChoreReminderPlanner {
         let todays = today
             .filter { !$0.completed && $0.dueToday != false }
             .compactMap { row in
-                row.dueTime.map { (id: row.id, title: row.title, date: localDate, time: $0) }
+                row.dueTime.map { (id: row.id, title: row.title, date: localDate, time: $0, periodKey: row.periodKey) }
             }
-        let ahead = upcoming.map { (id: $0.id, title: $0.title, date: $0.date, time: $0.dueTime) }
+        let ahead = upcoming.map { (id: $0.id, title: $0.title, date: $0.date, time: $0.dueTime, periodKey: $0.periodKey) }
 
         return (todays + ahead).compactMap { chore in
             guard let minute = ChoreHelpers.minuteOfDay(chore.time),
@@ -52,6 +55,8 @@ enum ChoreReminderPlanner {
             let isEarly = leadMinutes > 0 && early > now
             return ChoreReminder(
                 id: "chore.\(chore.id).\(chore.date)",
+                choreId: chore.id,
+                periodKey: chore.periodKey,
                 title: chore.title,
                 body: isEarly ? "Due at \(ChoreHelpers.timeLabel(chore.time, locale: locale))." : "This chore is due now.",
                 fireDate: isEarly ? early : due

@@ -6,6 +6,9 @@ struct PlannedNotification: Equatable, Sendable {
     var title: String
     var body: String
     var thread: String
+    /// Which set of buttons it carries (empty for none). A reminder scheduled before it had buttons
+    /// is replaced, so older plans pick them up.
+    var category: String = ""
     /// When it fires, as text (year-month-day hour:minute and time zone).
     var trigger: String
 }

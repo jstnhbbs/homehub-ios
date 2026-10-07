@@ -25,6 +25,12 @@ check("a changed message is replaced, not removed first",
       describe(NotificationDiff.changes(existing: [note("a", body: "3 steps left")], desired: [note("a", body: "2 steps left")])), "remove= add=a")
 check("a changed time is replaced",
       describe(NotificationDiff.changes(existing: [note("a")], desired: [note("a", trigger: "2026-10-4 19:0 America/Chicago")])), "remove= add=a")
+check("a reminder that gains its buttons is replaced",
+      describe(NotificationDiff.changes(existing: [note("a")], desired: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "homehub", category: "beacon.chore", trigger: "2026-10-4 18:0 America/Chicago")])), "remove= add=a")
+check("the same buttons are left alone",
+      describe(NotificationDiff.changes(
+        existing: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "homehub", category: "beacon.chore", trigger: "t")],
+        desired: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "homehub", category: "beacon.chore", trigger: "t")])), "remove= add=")
 check("a mix",
       describe(NotificationDiff.changes(
         existing: [note("keep"), note("gone"), note("edit", body: "old")],

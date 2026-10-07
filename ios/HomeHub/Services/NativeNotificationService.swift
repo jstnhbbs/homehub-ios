@@ -193,7 +193,9 @@ final class NativeNotificationService: ObservableObject {
                 title: reminder.title,
                 body: reminder.body,
                 fireDate: reminder.fireDate,
-                calendar: calendar
+                calendar: calendar,
+                category: NotificationCommands.choreCategory,
+                userInfo: NotificationCommands.choreInfo(choreId: reminder.choreId, periodKey: reminder.periodKey, title: reminder.title)
             ))
         }
 
@@ -250,7 +252,9 @@ final class NativeNotificationService: ObservableObject {
                 title: "Nap check",
                 body: "\(name) has been resting for about \(settings.napCheckMinutes) minutes.",
                 fireDate: fireDate,
-                calendar: calendar
+                calendar: calendar,
+                category: NotificationCommands.napCategory,
+                userInfo: NotificationCommands.napInfo(napId: nap.id, name: name)
             ))
         }
 
@@ -284,7 +288,9 @@ final class NativeNotificationService: ObservableObject {
         body: String,
         fireDate: Date,
         calendar: Calendar,
-        thread: String = "homehub"
+        thread: String = "homehub",
+        category: String? = nil,
+        userInfo: [String: String] = [:]
     ) -> UNNotificationRequest {
         var components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
         components.timeZone = calendar.timeZone
@@ -294,6 +300,8 @@ final class NativeNotificationService: ObservableObject {
         content.body = body
         content.sound = .default
         content.threadIdentifier = thread
+        if let category { content.categoryIdentifier = category }
+        if !userInfo.isEmpty { content.userInfo = userInfo }
 
         return UNNotificationRequest(
             identifier: identifierPrefix + stableIdentifier(id),
@@ -367,6 +375,7 @@ private extension PlannedNotification {
             title: request.content.title,
             body: request.content.body,
             thread: request.content.threadIdentifier,
+            category: request.content.categoryIdentifier,
             trigger: [
                 components?.year, components?.month, components?.day, components?.hour, components?.minute,
             ]
