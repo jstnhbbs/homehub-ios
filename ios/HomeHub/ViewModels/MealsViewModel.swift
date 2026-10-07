@@ -16,6 +16,7 @@ final class MealsViewModel: ObservableObject {
     private var recipeDetails: [String: Recipe] = [:]
     private var saveVersions: [MealSlotRef: Int] = [:]
     private var inFlightSaves = 0
+    private var mealRevision = 0
     private var dashboardRefreshTask: Task<Void, Never>?
 
     func bind(to appState: AppState) {
@@ -101,6 +102,7 @@ final class MealsViewModel: ObservableObject {
         guard let appState else { return }
         let requestedOffset = weekOffset
         let requestedStart = weekStart
+        let requestedRevision = mealRevision
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
@@ -117,7 +119,8 @@ final class MealsViewModel: ObservableObject {
             }
             // Ignore a response for a week the user has already navigated away from, and
             // never overwrite edits that have not been confirmed yet.
-            guard requestedOffset == weekOffset, inFlightSaves == 0 else { return }
+            guard requestedOffset == weekOffset, inFlightSaves == 0,
+                  requestedRevision == mealRevision else { return }
             meals = fetchedMeals
         } catch {
             if let message = error.userFacingMessage {
@@ -151,7 +154,8 @@ final class MealsViewModel: ObservableObject {
         recipeId: String? = nil,
         notes: String? = nil
     ) async {
-        guard let appState, canManage else { return }
+        guard let appState, canManage, !isWorking else { return }
+        mealRevision += 1
         let ref = MealSlotRef(localDate: localDate, slot: slot)
         let title = MealPlanHelpers.normalizedTitle(rawTitle)
         let isClearing = title.isEmpty
@@ -169,7 +173,10 @@ final class MealsViewModel: ObservableObject {
         )
 
         inFlightSaves += 1
-        defer { inFlightSaves -= 1 }
+        defer {
+            inFlightSaves -= 1
+            mealRevision += 1
+        }
         do {
             try await appState.api.saveMeal(
                 SaveMealRequest(
@@ -197,25 +204,38 @@ final class MealsViewModel: ObservableObject {
 
     /// Dropping a meal on another slot moves it there; if that slot was taken, the two swap.
     func moveMeal(fromToken token: String, to target: MealSlotRef) async {
-        guard canManage, let source = MealSlotRef(token: token), source != target,
-              let sourceMeal = meal(source) else { return }
-        let targetMeal = meal(target)
-
-        async let placed: Void = setMeal(
-            localDate: target.localDate,
-            slot: target.slot,
-            title: sourceMeal.title,
-            recipeId: sourceMeal.recipeId,
-            notes: sourceMeal.notes
-        )
-        async let vacated: Void = setMeal(
-            localDate: source.localDate,
-            slot: source.slot,
-            title: targetMeal?.title ?? "",
-            recipeId: targetMeal?.recipeId,
-            notes: targetMeal?.notes
-        )
-        _ = await (placed, vacated)
+        guard let appState, canManage, !isWorking, inFlightSaves == 0,
+              let source = MealSlotRef(token: token), source != target,
+              meal(source) != nil else { return }
+        isWorking = true
+        mealRevision += 1
+        let requestedWeek = weekStart
+        inFlightSaves += 1
+        errorMessage = nil
+        defer {
+            isWorking = false
+            inFlightSaves -= 1
+            mealRevision += 1
+            if weekStart != requestedWeek {
+                Task { await load() }
+            }
+        }
+        do {
+            let response = try await appState.api.moveMeal(
+                MoveMealRequest(
+                    source: .init(localDate: source.localDate, slot: source.slot),
+                    target: .init(localDate: target.localDate, slot: target.slot)
+                )
+            )
+            for ref in [source, target] {
+                applyLocally(ref, meal: response.meals.first {
+                    $0.localDate == ref.localDate && $0.slot == ref.slot
+                })
+            }
+            scheduleDashboardRefresh()
+        } catch {
+            if let message = error.userFacingMessage { errorMessage = message }
+        }
     }
 
     /// Copies a meal to the same slot some days later, replacing what is planned there.

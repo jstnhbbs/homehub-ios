@@ -102,6 +102,7 @@ afterAll(() => {
 // the handler (an empty body may then fail validation, which is fine: the guard is what we test).
 const parentOnly: Array<[method: string, route: string, params?: Record<string, string>]> = [
   ["POST", "meals"],
+  ["POST", "meals/move"],
   ["POST", "meals/clear-week"],
   ["POST", "meals/copy-previous-week"],
   ["POST", "chores"],
@@ -157,6 +158,7 @@ describe("parents and owners are not blocked by the guard", () => {
 describe("signed-out requests are rejected", () => {
   it.each([
     ["GET", "dashboard"],
+    ["POST", "meals/move"],
     ["GET", "groceries"],
     ["POST", "notes"],
     ["POST", "chores/toggle"],

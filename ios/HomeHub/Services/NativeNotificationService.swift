@@ -23,6 +23,7 @@ final class NativeNotificationService: ObservableObject {
     private let center = UNUserNotificationCenter.current()
     private let settingsKey = "homehub.notificationSettings.v1"
     private let identifierPrefix = "homehub.local."
+    private let workQueue = NotificationWorkQueue()
 
     init() {
         self.settings = Self.loadSettings()
@@ -51,7 +52,32 @@ final class NativeNotificationService: ObservableObject {
     /// `birthdaysModuleEnabled` is the household's Birthdays module toggle; turning that module
     /// off also stops its reminders.
     func scheduleDashboardReminders(from dashboard: DashboardData, birthdaysModuleEnabled: Bool = true) async {
+        await workQueue.schedule { [self] isCurrent in
+            await applyDashboardReminders(from: dashboard, birthdaysModuleEnabled: birthdaysModuleEnabled, isCurrent: isCurrent)
+        }
+    }
+
+    @discardableResult
+    func clearSessionReminders() -> Task<Void, Never> {
+        workQueue.reset { [self] in
+            let pending = await center.pendingNotificationRequests()
+            center.removePendingNotificationRequests(withIdentifiers: pending.map(\.identifier).filter(Self.isSessionReminder))
+            let delivered = await center.deliveredNotifications()
+            center.removeDeliveredNotifications(withIdentifiers: delivered.map { $0.request.identifier }.filter(Self.isSessionReminder))
+        }
+    }
+
+    private static func isSessionReminder(_ identifier: String) -> Bool {
+        identifier.hasPrefix("homehub.local.") || identifier.hasPrefix("homehub.action.failed.")
+    }
+
+    private func applyDashboardReminders(
+        from dashboard: DashboardData,
+        birthdaysModuleEnabled: Bool,
+        isCurrent: @MainActor () -> Bool
+    ) async {
         await refreshAccessStatus()
+        guard isCurrent() else { return }
         guard canSchedule else {
             await removeHomeHubPendingRequests()
             return
@@ -104,6 +130,7 @@ final class NativeNotificationService: ObservableObject {
         // check-off and runs each minute, and almost always the plan has not changed.
         let scheduled = await center.pendingNotificationRequests()
             .filter { $0.identifier.hasPrefix(identifierPrefix) }
+        guard isCurrent() else { return }
         let changes = NotificationDiff.changes(
             existing: scheduled.map(PlannedNotification.init(request:)),
             desired: requests.map(PlannedNotification.init(request:))
@@ -113,6 +140,7 @@ final class NativeNotificationService: ObservableObject {
         }
         let toAdd = Set(changes.add)
         for request in requests.reversed() where toAdd.contains(request.identifier) {
+            guard isCurrent() else { return }
             // Reversed so the last request wanted for an id is the one added, as `changes` assumes.
             try? await center.add(request)
         }
@@ -381,6 +409,11 @@ private extension PlannedNotification {
             thread: request.content.threadIdentifier,
             category: request.content.categoryIdentifier,
             destination: request.content.userInfo[NotificationCommands.destinationKey] as? String ?? "",
+            userInfo: request.content.userInfo.reduce(into: [String: String]()) { result, pair in
+                if let key = pair.key as? String, let value = pair.value as? String {
+                    result[key] = value
+                }
+            },
             trigger: [
                 components?.year, components?.month, components?.day, components?.hour, components?.minute,
             ]

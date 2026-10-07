@@ -58,6 +58,19 @@ struct SaveMealRequest: Codable, Sendable {
     var notes: String?
 }
 
+struct MoveMealRequest: Encodable, Sendable {
+    struct Slot: Encodable, Sendable {
+        let localDate: String
+        let slot: MealSlot
+    }
+    let source: Slot
+    let target: Slot
+}
+
+struct MoveMealResponse: Decodable, Sendable {
+    let meals: [Meal]
+}
+
 struct ToggleSnackRequest: Codable, Sendable {
     var localDate: String
     var snackLabel: String

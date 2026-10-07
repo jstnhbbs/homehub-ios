@@ -67,6 +67,9 @@ final class SessionCredentials: @unchecked Sendable {
     private let store: SecretStore
     private let lock = NSLock()
     private var cookies: [String: String]
+    private var generation = 0
+
+    var sessionGeneration: Int { lock.withLock { generation } }
 
     init(baseURL: URL, store: SecretStore = KeychainSecretStore()) {
         self.origin = APIClient.origin(of: baseURL) ?? baseURL.absoluteString
@@ -99,16 +102,20 @@ final class SessionCredentials: @unchecked Sendable {
 
     /// The `Cookie` header to send to `url`, or nil when signed out or when `url` is another server.
     func cookieHeader(for url: URL) -> String? {
-        guard url.host == host else { return nil }
+        snapshot(for: url).header
+    }
+
+    func snapshot(for url: URL) -> (generation: Int, header: String?) {
         return lock.withLock {
-            cookies.isEmpty ? nil : cookies.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: "; ")
+            let header = url.host != host || cookies.isEmpty ? nil : cookies.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: "; ")
+            return (generation, header)
         }
     }
 
     var hasSession: Bool { lock.withLock { !cookies.isEmpty } }
 
     /// Takes in whatever cookies a response set or removed.
-    func absorb(_ response: HTTPURLResponse, from url: URL) {
+    func absorb(_ response: HTTPURLResponse, from url: URL, generation expectedGeneration: Int? = nil) {
         guard url.host == host else { return }
         let fields = response.allHeaderFields.reduce(into: [String: String]()) { result, pair in
             if let key = pair.key as? String, let value = pair.value as? String { result[key] = value }
@@ -116,6 +123,7 @@ final class SessionCredentials: @unchecked Sendable {
         let received = HTTPCookie.cookies(withResponseHeaderFields: fields, for: url)
         guard !received.isEmpty else { return }
         lock.withLock {
+            guard expectedGeneration == nil || expectedGeneration == generation else { return }
             for cookie in received {
                 let gone = cookie.value.isEmpty || (cookie.expiresDate.map { $0 <= Date() } ?? false)
                 if gone { cookies.removeValue(forKey: cookie.name) } else { cookies[cookie.name] = cookie.value }
@@ -127,6 +135,7 @@ final class SessionCredentials: @unchecked Sendable {
     /// Forgets the session on this device.
     func clear() {
         lock.withLock {
+            generation += 1
             cookies = [:]
             store.delete(account: origin)
         }

@@ -199,6 +199,10 @@ final class HomeHubAPI: ObservableObject {
         try await client.request("/api/mobile/v1/meals?weekStart=\(weekStart)")
     }
 
+    func moveMeal(_ input: MoveMealRequest) async throws -> MoveMealResponse {
+        try await client.request("/api/mobile/v1/meals/move", method: "POST", body: input)
+    }
+
     func saveMeal(_ input: SaveMealRequest) async throws {
         try await client.requestVoid("/api/mobile/v1/meals", method: "POST", body: input)
     }

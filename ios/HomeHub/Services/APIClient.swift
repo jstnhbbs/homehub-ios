@@ -85,17 +85,17 @@ struct APIClient: Sendable {
         credentials.clear()
     }
 
-    /// Sends the saved session with a request to this server.
-    private func attachSession(to request: inout URLRequest) {
-        guard let url = request.url, let header = credentials.cookieHeader(for: url) else { return }
-        request.setValue(header, forHTTPHeaderField: "Cookie")
-    }
-
     /// Runs a request and keeps any cookies the server set or removed.
     private func send(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        guard let url = request.url else { throw APIError.invalidURL }
+        let snapshot = credentials.snapshot(for: url)
+        let generation = snapshot.generation
+        var request = request
+        request.setValue(snapshot.header, forHTTPHeaderField: "Cookie")
         let (data, response) = try await session.data(for: request)
+        guard generation == credentials.sessionGeneration else { throw CancellationError() }
         if let http = response as? HTTPURLResponse, let url = request.url {
-            credentials.absorb(http, from: url)
+            credentials.absorb(http, from: url, generation: generation)
         }
         return (data, response)
     }
@@ -116,7 +116,6 @@ struct APIClient: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Beacon-iOS/1.0", forHTTPHeaderField: "User-Agent")
         addOriginIfNeeded(to: &request, path: path)
-        attachSession(to: &request)
 
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -152,7 +151,6 @@ struct APIClient: Sendable {
         var request = URLRequest(url: url)
         request.timeoutInterval = timeout
         request.setValue("Beacon-iOS/1.0", forHTTPHeaderField: "User-Agent")
-        attachSession(to: &request)
 
         let (data, response) = try await send(request)
         guard let http = response as? HTTPURLResponse else {
@@ -200,7 +198,6 @@ struct APIClient: Sendable {
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Beacon-iOS/1.0", forHTTPHeaderField: "User-Agent")
-        attachSession(to: &request)
         request.httpBody = body
 
         let (data, response) = try await send(request)
@@ -238,7 +235,6 @@ struct APIClient: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Beacon-iOS/1.0", forHTTPHeaderField: "User-Agent")
         addOriginIfNeeded(to: &request, path: path)
-        attachSession(to: &request)
 
         if let jsonBody {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")

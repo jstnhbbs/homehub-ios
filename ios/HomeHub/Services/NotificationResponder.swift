@@ -88,6 +88,7 @@ final class NotificationResponder: NSObject, UNUserNotificationCenterDelegate, @
             }
             NotificationCenter.default.post(name: .homeHubDataChanged, object: nil)
         } catch {
+            guard !error.isCancellation else { return }
             await reportFailure(of: command)
         }
     }

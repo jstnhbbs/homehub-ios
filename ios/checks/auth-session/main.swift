@@ -13,6 +13,7 @@ final class StubServer: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var handler: ((URLRequest) -> Result<Reply, Error>)?
     nonisolated(unsafe) static var seen: [URLRequest] = []
     nonisolated(unsafe) static var lastBody: Data?
+    nonisolated(unsafe) static var responseDelay: TimeInterval = 0
 
     /// A request's body reaches a URLProtocol as a stream, not as `httpBody`.
     static func readBody(of request: URLRequest) -> Data? {
@@ -36,7 +37,18 @@ final class StubServer: URLProtocol, @unchecked Sendable {
     override func startLoading() {
         Self.seen.append(request)
         Self.lastBody = Self.readBody(of: request)
-        switch Self.handler?(request) ?? .failure(URLError(.notConnectedToInternet)) {
+        let reply = Self.handler?(request) ?? .failure(URLError(.notConnectedToInternet))
+        if Self.responseDelay > 0 {
+            DispatchQueue.global().asyncAfter(deadline: .now() + Self.responseDelay) {
+                self.deliver(reply)
+            }
+        } else {
+            deliver(reply)
+        }
+    }
+
+    private func deliver(_ result: Result<Reply, Error>) {
+        switch result {
         case .success(let reply):
             var headers = reply.headers
             headers["Content-Type"] = "application/json"
@@ -88,6 +100,86 @@ check("a page that is not JSON", APIClient.serverErrorMessage(statusCode: 502, d
 
 @MainActor
 func run() async {
+    // A delayed response must not restore the user or cookie after the local session ends.
+    do {
+        let app = makeApp()
+        respond(200, userJSON, headers: setSession)
+        StubServer.responseDelay = 0.2
+        let restore = Task { await app.auth.restoreSession() }
+        try? await Task.sleep(for: .milliseconds(50))
+        app.auth.endSessionLocally()
+        let result = await restore.value
+        StubServer.responseDelay = 0
+        check("a delayed restore is discarded after sign-out", String(describing: result), "unreachable")
+        check("it cannot restore the user", String(app.auth.isSignedIn), "false")
+        check("it cannot restore the cookie", String(app.credentials.hasSession), "false")
+    }
+
+    // A slower earlier check cannot undo a newer successful session check.
+    do {
+        let app = makeApp()
+        respond(200, "null")
+        StubServer.responseDelay = 0.2
+        let older = Task { await app.auth.restoreSession() }
+        try? await Task.sleep(for: .milliseconds(50))
+        StubServer.responseDelay = 0
+        respond(200, userJSON)
+        _ = await app.auth.restoreSession()
+        _ = await older.value
+        check("an older null session cannot overwrite a newer check", String(app.auth.isSignedIn), "true")
+    }
+
+    // A response already in flight cannot rotate a newly signed-in account's cookie.
+    do {
+        let app = makeApp()
+        respond(200, "{}", headers: setSession)
+        StubServer.responseDelay = 0.2
+        let older = Task { () -> Bool in
+            do {
+                let _: [String: String] = try await app.client.request("/api/mobile/v1/dashboard")
+                return false
+            } catch { return error.isCancellation }
+        }
+        try? await Task.sleep(for: .milliseconds(50))
+        StubServer.responseDelay = 0
+        respond(200, userJSON, headers: ["Set-Cookie": "better-auth.session_token=NEW.sig; Path=/"])
+        try? await app.auth.signIn(email: "pat@example.com", password: "abcdefghij1234")
+        check("old account data is cancelled", String(await older.value), "true")
+        check("old response cannot replace new cookie", app.credentials.cookieHeader(for: base) ?? "none", "better-auth.session_token=NEW.sig")
+    }
+
+    // Ending the session also invalidates a sign-in that has not finished yet.
+    do {
+        let app = makeApp()
+        respond(200, userJSON, headers: setSession)
+        StubServer.responseDelay = 0.2
+        let signIn = Task { try? await app.auth.signIn(email: "pat@example.com", password: "abcdefghij1234") }
+        try? await Task.sleep(for: .milliseconds(50))
+        app.auth.endSessionLocally()
+        await signIn.value
+        StubServer.responseDelay = 0
+        check("a delayed sign-in cannot undo local sign-out", String(app.auth.isSignedIn), "false")
+        check("a delayed sign-in cannot save its cookie", String(app.credentials.hasSession), "false")
+        check("cancelled sign-in releases the loading state", String(app.auth.isLoading), "false")
+    }
+
+    // A sign-out from the previous account cannot clear a subsequent sign-in.
+    do {
+        let app = makeApp()
+        respond(200, userJSON, headers: setSession)
+        try? await app.auth.signIn(email: "pat@example.com", password: "abcdefghij1234")
+        respond(200, "{}", headers: clearSession)
+        StubServer.responseDelay = 0.2
+        let signOut = Task { await app.auth.signOut() }
+        try? await Task.sleep(for: .milliseconds(50))
+        StubServer.responseDelay = 0
+        respond(200, userJSON, headers: ["Set-Cookie": "better-auth.session_token=NEW.sig; Path=/"])
+        try? await app.auth.signIn(email: "pat@example.com", password: "abcdefghij1234")
+        await signOut.value
+        check("old sign-out cannot clear a new user", String(app.auth.isSignedIn), "true")
+        check("old sign-out cannot clear a new cookie", app.credentials.cookieHeader(for: base) ?? "none", "better-auth.session_token=NEW.sig")
+    }
+
     // MARK: Checking the saved session
 
     let (auth, _, _, _) = makeApp()

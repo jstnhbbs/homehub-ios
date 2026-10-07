@@ -47,9 +47,9 @@ final class NativeWeatherService: NSObject, ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var isLoading = false
 
-    private var locationContinuation: CheckedContinuation<CLLocation, Error>?
-    private var authorizationContinuation: CheckedContinuation<Void, Never>?
-    private var initialStatusContinuation: CheckedContinuation<Void, Never>?
+    private let locationWaiters = AsyncCallbackWaiters<CLLocation>()
+    private let authorizationWaiters = AsyncCallbackWaiters<Void>()
+    private let initialStatusWaiters = AsyncCallbackWaiters<Void>()
     private var didPrepareLocationManager = false
     private var didReceiveAuthorizationUpdate = false
     private lazy var isWeatherKitEnabled = Self.currentBuildAllowsWeatherKitRequests()
@@ -64,24 +64,32 @@ final class NativeWeatherService: NSObject, ObservableObject {
     }()
 
     func activateIfAuthorized() async {
-        await waitForInitialAuthorizationStatus()
-        guard accessStatus.canRequestWeather else { return }
-        await refreshWeather()
+        do {
+            try await waitForInitialAuthorizationStatus()
+            guard accessStatus.canRequestWeather else { return }
+            await refreshWeather()
+        } catch {
+            if !error.isCancellation { errorMessage = NativeWeatherError.userFacingMessage(for: error) }
+        }
     }
 
     func requestAccessAndRefresh() async {
-        await waitForInitialAuthorizationStatus()
-        if accessStatus == .notDetermined {
-            await withCheckedContinuation { continuation in
-                authorizationContinuation = continuation
-                locationManager.requestWhenInUseAuthorization()
+        do {
+            try await waitForInitialAuthorizationStatus()
+            if accessStatus == .notDetermined {
+                try await authorizationWaiters.wait(timeout: .seconds(120), timeoutError: NativeWeatherError.requestTimedOut) {
+                    locationManager.requestWhenInUseAuthorization()
+                }
             }
+            await refreshWeather(force: true)
+        } catch {
+            if !error.isCancellation { errorMessage = NativeWeatherError.userFacingMessage(for: error) }
         }
-        await refreshWeather(force: true)
     }
 
     func refreshWeather(force: Bool = false) async {
         guard didPrepareLocationManager, accessStatus.canRequestWeather else { return }
+        guard !isLoading, !Task.isCancelled else { return }
         guard force || shouldRefreshAutomatically else { return }
 
         isLoading = true
@@ -91,12 +99,11 @@ final class NativeWeatherService: NSObject, ObservableObject {
 
         do {
             let location = try await requestCurrentLocation()
-            snapshot = try await Task.detached(priority: .userInitiated) {
-                let weather = try await WeatherService.shared.weather(for: location)
-                return NativeWeatherSnapshot(weather: weather)
-            }.value
+            let weather = try await WeatherService.shared.weather(for: location)
+            try Task.checkCancellation()
+            snapshot = NativeWeatherSnapshot(weather: weather)
         } catch {
-            errorMessage = NativeWeatherError.userFacingMessage(for: error)
+            if !error.isCancellation { errorMessage = NativeWeatherError.userFacingMessage(for: error) }
         }
     }
 
@@ -111,12 +118,10 @@ final class NativeWeatherService: NSObject, ObservableObject {
         return Date().timeIntervalSince(lastRefreshAttemptAt) >= automaticRefreshBackoff
     }
 
-    private func waitForInitialAuthorizationStatus() async {
+    private func waitForInitialAuthorizationStatus() async throws {
         prepareLocationManagerIfNeeded()
         guard !didReceiveAuthorizationUpdate else { return }
-        await withCheckedContinuation { continuation in
-            initialStatusContinuation = continuation
-        }
+        try await initialStatusWaiters.wait(timeout: .seconds(10), timeoutError: NativeWeatherError.requestTimedOut)
     }
 
     private func prepareLocationManagerIfNeeded() {
@@ -138,9 +143,7 @@ final class NativeWeatherService: NSObject, ObservableObject {
     }
 
     private func requestCurrentLocation() async throws -> CLLocation {
-        try await withCheckedThrowingContinuation { continuation in
-            locationContinuation?.resume(throwing: NativeWeatherError.locationRequestReplaced)
-            locationContinuation = continuation
+        try await locationWaiters.wait(timeout: .seconds(15), timeoutError: NativeWeatherError.requestTimedOut) {
             locationManager.requestLocation()
         }
     }
@@ -156,32 +159,28 @@ extension NativeWeatherService: CLLocationManagerDelegate {
         Task { @MainActor in
             accessStatus = status
             didReceiveAuthorizationUpdate = true
-            if let initialStatusContinuation {
-                self.initialStatusContinuation = nil
-                initialStatusContinuation.resume()
+            initialStatusWaiters.resolve(.success(()))
+            if !status.canRequestWeather, status != .notDetermined {
+                locationWaiters.resolve(.failure(NativeWeatherError.locationUnavailable))
             }
-            guard status != .notDetermined, let authorizationContinuation else { return }
-            self.authorizationContinuation = nil
-            authorizationContinuation.resume()
+            guard status != .notDetermined else { return }
+            authorizationWaiters.resolve(.success(()))
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         Task { @MainActor in
             guard let location = locations.last else {
-                locationContinuation?.resume(throwing: NativeWeatherError.locationUnavailable)
-                locationContinuation = nil
+                locationWaiters.resolve(.failure(NativeWeatherError.locationUnavailable))
                 return
             }
-            locationContinuation?.resume(returning: location)
-            locationContinuation = nil
+            locationWaiters.resolve(.success(location))
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in
-            locationContinuation?.resume(throwing: error)
-            locationContinuation = nil
+            locationWaiters.resolve(.failure(error))
         }
     }
 }
@@ -226,14 +225,14 @@ extension NativeWeatherSnapshot {
 
 private enum NativeWeatherError: LocalizedError {
     case locationUnavailable
-    case locationRequestReplaced
+    case requestTimedOut
 
     var errorDescription: String? {
         switch self {
         case .locationUnavailable:
             "Could not find this device's location."
-        case .locationRequestReplaced:
-            "A newer weather request started."
+        case .requestTimedOut:
+            "The location request took too long. Try again."
         }
     }
 

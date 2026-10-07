@@ -83,6 +83,13 @@ final class AppState: ObservableObject {
     private var hubModulesSaveVersion = 0
     private var pendingHubModulesSave: HubModules?
     private var locallySavedHubModules: HubModules?
+    private var dashboardRequestVersion = 0
+    private var householdRequestVersion = 0
+
+    private func isCurrentSession(_ version: Int, userId: String?) -> Bool {
+        !Task.isCancelled && auth.isSignedIn
+            && auth.sessionVersion == version && currentUser?.id == userId
+    }
 
     init(baseURL: URL = AppConfig.baseURL) {
         self.auth = AuthService(baseURL: baseURL)
@@ -184,6 +191,7 @@ final class AppState: ObservableObject {
 
     func bootstrap() async {
         isBootstrapping = true
+        defer { isBootstrapping = false }
 
         // Open straight to the saved screens when there are any, then check the session behind them.
         // Waiting for the server first meant a slow or missing connection left a spinner (or, before,
@@ -196,13 +204,20 @@ final class AppState: ObservableObject {
             }
         }
 
+        let launchSession = auth.sessionVersion
         let check = await auth.restoreSession()
+        guard launchSession == auth.sessionVersion else { return }
         if check == .signedIn {
             localStore.saveUser(auth.currentUser)
         }
 
         guard auth.isSignedIn else {
-            clearSignedInState()
+            auth.endSessionLocally()
+            let endedSession = auth.sessionVersion
+            let notificationCleanup = clearSignedInState()
+            await notificationCleanup.value
+            guard endedSession == auth.sessionVersion else { return }
+            await SleepLiveActivityManager.endAll()
             isBootstrapping = false
             return
         }
@@ -223,16 +238,25 @@ final class AppState: ObservableObject {
     }
 
     func refreshHousehold() async {
+        guard auth.isSignedIn else { return }
+        let session = auth.sessionVersion
+        let userId = currentUser?.id
+        householdRequestVersion += 1
+        let request = householdRequestVersion
         do {
-            household = try await api.fetchHousehold()
+            let fresh = try await api.fetchHousehold()
+            guard isCurrentSession(session, userId: userId), request == householdRequestVersion else { return }
+            household = fresh
             localStore.saveHousehold(household)
             localStore.saveUser(auth.currentUser)
             if household != nil {
                 await refreshDashboard()
             } else {
+                dashboardRequestVersion += 1
                 dashboard = nil
             }
         } catch {
+            guard isCurrentSession(session, userId: userId), request == householdRequestVersion else { return }
             if case APIError.unauthorized = error {
                 await handleSessionExpired()
                 return
@@ -246,9 +270,11 @@ final class AppState: ObservableObject {
     /// else). Nothing more can be saved or loaded, so go back to sign-in and say why, rather than
     /// leave every screen failing.
     func handleSessionExpired() async {
-        guard auth.isSignedIn else { return }
         auth.endSessionLocally()
-        clearSignedInState()
+        let endedSession = auth.sessionVersion
+        let notificationCleanup = clearSignedInState()
+        await notificationCleanup.value
+        guard endedSession == auth.sessionVersion else { return }
         await SleepLiveActivityManager.endAll()
         showNotice("You were signed out. Please sign in again.")
     }
@@ -262,9 +288,17 @@ final class AppState: ObservableObject {
     /// `forcingDeviceRefresh` re-reads the device's calendars, reminders and weather even if that was
     /// done recently.
     func refreshDashboard(forcingDeviceRefresh: Bool = false) async {
+        guard auth.isSignedIn else { return }
+        let session = auth.sessionVersion
+        let userId = currentUser?.id
+        dashboardRequestVersion += 1
+        let request = dashboardRequestVersion
         errorMessage = nil
         do {
-            dashboard = try await api.fetchDashboard()
+            let fresh = try await api.fetchDashboard()
+            guard isCurrentSession(session, userId: userId), request == dashboardRequestVersion else { return }
+            householdRequestVersion += 1
+            dashboard = fresh
             household = dashboard?.household
             if let dashboard {
                 setHasAnniversaries(dashboard.hasAnniversaries)
@@ -279,12 +313,14 @@ final class AppState: ObservableObject {
                 await refreshNativeGroceryItems()
                 await refreshNativeWeather()
             }
+            guard isCurrentSession(session, userId: userId), request == dashboardRequestVersion else { return }
             if let dashboard {
                 await nativeNotifications.scheduleDashboardReminders(
                     from: dashboard,
                     birthdaysModuleEnabled: hubModules.isEnabled(.birthdays)
                 )
             }
+            guard isCurrentSession(session, userId: userId), request == dashboardRequestVersion else { return }
             if let dashboard {
                 await SleepLiveActivityManager.sync(
                     logs: dashboard.naps,
@@ -292,6 +328,7 @@ final class AppState: ObservableObject {
                 )
             }
         } catch {
+            guard isCurrentSession(session, userId: userId), request == dashboardRequestVersion else { return }
             if case APIError.unauthorized = error {
                 await handleSessionExpired()
                 return
@@ -351,6 +388,9 @@ final class AppState: ObservableObject {
     }
 
     func refreshNativeGroceryItems() async {
+        guard auth.isSignedIn else { return }
+        let session = auth.sessionVersion
+        let userId = currentUser?.id
         nativeReminders.refreshAccessStatus()
         guard nativeReminders.hasFullAccess, nativeReminders.selectedListId != nil else {
             nativeGroceryItems = []
@@ -358,8 +398,11 @@ final class AppState: ObservableObject {
         }
 
         do {
-            nativeGroceryItems = try await nativeReminders.loadItems()
+            let items = try await nativeReminders.loadItems()
+            guard isCurrentSession(session, userId: userId) else { return }
+            nativeGroceryItems = items
         } catch {
+            guard isCurrentSession(session, userId: userId) else { return }
             errorMessage = error.localizedDescription
             nativeGroceryItems = []
         }
@@ -442,6 +485,9 @@ final class AppState: ObservableObject {
     }
 
     func saveHubModules(_ modules: HubModules) async {
+        guard auth.isSignedIn else { return }
+        let session = auth.sessionVersion
+        let userId = currentUser?.id
         hubModulesSaveVersion += 1
         let saveVersion = hubModulesSaveVersion
         pendingHubModulesSave = modules
@@ -453,13 +499,14 @@ final class AppState: ObservableObject {
             await rescheduleNativeNotifications()
         }
         do {
+            guard isCurrentSession(session, userId: userId) else { return }
             let savedModules = try await api.saveHubModules(modules)
-            if saveVersion == hubModulesSaveVersion {
+            if isCurrentSession(session, userId: userId), saveVersion == hubModulesSaveVersion {
                 pendingHubModulesSave = nil
                 applyHubModules(savedModules == modules ? savedModules : modules)
             }
         } catch {
-            if saveVersion == hubModulesSaveVersion {
+            if isCurrentSession(session, userId: userId), saveVersion == hubModulesSaveVersion {
                 pendingHubModulesSave = nil
                 errorMessage = error.localizedDescription
                 if let message = error.userFacingMessage {
@@ -491,10 +538,13 @@ final class AppState: ObservableObject {
     }
 
     func refreshSession() async {
+        let version = auth.sessionVersion
         switch await auth.restoreSession() {
         case .signedIn:
+            guard version == auth.sessionVersion else { return }
             localStore.saveUser(auth.currentUser)
         case .signedOut:
+            guard version == auth.sessionVersion else { return }
             await handleSessionExpired()
         case .unreachable:
             break
@@ -502,13 +552,24 @@ final class AppState: ObservableObject {
     }
 
     func signOut() async {
+        let notificationCleanup = clearSignedInState()
         await auth.signOut()
-        clearSignedInState()
+        await notificationCleanup.value
+        guard !auth.isSignedIn else { return }
         await SleepLiveActivityManager.endAll()
     }
 
     /// Everything that belongs to the signed-in person, for sign-out and for an ended session.
-    private func clearSignedInState() {
+    @discardableResult
+    private func clearSignedInState() -> Task<Void, Never> {
+        let notificationCleanup = nativeNotifications.clearSessionReminders()
+        _ = NotificationResponder.takePendingDestination()
+        dashboardRequestVersion += 1
+        householdRequestVersion += 1
+        hubModulesSaveVersion += 1
+        eventKitRefreshTask?.cancel()
+        nativeTodayScheduleEvents = []
+        nativeGroceryItems = []
         household = nil
         dashboard = nil
         hubModules = .defaults
@@ -520,6 +581,7 @@ final class AppState: ObservableObject {
         pendingProfileEditId = nil
         pendingFoodSection = nil
         selectedDestination = .dashboard
+        return notificationCleanup
     }
 
     private func hydrateFromLocalStore() {

@@ -51,6 +51,19 @@ check("the same id wanted twice schedules the later one once",
 check("a duplicate scheduled id is removed once when unwanted",
       describe(NotificationDiff.changes(existing: [note("a"), note("a")], desired: [])), "remove=a add=")
 
+var oldCommand = note("chore")
+oldCommand.userInfo = ["choreId": "c1", "periodKey": "2026-W40", "kind": "chore"]
+var newCommand = oldCommand
+newCommand.userInfo["periodKey"] = "2026-10-07"
+check("changed button period replaces an otherwise identical reminder",
+      describe(NotificationDiff.changes(existing: [oldCommand], desired: [newCommand])), "remove= add=chore")
+newCommand = oldCommand
+newCommand.userInfo["choreId"] = "c2"
+check("changed button target replaces an otherwise identical reminder",
+      describe(NotificationDiff.changes(existing: [oldCommand], desired: [newCommand])), "remove= add=chore")
+check("unchanged button arguments do not reschedule",
+      describe(NotificationDiff.changes(existing: [oldCommand], desired: [oldCommand])), "remove= add=")
+
 if failures > 0 {
     print("\(failures) failed")
     exit(1)

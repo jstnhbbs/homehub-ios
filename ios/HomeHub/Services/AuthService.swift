@@ -5,6 +5,8 @@ final class AuthService: ObservableObject {
     @Published private(set) var currentUser: User?
     @Published private(set) var isLoading = false
     @Published var errorMessage: String?
+    private(set) var sessionVersion = 0
+    private var restoreVersion = 0
 
     private let client: APIClient
 
@@ -35,8 +37,12 @@ final class AuthService: ObservableObject {
     /// the check often runs behind the cached screens.
     @discardableResult
     func restoreSession() async -> SessionCheck {
+        let session = sessionVersion
+        restoreVersion += 1
+        let request = restoreVersion
         do {
             let response: SessionResponse? = try await client.request("/api/auth/get-session", authorized: false)
+            guard session == sessionVersion, request == restoreVersion, !Task.isCancelled else { return .unreachable }
             guard let user = response?.user else {
                 currentUser = nil
                 return .signedOut
@@ -50,20 +56,25 @@ final class AuthService: ObservableObject {
 
     /// Shows the person who was signed in when the app last ran, until the server confirms.
     func adoptSavedUser(_ user: User) {
+        if currentUser?.id != user.id { sessionVersion += 1 }
         currentUser = user
     }
 
     /// Ends the session on this device without asking the server, for when the server has already
     /// refused it.
     func endSessionLocally() {
+        sessionVersion += 1
+        isLoading = false
         client.clearCookies()
         currentUser = nil
     }
 
     func signIn(email: String, password: String) async throws {
+        sessionVersion += 1
+        let version = sessionVersion
         isLoading = true
         errorMessage = nil
-        defer { isLoading = false }
+        defer { if version == sessionVersion { isLoading = false } }
         let body = SignInRequest(email: email, password: password)
         // A cookie left from an earlier session makes the sign-in service demand an Origin check that
         // a fresh sign-in does not need.
@@ -74,13 +85,16 @@ final class AuthService: ObservableObject {
             body: body,
             authorized: false
         )
+        guard version == sessionVersion, !Task.isCancelled else { throw CancellationError() }
         currentUser = response.user
     }
 
     func signUp(name: String, email: String, password: String) async throws {
+        sessionVersion += 1
+        let version = sessionVersion
         isLoading = true
         errorMessage = nil
-        defer { isLoading = false }
+        defer { if version == sessionVersion { isLoading = false } }
         let body = SignUpRequest(name: name, email: email, password: password)
         client.clearCookies()
         let response: AuthEnvelope = try await client.request(
@@ -89,6 +103,7 @@ final class AuthService: ObservableObject {
             body: body,
             authorized: false
         )
+        guard version == sessionVersion, !Task.isCancelled else { throw CancellationError() }
         currentUser = response.user
     }
 
@@ -105,9 +120,14 @@ final class AuthService: ObservableObject {
     /// Ends the session on the server (so the cookie stops working everywhere), then forgets it here
     /// whether or not the server could be reached.
     func signOut() async {
+        sessionVersion += 1
+        let version = sessionVersion
+        currentUser = nil
+        isLoading = false
         // The sign-in service answers a POST with no JSON body and content type "Unsupported Media
         // Type", so an empty object is sent.
         _ = try? await client.requestVoid("/api/auth/sign-out", method: "POST", body: EmptyJSONBody())
+        guard version == sessionVersion else { return }
         client.clearCookies()
         currentUser = nil
     }

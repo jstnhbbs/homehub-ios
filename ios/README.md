@@ -114,6 +114,8 @@ ios/checks/birthday-notifications/run.sh
 ios/checks/meal-slot-clock/run.sh
 ios/checks/celebration-text/run.sh
 ios/checks/dashboard-row-helpers/run.sh
+sh ios/checks/async-lifecycle/run.sh
+ios/checks/notification-diff/run.sh
 ```
 
 iOS (after opening in Xcode): **Product → Build** (⌘B), then run on iPhone and iPad simulators. Landscape remains recommended for a dedicated shared iPad display.
