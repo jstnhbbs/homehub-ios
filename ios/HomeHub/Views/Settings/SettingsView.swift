@@ -87,7 +87,7 @@ struct SettingsView: View {
             accountHeader
             if appState.needsEmailVerification {
                 Section {
-                    VerifyEmailCard(canDismiss: false)
+                    VerifyEmailCard()
                         .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)

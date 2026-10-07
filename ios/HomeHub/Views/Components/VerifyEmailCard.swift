@@ -1,12 +1,10 @@
 import SwiftUI
 
-/// Reminds someone whose email address is not confirmed yet, and sends the link again. Nothing is
-/// blocked while it shows; it goes away on its own once the address is confirmed.
+/// Reminds someone whose email address is not confirmed yet, and sends the link again. It lives in
+/// Settings only (not on Today, where it sat at the top of every launch). Nothing is blocked while
+/// it shows; it goes away on its own once the address is confirmed.
 struct VerifyEmailCard: View {
     @EnvironmentObject private var appState: AppState
-
-    /// On Today the reminder can be closed for the rest of the session; in Settings it stays.
-    var canDismiss = true
 
     private enum SendState: Equatable {
         case idle
@@ -18,7 +16,7 @@ struct VerifyEmailCard: View {
     @State private var state: SendState = .idle
 
     var body: some View {
-        if appState.needsEmailVerification, !(canDismiss && appState.emailReminderDismissed) {
+        if appState.needsEmailVerification {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: "envelope.badge")
                     .font(.title3.weight(.bold))
@@ -47,19 +45,6 @@ struct VerifyEmailCard: View {
                 }
 
                 Spacer(minLength: 0)
-
-                if canDismiss {
-                    Button {
-                        appState.emailReminderDismissed = true
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(HubTheme.muted)
-                            .frame(width: 28, height: 28)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Dismiss")
-                }
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)

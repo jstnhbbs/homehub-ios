@@ -45,8 +45,6 @@ final class AppState: ObservableObject {
     /// Passes `AuthService` changes on, so screens that read `currentUser` (such as whether the email
     /// address is confirmed yet) redraw when it changes.
     private var authObserver: AnyCancellable?
-    /// Set when someone closes the "confirm your email" reminder; it comes back next launch.
-    @Published var emailReminderDismissed = false
     @Published var accentPalette: AccentPalette {
         didSet {
             HubTheme.currentAccent = accentPalette
