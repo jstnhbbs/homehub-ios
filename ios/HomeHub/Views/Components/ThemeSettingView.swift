@@ -6,54 +6,189 @@ struct ThemeSettingView: View {
 
     var body: some View {
         Section {
-            ThemeColorMenu(selection: $appState.accentPalette)
+            AppearanceModePicker()
+
+            Toggle("True Black", isOn: $appState.usesTrueBlack)
+                .disabled(appState.appearanceMode == .light)
+
+            ThemeColorGrid()
 
             AppIconPickerLink()
         } header: {
             Text("Appearance")
-        } footer: {
-            Text("Beacon follows the system light and dark appearance. Theme color and app icon are saved on this device.")
+        }
+        .listRowBackground(HubTheme.tile)
+    }
+}
+
+/// A miniature of a Today card (a title, a ticked row, an unticked row and the round add button) in
+/// one theme color, drawn from the app's own colors so it looks as the real thing will. Put it in
+/// `.environment(\.colorScheme, ...)` to see it in light or dark.
+private struct MiniPage: View {
+    var palette: AccentPalette
+    /// Read from the app state by whoever draws the tile, so a tile is redrawn when True Black is
+    /// switched (the colors it uses do not announce that themselves).
+    var usesTrueBlack: Bool
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            HubTheme.canvas
+            VStack(alignment: .leading, spacing: 6) {
+                Capsule()
+                    .fill(Color.primary.opacity(0.6))
+                    .frame(width: 22, height: 3.5)
+                line(ticked: true, width: 26)
+                line(ticked: false, width: 20)
+            }
+            .padding(9)
+            Circle()
+                .fill(palette.accent)
+                .frame(width: 16, height: 16)
+                .overlay {
+                    Image(systemName: "plus")
+                        .font(.system(size: 8, weight: .heavy))
+                        .foregroundStyle(palette.onAccent)
+                }
+                .padding(7)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.14), lineWidth: 1)
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func line(ticked: Bool, width: CGFloat) -> some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(ticked ? palette.accent : Color.clear)
+                .overlay {
+                    if ticked {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 5, weight: .heavy))
+                            .foregroundStyle(palette.onAccent)
+                    } else {
+                        Circle().strokeBorder(Color.primary.opacity(0.45), lineWidth: 1)
+                    }
+                }
+                .frame(width: 10, height: 10)
+            Capsule()
+                .fill(Color.primary.opacity(0.3))
+                .frame(width: width, height: 3)
         }
     }
 }
 
-private struct ThemeColorMenu: View {
-    @Binding var selection: AccentPalette
+/// A tile with a name under it: ringed and bold when chosen, quiet otherwise.
+private struct ChoiceTile<Preview: View>: View {
+    var title: String
+    var isSelected: Bool
+    var ringColor: Color
+    /// Width over height of the preview.
+    var aspect: CGFloat
+    var action: () -> Void
+    @ViewBuilder var preview: () -> Preview
 
     var body: some View {
-        Menu {
-            Picker("Theme Color", selection: $selection) {
-                ForEach(AccentPalette.allCases) { palette in
-                    Label {
-                        Text(palette.label)
-                    } icon: {
-                        Image(uiImage: palette.menuSwatchImage)
-                            .renderingMode(.original)
+        Button(action: action) {
+            VStack(spacing: 6) {
+                preview()
+                    .aspectRatio(aspect, contentMode: .fit)
+                    .padding(3)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 15, style: .continuous)
+                            .strokeBorder(isSelected ? ringColor : Color.clear, lineWidth: 2.5)
                     }
-                    .tag(palette)
-                }
-            }
-        } label: {
-            HStack {
-                Text("Theme Color")
-                    .foregroundStyle(.primary)
-
-                Spacer()
-
-                HStack(spacing: 6) {
-                    selection.swatchIcon
-                        .frame(width: 20, height: 20)
-
-                    Text(selection.label)
-                        .foregroundStyle(.secondary)
-
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                }
+                Text(title)
+                    .font(.caption.weight(isSelected ? .bold : .regular))
+                    .foregroundStyle(isSelected ? Color.primary : HubTheme.muted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
             .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
+/// Automatic, Light or Dark, each shown as the page looks in it (Automatic is half and half).
+private struct AppearanceModePicker: View {
+    @EnvironmentObject private var appState: AppState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Mode")
+            HStack(spacing: 10) {
+                ForEach(AppearanceMode.allCases) { mode in
+                    ChoiceTile(
+                        title: mode.label,
+                        isSelected: appState.appearanceMode == mode,
+                        ringColor: appState.accentPalette.textColor,
+                        aspect: 1.1
+                    ) {
+                        appState.appearanceMode = mode
+                    } preview: {
+                        modePreview(mode)
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private func modePreview(_ mode: AppearanceMode) -> some View {
+        let palette = appState.accentPalette
+        switch mode {
+        case .light:
+            MiniPage(palette: palette, usesTrueBlack: appState.usesTrueBlack).environment(\.colorScheme, .light)
+        case .dark:
+            MiniPage(palette: palette, usesTrueBlack: appState.usesTrueBlack).environment(\.colorScheme, .dark)
+        case .system:
+            GeometryReader { proxy in
+                ZStack {
+                    MiniPage(palette: palette, usesTrueBlack: appState.usesTrueBlack).environment(\.colorScheme, .light)
+                    MiniPage(palette: palette, usesTrueBlack: appState.usesTrueBlack).environment(\.colorScheme, .dark)
+                        .mask(alignment: .trailing) {
+                            Rectangle().frame(width: proxy.size.width / 2)
+                        }
+                }
+            }
+        }
+    }
+}
+
+/// The ten theme colors as previews, five across (fewer at the largest text sizes).
+private struct ThemeColorGrid: View {
+    @EnvironmentObject private var appState: AppState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Theme Color")
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: DashboardMetrics.scaled(56)), spacing: 10, alignment: .top)],
+                alignment: .leading,
+                spacing: 12
+            ) {
+                ForEach(AccentPalette.allCases) { palette in
+                    ChoiceTile(
+                        title: palette.label,
+                        isSelected: appState.accentPalette == palette,
+                        ringColor: palette.textColor,
+                        aspect: 0.78
+                    ) {
+                        appState.accentPalette = palette
+                    } preview: {
+                        MiniPage(palette: palette, usesTrueBlack: appState.usesTrueBlack)
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -134,8 +269,6 @@ private struct AppIconPickerView: View {
                 }
             } header: {
                 Text("Choose an icon")
-            } footer: {
-                Text("Changing the icon does not change the app’s theme color.")
             }
         }
         .navigationTitle("App Icon")
@@ -196,19 +329,5 @@ private struct AppIconPreview: View {
             RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
                 .stroke(.white.opacity(0.18), lineWidth: 1)
         }
-    }
-}
-
-private extension AccentPalette {
-    var menuSwatchImage: UIImage {
-        let size = CGSize(width: 24, height: 24)
-        return UIGraphicsImageRenderer(size: size).image { context in
-            let rect = CGRect(origin: .zero, size: size).insetBy(dx: 2, dy: 2)
-            context.cgContext.setFillColor(UIColor(swatch).cgColor)
-            context.cgContext.fillEllipse(in: rect)
-            context.cgContext.setStrokeColor(UIColor.black.withAlphaComponent(0.15).cgColor)
-            context.cgContext.setLineWidth(1)
-            context.cgContext.strokeEllipse(in: rect)
-        }.withRenderingMode(.alwaysOriginal)
     }
 }

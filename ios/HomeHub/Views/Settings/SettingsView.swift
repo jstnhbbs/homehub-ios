@@ -360,11 +360,6 @@ struct SettingsView: View {
     private var appearanceTab: some View {
         Form {
             ThemeSettingView()
-
-            Section {
-            } footer: {
-                Text("Theme and icon choices apply to this device only. A new app icon shows on the Home Screen once iOS applies the change.")
-            }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
@@ -840,7 +835,7 @@ private struct SettingsFAQView: View {
             FAQItem("Can I use Beacon offline?", "Beacon can show cached household and Today content when it is available. Shared household edits need a working connection; do not assume offline edits will be queued and uploaded later. Native calendars and Reminders depend on what is available locally on your device."),
             FAQItem("Why is weather unavailable?", "Weather needs device location access and an available weather service. Allow location access when prompted, check Beacon's permissions in system settings, and make sure the device has a connection. Weather may be unavailable on some devices or environments."),
             FAQItem("Why am I not receiving reminders?", "Open Settings > Notifications in Beacon, allow notifications, and enable the reminders and times you want. Also check the device's notification settings, Focus modes, and Scheduled Summary. Beacon's reminder preferences and notification permission are configured on each device."),
-            FAQItem("How do I change colors or light and dark mode?", "Choose a theme color or app icon in Settings > Appearance. Beacon follows your device's system light or dark appearance. Theme and icon choices apply locally to that device.")
+            FAQItem("How do I change colors or light and dark mode?", "Open Settings > Appearance to choose Automatic, Light or Dark, switch on True Black for pure black pages in dark mode, pick a theme color, or change the app icon. Automatic follows your device's setting. These choices apply only to the device you make them on.")
         ])
     ]
 }

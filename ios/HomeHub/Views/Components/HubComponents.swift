@@ -96,18 +96,48 @@ enum HubTheme {
             : UIColor(red: 0.98, green: 0.95, blue: 0.88, alpha: 1)
     })
 
+    /// Dark mode uses pure black pages instead of charcoal when this is on (Settings > Appearance >
+    /// True Black), for OLED screens. Every surface moves down one step, so cards stay lighter than
+    /// the page. Saved on the device by `AppState.usesTrueBlack`.
+    static var usesTrueBlack = false
+
     // Light mode keeps the system's colors. Dark mode is a soft charcoal rather than the system's
     // true black: the page is #1C1C1E, cards sit a step lighter at #2C2C2E and the things inside
-    // cards a step lighter again at #3A3A3C.
+    // cards a step lighter again at #3A3A3C. With True Black on, the page is #000000, cards are
+    // #1C1C1E and the things inside them #2C2C2E (the system's own dark steps).
+    //
+    // Each surface is two colors, one per setting, and the one in use is picked when a view reads
+    // it. (A single color that looked up the setting itself would be resolved once and kept, so
+    // flipping the switch would leave every screen as it was.)
     private static func surface(light: UIColor, dark: UIColor) -> Color {
         Color(UIColor { $0.userInterfaceStyle == .dark ? dark : light })
     }
 
-    static let canvas = surface(light: .systemGroupedBackground, dark: UIColor(red: 0.110, green: 0.110, blue: 0.118, alpha: 1))
-    static let surface = surface(light: .systemBackground, dark: UIColor(red: 0.110, green: 0.110, blue: 0.118, alpha: 1))
-    static let surfaceStrong = surface(light: .tertiarySystemGroupedBackground, dark: UIColor(red: 0.227, green: 0.227, blue: 0.235, alpha: 1))
-    static let tile = surface(light: .secondarySystemGroupedBackground, dark: UIColor(red: 0.173, green: 0.173, blue: 0.180, alpha: 1))
-    static let tileQuiet = surface(light: .tertiarySystemGroupedBackground, dark: UIColor(red: 0.227, green: 0.227, blue: 0.235, alpha: 1))
+    private static func grey(_ value: CGFloat, _ blue: CGFloat? = nil) -> UIColor {
+        UIColor(red: value, green: value, blue: blue ?? value, alpha: 1)
+    }
+
+    private static let charcoalPage = grey(0.110, 0.118)    // #1C1C1E
+    private static let charcoalCard = grey(0.173, 0.180)    // #2C2C2E
+    private static let charcoalInner = grey(0.227, 0.235)   // #3A3A3C
+    private static let blackPage = grey(0)                   // #000000
+    private static let blackCard = grey(0.110, 0.118)        // #1C1C1E
+    private static let blackInner = grey(0.173, 0.180)       // #2C2C2E
+
+    private static let canvasCharcoal = surface(light: .systemGroupedBackground, dark: charcoalPage)
+    private static let canvasBlack = surface(light: .systemGroupedBackground, dark: blackPage)
+    private static let surfaceCharcoal = surface(light: .systemBackground, dark: charcoalPage)
+    private static let surfaceBlack = surface(light: .systemBackground, dark: blackPage)
+    private static let strongCharcoal = surface(light: .tertiarySystemGroupedBackground, dark: charcoalInner)
+    private static let strongBlack = surface(light: .tertiarySystemGroupedBackground, dark: blackInner)
+    private static let tileCharcoal = surface(light: .secondarySystemGroupedBackground, dark: charcoalCard)
+    private static let tileBlack = surface(light: .secondarySystemGroupedBackground, dark: blackCard)
+
+    static var canvas: Color { usesTrueBlack ? canvasBlack : canvasCharcoal }
+    static var surface: Color { usesTrueBlack ? surfaceBlack : surfaceCharcoal }
+    static var surfaceStrong: Color { usesTrueBlack ? strongBlack : strongCharcoal }
+    static var tile: Color { usesTrueBlack ? tileBlack : tileCharcoal }
+    static var tileQuiet: Color { surfaceStrong }
     static let line = Color(.separator)
     static let muted = Color(.secondaryLabel)
 

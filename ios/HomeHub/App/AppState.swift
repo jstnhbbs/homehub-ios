@@ -52,6 +52,18 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Light, dark or automatic, saved on this device.
+    @Published var appearanceMode: AppearanceMode {
+        didSet { UserDefaults.standard.set(appearanceMode.rawValue, forKey: Self.appearanceModeKey) }
+    }
+    /// Pure black pages in dark mode instead of charcoal, saved on this device.
+    @Published var usesTrueBlack: Bool {
+        didSet {
+            HubTheme.usesTrueBlack = usesTrueBlack
+            UserDefaults.standard.set(usesTrueBlack, forKey: Self.trueBlackKey)
+        }
+    }
+
     /// Shows the failure as a banner for a few seconds. A cancelled request says nothing.
     func report(_ error: Error) {
         guard let message = error.userFacingMessage else { return }
@@ -74,6 +86,8 @@ final class AppState: ObservableObject {
     }
 
     private static let accentStorageKey = "homehub.accentPalette"
+    private static let appearanceModeKey = "homehub.appearanceMode"
+    private static let trueBlackKey = "homehub.trueBlack"
 
     private var eventKitObserver: NSObjectProtocol?
     private var dataChangedObserver: NSObjectProtocol?
@@ -103,6 +117,11 @@ final class AppState: ObservableObject {
         let palette = AccentPalette(rawValue: stored) ?? .sage
         self.accentPalette = palette
         HubTheme.currentAccent = palette
+        let defaults = UserDefaults.standard
+        self.appearanceMode = AppearanceMode(rawValue: defaults.string(forKey: Self.appearanceModeKey) ?? "") ?? .system
+        let trueBlack = defaults.bool(forKey: Self.trueBlackKey)
+        self.usesTrueBlack = trueBlack
+        HubTheme.usesTrueBlack = trueBlack
         observeEventKitChanges()
         // A button on a notification (Done on a chore, End Nap) changed something: show it.
         dataChangedObserver = NotificationCenter.default.addObserver(
