@@ -109,27 +109,27 @@ enum ColorMath {
 }
 
 /// The ten theme colors. The keys are what is saved on a device, so they stay as they were when
-/// the palette was earthier (sage is now Emerald, rose is Raspberry, and so on).
+/// the palette was earthier (sage is now Moss, rose is Raspberry, and so on).
 enum AccentColorTable {
     static let ids = ["sage", "ocean", "clay", "plum", "slate", "rosewood", "teal", "indigo", "rose", "ochre"]
 
     static let labels: [String: String] = [
-        "sage": "Emerald", "ocean": "Azure", "clay": "Tangerine", "plum": "Blossom", "slate": "Slate",
-        "rosewood": "Rosewood", "teal": "Lagoon", "indigo": "Orchid", "rose": "Raspberry", "ochre": "Sunflower",
+        "sage": "Moss", "ocean": "Azure", "clay": "Tangerine", "plum": "Blossom", "slate": "Slate",
+        "rosewood": "Rosewood", "teal": "Seafoam", "indigo": "Amethyst", "rose": "Raspberry", "ochre": "Sunflower",
     ]
 
     /// In dark mode. Each is at least 3 to 1 as text on a dark card, and the app lightens the shade
     /// it uses for small text where that is under 4.5 (`textShade`).
     static let dark: [String: String] = [
-        "sage": "#2bb675", "ocean": "#56a2dc", "clay": "#f2852c", "plum": "#e656a8", "slate": "#6c7684",
-        "rosewood": "#b05e6b", "teal": "#4d9d98", "indigo": "#9564ce", "rose": "#f22c4a", "ochre": "#f2c02c",
+        "sage": "#5f8153", "ocean": "#56a2dc", "clay": "#f2852c", "plum": "#e656a8", "slate": "#6c7684",
+        "rosewood": "#b05e6b", "teal": "#46a4a0", "indigo": "#9564ce", "rose": "#f22c4a", "ochre": "#f2c02c",
     ]
 
     /// In light mode: deeper where that was needed for 3.5 to 1 against white. Yellow stays as it
     /// is (it cannot get there without turning brown) and carries dark text.
     static let light: [String: String] = [
-        "sage": "#229c63", "ocean": "#2b8ed9", "clay": "#d96608", "plum": "#e64ca4", "slate": "#6c7684",
-        "rosewood": "#b05e6b", "teal": "#47948f", "indigo": "#9564ce", "rose": "#f22c4a", "ochre": "#f2c02c",
+        "sage": "#57764c", "ocean": "#2b8ed9", "clay": "#d96608", "plum": "#e64ca4", "slate": "#6c7684",
+        "rosewood": "#b05e6b", "teal": "#409692", "indigo": "#9564ce", "rose": "#f22c4a", "ochre": "#f2c02c",
     ]
 
     /// The surfaces text sits on: the dark card, and a white one.
@@ -137,7 +137,7 @@ enum AccentColorTable {
     static let lightSurface = RGBColor(hex: "#ffffff")
 
     static func fill(_ id: String, dark isDark: Bool) -> RGBColor {
-        RGBColor(hex: (isDark ? dark : light)[id] ?? "#2bb675")
+        RGBColor(hex: (isDark ? dark : light)[id] ?? "#5f8153")
     }
 
     /// The shade to use where the color is text or an icon.

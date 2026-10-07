@@ -85,6 +85,9 @@ final class AppState: ObservableObject {
         notice = nil
     }
 
+    /// The open Settings pages; see `SettingsNavigationModel`.
+    let settingsNavigation = SettingsNavigationModel()
+
     private static let accentStorageKey = "homehub.accentPalette"
     private static let appearanceModeKey = "homehub.appearanceMode"
     private static let trueBlackKey = "homehub.trueBlack"

@@ -25,7 +25,7 @@ struct SettingsView: View {
     var body: some View {
         Group {
             if presentation == .split {
-                NavigationStack {
+                SettingsStack(model: appState.settingsNavigation) {
                     // The page title is drawn like every other iPad page's, instead of a system large title
                     // that reserved an empty navigation bar's worth of space above it. Pushed pages
                     // (General, Family, …) still get their own bar and back button.

@@ -12,11 +12,11 @@ enum ProfileColors {
     static let options: [ProfileColorOption] = [
         .init(value: "#d87861", label: "Raspberry"),
         .init(value: "#6689a3", label: "Azure"),
-        .init(value: "#4f7c6d", label: "Emerald"),
+        .init(value: "#4f7c6d", label: "Moss"),
         .init(value: "#b07aa1", label: "Blossom"),
         .init(value: "#d19b45", label: "Sunflower"),
-        .init(value: "#5f8f8b", label: "Lagoon"),
-        .init(value: "#8c7ca8", label: "Orchid"),
+        .init(value: "#5f8f8b", label: "Seafoam"),
+        .init(value: "#8c7ca8", label: "Amethyst"),
         .init(value: "#b86f4d", label: "Tangerine"),
         .init(value: "#7f8757", label: "Rosewood"),
     ]

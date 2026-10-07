@@ -3,7 +3,7 @@ import UIKit
 
 enum AccentPalette: String, CaseIterable, Identifiable, Sendable {
     // The raw values are what is saved on a device, so they keep the names of the original,
-    // earthier palette (sage is now Emerald, rose is Raspberry). `label` is what people see. A
+    // earthier palette (sage is now Moss, rose is Raspberry). `label` is what people see. A
     // device that saved the removed Meadow ("forest") starts on the default.
     case sage
     case ocean
@@ -153,11 +153,11 @@ enum HubTheme {
     private static let personColors: [String: String] = [
         "#d87861": "rose",      // Coral shows as Raspberry
         "#6689a3": "ocean",     // Blue shows as Azure
-        "#4f7c6d": "sage",      // Sage shows as Emerald
+        "#4f7c6d": "sage",      // Sage shows as Moss
         "#b07aa1": "plum",      // Plum shows as Blossom
         "#d19b45": "ochre",     // Gold shows as Sunflower
-        "#5f8f8b": "teal",      // Teal shows as Lagoon
-        "#8c7ca8": "indigo",    // Lavender shows as Orchid
+        "#5f8f8b": "teal",      // Teal shows as Seafoam
+        "#8c7ca8": "indigo",    // Lavender shows as Amethyst
         "#b86f4d": "clay",      // Terracotta shows as Tangerine
         "#7f8757": "rosewood",  // Olive shows as Rosewood
     ]

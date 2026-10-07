@@ -5,7 +5,6 @@ struct HubView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var showMoreMenu = false
     @State private var lastPrimaryDestination: HubDestination = .dashboard
-    @State private var compactSettingsPath = NavigationPath()
     @State private var compactMealsPath = NavigationPath()
 
     var body: some View {
@@ -130,7 +129,7 @@ struct HubView: View {
         if destination == .dashboard {
             DashboardView()
         } else if destination == .settings {
-            NavigationStack(path: $compactSettingsPath) {
+            SettingsStack(model: appState.settingsNavigation) {
                 SettingsView(presentation: .tabRoot)
                     .hubPageBackground()
             }

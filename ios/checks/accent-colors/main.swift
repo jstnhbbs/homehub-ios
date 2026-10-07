@@ -16,7 +16,7 @@ check("dark text on a bright fill", ColorMath.readableText(on: RGBColor(hex: "#f
 
 // The ten colors
 check("there are ten, each with a name and both modes", AccentColorTable.ids.count == 10 && AccentColorTable.ids.allSatisfy { AccentColorTable.labels[$0] != nil && AccentColorTable.dark[$0] != nil && AccentColorTable.light[$0] != nil })
-check("the names people see", AccentColorTable.ids.map { AccentColorTable.labels[$0]! }.joined(separator: ",") == "Emerald,Azure,Tangerine,Blossom,Slate,Rosewood,Lagoon,Orchid,Raspberry,Sunflower")
+check("the names people see", AccentColorTable.ids.map { AccentColorTable.labels[$0]! }.joined(separator: ",") == "Moss,Azure,Tangerine,Blossom,Slate,Rosewood,Seafoam,Amethyst,Raspberry,Sunflower")
 
 for id in AccentColorTable.ids {
     let name = AccentColorTable.labels[id]!
@@ -52,7 +52,7 @@ for id in AccentColorTable.ids {
 
 // The values the user chose
 check("Azure is #56a2dc", AccentColorTable.dark["ocean"] == "#56a2dc")
-check("Emerald is #2bb675", AccentColorTable.dark["sage"] == "#2bb675")
+check("Moss is Moss Deep sage #5f8153 (light #57764c) and Seafoam is Lagoon Soft #46a4a0 (light #409692)", AccentColorTable.dark["sage"] == "#5f8153" && AccentColorTable.light["sage"] == "#57764c" && AccentColorTable.dark["teal"] == "#46a4a0" && AccentColorTable.light["teal"] == "#409692")
 check("Rosewood is #b05e6b and Slate #6c7684", AccentColorTable.dark["rosewood"] == "#b05e6b" && AccentColorTable.dark["slate"] == "#6c7684")
 check("a color that already reads is left alone", AccentColorTable.text("clay", dark: true) == AccentColorTable.fill("clay", dark: true))
 check("Rosewood text on dark is lightened", AccentColorTable.text("rosewood", dark: true) != AccentColorTable.fill("rosewood", dark: true))
