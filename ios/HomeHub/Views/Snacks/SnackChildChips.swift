@@ -29,6 +29,57 @@ struct SnackChildChips: View {
         return clash ? String(child.name.prefix(2)).capitalized : first
     }
 
+    /// The child's photo, if they have one.
+    private func photoURL(for child: Profile) -> URL? {
+        guard ProfilePhotoHelpers.hasPhoto(child.avatar) else { return nil }
+        return URL(string: child.avatar)
+    }
+
+    /// No photo: their color, with their initial until they have had it and a check after.
+    private func initialChip(child: Profile, tint: Color, isEaten: Bool) -> some View {
+        ZStack {
+            Circle()
+                .fill(isEaten ? tint : tint.opacity(0.14))
+            Circle()
+                .stroke(tint, lineWidth: isEaten ? 0 : 1.5)
+            if isEaten {
+                Image(systemName: "checkmark")
+                    .font(.caption.weight(.heavy))
+                    .foregroundStyle(HubTheme.readableText(on: tint))
+            } else {
+                Text(initials(for: child))
+                    .font(.caption.weight(.heavy))
+                    .foregroundStyle(tint)
+            }
+        }
+    }
+
+    /// Their photo: faded with a thin ring until they have had it, then full color with a solid
+    /// ring and a small check badge in their color.
+    private func photoChip(url: URL, child: Profile, tint: Color, isEaten: Bool) -> some View {
+        ZStack(alignment: .bottomTrailing) {
+            RemoteImage(url: url, maxPixelSize: Int(Self.chipSize * 3)) {
+                initialChip(child: child, tint: tint, isEaten: false)
+            }
+            .frame(width: Self.chipSize, height: Self.chipSize)
+            .clipShape(Circle())
+            .opacity(isEaten ? 1 : 0.5)
+            .saturation(isEaten ? 1 : 0.6)
+            .overlay {
+                Circle().strokeBorder(tint, lineWidth: isEaten ? 2.5 : 1.5)
+            }
+            if isEaten {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 7, weight: .heavy))
+                    .foregroundStyle(HubTheme.readableText(on: tint))
+                    .frame(width: 14, height: 14)
+                    .background(tint, in: Circle())
+                    .overlay { Circle().strokeBorder(HubTheme.tile, lineWidth: 1.5) }
+                    .offset(x: 3, y: 3)
+            }
+        }
+    }
+
     private func chip(for child: Profile) -> some View {
         let isEaten = SnackHelpers.isEaten(label: snack, profileId: child.id, in: records)
         let tint = HubTheme.profileColor(child.color)
@@ -41,19 +92,11 @@ struct SnackChildChips: View {
                 working.remove(child.id)
             }
         } label: {
-            ZStack {
-                Circle()
-                    .fill(isEaten ? tint : tint.opacity(0.14))
-                Circle()
-                    .stroke(tint, lineWidth: isEaten ? 0 : 1.5)
-                if isEaten {
-                    Image(systemName: "checkmark")
-                        .font(.caption.weight(.heavy))
-                        .foregroundStyle(HubTheme.readableText(on: tint))
+            Group {
+                if let photo = photoURL(for: child) {
+                    photoChip(url: photo, child: child, tint: tint, isEaten: isEaten)
                 } else {
-                    Text(initials(for: child))
-                        .font(.caption.weight(.heavy))
-                        .foregroundStyle(tint)
+                    initialChip(child: child, tint: tint, isEaten: isEaten)
                 }
             }
             .frame(width: Self.chipSize, height: Self.chipSize)
