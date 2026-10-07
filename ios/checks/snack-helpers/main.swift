@@ -35,6 +35,13 @@ check("no children: never done", String(SnackHelpers.isEatenByAll(label: "Yogurt
 check("done count across a list", String(SnackHelpers.doneCount(options: ["Yogurt", "Apples", "Pretzels"], childIds: ["a", "b"], in: records)), "1")
 check("done count with nothing eaten", String(SnackHelpers.doneCount(options: ["Pretzels"], childIds: ["a", "b"], in: [])), "0")
 
+func counts(_ dict: [String: Int]) -> String { dict.keys.sorted().map { "\($0)=\(dict[$0]!)" }.joined(separator: ",") }
+check("per-child counts", counts(SnackHelpers.eatenCounts(options: ["Yogurt", "Apples", "Pretzels"], childIds: ["a", "b", "c"], in: records)), "a=2,b=1,c=0")
+check("a deleted snack is not counted", counts(SnackHelpers.eatenCounts(options: ["Apples"], childIds: ["a", "b"], in: records)), "a=1,b=0")
+check("a repeated record counts once", counts(SnackHelpers.eatenCounts(options: ["Yogurt"], childIds: ["a"], in: records + [SnackEatenRecord(snackLabel: "Yogurt", profileId: "a")])), "a=1")
+check("the shared row is nobody's", counts(SnackHelpers.eatenCounts(options: ["Shared"], childIds: ["a"], in: records)), "a=0")
+check("no children, no counts", counts(SnackHelpers.eatenCounts(options: ["Yogurt"], childIds: [], in: records)), "")
+
 // existing ordering behaviour
 check("unchecked first, checked last", SnackHelpers.sortedSnackOptions(["A", "B", "C"], eaten: ["A"]).joined(separator: ","), "B,C,A")
 

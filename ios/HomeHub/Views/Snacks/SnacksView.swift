@@ -23,6 +23,7 @@ struct SnacksView: View {
                         snackChecklistSection
                     }
                     .listStyle(.insetGrouped)
+                    .scrollContentBackground(.hidden)
                     sidePanel
                         .frame(width: 340)
                 }
@@ -34,8 +35,10 @@ struct SnacksView: View {
                     perChildSection
                 }
                 .listStyle(.insetGrouped)
+                .scrollContentBackground(.hidden)
             }
         }
+        .hubPageBackground()
         .onAppear { viewModel.bind(to: appState) }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
@@ -69,6 +72,14 @@ struct SnacksView: View {
                                 total: Double(max(viewModel.snackOptions.count, 1))
                             )
                             .tint(HubTheme.accentText)
+                            if viewModel.usesPerChild {
+                                SnackChildProgress(
+                                    children: viewModel.children,
+                                    counts: viewModel.childCounts,
+                                    total: viewModel.snackOptions.count
+                                )
+                                .padding(.top, 4)
+                            }
                             Button {
                                 Task { await viewModel.resetChecklist() }
                             } label: {
@@ -132,6 +143,20 @@ struct SnacksView: View {
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             .listRowBackground(Color.clear)
         }
+
+        if viewModel.usesPerChild && !viewModel.snackOptions.isEmpty {
+            Section {
+                SnackChildProgress(
+                    children: viewModel.children,
+                    counts: viewModel.childCounts,
+                    total: viewModel.snackOptions.count
+                )
+                .padding(.vertical, 4)
+            } header: {
+                Label("Progress", systemImage: "chart.bar.fill")
+            }
+            .listRowBackground(HubTheme.tile)
+        }
     }
 
     @ViewBuilder
@@ -142,12 +167,14 @@ struct SnacksView: View {
                     .font(.footnote)
                     .foregroundStyle(.red)
             }
+            .listRowBackground(HubTheme.tile)
         } else if let success = viewModel.successMessage {
             Section {
                 Text(success)
                     .font(.footnote)
                     .foregroundStyle(HubTheme.accentText)
             }
+            .listRowBackground(HubTheme.tile)
         }
     }
 
@@ -167,6 +194,7 @@ struct SnacksView: View {
             } footer: {
                 Text("Off, one tap marks a snack eaten for everyone. On, each child has their own circle, which suits kids who eat different things.")
             }
+            .listRowBackground(HubTheme.tile)
         }
     }
 
@@ -216,6 +244,7 @@ struct SnacksView: View {
                 Text("Add a snack below to start today's checklist.")
             }
         }
+        .listRowBackground(HubTheme.tile)
     }
 
     /// The snack's name with a circle for each child to tick off once they have had it.
@@ -287,6 +316,36 @@ struct SnacksView: View {
                     Label("Edit", systemImage: "pencil")
                 }
                 .tint(.indigo)
+            }
+        }
+    }
+}
+
+/// One line per child: their name, how many of today's snacks they have had, and a bar in their color.
+private struct SnackChildProgress: View {
+    let children: [Profile]
+    let counts: [String: Int]
+    let total: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(children) { child in
+                let had = counts[child.id] ?? 0
+                let tint = HubTheme.profileColor(child.color)
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack {
+                        Text(child.name)
+                            .font(.subheadline.weight(.semibold))
+                        Spacer()
+                        Text("\(had) of \(total)")
+                            .font(.subheadline.weight(.bold))
+                            .monospacedDigit()
+                            .foregroundStyle(HubTheme.muted)
+                    }
+                    ProgressView(value: Double(had), total: Double(max(total, 1)))
+                        .tint(tint)
+                }
+                .accessibilityElement(children: .combine)
             }
         }
     }

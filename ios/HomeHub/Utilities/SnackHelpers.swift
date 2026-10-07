@@ -29,6 +29,20 @@ enum SnackHelpers {
         options.filter { isEatenByAll(label: $0, childIds: childIds, in: records) }.count
     }
 
+    /// How many of today's snacks each child has had, by child id. Only snacks still on the list
+    /// count (a deleted snack's helpings are ignored), and a child who has had nothing is 0.
+    static func eatenCounts(options: [String], childIds: [String], in records: [SnackEatenRecord]) -> [String: Int] {
+        let current = Set(options)
+        var counts = Dictionary(uniqueKeysWithValues: childIds.map { ($0, 0) })
+        var seen = Set<String>()
+        for record in records {
+            guard let id = record.profileId, counts[id] != nil, current.contains(record.snackLabel) else { continue }
+            guard seen.insert(id + "\u{1F}" + record.snackLabel).inserted else { continue }
+            counts[id, default: 0] += 1
+        }
+        return counts
+    }
+
     /// Unchecked snacks first (original order), then checked snacks at the bottom.
     static func sortedSnackOptions(_ options: [String], eaten: Set<String>) -> [String] {
         let pending = options.filter { !eaten.contains($0) }

@@ -34,6 +34,11 @@ final class SnacksViewModel: ObservableObject {
     /// Per-child tracking can only be switched on once there is a child.
     var canChoosePerChild: Bool { !children.isEmpty }
 
+    /// How many of today's snacks each child has had, by child id.
+    var childCounts: [String: Int] {
+        SnackHelpers.eatenCounts(options: snackOptions, childIds: children.map(\.id), in: records)
+    }
+
     var displayedSnacks: [String] {
         SnackHelpers.sortedSnackOptions(snackOptions, eaten: eaten)
     }
