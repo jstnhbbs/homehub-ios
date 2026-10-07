@@ -31,6 +31,12 @@ check("the same buttons are left alone",
       describe(NotificationDiff.changes(
         existing: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "homehub", category: "beacon.chore", trigger: "t")],
         desired: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "homehub", category: "beacon.chore", trigger: "t")])), "remove= add=")
+check("a reminder that gains a page to open is replaced",
+      describe(NotificationDiff.changes(existing: [note("a")], desired: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "homehub", destination: "chores", trigger: "2026-10-4 18:0 America/Chicago")])), "remove= add=a")
+check("the same page is left alone",
+      describe(NotificationDiff.changes(
+        existing: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "homehub", destination: "chores", trigger: "t")],
+        desired: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "homehub", destination: "chores", trigger: "t")])), "remove= add=")
 check("a mix",
       describe(NotificationDiff.changes(
         existing: [note("keep"), note("gone"), note("edit", body: "old")],

@@ -9,6 +9,9 @@ struct PlannedNotification: Equatable, Sendable {
     /// Which set of buttons it carries (empty for none). A reminder scheduled before it had buttons
     /// is replaced, so older plans pick them up.
     var category: String = ""
+    /// The page a tap opens (empty for none), so reminders planned before taps opened a page are
+    /// replaced too.
+    var destination: String = ""
     /// When it fires, as text (year-month-day hour:minute and time zone).
     var trigger: String
 }

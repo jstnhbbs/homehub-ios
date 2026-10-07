@@ -42,5 +42,16 @@ check("userInfo from a remote-style push (top-level keys, any hashable) works",
 check("the failure message names the chore", NotificationCommands.failureMessage(for: .completeChore(choreId: "c", periodKey: "p", title: "Bins")).body.contains("Bins"))
 check("the failure message names the child", NotificationCommands.failureMessage(for: .endNap(napId: "n", name: "Ada")).body.contains("Ada"))
 
+check("a routine reminder opens Routines", NotificationCommands.destination(forNotificationId: "routine.morning.everyone.Brush teeth") == "routines")
+check("a timed chore reminder opens Chores", NotificationCommands.destination(forNotificationId: "chore.abc.2026-10-07") == "chores")
+check("the evening chore check-in opens Chores", NotificationCommands.destination(forNotificationId: "chores.today") == "chores")
+check("bedtime and nap checks open Sleep", NotificationCommands.destination(forNotificationId: "sleep.bedtime") == "sleep" && NotificationCommands.destination(forNotificationId: "sleep.nap.n1") == "sleep")
+check("a birthday reminder opens Celebrations", NotificationCommands.destination(forNotificationId: "birthday.b1.0") == "birthdays")
+check("an unknown id opens nothing", NotificationCommands.destination(forNotificationId: "homehub.action.failed.x") == nil)
+check("a name that merely starts with a page word opens nothing", NotificationCommands.destination(forNotificationId: "choresx.1") == nil)
+check("a tap reads the destination", NotificationCommands.destination(userInfo: ["destination": "chores"]) == "chores")
+check("an unknown destination is ignored", NotificationCommands.destination(userInfo: ["destination": "settings"]) == nil)
+check("no destination, nothing to open", NotificationCommands.destination(userInfo: ["kind": "chore"]) == nil)
+
 if failures > 0 { print("\n\(failures) failed"); exit(1) }
 print("\nall notification command checks passed")

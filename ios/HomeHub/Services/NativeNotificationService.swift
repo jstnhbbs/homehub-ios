@@ -301,6 +301,10 @@ final class NativeNotificationService: ObservableObject {
         content.sound = .default
         content.threadIdentifier = thread
         if let category { content.categoryIdentifier = category }
+        var userInfo = userInfo
+        if let destination = NotificationCommands.destination(forNotificationId: id) {
+            userInfo[NotificationCommands.destinationKey] = destination
+        }
         if !userInfo.isEmpty { content.userInfo = userInfo }
 
         return UNNotificationRequest(
@@ -376,6 +380,7 @@ private extension PlannedNotification {
             body: request.content.body,
             thread: request.content.threadIdentifier,
             category: request.content.categoryIdentifier,
+            destination: request.content.userInfo[NotificationCommands.destinationKey] as? String ?? "",
             trigger: [
                 components?.year, components?.month, components?.day, components?.hour, components?.minute,
             ]

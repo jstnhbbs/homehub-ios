@@ -79,6 +79,7 @@ final class AppState: ObservableObject {
 
     private var eventKitObserver: NSObjectProtocol?
     private var dataChangedObserver: NSObjectProtocol?
+    private var openDestinationObserver: NSObjectProtocol?
     private var eventKitRefreshTask: Task<Void, Never>?
     private var lastDeviceRefreshAt: Date?
     private var hubModulesSaveVersion = 0
@@ -104,6 +105,12 @@ final class AppState: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor in await self?.refreshDashboard() }
         }
+        // A tap on a notification opens the page it is about (Routines, Chores, Sleep, Celebrations).
+        openDestinationObserver = NotificationCenter.default.addObserver(
+            forName: .homeHubOpenDestination, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.openPendingNotificationDestination() }
+        }
         authObserver = auth.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }
@@ -117,6 +124,21 @@ final class AppState: ObservableObject {
         if let dataChangedObserver {
             NotificationCenter.default.removeObserver(dataChangedObserver)
         }
+        if let openDestinationObserver {
+            NotificationCenter.default.removeObserver(openDestinationObserver)
+        }
+    }
+
+    /// Goes to the page a tapped notification asked for, if the person is signed in and has that
+    /// page turned on. Also called after launch, for a tap that started the app.
+    func openPendingNotificationDestination() {
+        // Left in place until the person is signed in and their screens are loaded, so a tap that
+        // launched the app is not lost while the saved session is still being checked.
+        guard auth.isSignedIn, household != nil || dashboard != nil,
+              let raw = NotificationResponder.takePendingDestination(),
+              let destination = HubDestination(rawValue: raw),
+              destination.isVisible(in: hubModules) else { return }
+        selectedDestination = destination
     }
 
     var needsOnboarding: Bool {
@@ -191,9 +213,11 @@ final class AppState: ObservableObject {
         let hasCachedLaunchData = household != nil || dashboard != nil
         if hasCachedLaunchData {
             isBootstrapping = false
+            openPendingNotificationDestination()
         }
 
         await refreshHousehold()
+        openPendingNotificationDestination()
 
         if !hasCachedLaunchData {
             isBootstrapping = false

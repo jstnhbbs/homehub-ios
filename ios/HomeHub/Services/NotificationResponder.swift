@@ -5,6 +5,8 @@ extension Notification.Name {
     /// Posted after a button on a notification changed something on the server, so a running app
     /// refreshes what it shows.
     static let homeHubDataChanged = Notification.Name("homehub.dataChanged")
+    /// Posted when a notification was tapped; the object is the raw value of the page to open.
+    static let homeHubOpenDestination = Notification.Name("homehub.openDestination")
 }
 
 /// Handles the buttons on Beacon's notifications ("Done" on a chore reminder, "End Nap" on a nap
@@ -36,6 +38,11 @@ final class NotificationResponder: NSObject, UNUserNotificationCenterDelegate, @
             actionIdentifier: response.actionIdentifier,
             userInfo: response.notification.request.content.userInfo
         ) else {
+            // Not a button: the notification itself was tapped. Open the page it belongs to.
+            if response.actionIdentifier == UNNotificationDefaultActionIdentifier,
+               let destination = NotificationCommands.destination(userInfo: response.notification.request.content.userInfo) {
+                Self.requestOpen(destination)
+            }
             completionHandler()
             return
         }
@@ -46,6 +53,27 @@ final class NotificationResponder: NSObject, UNUserNotificationCenterDelegate, @
             await Self.perform(command)
             finish.call()
         }
+    }
+
+    // A tap that launches the app arrives before the app's screens exist, so the page is also kept
+    // here for `AppState` to collect once it is ready.
+    private static let pendingLock = NSLock()
+    private nonisolated(unsafe) static var pendingDestination: String?
+
+    private static func requestOpen(_ destination: String) {
+        pendingLock.lock()
+        pendingDestination = destination
+        pendingLock.unlock()
+        NotificationCenter.default.post(name: .homeHubOpenDestination, object: destination)
+    }
+
+    /// The page a tapped notification asked for that nobody has opened yet, which is then cleared.
+    static func takePendingDestination() -> String? {
+        pendingLock.lock()
+        defer { pendingLock.unlock() }
+        let destination = pendingDestination
+        pendingDestination = nil
+        return destination
     }
 
     @MainActor

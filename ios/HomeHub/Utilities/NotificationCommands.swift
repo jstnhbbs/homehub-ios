@@ -26,6 +26,32 @@ enum NotificationCommands {
         ["kind": "nap", "napId": napId, "name": name]
     }
 
+    /// The `userInfo` key that names the page a notification belongs to.
+    static let destinationKey = "destination"
+
+    /// Pages a tap may open: the raw values of the matching `HubDestination`s. Anything else in a
+    /// notification is ignored, so a stale or odd value can't send the app somewhere unexpected.
+    static let openableDestinations: Set<String> = ["routines", "chores", "sleep", "birthdays"]
+
+    /// The page a reminder belongs to, from the id the planner gave it (routine.*, chore.*,
+    /// chores.today, sleep.*, birthday.*), or nil for one that belongs to no page.
+    static func destination(forNotificationId id: String) -> String? {
+        let prefix = id.split(separator: ".", maxSplits: 1).first.map(String.init) ?? ""
+        switch prefix {
+        case "routine": return "routines"
+        case "chore", "chores": return "chores"
+        case "sleep": return "sleep"
+        case "birthday": return "birthdays"
+        default: return nil
+        }
+    }
+
+    /// The page to open when the notification itself is tapped, if it names one we know.
+    static func destination(userInfo: [AnyHashable: Any]) -> String? {
+        guard let value = userInfo[destinationKey] as? String, openableDestinations.contains(value) else { return nil }
+        return value
+    }
+
     /// The command a pressed button stands for, or nil when it is not one of ours (tapping the
     /// notification itself, dismissing it, or a notification from before it had buttons).
     static func command(actionIdentifier: String, userInfo: [AnyHashable: Any]) -> NotificationCommand? {
