@@ -7,6 +7,7 @@ struct ProfilePhotoUploadView: View {
 
     @EnvironmentObject private var appState: AppState
     @State private var selectedItem: PhotosPickerItem?
+    @State private var cropCandidate: PhotoCropCandidate?
     @State private var isWorking = false
     @State private var errorMessage: String?
 
@@ -66,21 +67,38 @@ struct ProfilePhotoUploadView: View {
         .onChange(of: selectedItem) { _, item in
             guard let item else { return }
             Task {
-                await uploadPhoto(from: item)
+                await prepareCrop(from: item)
                 selectedItem = nil
+            }
+        }
+        .fullScreenCover(item: $cropCandidate) { candidate in
+            PhotoCropView(image: candidate.image, shape: .circle) {
+                cropCandidate = nil
+            } onDone: { cropped in
+                cropCandidate = nil
+                Task { await uploadPhoto(cropped) }
             }
         }
     }
 
-    private func uploadPhoto(from item: PhotosPickerItem) async {
+    /// Loads the chosen photo and opens the crop screen for it.
+    private func prepareCrop(from item: PhotosPickerItem) async {
+        errorMessage = nil
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = ProfilePhotoHelpers.cropSource(from: data) else {
+            errorMessage = "Choose a JPEG, PNG, or WebP image under 5 MB."
+            return
+        }
+        cropCandidate = PhotoCropCandidate(image: image)
+    }
+
+    private func uploadPhoto(_ image: UIImage) async {
         isWorking = true
         errorMessage = nil
         defer { isWorking = false }
 
         do {
-            guard let data = try await item.loadTransferable(type: Data.self),
-                  let image = UIImage(data: data),
-                  let prepared = ProfilePhotoHelpers.prepareUploadData(from: image) else {
+            guard let prepared = ProfilePhotoHelpers.prepareUploadData(from: image) else {
                 errorMessage = "Choose a JPEG, PNG, or WebP image under 5 MB."
                 return
             }
