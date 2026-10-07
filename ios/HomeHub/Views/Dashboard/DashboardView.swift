@@ -515,7 +515,7 @@ private struct CompactNextUpPanel: View {
                 HStack(spacing: 12) {
                     Image(systemName: item.systemImage)
                         .font(.title3.weight(.bold))
-                        .foregroundStyle(HubTheme.sage)
+                        .foregroundStyle(HubTheme.accentText)
                         .frame(width: 38, height: 38)
                         .background(HubTheme.sage.opacity(0.14))
                         .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
@@ -523,7 +523,7 @@ private struct CompactNextUpPanel: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(item.eyebrow)
                             .font(.caption2.weight(.heavy))
-                            .foregroundStyle(HubTheme.sage)
+                            .foregroundStyle(HubTheme.accentText)
                         Text(item.title)
                             .font(.headline.weight(.bold))
                             .foregroundStyle(.primary)
@@ -644,7 +644,7 @@ private struct CompactMetric: View {
                 .lineLimit(1)
             if let progress {
                 ProgressView(value: min(max(progress, 0), 1))
-                    .tint(HubTheme.sage)
+                    .tint(HubTheme.accentText)
             }
         }
     }
@@ -730,7 +730,7 @@ private struct CompactTileShell<Content: View>: View {
         HStack(spacing: 6) {
             Image(systemName: card.systemImage)
                 .font(.caption.weight(.bold))
-                .foregroundStyle(HubTheme.sage)
+                .foregroundStyle(HubTheme.accentText)
             Text(card.compactTitle)
                 .font(.caption.weight(.heavy))
                 .foregroundStyle(HubTheme.muted)
@@ -842,7 +842,7 @@ private struct CompactScheduleSummary: View {
                                  ? "All day"
                                  : DateHelpers.timeString(event.startsAt, timezone: timezone))
                                 .font(.caption.weight(.heavy))
-                                .foregroundStyle(HubTheme.sage)
+                                .foregroundStyle(HubTheme.accentText)
                                 .monospacedDigit()
                                 .lineLimit(1)
                             Text(event.title)
@@ -978,7 +978,7 @@ private struct CompactCheckAction: View {
             HStack(spacing: 6) {
                 Image(systemName: isComplete ? "checkmark.circle.fill" : "circle")
                     .font(.subheadline.weight(.bold))
-                    .foregroundStyle(isComplete ? HubTheme.sage : HubTheme.muted)
+                    .foregroundStyle(isComplete ? HubTheme.accentText : HubTheme.muted)
                 Text(label)
                     .font(.caption.weight(.bold))
                     .foregroundStyle(isComplete ? HubTheme.muted : .primary)
@@ -1017,7 +1017,7 @@ private struct CompactMealSummary: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(slot.label.uppercased())
                     .font(.caption2.weight(.heavy))
-                    .foregroundStyle(HubTheme.sage)
+                    .foregroundStyle(HubTheme.accentText)
                 Text(meal?.title ?? "Not planned")
                     .font(.headline.weight(.bold))
                     .lineLimit(3)
@@ -1054,7 +1054,7 @@ private struct CompactSleepSummary: View {
                 if let profile = dashboard.profiles.first(where: { $0.id == active.profileId }) {
                     Text("\(profile.name) · \(active.kind == "night" ? "In bed" : "Napping")")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(HubTheme.sage)
+                        .foregroundStyle(HubTheme.accentText)
                         .lineLimit(1)
                 }
             }
@@ -1187,7 +1187,7 @@ private struct CompactGroupRowList: View {
                     if row.isComplete {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.caption2.weight(.bold))
-                            .foregroundStyle(HubTheme.sage)
+                            .foregroundStyle(HubTheme.accentText)
                     } else {
                         Text("\(row.completed)/\(row.total)")
                             .font(.caption2.weight(.bold))
@@ -1854,7 +1854,7 @@ private struct RoutineCompactRow: View {
                 if group.isComplete {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(HubTheme.sage)
+                        .foregroundStyle(HubTheme.accentText)
                 } else {
                     Text("\(group.completedCount)/\(group.totalCount)")
                         .font(.caption.weight(.bold))
@@ -1881,7 +1881,7 @@ private struct RoutineRingChip: View {
             if group.isComplete {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.caption2.weight(.bold))
-                    .foregroundStyle(HubTheme.sage)
+                    .foregroundStyle(HubTheme.accentText)
                     .frame(height: 13)
             } else {
                 Text("\(group.completedCount)/\(group.totalCount)")
@@ -2501,7 +2501,7 @@ private struct NoteRow: View {
         DashboardRow(title: note.title, subtitle: note.body.isEmpty ? nil : note.body) {
             Image(systemName: "note.text")
                 .font(.caption.weight(.bold))
-                .foregroundStyle(HubTheme.sage)
+                .foregroundStyle(HubTheme.accentText)
                 .frame(width: 28, height: 28)
                 .background(HubTheme.sage.opacity(0.12))
                 .clipShape(Circle())

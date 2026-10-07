@@ -99,7 +99,7 @@ struct TagPill: View {
             .font(.caption2.weight(.bold))
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .foregroundStyle(HubTheme.sage)
+            .foregroundStyle(HubTheme.accentText)
             .background(HubTheme.sage.opacity(0.12))
             .clipShape(Capsule())
     }

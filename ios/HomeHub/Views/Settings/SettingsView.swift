@@ -155,7 +155,7 @@ struct SettingsView: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
                         .background(HubTheme.sageSoft)
-                        .foregroundStyle(HubTheme.sage)
+                        .foregroundStyle(HubTheme.accentText)
                         .clipShape(Capsule())
                 }
             }
@@ -256,13 +256,13 @@ struct SettingsView: View {
             Text(error).font(.footnote).foregroundStyle(.red)
         }
         if let success = viewModel.successMessage {
-            Text(success).font(.footnote).foregroundStyle(HubTheme.sage)
+            Text(success).font(.footnote).foregroundStyle(HubTheme.accentText)
         }
         if let membersError = membersViewModel.errorMessage {
             Text(membersError).font(.footnote).foregroundStyle(.red)
         }
         if let membersSuccess = membersViewModel.successMessage {
-            Text(membersSuccess).font(.footnote).foregroundStyle(HubTheme.sage)
+            Text(membersSuccess).font(.footnote).foregroundStyle(HubTheme.accentText)
         }
     }
 
@@ -630,7 +630,7 @@ struct SettingsView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
                 .background(HubTheme.sageSoft)
-                .foregroundStyle(HubTheme.sage)
+                .foregroundStyle(HubTheme.accentText)
                 .clipShape(Capsule())
             }
             .disabled(membersViewModel.isWorking)
@@ -1009,7 +1009,7 @@ private struct PermissionAccessRow: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: systemImage)
                 .font(.headline.weight(.semibold))
-                .foregroundStyle(HubTheme.sage)
+                .foregroundStyle(HubTheme.accentText)
                 .frame(width: 34, height: 34)
                 .background(HubTheme.sageSoft, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                 .accessibilityHidden(true)
@@ -1071,7 +1071,7 @@ private enum DevicePermissionState {
 
     var foregroundStyle: Color {
         switch self {
-        case .allowed: HubTheme.sage
+        case .allowed: HubTheme.accentText
         case .notRequested: .orange
         case .denied, .restricted: .red
         case .unavailable: .secondary
@@ -1369,7 +1369,7 @@ private struct NativeNotificationsSettingView: View {
         case .authorized, .provisional, .ephemeral:
             Label("Notifications are enabled on this device.", systemImage: "checkmark.circle.fill")
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(HubTheme.sage)
+                .foregroundStyle(HubTheme.accentText)
         }
     }
 
@@ -1495,7 +1495,7 @@ private struct HubModulesSettingView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Label("Layout", systemImage: "rectangle.3.group")
                             .font(.title3.weight(.semibold))
-                            .foregroundStyle(HubTheme.sage)
+                            .foregroundStyle(HubTheme.accentText)
 
                         Text("Fine-tune what appears in Today, the sidebar, and Food. Your changes save automatically.")
                             .font(.footnote)
@@ -1542,7 +1542,7 @@ private struct HubModulesSettingView: View {
             HStack(spacing: 14) {
                 Image(systemName: section.systemImage)
                     .font(.headline.weight(.semibold))
-                    .foregroundStyle(HubTheme.sage)
+                    .foregroundStyle(HubTheme.accentText)
                     .frame(width: 34, height: 34)
                     .background(HubTheme.sageSoft)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -1950,7 +1950,7 @@ private struct LayoutOptionRow: View {
         HStack(spacing: 12) {
             Image(systemName: systemImage)
                 .font(.headline)
-                .foregroundStyle(HubTheme.sage)
+                .foregroundStyle(HubTheme.accentText)
                 .frame(width: 30, height: 30)
                 .background(HubTheme.sageSoft)
                 .clipShape(Circle())
@@ -1979,7 +1979,7 @@ private struct DashboardCardLayoutOptionRow: View {
         HStack(spacing: 12) {
             Image(systemName: systemImage)
                 .font(.headline)
-                .foregroundStyle(HubTheme.sage)
+                .foregroundStyle(HubTheme.accentText)
                 .frame(width: 30, height: 30)
                 .background(HubTheme.sageSoft)
                 .clipShape(Circle())

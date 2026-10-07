@@ -86,7 +86,7 @@ struct GroceriesView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "checklist")
                         .font(.title2)
-                        .foregroundStyle(HubTheme.sage)
+                        .foregroundStyle(HubTheme.accentText)
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Use your shared Reminders list")
                             .font(.headline)
@@ -112,7 +112,7 @@ struct GroceriesView: View {
                 HStack(spacing: 12) {
                     Label("Reminders list", systemImage: "list.bullet")
                         .font(.headline)
-                        .foregroundStyle(HubTheme.sage)
+                        .foregroundStyle(HubTheme.accentText)
                     if viewModel.canSelectReminderList {
                         Picker("Reminders list", selection: Binding(
                             get: { viewModel.selectedReminderListId },
@@ -193,7 +193,7 @@ struct GroceriesView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Label("Checked off", systemImage: "checkmark.circle.fill")
                     .font(.title3.weight(.semibold))
-                    .foregroundStyle(HubTheme.sage)
+                    .foregroundStyle(HubTheme.accentText)
 
                 if viewModel.checkedItems.isEmpty {
                     Text(viewModel.usesNativeReminders
@@ -245,7 +245,7 @@ private struct GroceryItemRow: View {
             HStack(spacing: 10) {
                 Image(systemName: item.checked ? "checkmark.circle.fill" : "circle")
                     .font(.title3.weight(.bold))
-                    .foregroundStyle(item.checked ? HubTheme.sage : HubTheme.muted)
+                    .foregroundStyle(item.checked ? HubTheme.accentText : HubTheme.muted)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.title)
                         .font((compact ? Font.subheadline : Font.body).weight(.semibold))

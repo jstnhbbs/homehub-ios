@@ -166,7 +166,7 @@ struct BirthdaysView: View {
                         VStack(spacing: 6) {
                             Text(BirthdayHelpers.monthShortTitle(index: month, timezone: viewModel.timezone))
                                 .font(.caption2.weight(.bold))
-                                .foregroundStyle(current ? HubTheme.sage : HubTheme.muted)
+                                .foregroundStyle(current ? HubTheme.accentText : HubTheme.muted)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.7)
                             ZStack {
@@ -214,7 +214,7 @@ struct BirthdaysView: View {
                 Spacer(minLength: 0)
                 Image(systemName: item.daysUntil == 0 ? "party.popper.fill" : item.kind.systemImage)
                     .font(.title2)
-                    .foregroundStyle(HubTheme.sage)
+                    .foregroundStyle(HubTheme.accentText)
             }
             .contentShape(Rectangle())
             .onTapGesture {
@@ -333,7 +333,7 @@ struct BirthdaysView: View {
                 Spacer()
                 Text(BirthdayHelpers.countdownLabel(daysUntil: item.daysUntil))
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(emphasize ? HubTheme.sage : HubTheme.muted)
+                    .foregroundStyle(emphasize ? HubTheme.accentText : HubTheme.muted)
                 if selects && viewModel.canEdit(item) {
                     Button {
                         editor = .edit(item)

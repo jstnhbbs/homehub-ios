@@ -87,7 +87,7 @@ struct MyProfileView: View {
         if let success = viewModel.successMessage {
             Section {
                 Label(success, systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(HubTheme.sage)
+                    .foregroundStyle(HubTheme.accentText)
             }
         }
     }

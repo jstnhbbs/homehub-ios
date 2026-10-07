@@ -22,7 +22,7 @@ struct VerifyEmailCard: View {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: "envelope.badge")
                     .font(.title3.weight(.bold))
-                    .foregroundStyle(HubTheme.sage)
+                    .foregroundStyle(HubTheme.accentText)
                     .frame(width: 34, height: 34)
                     .background(HubTheme.sage.opacity(0.14))
                     .clipShape(Circle())

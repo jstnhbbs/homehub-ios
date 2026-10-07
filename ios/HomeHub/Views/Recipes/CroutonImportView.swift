@@ -84,7 +84,7 @@ struct CroutonImportView: View {
             Label("Importing recipes", systemImage: "arrow.down.circle")
                 .font(.headline)
             ProgressView(value: Double(model.processed), total: Double(max(model.total, 1)))
-                .tint(HubTheme.sage)
+                .tint(HubTheme.accentText)
             HStack {
                 Text("\(model.processed) of \(model.total)")
                     .font(.subheadline.weight(.bold))
@@ -134,7 +134,7 @@ struct CroutonImportView: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                summaryRow("\(model.created) recipe\(model.created == 1 ? "" : "s") added", systemImage: "plus.circle.fill", tint: HubTheme.sage)
+                summaryRow("\(model.created) recipe\(model.created == 1 ? "" : "s") added", systemImage: "plus.circle.fill", tint: HubTheme.accentText)
                 if model.duplicates > 0 {
                     summaryRow("\(model.duplicates) already in Beacon, skipped", systemImage: "equal.circle", tint: HubTheme.muted)
                 }
@@ -203,7 +203,7 @@ struct CroutonImportView: View {
         } else {
             Label("Import finished", systemImage: "checkmark.circle.fill")
                 .font(.headline)
-                .foregroundStyle(HubTheme.sage)
+                .foregroundStyle(HubTheme.accentText)
         }
     }
 

@@ -23,7 +23,7 @@ struct RootView: View {
         .background(HubTheme.canvas)
         // Dragging any scrolling screen or sheet puts the keyboard away. Set once here, it reaches all of them.
         .scrollDismissesKeyboard(.interactively)
-        .tint(appState.accentPalette.accent)
+        .tint(appState.accentPalette.textColor)
         .overlay(alignment: .top) {
             if let notice = appState.notice {
                 NoticeBanner(message: notice) { appState.dismissNotice() }
@@ -56,7 +56,7 @@ private struct BeaconLoadingIndicator: View {
     var body: some View {
         ProgressView()
             .controlSize(.regular)
-            .tint(HubTheme.sage)
+            .tint(HubTheme.accentText)
             .frame(width: 44, height: 44)
     }
 }

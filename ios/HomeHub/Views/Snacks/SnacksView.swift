@@ -68,7 +68,7 @@ struct SnacksView: View {
                                 value: Double(viewModel.eaten.count),
                                 total: Double(max(viewModel.snackOptions.count, 1))
                             )
-                            .tint(HubTheme.sage)
+                            .tint(HubTheme.accentText)
                             Button {
                                 Task { await viewModel.resetChecklist() }
                             } label: {
@@ -146,7 +146,7 @@ struct SnacksView: View {
             Section {
                 Text(success)
                     .font(.footnote)
-                    .foregroundStyle(HubTheme.sage)
+                    .foregroundStyle(HubTheme.accentText)
             }
         }
     }
@@ -190,7 +190,7 @@ struct SnacksView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "plus.circle.fill")
                         .font(.title3)
-                        .foregroundStyle(HubTheme.sage)
+                        .foregroundStyle(HubTheme.accentText)
                     TextField("New snack", text: $viewModel.newSnackText)
                         .textInputAutocapitalization(.sentences)
                         .submitLabel(.done)
@@ -245,7 +245,7 @@ struct SnacksView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "pencil.circle.fill")
                         .font(.title3)
-                        .foregroundStyle(HubTheme.sage)
+                        .foregroundStyle(HubTheme.accentText)
                     TextField("Snack name", text: $viewModel.editDraft)
                         .textInputAutocapitalization(.sentences)
                         .submitLabel(.done)
@@ -316,7 +316,7 @@ private struct SnackCheckRow: View {
             HStack(spacing: 12) {
                 Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
-                    .foregroundStyle(isChecked ? HubTheme.sage : HubTheme.muted)
+                    .foregroundStyle(isChecked ? HubTheme.accentText : HubTheme.muted)
                 Text(label)
                     .font(.body.weight(.semibold))
                     .foregroundStyle(isChecked ? HubTheme.muted : .primary)

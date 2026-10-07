@@ -7,16 +7,18 @@ struct ProfileColorOption: Identifiable, Sendable {
 }
 
 enum ProfileColors {
+    /// The stored values are the original palette's hex colors (the server and the web settings
+    /// still know them), shown in the app as the theme colors named here (`HubTheme.profileColor`).
     static let options: [ProfileColorOption] = [
-        .init(value: "#d87861", label: "Coral"),
-        .init(value: "#6689a3", label: "Blue"),
-        .init(value: "#4f7c6d", label: "Sage"),
-        .init(value: "#b07aa1", label: "Plum"),
-        .init(value: "#d19b45", label: "Gold"),
-        .init(value: "#5f8f8b", label: "Teal"),
-        .init(value: "#8c7ca8", label: "Lavender"),
-        .init(value: "#b86f4d", label: "Terracotta"),
-        .init(value: "#7f8757", label: "Olive"),
+        .init(value: "#d87861", label: "Raspberry"),
+        .init(value: "#6689a3", label: "Azure"),
+        .init(value: "#4f7c6d", label: "Emerald"),
+        .init(value: "#b07aa1", label: "Blossom"),
+        .init(value: "#d19b45", label: "Sunflower"),
+        .init(value: "#5f8f8b", label: "Lagoon"),
+        .init(value: "#8c7ca8", label: "Orchid"),
+        .init(value: "#b86f4d", label: "Tangerine"),
+        .init(value: "#7f8757", label: "Rosewood"),
     ]
 
     /// The color an entry gets when nobody has chosen one: picked from the name so it stays the

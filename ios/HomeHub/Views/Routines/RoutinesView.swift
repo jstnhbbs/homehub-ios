@@ -215,7 +215,7 @@ private struct RoutineCard: View {
                             HStack(alignment: .firstTextBaseline, spacing: 6) {
                                 Image(systemName: "checkmark.circle.fill")
                                     .font(.caption)
-                                    .foregroundStyle(HubTheme.sage)
+                                    .foregroundStyle(HubTheme.accentText)
                                 Text(RoutineGlyphs.display(for: item.step.label).label)
                                     .font(.caption.weight(.bold))
                                 if let caption = item.caption {

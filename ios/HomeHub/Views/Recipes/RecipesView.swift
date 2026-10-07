@@ -47,7 +47,7 @@ struct RecipesView: View {
                             Text(error).font(.footnote).foregroundStyle(.red)
                         }
                         if let success = viewModel.successMessage {
-                            Text(success).font(.footnote.weight(.semibold)).foregroundStyle(HubTheme.sage)
+                            Text(success).font(.footnote.weight(.semibold)).foregroundStyle(HubTheme.accentText)
                         }
                         recipesGrid(columns: [GridItem(.flexible())])
                     }
@@ -73,7 +73,7 @@ struct RecipesView: View {
                     Text(error).font(.footnote).foregroundStyle(.red)
                 }
                 if let success = viewModel.successMessage {
-                    Text(success).font(.footnote.weight(.semibold)).foregroundStyle(HubTheme.sage)
+                    Text(success).font(.footnote.weight(.semibold)).foregroundStyle(HubTheme.accentText)
                 }
                 recipesGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16, alignment: .top)], opensSheet: true)
             }
@@ -89,7 +89,7 @@ struct RecipesView: View {
                         Text(error).font(.footnote).foregroundStyle(.red)
                     }
                     if let success = viewModel.successMessage {
-                        Text(success).font(.footnote.weight(.semibold)).foregroundStyle(HubTheme.sage)
+                        Text(success).font(.footnote.weight(.semibold)).foregroundStyle(HubTheme.accentText)
                     }
                     if viewModel.isLoading && viewModel.recipes.isEmpty {
                         ProgressView().frame(maxWidth: .infinity, minHeight: 240)
@@ -321,7 +321,7 @@ private struct RecipeSectionHeading: View {
     var body: some View {
         Text(text)
             .font(.subheadline.weight(.heavy))
-            .foregroundStyle(HubTheme.sage)
+            .foregroundStyle(HubTheme.accentText)
             .padding(.top, 10)
             .accessibilityAddTraits(.isHeader)
     }

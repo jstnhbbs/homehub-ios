@@ -81,7 +81,7 @@ struct MealPickerSheet: View {
                     if recipeId != nil {
                         Label("Linked to a saved recipe", systemImage: "book.closed")
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(HubTheme.sage)
+                            .foregroundStyle(HubTheme.accentText)
                     }
                 } header: {
                     Text("Meal")
@@ -156,7 +156,7 @@ struct MealPickerSheet: View {
             HStack(spacing: 10) {
                 Image(systemName: isRecipe ? "book.closed" : "fork.knife")
                     .font(.subheadline)
-                    .foregroundStyle(HubTheme.sage)
+                    .foregroundStyle(HubTheme.accentText)
                     .frame(width: 24)
                 Text(title)
                     .font(.body.weight(.semibold))

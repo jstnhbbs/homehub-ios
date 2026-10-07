@@ -90,7 +90,7 @@ struct DashboardCheckMarker: View {
     var body: some View {
         Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
             .font(.title3.weight(.bold))
-            .foregroundStyle(isChecked ? HubTheme.sage : HubTheme.muted)
+            .foregroundStyle(isChecked ? HubTheme.accentText : HubTheme.muted)
     }
 }
 

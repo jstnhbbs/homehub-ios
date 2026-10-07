@@ -137,7 +137,7 @@ struct CalendarView: View {
                     .background(HubTheme.sageSoft, in: Circle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(HubTheme.sage)
+            .foregroundStyle(HubTheme.accentText)
             .accessibilityLabel("Calendar Settings")
             .help("Calendar Settings")
 
@@ -169,7 +169,7 @@ struct CalendarView: View {
         } else if viewModel.needsNativeCalendarPermission {
             HStack(spacing: 10) {
                 Image(systemName: "calendar")
-                    .foregroundStyle(HubTheme.sage)
+                    .foregroundStyle(HubTheme.accentText)
                 Text("Use the calendars already on this device for a native schedule.")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(HubTheme.muted)

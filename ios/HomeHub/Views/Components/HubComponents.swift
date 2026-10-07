@@ -2,102 +2,67 @@ import SwiftUI
 import UIKit
 
 enum AccentPalette: String, CaseIterable, Identifiable, Sendable {
-    // The raw values are what is saved on the device and what names the alternate app icons and
-    // their previews, so they keep the names of the original, earthier palette (sage is now an
-    // emerald, ochre a sunflower). `label` is what people see.
+    // The raw values are what is saved on a device, so they keep the names of the original,
+    // earthier palette (sage is now Emerald, rose is Raspberry). `label` is what people see. A
+    // device that saved the removed Meadow ("forest") starts on the default.
     case sage
     case ocean
     case clay
     case plum
     case slate
-    case forest
+    case rosewood
     case teal
     case indigo
     case rose
     case ochre
 
     var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .sage: "Emerald"
-        case .ocean: "Azure"
-        case .clay: "Tangerine"
-        case .plum: "Blossom"
-        case .slate: "Slate"
-        case .forest: "Meadow"
-        case .teal: "Lagoon"
-        case .indigo: "Orchid"
-        case .rose: "Raspberry"
-        case .ochre: "Sunflower"
-        }
-    }
+    var label: String { AccentColorTable.labels[rawValue] ?? rawValue }
 
     var accent: Color { Color(uiColor: accentUIColor) }
     var soft: Color { Color(uiColor: softUIColor) }
-    /// Text and icons on a fill of this accent.
+    /// Text and icons on a fill of this accent: whichever of white and near-black reads better.
     var onAccent: Color { Color(uiColor: onAccentUIColor) }
-    var swatch: Color { Color(uiColor: darkAccent) }
+    /// The color where it is text or a small icon. Where the accent itself is too dim to read at
+    /// small sizes this is a lighter (or, in light mode, deeper) shade of it.
+    var textColor: Color { Color(uiColor: textUIColor) }
+    var swatch: Color { Color(uiColor: UIColor(AccentColorTable.fill(rawValue, dark: true))) }
     var swatchIcon: some View {
         Circle()
             .fill(swatch)
             .frame(width: 14, height: 14)
     }
 
-    /// The accent in light mode: deep enough that white text on it can be read.
-    private var lightAccent: UIColor {
-        switch self {
-        case .sage: UIColor(red: 0.09, green: 0.59, blue: 0.39, alpha: 1)
-        case .ocean: UIColor(red: 0.11, green: 0.48, blue: 0.77, alpha: 1)
-        case .clay: UIColor(red: 0.85, green: 0.42, blue: 0.07, alpha: 1)
-        case .plum: UIColor(red: 0.79, green: 0.21, blue: 0.54, alpha: 1)
-        case .slate: UIColor(red: 0.35, green: 0.42, blue: 0.51, alpha: 1)
-        case .forest: UIColor(red: 0.34, green: 0.61, blue: 0.11, alpha: 1)
-        case .teal: UIColor(red: 0.06, green: 0.58, blue: 0.55, alpha: 1)
-        case .indigo: UIColor(red: 0.52, green: 0.28, blue: 0.80, alpha: 1)
-        case .rose: UIColor(red: 0.83, green: 0.17, blue: 0.27, alpha: 1)
-        case .ochre: UIColor(red: 0.89, green: 0.69, blue: 0.07, alpha: 1)
-        }
-    }
-
-    /// The accent in dark mode: brighter, so it glows against the dark surfaces.
-    private var darkAccent: UIColor {
-        switch self {
-        case .sage: UIColor(red: 0.34, green: 0.82, blue: 0.63, alpha: 1)
-        case .ocean: UIColor(red: 0.40, green: 0.67, blue: 0.88, alpha: 1)
-        case .clay: UIColor(red: 0.89, green: 0.57, blue: 0.31, alpha: 1)
-        case .plum: UIColor(red: 0.87, green: 0.45, blue: 0.69, alpha: 1)
-        case .slate: UIColor(red: 0.58, green: 0.63, blue: 0.70, alpha: 1)
-        case .forest: UIColor(red: 0.50, green: 0.79, blue: 0.25, alpha: 1)
-        case .teal: UIColor(red: 0.25, green: 0.79, blue: 0.75, alpha: 1)
-        case .indigo: UIColor(red: 0.69, green: 0.51, blue: 0.89, alpha: 1)
-        case .rose: UIColor(red: 0.86, green: 0.38, blue: 0.45, alpha: 1)
-        case .ochre: UIColor(red: 0.88, green: 0.72, blue: 0.24, alpha: 1)
-        }
-    }
-
     private var accentUIColor: UIColor {
-        UIColor { [self] traits in
-            traits.userInterfaceStyle == .dark ? darkAccent : lightAccent
+        UIColor { [rawValue] traits in
+            UIColor(AccentColorTable.fill(rawValue, dark: traits.userInterfaceStyle == .dark))
+        }
+    }
+
+    private var textUIColor: UIColor {
+        UIColor { [rawValue] traits in
+            UIColor(AccentColorTable.text(rawValue, dark: traits.userInterfaceStyle == .dark))
         }
     }
 
     /// A tint of the accent for selected rows and highlights.
     private var softUIColor: UIColor {
-        UIColor { [self] traits in
-            traits.userInterfaceStyle == .dark
-                ? darkAccent.withAlphaComponent(0.22)
-                : lightAccent.withAlphaComponent(0.14)
+        UIColor { [rawValue] traits in
+            let dark = traits.userInterfaceStyle == .dark
+            return UIColor(AccentColorTable.fill(rawValue, dark: dark)).withAlphaComponent(dark ? 0.22 : 0.14)
         }
     }
 
     private var onAccentUIColor: UIColor {
-        UIColor { [self] traits in
-            let dark = traits.userInterfaceStyle == .dark
-            // The bright accents of dark mode, and yellow in either, want dark text, not white.
-            if dark || self == .ochre { return HubTheme.darkInk }
-            return .white
+        UIColor { [rawValue] traits in
+            UIColor(AccentColorTable.onFill(rawValue, dark: traits.userInterfaceStyle == .dark))
         }
+    }
+}
+
+extension UIColor {
+    convenience init(_ color: RGBColor) {
+        self.init(red: color.red, green: color.green, blue: color.blue, alpha: 1)
     }
 }
 
@@ -106,11 +71,14 @@ enum HubTheme {
 
     static var accent: Color { currentAccent.accent }
     static var sage: Color { accent }
+    /// The accent where it is text or a small icon (see `AccentPalette.textColor`). Use this, not
+    /// `accent`, for any text or icon drawn in the theme color; `accent` is for fills.
+    static var accentText: Color { currentAccent.textColor }
     static var selectionBackground: Color { currentAccent.soft }
     static var sageSoft: Color { selectionBackground }
 
-    /// Text and icons on an accent-colored fill: white in light mode, near-black on the brighter
-    /// accents of dark mode (and on yellow).
+    /// Text and icons on an accent-colored fill: white or near-black, whichever reads better on
+    /// that color in the current mode.
     static var onAccent: Color { currentAccent.onAccent }
 
     /// The same for fills that aren't the accent (the destructive coral, a red banner).
@@ -150,24 +118,24 @@ enum HubTheme {
     static let sectionTitle = Font.system(.title, design: .rounded).weight(.semibold)
 
     /// The colors people can give a profile are stored as the muted hex values of the original
-    /// palette (the server and the web settings still know them by those), and shown as the
-    /// livelier colors here. Anything else is shown as it is.
-    private static let vividProfileColors: [String: (Double, Double, Double)] = [
-        "#d87861": (0.85, 0.46, 0.39),  // Coral
-        "#6689a3": (0.38, 0.65, 0.86),  // Blue
-        "#4f7c6d": (0.22, 0.78, 0.57),  // Sage, now a clear green
-        "#b07aa1": (0.79, 0.45, 0.67),  // Plum
-        "#d19b45": (0.84, 0.65, 0.28),  // Gold
-        "#5f8f8b": (0.23, 0.69, 0.67),  // Teal
-        "#8c7ca8": (0.58, 0.48, 0.80),  // Lavender
-        "#b86f4d": (0.83, 0.49, 0.29),  // Terracotta, now orange
-        "#7f8757": (0.61, 0.73, 0.27),  // Olive, now a leafy green
+    /// palette (the server and the web settings still know them by those) and shown as the theme
+    /// colors here, so a person's dot matches the app. Anything else is shown as it is.
+    private static let personColors: [String: String] = [
+        "#d87861": "rose",      // Coral shows as Raspberry
+        "#6689a3": "ocean",     // Blue shows as Azure
+        "#4f7c6d": "sage",      // Sage shows as Emerald
+        "#b07aa1": "plum",      // Plum shows as Blossom
+        "#d19b45": "ochre",     // Gold shows as Sunflower
+        "#5f8f8b": "teal",      // Teal shows as Lagoon
+        "#8c7ca8": "indigo",    // Lavender shows as Orchid
+        "#b86f4d": "clay",      // Terracotta shows as Tangerine
+        "#7f8757": "rosewood",  // Olive shows as Rosewood
     ]
 
     static func profileColor(_ hex: String?) -> Color {
         guard let hex, hex.hasPrefix("#"), hex.count == 7 else { return accent }
-        if let vivid = vividProfileColors[hex.lowercased()] {
-            return Color(red: vivid.0, green: vivid.1, blue: vivid.2)
+        if let id = personColors[hex.lowercased()] {
+            return Color(uiColor: UIColor(AccentColorTable.fill(id, dark: true)))
         }
         let start = hex.index(hex.startIndex, offsetBy: 1)
         let r = Int(hex[start..<hex.index(start, offsetBy: 2)], radix: 16) ?? 79
@@ -176,17 +144,13 @@ enum HubTheme {
         return Color(red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255)
     }
 
-    /// White or near-black, whichever reads better on `color`: white while the fill is deep enough
-    /// for it (about 3:1, the bar for bold text), dark on the bright ones.
+    /// White or near-black, whichever has more contrast with `color`.
     static func readableText(on color: Color) -> Color {
         let ui = UIColor(color).resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))
         var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
         ui.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-        func linear(_ value: CGFloat) -> CGFloat {
-            value <= 0.03928 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
-        }
-        let luminance = 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
-        return luminance > 0.32 ? Color(darkInk) : .white
+        let text = ColorMath.readableText(on: RGBColor(red: Double(red), green: Double(green), blue: Double(blue)))
+        return text == ColorMath.white ? .white : Color(darkInk)
     }
 }
 
@@ -250,7 +214,7 @@ struct CardTitleView: View {
         HStack {
             Label(title, systemImage: systemImage)
                 .font(.title2.weight(.semibold))
-                .foregroundStyle(HubTheme.sage)
+                .foregroundStyle(HubTheme.accentText)
             Spacer()
             if showsArrow {
                 Image(systemName: "arrow.right")
@@ -293,7 +257,7 @@ struct CheckItemView: View {
                 HStack(spacing: 12) {
                     Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
                         .font(.title3)
-                        .foregroundStyle(isChecked ? HubTheme.sage : HubTheme.muted)
+                        .foregroundStyle(isChecked ? HubTheme.accentText : HubTheme.muted)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(label)
                             .font(.body.weight(.semibold))
@@ -362,7 +326,7 @@ struct WeatherHeaderReadout: View {
         HStack(spacing: 8) {
             Image(systemName: weather.symbolName)
                 .font(.title.weight(.semibold))
-                .foregroundStyle(HubTheme.sage)
+                .foregroundStyle(HubTheme.accentText)
 
             Text("\(weather.temperature)°")
                 .font(.system(.title, design: .rounded).weight(.bold))

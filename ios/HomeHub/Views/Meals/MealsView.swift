@@ -234,7 +234,7 @@ struct MealsView: View {
         if let success = viewModel.successMessage {
             Text(success)
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(HubTheme.sage)
+                .foregroundStyle(HubTheme.accentText)
                 .task(id: success) {
                     try? await Task.sleep(for: .seconds(3))
                     if viewModel.successMessage == success {
@@ -295,7 +295,7 @@ struct MealsView: View {
             if meal?.recipeId != nil {
                 Image(systemName: "book.closed")
                     .font(.caption)
-                    .foregroundStyle(HubTheme.sage)
+                    .foregroundStyle(HubTheme.accentText)
                     .padding(.top, 3)
             }
         }
@@ -319,7 +319,7 @@ struct MealsView: View {
                 } label: {
                     Label("Tomorrow", systemImage: "arrow.turn.down.right")
                 }
-                .tint(HubTheme.sage)
+                .tint(HubTheme.accentText)
             }
         }
     }
@@ -383,7 +383,7 @@ struct MealsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Label("Today", systemImage: "fork.knife")
                     .font(.title3.weight(.semibold))
-                    .foregroundStyle(HubTheme.sage)
+                    .foregroundStyle(HubTheme.accentText)
                 ForEach(MealSlot.planningSlots, id: \.self) { slot in
                     let ref = MealSlotRef(localDate: viewModel.todayString, slot: slot)
                     let meal = viewModel.meal(ref)
@@ -420,7 +420,7 @@ struct MealsView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Label("Still to plan", systemImage: "calendar.badge.plus")
                     .font(.title3.weight(.semibold))
-                    .foregroundStyle(HubTheme.sage)
+                    .foregroundStyle(HubTheme.accentText)
                 Text("\(plannedCount) of \(slotRefs.count) meals planned")
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(HubTheme.muted)
@@ -437,7 +437,7 @@ struct MealsView: View {
                         if open.isEmpty {
                             Label("All set", systemImage: "checkmark.circle.fill")
                                 .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(HubTheme.sage)
+                                .foregroundStyle(HubTheme.accentText)
                         } else {
                             TagFlowLayout(spacing: 6) {
                                 ForEach(open, id: \.1) { day, date in
@@ -467,7 +467,7 @@ struct MealsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Label("This week", systemImage: "cart")
                     .font(.title3.weight(.semibold))
-                    .foregroundStyle(HubTheme.sage)
+                    .foregroundStyle(HubTheme.accentText)
                 Button {
                     Task { await viewModel.prepareGroceryPreview() }
                 } label: {
@@ -531,7 +531,7 @@ struct MealsView: View {
             if meal?.recipeId != nil {
                 Image(systemName: "book.closed")
                     .font(.caption)
-                    .foregroundStyle(HubTheme.sage)
+                    .foregroundStyle(HubTheme.accentText)
             }
         }
         .padding(10)

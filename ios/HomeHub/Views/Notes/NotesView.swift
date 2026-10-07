@@ -160,7 +160,7 @@ private struct NotesPageRow: View {
             HStack(alignment: .center, spacing: 12) {
                 Image(systemName: note.pinned ? "pin.fill" : "note.text")
                     .font(.subheadline.weight(.bold))
-                    .foregroundStyle(HubTheme.sage)
+                    .foregroundStyle(HubTheme.accentText)
                     .frame(width: 30, height: 30)
                     .background(HubTheme.sage.opacity(0.12))
                     .clipShape(Circle())

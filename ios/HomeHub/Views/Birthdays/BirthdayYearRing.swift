@@ -114,7 +114,7 @@ struct BirthdayYearRing: View {
                     }
                     Text(BirthdayHelpers.countdownLabel(daysUntil: featured.daysUntil))
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(HubTheme.sage)
+                        .foregroundStyle(HubTheme.accentText)
                 } else {
                     Text("\(items.count)")
                         .font(.title2.weight(.semibold))

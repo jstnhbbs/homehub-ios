@@ -36,7 +36,7 @@ struct HubView: View {
                     }
                 }
                 .id(compactTabLayoutID)
-                .tint(HubTheme.sage)
+                .tint(HubTheme.accentText)
                 .background(HubTheme.surface)
                 .overlay {
                     if showMoreMenu {
@@ -185,7 +185,7 @@ struct HubView: View {
                         Spacer(minLength: 4)
                     }
                     .foregroundStyle(
-                        appState.selectedDestination == destination ? HubTheme.sage : .primary
+                        appState.selectedDestination == destination ? HubTheme.accentText : .primary
                     )
                     .padding(.horizontal, 14)
                     .padding(.vertical, 12)
@@ -327,7 +327,7 @@ struct HubNavView: View {
                                 .font(.caption2.weight(.bold))
                         }
                         .frame(maxWidth: .infinity, minHeight: 68)
-                        .foregroundStyle(moreIsSelected ? HubTheme.sage : HubTheme.muted)
+                        .foregroundStyle(moreIsSelected ? HubTheme.accentText : HubTheme.muted)
                         .background(moreIsSelected ? HubTheme.sageSoft : Color.clear)
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
@@ -361,7 +361,7 @@ struct HubNavView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 68)
             .foregroundStyle(
-                appState.selectedDestination == destination ? HubTheme.sage : HubTheme.muted
+                appState.selectedDestination == destination ? HubTheme.accentText : HubTheme.muted
             )
             .background(
                 appState.selectedDestination == destination

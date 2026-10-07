@@ -8,7 +8,7 @@ struct HomeHubApp: App {
         WindowGroup {
             RootView()
                 .environmentObject(appState)
-                .tint(appState.accentPalette.accent)
+                .tint(appState.accentPalette.textColor)
                 .task {
                     await appState.bootstrap()
                 }

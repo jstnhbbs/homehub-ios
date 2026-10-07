@@ -57,8 +57,29 @@ private struct ThemeColorMenu: View {
     }
 }
 
+/// The alternate app icons. They are drawn in the colors of the original, earthier palette and
+/// keep its names. They are separate from the theme colors (which have new colors and names) and
+/// will change when new icon art does.
+private enum AppIconOption: String, CaseIterable, Identifiable {
+    case sage, ocean, clay, plum, slate, forest, teal, indigo, rose, ochre
+
+    var id: String { rawValue }
+    var label: String { rawValue.capitalized }
+
+    var alternateAppIconName: String? {
+        self == .sage ? nil : "Beacon\(rawValue.capitalized)"
+    }
+
+    var previewAssetName: String { "AppIcon\(rawValue.capitalized)Preview" }
+
+    static var current: AppIconOption {
+        let currentName = UIApplication.shared.alternateIconName
+        return allCases.first { $0.alternateAppIconName == currentName } ?? .sage
+    }
+}
+
 private struct AppIconPickerLink: View {
-    @State private var selectedPalette = AccentPalette.currentAppIconPalette
+    @State private var selectedPalette = AppIconOption.current
 
     var body: some View {
         NavigationLink {
@@ -73,20 +94,20 @@ private struct AppIconPickerLink: View {
             }
         }
         .onAppear {
-            selectedPalette = .currentAppIconPalette
+            selectedPalette = .current
         }
     }
 }
 
 private struct AppIconPickerView: View {
-    @State private var selectedPalette = AccentPalette.currentAppIconPalette
-    @State private var changingTo: AccentPalette?
+    @State private var selectedPalette = AppIconOption.current
+    @State private var changingTo: AppIconOption?
     @State private var errorMessage: String?
 
     var body: some View {
         List {
             Section {
-                ForEach(AccentPalette.allCases) { palette in
+                ForEach(AppIconOption.allCases) { palette in
                     Button {
                         select(palette)
                     } label: {
@@ -101,7 +122,7 @@ private struct AppIconPickerView: View {
                             if selectedPalette == palette {
                                 Image(systemName: "checkmark")
                                     .font(.body.weight(.semibold))
-                                    .foregroundStyle(HubTheme.sage)
+                                    .foregroundStyle(HubTheme.accentText)
                             } else if changingTo == palette {
                                 ProgressView()
                             }
@@ -120,7 +141,7 @@ private struct AppIconPickerView: View {
         .navigationTitle("App Icon")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            selectedPalette = .currentAppIconPalette
+            selectedPalette = .current
         }
         .alert("Couldn’t Change App Icon", isPresented: errorIsPresented) {
             Button("OK", role: .cancel) {}
@@ -140,7 +161,7 @@ private struct AppIconPickerView: View {
         )
     }
 
-    private func select(_ palette: AccentPalette) {
+    private func select(_ palette: AppIconOption) {
         guard palette != selectedPalette else { return }
         guard UIApplication.shared.supportsAlternateIcons else {
             errorMessage = "Alternate app icons aren’t supported on this device."
@@ -162,11 +183,11 @@ private struct AppIconPickerView: View {
 }
 
 private struct AppIconPreview: View {
-    var palette: AccentPalette
+    var palette: AppIconOption
     var size: CGFloat
 
     var body: some View {
-        Image(palette.appIconPreviewAssetName)
+        Image(palette.previewAssetName)
             .resizable()
             .scaledToFit()
         .frame(width: size, height: size)
@@ -189,30 +210,5 @@ private extension AccentPalette {
             context.cgContext.setLineWidth(1)
             context.cgContext.strokeEllipse(in: rect)
         }.withRenderingMode(.alwaysOriginal)
-    }
-
-    var alternateAppIconName: String? {
-        switch self {
-        case .sage: nil
-        case .ocean: "BeaconOcean"
-        case .clay: "BeaconClay"
-        case .plum: "BeaconPlum"
-        case .slate: "BeaconSlate"
-        case .forest: "BeaconForest"
-        case .teal: "BeaconTeal"
-        case .indigo: "BeaconIndigo"
-        case .rose: "BeaconRose"
-        case .ochre: "BeaconOchre"
-        }
-    }
-
-    var appIconPreviewAssetName: String {
-        // Named for the palette's saved name, so renaming the colors didn't touch the art.
-        "AppIcon\(rawValue.capitalized)Preview"
-    }
-
-    static var currentAppIconPalette: AccentPalette {
-        let currentName = UIApplication.shared.alternateIconName
-        return allCases.first { $0.alternateAppIconName == currentName } ?? .sage
     }
 }
