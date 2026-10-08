@@ -65,6 +65,7 @@ struct BirthdaysView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(CelebrationNaming.current)
                         .font(HubTheme.pageTitle)
+                        .accessibilityAddTraits(.isHeader)
                 }
             } else {
                 Text(subtitle)
@@ -222,6 +223,9 @@ struct BirthdaysView: View {
                     editor = .edit(item)
                 }
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(viewModel.canEdit(item) ? .isButton : [])
+            .accessibilityHint(viewModel.canEdit(item) ? "Edit" : "")
         }
         // Gift ideas stay off-screen in v1; BirthdayItem.giftIdeas is already persisted.
     }

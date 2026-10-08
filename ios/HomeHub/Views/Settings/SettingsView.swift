@@ -32,6 +32,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Text("Settings")
                             .font(HubTheme.pageTitle)
+                            .accessibilityAddTraits(.isHeader)
                             .padding(.horizontal, 20)
                             .accessibilityAddTraits(.isHeader)
                         settingsContent

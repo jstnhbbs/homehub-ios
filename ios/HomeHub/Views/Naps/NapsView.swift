@@ -96,6 +96,8 @@ struct NapsView: View {
                     await createNightSleep(profileId: profileId, fellAsleepAt: fellAsleepAt, wokeUpAt: wokeUpAt)
                 }
             )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .sheet(item: $editingNap) { nap in
             SleepEntrySheet(
@@ -107,6 +109,8 @@ struct NapsView: View {
                 },
                 deleteAction: { await deleteNap(id: nap.id) }
             )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
     }
 
@@ -117,6 +121,7 @@ struct NapsView: View {
             if embeddedInHub && horizontalSizeClass != .compact {
                 Text("Sleep")
                     .font(HubTheme.pageTitle)
+                    .accessibilityAddTraits(.isHeader)
             }
             Spacer()
             Button {
@@ -183,16 +188,20 @@ struct NapsView: View {
                     HStack(spacing: 8) {
                         Button { shiftPatternDate(payload: payload, delta: -1) } label: {
                             Image(systemName: "chevron.left")
+                                .minimumTapTarget()
                         }
                         .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
+                        .accessibilityLabel("Previous Day")
                         .disabled(selectedIndex <= 0)
                         Button("Today") { selectedPatternDate = payload.localDate }
                             .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
                             .disabled(selectedDate == payload.localDate)
                         Button { shiftPatternDate(payload: payload, delta: 1) } label: {
                             Image(systemName: "chevron.right")
+                                .minimumTapTarget()
                         }
                         .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
+                        .accessibilityLabel("Next Day")
                         .disabled(selectedIndex >= payload.weekDates.count - 1)
                     }
                 }
@@ -288,6 +297,7 @@ struct NapsView: View {
                             .onTapGesture {
                                 editingNap = profileDayLogs.first { $0.id == bar.napId }
                             }
+                            .accessibleButton("\(profile.name), \(bar.durationLabel) of sleep", hint: "Edit this entry")
                             .padding(.leading, frame.x)
                     }
 

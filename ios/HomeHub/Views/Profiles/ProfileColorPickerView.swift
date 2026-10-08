@@ -24,9 +24,11 @@ struct ProfileColorPickerView: View {
                                         .foregroundStyle(HubTheme.readableText(on: HubTheme.profileColor(option.value)))
                                 }
                             }
+                            .minimumTapTarget()
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(option.label)
+                    .accessibilityAddTraits(selectedColor == option.value ? .isSelected : [])
                 }
             }
         }

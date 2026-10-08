@@ -45,6 +45,8 @@ struct NotesView: View {
             } onDelete: {
                 await delete(note)
             }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
     }
 
@@ -53,6 +55,7 @@ struct NotesView: View {
             if horizontalSizeClass != .compact {
                 Text("Notes")
                     .font(HubTheme.pageTitle)
+                    .accessibilityAddTraits(.isHeader)
             }
             Text("Household Scratchpad")
                 .font(.subheadline.weight(.bold))
@@ -77,7 +80,9 @@ struct NotesView: View {
                 Image(systemName: isSaving ? "hourglass" : "plus")
                     .font(.headline.weight(.bold))
                     .frame(width: 42, height: 42)
+                    .minimumTapTarget()
             }
+            .accessibilityLabel("Add Note")
             .buttonStyle(.plain)
             .foregroundStyle(HubTheme.onAccent)
             .background(HubTheme.sage)
@@ -185,7 +190,9 @@ private struct NotesPageRow: View {
                         Image(systemName: isDeleting ? "hourglass" : "trash")
                             .font(.subheadline.weight(.bold))
                             .frame(width: 36, height: 36)
+                            .minimumTapTarget()
                     }
+                    .accessibilityLabel("Delete Note")
                     .buttonStyle(.plain)
                     .foregroundStyle(HubTheme.muted)
                     .disabled(isDeleting)

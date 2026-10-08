@@ -61,6 +61,7 @@ struct GroceriesView: View {
                 if horizontalSizeClass != .compact {
                     Text("Groceries")
                         .font(HubTheme.pageTitle)
+                        .accessibilityAddTraits(.isHeader)
                 }
                 Text(viewModel.usesNativeReminders ? "Writing to Reminders" : "Using Beacon list")
                     .font(.subheadline.weight(.bold))
@@ -246,6 +247,7 @@ private struct GroceryItemRow: View {
                 Image(systemName: item.checked ? "checkmark.circle.fill" : "circle")
                     .font(.title3.weight(.bold))
                     .foregroundStyle(item.checked ? HubTheme.accentText : HubTheme.muted)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.title)
                         .font((compact ? Font.subheadline : Font.body).weight(.semibold))
@@ -266,6 +268,8 @@ private struct GroceryItemRow: View {
         }
         .buttonStyle(.plain)
         .disabled(isWorking)
+        .accessibilityValue(item.checked ? "Checked off" : "Not checked off")
+        .accessibilityAddTraits(.isToggle)
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 Task { await onDelete() }

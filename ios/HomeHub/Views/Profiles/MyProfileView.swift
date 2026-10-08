@@ -57,6 +57,8 @@ struct MyProfileView: View {
             .sheet(isPresented: $showDeleteAccount) {
                 DeleteAccountSheet()
                     .environmentObject(appState)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
         }
         .onAppear {
@@ -73,6 +75,7 @@ struct MyProfileView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Profile")
                 .font(HubTheme.pageTitle)
+                .accessibilityAddTraits(.isHeader)
         }
     }
 

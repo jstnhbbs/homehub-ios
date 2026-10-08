@@ -91,6 +91,9 @@ struct DashboardCheckMarker: View {
         Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
             .font(.title3.weight(.bold))
             .foregroundStyle(isChecked ? HubTheme.accentText : HubTheme.muted)
+            // The row's button says whether it is done; the picture would only be read aloud as
+            // "checkmark circle fill".
+            .accessibilityHidden(true)
     }
 }
 

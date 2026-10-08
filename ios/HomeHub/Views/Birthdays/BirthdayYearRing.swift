@@ -88,7 +88,7 @@ struct BirthdayYearRing: View {
                             .offset(x: 10, y: 10)
                     }
                 }
-                .contentShape(Circle())
+                .minimumTapTarget()
                 .onTapGesture {
                     // Tapping a crowded spot steps through everyone at it.
                     if let featured, let at = mark.memberIds.firstIndex(of: featured.id), mark.memberIds.count > 1 {

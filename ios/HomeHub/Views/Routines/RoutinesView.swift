@@ -83,6 +83,7 @@ struct RoutinesView: View {
             if horizontalSizeClass != .compact {
                 Text("Routines")
                     .font(HubTheme.pageTitle)
+                    .accessibilityAddTraits(.isHeader)
             }
             Spacer()
             if viewModel.canManage {

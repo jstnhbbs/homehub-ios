@@ -29,6 +29,8 @@ struct ChoresView: View {
                 profiles: viewModel.profiles,
                 viewModel: viewModel
             )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .onAppear { viewModel.bind(to: appState) }
         .task { await viewModel.load() }
@@ -70,6 +72,7 @@ struct ChoresView: View {
             if horizontalSizeClass != .compact {
                 Text("Chore Chart")
                     .font(HubTheme.pageTitle)
+                    .accessibilityAddTraits(.isHeader)
             }
             Spacer()
             if viewModel.canManage {

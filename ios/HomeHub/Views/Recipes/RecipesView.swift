@@ -196,6 +196,7 @@ struct RecipesView: View {
                 if horizontalSizeClass != .compact {
                     Text("Recipes")
                         .font(HubTheme.pageTitle)
+                        .accessibilityAddTraits(.isHeader)
                 }
                 Spacer()
                 if viewModel.canManage {

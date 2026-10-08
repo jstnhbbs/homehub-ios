@@ -995,6 +995,8 @@ private struct CompactCheckAction: View {
         .buttonStyle(.plain)
         .disabled(!enabled || isWorking || isComplete)
         .opacity(enabled ? 1 : 0.55)
+        .accessibilityValue(isComplete ? "Done" : "Not done")
+        .accessibilityAddTraits(.isToggle)
     }
 }
 
@@ -1236,8 +1238,10 @@ private struct CompactNotesSummary: View {
                     Image(systemName: isSaving ? "hourglass" : "plus")
                         .font(.caption.weight(.bold))
                         .frame(width: 26, height: 26)
+                        .minimumTapTarget()
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Add Note")
                 .foregroundStyle(HubTheme.onAccent)
                 .background(HubTheme.sage)
                 .clipShape(Circle())
@@ -2413,8 +2417,10 @@ private struct NotesDashboardPanel: View {
                     Image(systemName: isSaving ? "hourglass" : "plus")
                         .font(.headline.weight(.bold))
                         .frame(width: 38, height: 38)
+                        .minimumTapTarget()
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Add Note")
                 .foregroundStyle(HubTheme.onAccent)
                 .background(HubTheme.sage)
                 .clipShape(Circle())
@@ -2515,6 +2521,7 @@ private struct NoteRow: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(HubTheme.muted)
                 .disabled(isDeleting)
+                .accessibilityLabel("Delete Note")
             }
         }
     }
@@ -2633,6 +2640,8 @@ private struct ChoreCheckRow: View {
             }
             .buttonStyle(.plain)
             .disabled(isWorking)
+            .accessibilityValue(isChecked ? "Done" : "Not done")
+            .accessibilityAddTraits(.isToggle)
         }
     }
 
@@ -2722,6 +2731,8 @@ private struct SnackCheckRow: View {
         }
         .buttonStyle(.plain)
         .disabled(isWorking)
+        .accessibilityValue(isChecked ? "Eaten" : "Not eaten")
+        .accessibilityAddTraits(.isToggle)
         .onChange(of: isEaten) { _, eaten in
             isChecked = eaten
         }
@@ -2764,6 +2775,8 @@ private struct DashboardGroceryItemRow: View {
             }
             .buttonStyle(.plain)
             .disabled(isWorking || !appState.canManageHousehold)
+            .accessibilityValue(isChecked ? "Checked off" : "Not checked off")
+            .accessibilityAddTraits(.isToggle)
         }
     }
 

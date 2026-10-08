@@ -121,6 +121,7 @@ struct CalendarView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Family Calendar")
                 .font(HubTheme.pageTitle)
+                .accessibilityAddTraits(.isHeader)
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
         }
@@ -262,6 +263,7 @@ struct CalendarView: View {
                     .frame(width: 28, height: 20)
             }
             .buttonStyle(HubButtonStyle(emphasis: .secondary))
+            .accessibilityLabel("Previous \(viewModel.viewMode.label)")
 
             Button("Today") { viewModel.goToToday() }
                 .buttonStyle(HubButtonStyle(emphasis: .secondary))
@@ -275,6 +277,7 @@ struct CalendarView: View {
                     .frame(width: 28, height: 20)
             }
             .buttonStyle(HubButtonStyle(emphasis: .secondary))
+            .accessibilityLabel("Next \(viewModel.viewMode.label)")
         }
     }
 
@@ -478,10 +481,12 @@ private struct CalendarDayCell: View {
                             Circle().stroke(HubTheme.sage, lineWidth: 2)
                         }
                     }
+                    .minimumTapTarget()
 
             }
             .buttonStyle(.plain)
             .accessibilityLabel(CalendarHelpers.agendaTitle(localDate, timezone: timezone))
+            .accessibilityAddTraits(isToday ? .isSelected : [])
 
             if showsEventLabels {
                 VStack(alignment: .leading, spacing: 2) {

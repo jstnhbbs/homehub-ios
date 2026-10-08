@@ -177,8 +177,10 @@ struct CalendarSettingsView: View {
                 } label: {
                     Image(systemName: "minus")
                         .frame(width: 28, height: 28)
+                        .minimumTapTarget()
                 }
                 .buttonStyle(.bordered)
+                .accessibilityLabel("Decrease Font Size")
                 .disabled(useSystemAgendaFont || agendaFontSize <= agendaFontRange.lowerBound)
 
                 Button {
@@ -186,8 +188,10 @@ struct CalendarSettingsView: View {
                 } label: {
                     Image(systemName: "plus")
                         .frame(width: 28, height: 28)
+                        .minimumTapTarget()
                 }
                 .buttonStyle(.bordered)
+                .accessibilityLabel("Increase Font Size")
                 .disabled(useSystemAgendaFont || agendaFontSize >= agendaFontRange.upperBound)
             }
 

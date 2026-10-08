@@ -56,6 +56,7 @@ struct SnacksView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Today's Snacks")
                             .font(HubTheme.sectionTitle)
+                            .accessibilityAddTraits(.isHeader)
                         if !viewModel.dateLabel.isEmpty {
                             Text(viewModel.dateLabel)
                                 .font(.subheadline.weight(.bold))
@@ -124,6 +125,7 @@ struct SnacksView: View {
                     if horizontalSizeClass != .compact {
                         Text("Today's Snacks")
                             .font(HubTheme.sectionTitle)
+                            .accessibilityAddTraits(.isHeader)
                     }
                     if !viewModel.dateLabel.isEmpty {
                         Text(viewModel.dateLabel)
@@ -377,6 +379,7 @@ private struct SnackCheckRow: View {
                 Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
                     .foregroundStyle(isChecked ? HubTheme.accentText : HubTheme.muted)
+                    .accessibilityHidden(true)
                 Text(label)
                     .font(.body.weight(.semibold))
                     .foregroundStyle(isChecked ? HubTheme.muted : .primary)
@@ -386,6 +389,8 @@ private struct SnackCheckRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityValue(isChecked ? "Eaten" : "Not eaten")
+        .accessibilityAddTraits(.isToggle)
         .onChange(of: isEaten) { _, eaten in
             isChecked = eaten
         }

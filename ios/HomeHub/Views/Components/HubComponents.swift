@@ -309,6 +309,7 @@ struct CheckItemView: View {
                     Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
                         .font(.title3)
                         .foregroundStyle(isChecked ? HubTheme.accentText : HubTheme.muted)
+                        .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(label)
                             .font(.body.weight(.semibold))
@@ -332,6 +333,8 @@ struct CheckItemView: View {
             }
             .buttonStyle(.plain)
             .disabled(isWorking)
+            .accessibilityValue(isChecked ? "Done" : "Not done")
+            .accessibilityAddTraits(.isToggle)
         }
     }
 }
@@ -417,6 +420,7 @@ struct LiveClockView: View {
         TimelineView(.everyMinute) { context in
             Text(DateHelpers.timeString(context.date, timezone: timezone))
                 .font(HubTheme.pageTitle)
+                .accessibilityAddTraits(.isHeader)
                 .monospacedDigit()
         }
     }

@@ -142,6 +142,7 @@ struct MealsView: View {
         if horizontalSizeClass != .compact {
             Text("Weekly Plan")
                 .font(HubTheme.pageTitle)
+                .accessibilityAddTraits(.isHeader)
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
         }
@@ -221,6 +222,7 @@ struct MealsView: View {
                 .frame(width: 36, height: 36)
                 .background(HubTheme.tileQuiet)
                 .clipShape(Circle())
+                .minimumTapTarget()
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
@@ -410,6 +412,9 @@ struct MealsView: View {
                     .onTapGesture {
                         if viewModel.canManage { pickerTarget = ref }
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityAddTraits(viewModel.canManage ? .isButton : [])
+                    .accessibilityHint(viewModel.canManage ? (meal == nil ? "Add a meal" : "Change this meal") : "")
                 }
             }
         }
