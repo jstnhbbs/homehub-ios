@@ -173,10 +173,10 @@ enum DashboardCardId: String, Codable, Sendable, CaseIterable, Hashable, Identif
     var label: String {
         switch self {
         case .weather: "Weather"
-        case .schedule: "Today's Schedule"
-        case .routines: "Today's Routines"
+        case .schedule: "Schedule"
+        case .routines: "Routines"
         case .chores: "Chores"
-        case .meals: "Today's Meals"
+        case .meals: "Meals"
         case .snacks: "Snacks"
         case .sleep: "Sleep"
         case .groceries: "Groceries"

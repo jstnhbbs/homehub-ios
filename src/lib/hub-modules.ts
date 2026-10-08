@@ -135,10 +135,10 @@ export const HUB_MODULE_LABELS: Record<HubModuleId, string> = {
 
 export const DASHBOARD_CARD_LABELS: Record<DashboardCardId, string> = {
   weather: "Weather",
-  schedule: "Today's Schedule",
-  routines: "Today's Routines",
+  schedule: "Schedule",
+  routines: "Routines",
   chores: "Chores",
-  meals: "Today's Meals",
+  meals: "Meals",
   snacks: "Snacks",
   sleep: "Sleep",
   groceries: "Groceries",
