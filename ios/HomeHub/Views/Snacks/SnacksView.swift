@@ -35,6 +35,7 @@ struct SnacksView: View {
                     perChildSection
                 }
                 .listStyle(.insetGrouped)
+                .listAlignedWithPage()
                 .scrollContentBackground(.hidden)
             }
         }

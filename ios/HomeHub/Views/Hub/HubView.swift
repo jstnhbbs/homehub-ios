@@ -181,6 +181,8 @@ struct HubView: View {
                             .frame(width: 20)
                         Text(destination.label)
                             .font(.body.weight(.semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                         Spacer(minLength: 4)
                     }
                     .foregroundStyle(
@@ -217,7 +219,9 @@ struct HubView: View {
         let tabWidth = proxy.size.width / max(tabCount, 1)
         let safeBottom = proxy.safeAreaInsets.bottom
         let tabBarHeight = safeBottom + 49
-        let menuWidth = min(188, max(156, tabWidth + 86))
+        // Wide enough for the longest name ("Celebrations") at the reader's text size, which a fixed
+        // width broke mid-word; it still never goes past the screen's edge.
+        let menuWidth = min(proxy.size.width - 16, max(DashboardMetrics.scaled(188, .body), min(188, max(156, tabWidth + 86))))
         let trailingInset = max(8, (tabWidth - menuWidth) / 2)
         return (menuWidth, trailingInset, max(10, tabBarHeight - 4), tabBarHeight)
     }

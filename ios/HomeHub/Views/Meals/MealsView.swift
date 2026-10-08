@@ -268,6 +268,7 @@ struct MealsView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .listAlignedWithPage()
             .scrollContentBackground(.hidden)
             .hubPageBackground()
             .refreshable { await viewModel.load(refreshRecipes: true) }

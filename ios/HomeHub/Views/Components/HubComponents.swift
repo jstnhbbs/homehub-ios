@@ -204,6 +204,27 @@ extension View {
     }
 }
 
+/// Lines a grouped list's cards up with the page's own side margin. A grouped list adds a margin of
+/// its own, which stacks on the page's (16pt on iPhone, 24pt on iPad) and left its cards narrower
+/// than every other page's. The list is widened over the page's padding and given the same margin
+/// back, so the cards keep their rounded corners and sit exactly where other pages' cards do.
+private struct ListAlignedWithPage: ViewModifier {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    func body(content: Content) -> some View {
+        let margin: CGFloat = horizontalSizeClass == .compact ? 16 : 24
+        content
+            .contentMargins(.horizontal, margin, for: .scrollContent)
+            .padding(.horizontal, -margin)
+    }
+}
+
+extension View {
+    func listAlignedWithPage() -> some View {
+        modifier(ListAlignedWithPage())
+    }
+}
+
 struct HubCard<Content: View>: View {
     @ViewBuilder var content: () -> Content
 
