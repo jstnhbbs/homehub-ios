@@ -265,6 +265,8 @@ struct CalendarView: View {
 
             Button("Today") { viewModel.goToToday() }
                 .buttonStyle(HubButtonStyle(emphasis: .secondary))
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
 
             Button {
                 viewModel.goNext()
@@ -347,7 +349,7 @@ private struct CalendarEventDetailsView: View {
                         value: formattedDate(
                             event.allDay ? event.endsAt.addingTimeInterval(-1) : event.endsAt))
                     LabeledContent(
-                        "Timezone",
+                        "Time Zone",
                         value: timezone.identifier.replacingOccurrences(of: "_", with: " "))
                 }
                 if let location = event.location,

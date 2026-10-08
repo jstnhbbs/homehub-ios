@@ -282,7 +282,7 @@ private struct RecipeCard: View {
                         if let totalTime = recipe.totalTime {
                             Text(totalTime).font(.caption2.weight(.bold)).foregroundStyle(HubTheme.muted)
                         }
-                        Text("\(RecipeLines.items(recipe.ingredients).count) ingredients")
+                        Text(RecipeLines.ingredientCountLabel(recipe.ingredients))
                             .font(.caption2.weight(.bold))
                             .foregroundStyle(HubTheme.muted)
                     }

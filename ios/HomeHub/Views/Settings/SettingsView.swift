@@ -538,7 +538,7 @@ struct SettingsView: View {
     private func householdSection(_ household: Household) -> some View {
         Section("Household") {
             LabeledContent("Name", value: household.name)
-            LabeledContent("Timezone", value: household.timezone)
+            LabeledContent("Time Zone", value: household.timezone)
             LabeledContent("Your Role", value: HouseholdRoles.roleLabel(household.role))
         }
     }
@@ -1616,7 +1616,7 @@ private struct HubModulesSettingView: View {
 
     private var foodTabsSection: some View {
         layoutSection(
-            description: "Weekly meals stays inside Food. Snacks and Recipes can be hidden.",
+            description: "Weekly Plan stays inside Food. Snacks and Recipes can be hidden.",
             items: HubModules.foodModules,
             isEnabled: { modules.isEnabled($0) },
             label: { $0.label },

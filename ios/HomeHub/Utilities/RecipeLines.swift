@@ -14,6 +14,12 @@ enum RecipeLine: Equatable, Sendable {
 enum RecipeLines {
     static let headingPrefix = "## "
 
+    /// "1 ingredient", "18 ingredients" for a recipe card, counting items and not section headings.
+    static func ingredientCountLabel(_ ingredients: [String]) -> String {
+        let count = items(ingredients).count
+        return count == 1 ? "1 ingredient" : "\(count) ingredients"
+    }
+
     static func isHeading(_ line: String) -> Bool {
         line.hasPrefix(headingPrefix)
     }

@@ -19,10 +19,10 @@ enum ChoreReminderPlanner {
 
     static func leadLabel(_ minutes: Int) -> String {
         switch minutes {
-        case ..<1: "At the time"
-        case 60: "1 hour before"
-        case let value where value > 60 && value % 60 == 0: "\(value / 60) hours before"
-        default: "\(minutes) minutes before"
+        case ..<1: "At the Time"
+        case 60: "1 Hour Before"
+        case let value where value > 60 && value % 60 == 0: "\(value / 60) Hours Before"
+        default: "\(minutes) Minutes Before"
         }
     }
 

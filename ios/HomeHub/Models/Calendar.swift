@@ -105,12 +105,12 @@ enum NativeAlertOffset: Int, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .none: "None"
-        case .atTime: "At time"
-        case .fiveMinutes: "5 minutes before"
-        case .fifteenMinutes: "15 minutes before"
-        case .thirtyMinutes: "30 minutes before"
-        case .oneHour: "1 hour before"
-        case .oneDay: "1 day before"
+        case .atTime: "At Time"
+        case .fiveMinutes: "5 Minutes Before"
+        case .fifteenMinutes: "15 Minutes Before"
+        case .thirtyMinutes: "30 Minutes Before"
+        case .oneHour: "1 Hour Before"
+        case .oneDay: "1 Day Before"
         }
     }
 }

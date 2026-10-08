@@ -202,7 +202,7 @@ struct BirthdaysView: View {
             HStack(alignment: .center, spacing: 16) {
                 BirthdayCountdownBadge(days: item.daysUntil, color: item.color)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(item.daysUntil == 0 ? "Today" : "Next \(item.kind.noun)")
+                    Text(item.daysUntil == 0 ? "Today" : "Next \(item.kind.capitalizedNoun)")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(HubTheme.muted)
                     Text(item.name)
@@ -426,7 +426,7 @@ private struct BirthdayEditorSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                    Button("Cancel") { dismiss() }
                 }
             }
         }
@@ -435,7 +435,7 @@ private struct BirthdayEditorSheet: View {
     private var title: String {
         switch editor {
         case .add: "Add to \(CelebrationNaming.current)"
-        case .edit(let item): "Edit \(item.kind.noun)"
+        case .edit(let item): "Edit \(item.kind.capitalizedNoun)"
         }
     }
 }
@@ -631,7 +631,7 @@ private struct BirthdayFormView: View {
 
     private var actions: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Button(editorIsAdd ? "Add \(kind.noun)" : "Save \(kind.noun)") {
+            Button(editorIsAdd ? "Add \(kind.capitalizedNoun)" : "Save \(kind.capitalizedNoun)") {
                 Task { await save() }
             }
             .buttonStyle(HubButtonStyle(emphasis: .primary))

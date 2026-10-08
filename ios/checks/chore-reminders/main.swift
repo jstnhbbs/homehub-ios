@@ -65,7 +65,7 @@ check("a time stays the same on the clock across a clock change", summary(dst), 
 
 // Labels
 check("labels", ChoreReminderPlanner.leadChoices.map(ChoreReminderPlanner.leadLabel).joined(separator: " | "),
-      "At the time | 5 minutes before | 10 minutes before | 15 minutes before | 30 minutes before | 1 hour before | 2 hours before")
+      "At the Time | 5 Minutes Before | 10 Minutes Before | 15 Minutes Before | 30 Minutes Before | 1 Hour Before | 2 Hours Before")
 
 if failures > 0 { print("\n\(failures) failed"); exit(1) }
 print("\nall chore reminder checks passed")
