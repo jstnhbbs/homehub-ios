@@ -60,6 +60,11 @@ enum CelebrationNaming {
         title(hasAnniversaries: hasAnniversaries())
     }
 
+    /// "Celebration" or "Birthday", for a button that adds one.
+    static var currentSingular: String {
+        hasAnniversaries() ? "Celebration" : "Birthday"
+    }
+
     static var currentRemindersTitle: String {
         remindersTitle(hasAnniversaries: hasAnniversaries())
     }

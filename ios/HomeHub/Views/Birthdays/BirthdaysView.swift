@@ -76,7 +76,7 @@ struct BirthdaysView: View {
                 Button {
                     editor = .add
                 } label: {
-                    Label("Add", systemImage: "plus")
+                    Label("Add \(CelebrationNaming.currentSingular)", systemImage: "plus")
                 }
                 .buttonStyle(HubButtonStyle(emphasis: .primary))
             }
@@ -249,7 +249,7 @@ struct BirthdaysView: View {
     private var wideList: some View {
         VStack(alignment: .leading, spacing: 16) {
             if !viewModel.soonItems.isEmpty {
-                Text("Soon (\(viewModel.soonItems.count))")
+                Text("Soon")
                     .font(.headline.weight(.semibold))
                 rowGrid {
                     ForEach(viewModel.soonItems) { item in
@@ -269,7 +269,7 @@ struct BirthdaysView: View {
 
     private var soonSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Soon (\(viewModel.soonItems.count))")
+            Text("Soon")
                 .font(.headline.weight(.semibold))
             rowGrid {
                 ForEach(viewModel.soonItems) { item in
@@ -338,13 +338,9 @@ struct BirthdaysView: View {
                     Button {
                         editor = .edit(item)
                     } label: {
-                        Image(systemName: "pencil")
-                            .font(.caption.weight(.bold))
-                            .frame(width: 32, height: 32)
-                            .background(HubTheme.tileQuiet)
-                            .clipShape(Circle())
+                        Label("Edit", systemImage: "pencil")
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
                     .accessibilityLabel("Edit \(item.name)")
                 }
             }

@@ -362,7 +362,7 @@ struct NapsView: View {
                     Text("This Week")
                         .font(.title3.weight(.semibold))
                     if let start = payload.weekDates.first, let end = payload.weekDates.last {
-                        Text("\(DateHelpers.formatLocalDate(start, timezone: timezone, pattern: "MMM d")) – \(DateHelpers.formatLocalDate(end, timezone: timezone, pattern: "MMM d"))")
+                        Text(MealPlanHelpers.weekRangeLabel(first: start, last: end, timezone: timezone))
                             .font(.subheadline.weight(.bold))
                             .foregroundStyle(HubTheme.muted)
                     }

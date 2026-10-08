@@ -14,8 +14,6 @@ struct ThemeSettingView: View {
             ThemeColorGrid()
 
             AppIconPickerLink()
-        } header: {
-            Text("Appearance")
         }
         .listRowBackground(HubTheme.tile)
     }

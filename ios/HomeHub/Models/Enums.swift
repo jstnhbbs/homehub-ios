@@ -176,7 +176,7 @@ enum DashboardCardId: String, Codable, Sendable, CaseIterable, Hashable, Identif
         case .schedule: "Schedule"
         case .routines: "Routines"
         case .chores: "Chores"
-        case .meals: "Meals"
+        case .meals: "Food"
         case .snacks: "Snacks"
         case .sleep: "Sleep"
         case .groceries: "Groceries"

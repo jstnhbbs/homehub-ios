@@ -212,20 +212,22 @@ struct SettingsView: View {
             "\(viewModel.profiles.count)"
         case .calendar:
             if appState.nativeCalendar.hasFullAccess && appState.nativeReminders.hasFullAccess {
-                "On"
+                "Allowed"
             } else if appState.nativeCalendar.hasFullAccess || appState.nativeReminders.hasFullAccess {
                 "Partial"
+            } else if appState.nativeCalendar.accessStatus == .notDetermined && appState.nativeReminders.accessStatus == .notDetermined {
+                "Not Asked"
             } else {
-                "Off"
+                "Denied"
             }
         case .notifications:
             switch appState.nativeNotifications.accessStatus {
             case .authorized, .provisional, .ephemeral:
-                "On"
+                "Allowed"
             case .denied:
-                "Off"
+                "Denied"
             case .notDetermined:
-                "Ask"
+                "Not Asked"
             }
         case .layout:
             "\(DashboardCardId.allCases.filter { $0 != .weather }.count)"
@@ -410,8 +412,6 @@ struct SettingsView: View {
             if let household = appState.household {
                 Section {
                     HouseholdPhotoUploadView(household: household)
-                } header: {
-                    Text("Family Photo")
                 } footer: {
                     Text("Shown in the top-left sidebar instead of the family-name letter.")
                 }
@@ -539,7 +539,6 @@ struct SettingsView: View {
         Section("Household") {
             LabeledContent("Name", value: household.name)
             LabeledContent("Time Zone", value: household.timezone)
-            LabeledContent("Your Role", value: HouseholdRoles.roleLabel(household.role))
         }
     }
 
@@ -816,7 +815,7 @@ private struct SettingsFAQView: View {
             FAQItem("Do my layout choices follow me between iPhone and iPad?", "Yes. Layout preferences are saved to your account, so the same user can use them on iPhone and iPad. Another parent has their own layout preferences. Each device adapts the arrangement to its available space."),
             FAQItem("Where are the sections I cannot see in navigation?", "Tap More to see overflow sections. Larger screens show more sections directly when space allows. Open Settings > Layout > Navigation to choose and reorder optional sections; Today stays available.")
         ]),
-        FAQSection(title: "Calendars & Reminders", questions: [
+        FAQSection(title: "Calendar & Reminders", questions: [
             FAQItem("How do I connect my calendar?", "Open Settings > Calendar & Reminders and allow native calendar access. Beacon reads the calendars available in Apple Calendar on that device. Add iCloud, Google, or other accounts to the device's Calendar settings first; you do not sign in to those providers inside Beacon."),
             FAQItem("How do I choose which calendars appear?", "In Settings > Calendar & Reminders, open the calendar selection and choose from the accessible device calendars. Save your selection, or select all calendars. Configure calendar access and selection separately on each device."),
             FAQItem("Why are events different on my phone and iPad?", "Calendars are read locally through Apple Calendar. Check that both devices have the same calendar accounts, that the calendars are syncing in Apple Calendar, and that Beacon has access and the intended calendars selected on each device. Joining the same Beacon household does not share a calendar account."),
@@ -1058,7 +1057,7 @@ private enum DevicePermissionState {
         switch self {
         case .allowed: "Allowed"
         case .notRequested: "Not Asked"
-        case .denied: "Off"
+        case .denied: "Denied"
         case .restricted: "Restricted"
         case .unavailable: "Unavailable"
         }
@@ -1488,10 +1487,6 @@ private struct HubModulesSettingView: View {
             VStack(alignment: .leading, spacing: 16) {
                 HubCard {
                     VStack(alignment: .leading, spacing: 10) {
-                        Label("Layout", systemImage: "rectangle.3.group")
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(HubTheme.accentText)
-
                         Text("Fine-tune what appears in Today, the sidebar, and Food. Your changes save automatically.")
                             .font(.footnote)
                             .foregroundStyle(HubTheme.muted)

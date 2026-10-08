@@ -30,9 +30,10 @@ enum NativeRemindersAccessStatus: String, Sendable {
 
     var settingsLabel: String {
         switch self {
-        case .authorized: "Full Access"
-        case .notDetermined: "Not Enabled"
-        case .denied, .restricted: "Off"
+        case .authorized: "Allowed"
+        case .notDetermined: "Not Asked"
+        case .denied: "Denied"
+        case .restricted: "Restricted"
         }
     }
 }

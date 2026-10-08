@@ -580,7 +580,7 @@ private extension DashboardCardId {
         switch self {
         case .schedule: "Schedule"
         case .routines: "Routines"
-        case .meals: "Meals"
+        case .meals: "Food"
         default: label
         }
     }

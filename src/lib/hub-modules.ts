@@ -138,7 +138,7 @@ export const DASHBOARD_CARD_LABELS: Record<DashboardCardId, string> = {
   schedule: "Schedule",
   routines: "Routines",
   chores: "Chores",
-  meals: "Meals",
+  meals: "Food",
   snacks: "Snacks",
   sleep: "Sleep",
   groceries: "Groceries",
