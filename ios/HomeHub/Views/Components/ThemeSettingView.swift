@@ -268,7 +268,7 @@ private struct AppIconPickerView: View {
                     .disabled(changingTo != nil)
                 }
             } header: {
-                Text("Choose an icon")
+                Text("Choose an Icon")
             }
         }
         .navigationTitle("App Icon")

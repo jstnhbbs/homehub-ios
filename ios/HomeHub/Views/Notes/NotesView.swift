@@ -54,7 +54,7 @@ struct NotesView: View {
                 Text("Notes")
                     .font(HubTheme.pageTitle)
             }
-            Text("Household scratchpad")
+            Text("Household Scratchpad")
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(HubTheme.muted)
         }
@@ -241,7 +241,7 @@ private struct NoteEditorSheet: View {
                     TextField("Title", text: $title)
                     TextField("Details", text: $noteBody, axis: .vertical)
                         .lineLimit(4...10)
-                    Toggle("Pin note", isOn: $pinned)
+                    Toggle("Pin Note", isOn: $pinned)
                 }
 
                 if let errorMessage {

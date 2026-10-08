@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// "Add past sleep": one sheet for both kinds of entry, so the Sleep page itself carries no forms.
+/// "Add Past Sleep": one sheet for both kinds of entry, so the Sleep page itself carries no forms.
 struct AddSleepSheet: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -34,9 +34,9 @@ struct AddSleepSheet: View {
         _selectedProfileId = State(initialValue: childProfiles.first?.id ?? "")
     }
 
-    private var startLabel: String { kind == .night ? "Fell asleep" : "Start time" }
-    private var endLabel: String { kind == .night ? "Woke up" : "End time" }
-    private var endToggleLabel: String { kind == .night ? "Set wake time" : "Set end time" }
+    private var startLabel: String { kind == .night ? "Fell Asleep" : "Start Time" }
+    private var endLabel: String { kind == .night ? "Woke Up" : "End Time" }
+    private var endToggleLabel: String { kind == .night ? "Set Wake Time" : "Set End Time" }
     private var resolvedEnd: Date? { includeEndTime ? endedAt : nil }
     private var isValid: Bool {
         !selectedProfileId.isEmpty && NapHelpers.isValidSleepRange(startedAt: startedAt, endedAt: resolvedEnd)
@@ -117,7 +117,7 @@ struct AddSleepSheet: View {
                 .padding()
             }
             .background(HubTheme.canvas)
-            .navigationTitle("Add past sleep")
+            .navigationTitle("Add Past Sleep")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -145,10 +145,10 @@ struct AddSleepSheet: View {
 
     private var saveTitle: String {
         switch (kind, includeEndTime) {
-        case (.night, false): "Start bedtime"
-        case (.night, true): "Add night sleep"
-        case (.nap, false): "Start nap"
-        case (.nap, true): "Add nap"
+        case (.night, false): "Start Bedtime"
+        case (.night, true): "Add Night Sleep"
+        case (.nap, false): "Start Nap"
+        case (.nap, true): "Add Nap"
         }
     }
 }
@@ -199,18 +199,18 @@ struct SleepEntrySheet: View {
                         ProfileAvatarView(name: profile?.name ?? "?", avatar: profile?.avatar, color: profile?.color ?? "", size: 40)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(profile?.name ?? "Child").font(.headline)
-                            Text(isNight ? "Night sleep" : "Nap")
+                            Text(isNight ? "Night Sleep" : "Nap")
                                 .font(.subheadline.weight(.bold))
                                 .foregroundStyle(HubTheme.muted)
                         }
                     }
 
-                    DatePicker(isNight ? "Fell asleep" : "Start time", selection: $startedAt, displayedComponents: [.date, .hourAndMinute])
+                    DatePicker(isNight ? "Fell Asleep" : "Start Time", selection: $startedAt, displayedComponents: [.date, .hourAndMinute])
 
-                    Toggle(isNight ? "Set wake time" : "Set end time", isOn: $includeEndTime)
+                    Toggle(isNight ? "Set Wake Time" : "Set End Time", isOn: $includeEndTime)
 
                     if includeEndTime {
-                        DatePicker(isNight ? "Woke up" : "End time", selection: $endedAt, displayedComponents: [.date, .hourAndMinute])
+                        DatePicker(isNight ? "Woke Up" : "End Time", selection: $endedAt, displayedComponents: [.date, .hourAndMinute])
                     } else {
                         Text("Leave unset if still asleep or in progress.")
                             .font(.footnote.weight(.bold))
@@ -271,7 +271,7 @@ struct SleepEntrySheet: View {
                     dismiss()
                 }
             }
-            .navigationTitle("Edit sleep")
+            .navigationTitle("Edit Sleep")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

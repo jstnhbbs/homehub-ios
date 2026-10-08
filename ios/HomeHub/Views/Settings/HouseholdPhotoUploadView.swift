@@ -21,7 +21,7 @@ struct HouseholdPhotoUploadView: View {
                 )
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Family photo")
+                    Text("Family Photo")
                         .font(.subheadline.weight(.bold))
                     Text("Optional. Replaces the family-name letter in the sidebar.")
                         .font(.caption)
@@ -35,7 +35,7 @@ struct HouseholdPhotoUploadView: View {
                                 photoLibrary: .shared()
                             ) {
                                 Label(
-                                    ProfilePhotoHelpers.hasPhoto(household.photo) ? "Replace" : "Add photo",
+                                    ProfilePhotoHelpers.hasPhoto(household.photo) ? "Replace" : "Add Photo",
                                     systemImage: "camera.fill"
                                 )
                                 .font(.caption.weight(.bold))

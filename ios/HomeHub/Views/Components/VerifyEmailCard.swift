@@ -27,7 +27,7 @@ struct VerifyEmailCard: View {
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Confirm your email")
+                    Text("Confirm Your Email")
                         .font(.subheadline.weight(.heavy))
                     Text(message)
                         .font(.caption.weight(.semibold))
@@ -37,7 +37,7 @@ struct VerifyEmailCard: View {
                         Button {
                             Task { await send() }
                         } label: {
-                            Text(state == .sending ? "Sending…" : "Send confirmation link")
+                            Text(state == .sending ? "Sending…" : "Send Confirmation Link")
                         }
                         .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
                         .disabled(state == .sending)

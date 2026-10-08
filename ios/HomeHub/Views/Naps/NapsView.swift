@@ -122,7 +122,7 @@ struct NapsView: View {
             Button {
                 showingAddSheet = true
             } label: {
-                Label("Add past sleep", systemImage: "plus")
+                Label("Add Past Sleep", systemImage: "plus")
             }
             .buttonStyle(HubButtonStyle(emphasis: .secondary))
         }
@@ -359,7 +359,7 @@ struct NapsView: View {
         return HubCard {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("This week")
+                    Text("This Week")
                         .font(.title3.weight(.semibold))
                     if let start = payload.weekDates.first, let end = payload.weekDates.last {
                         Text("\(DateHelpers.formatLocalDate(start, timezone: timezone, pattern: "MMM d")) – \(DateHelpers.formatLocalDate(end, timezone: timezone, pattern: "MMM d"))")

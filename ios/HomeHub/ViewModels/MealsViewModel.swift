@@ -68,9 +68,9 @@ final class MealsViewModel: ObservableObject {
 
     var weekSubtitle: String? {
         switch weekOffset {
-        case 0: "This week"
-        case 1: "Next week"
-        case -1: "Last week"
+        case 0: "This Week"
+        case 1: "Next Week"
+        case -1: "Last Week"
         default: nil
         }
     }

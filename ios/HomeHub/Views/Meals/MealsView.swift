@@ -46,7 +46,7 @@ struct MealsView: View {
     }
 
     private var sectionPicker: some View {
-        Picker("Food section", selection: $section) {
+        Picker("Food Section", selection: $section) {
             ForEach(visibleSections, id: \.self) { item in
                 Text(sectionLabel(item)).tag(item)
             }
@@ -56,7 +56,7 @@ struct MealsView: View {
 
     private func sectionLabel(_ section: FoodHubSection) -> String {
         switch section {
-        case .week: "Weekly plan"
+        case .week: "Weekly Plan"
         case .snacks: "Snacks"
         case .recipes: "Recipes"
         }
@@ -140,7 +140,7 @@ struct MealsView: View {
     @ViewBuilder
     private var mealHeaderTitle: some View {
         if horizontalSizeClass != .compact {
-            Text("Weekly meals")
+            Text("Weekly Meals")
                 .font(HubTheme.pageTitle)
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
@@ -418,7 +418,7 @@ struct MealsView: View {
     private var stillToPlanCard: some View {
         HubCard {
             VStack(alignment: .leading, spacing: 12) {
-                Label("Still to plan", systemImage: "calendar.badge.plus")
+                Label("Still to Plan", systemImage: "calendar.badge.plus")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(HubTheme.accentText)
                 Text("\(plannedCount) of \(slotRefs.count) meals planned")
@@ -465,20 +465,20 @@ struct MealsView: View {
     private var weekActionsCard: some View {
         HubCard {
             VStack(alignment: .leading, spacing: 10) {
-                Label("This week", systemImage: "cart")
+                Label("This Week", systemImage: "cart")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(HubTheme.accentText)
                 Button {
                     Task { await viewModel.prepareGroceryPreview() }
                 } label: {
-                    Label("Add week to groceries", systemImage: "cart.badge.plus")
+                    Label("Add Week to Groceries", systemImage: "cart.badge.plus")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(HubButtonStyle(emphasis: .primary))
                 Button {
                     Task { await viewModel.copyPreviousWeek() }
                 } label: {
-                    Label("Copy last week", systemImage: "doc.on.doc")
+                    Label("Copy Last Week", systemImage: "doc.on.doc")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(HubButtonStyle(emphasis: .secondary))
@@ -616,7 +616,7 @@ private struct MealTitleLabel: View {
                 .lineLimit(4)
                 .multilineTextAlignment(.leading)
         } else if canManage {
-            Label("Add meal", systemImage: "plus")
+            Label("Add Meal", systemImage: "plus")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(HubTheme.muted.opacity(0.8))
         } else {

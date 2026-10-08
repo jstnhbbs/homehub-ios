@@ -120,7 +120,7 @@ private struct RoutineCard: View {
     private var meta: (label: String, icon: String, color: Color) {
         switch routine.period {
         case .morning: ("Morning", "sun.max.fill", HubTheme.sunSoft)
-        case .afternoon: ("After school", "sunset.fill", Color(red: 0.95, green: 0.88, blue: 0.85))
+        case .afternoon: ("After School", "sunset.fill", Color(red: 0.95, green: 0.88, blue: 0.85))
         case .evening: ("Bedtime", "moon.fill", Color(red: 0.88, green: 0.91, blue: 0.96))
         }
     }

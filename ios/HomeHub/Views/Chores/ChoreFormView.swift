@@ -140,14 +140,14 @@ struct ChoreFormView: View {
     }
 
     private var dateField: some View {
-        FormField(label: rule.unit == .never ? "Due date" : "Starts") {
+        FormField(label: rule.unit == .never ? "Due Date" : "Starts") {
             VStack(alignment: .leading, spacing: 8) {
                 if requiresDate {
                     DatePicker("Starts", selection: $dueDate, displayedComponents: .date)
                         .datePickerStyle(.compact)
                         .labelsHidden()
                 } else {
-                    Toggle(rule.unit == .never ? "Has a due date" : "Has a start date", isOn: $hasDueDate.animation())
+                    Toggle(rule.unit == .never ? "Has a Due Date" : "Has a Start Date", isOn: $hasDueDate.animation())
                     if hasDueDate {
                         DatePicker("Date", selection: $dueDate, displayedComponents: .date)
                             .datePickerStyle(.compact)
@@ -161,7 +161,7 @@ struct ChoreFormView: View {
     private var timeField: some View {
         FormField(label: "Time") {
             VStack(alignment: .leading, spacing: 8) {
-                Toggle(rule.unit == .never ? "Due at a time" : "Set a time", isOn: $hasDueTime.animation())
+                Toggle(rule.unit == .never ? "Due at a Time" : "Set a Time", isOn: $hasDueTime.animation())
                 if hasDueTime {
                     DatePicker("Time", selection: $dueTime, displayedComponents: .hourAndMinute)
                         .datePickerStyle(.compact)

@@ -88,7 +88,7 @@ struct MealPickerSheet: View {
                 }
 
                 if !filteredRecents.isEmpty {
-                    Section("Recently used") {
+                    Section("Recently Used") {
                         ForEach(filteredRecents) { recent in
                             choiceRow(title: recent.title, isRecipe: recent.recipeId != nil) {
                                 choose(title: recent.title, recipeId: recent.recipeId)
@@ -105,7 +105,7 @@ struct MealPickerSheet: View {
                     }
                 }
 
-                Section(suggestedRecipes.isEmpty ? "Saved recipes" : "Other recipes") {
+                Section(suggestedRecipes.isEmpty ? "Saved Recipes" : "Other Recipes") {
                     if otherRecipes.isEmpty && suggestedRecipes.isEmpty {
                         Text(viewModel.recipes.isEmpty ? "No saved recipes yet." : "No recipes match your search.")
                             .font(.subheadline)

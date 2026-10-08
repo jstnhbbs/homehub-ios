@@ -166,7 +166,7 @@ struct SettingsView: View {
     private var permissionsSummarySection: some View {
         Section {
             LabeledContent("Role", value: appState.household.map { HouseholdRoles.roleLabel($0.role) } ?? "Signed out")
-            LabeledContent("Household setup", value: appState.canManageHousehold ? "Can manage" : "View only")
+            LabeledContent("Household Setup", value: appState.canManageHousehold ? "Can manage" : "View only")
             LabeledContent("Calendar & Reminders", value: appState.canManageHousehold ? "Can configure" : "Can use")
         } footer: {
             Text("Owners and parents manage shared household setup. Guests can use the household views without changing global settings.")
@@ -411,7 +411,7 @@ struct SettingsView: View {
                 Section {
                     HouseholdPhotoUploadView(household: household)
                 } header: {
-                    Text("Family photo")
+                    Text("Family Photo")
                 } footer: {
                     Text("Shown in the top-left sidebar instead of the family-name letter.")
                 }
@@ -450,7 +450,7 @@ struct SettingsView: View {
             Section {
                 LabeledContent("Server", value: AppConfig.baseURL.absoluteString)
                 LabeledContent("Session", value: appState.currentUser == nil ? "Signed out" : "Signed in")
-                LabeledContent("Local cache", value: appState.dashboard == nil ? "Empty" : "Ready")
+                LabeledContent("Local Cache", value: appState.dashboard == nil ? "Empty" : "Ready")
             } header: {
                 Text("Sync Status")
             } footer: {
@@ -539,7 +539,7 @@ struct SettingsView: View {
         Section("Household") {
             LabeledContent("Name", value: household.name)
             LabeledContent("Timezone", value: household.timezone)
-            LabeledContent("Your role", value: HouseholdRoles.roleLabel(household.role))
+            LabeledContent("Your Role", value: HouseholdRoles.roleLabel(household.role))
         }
     }
 
@@ -708,7 +708,7 @@ struct SettingsView: View {
                             HStack(spacing: 8) {
                                 Text(profile.profileType.rawValue.capitalized)
                                 if profile.userId != nil {
-                                    Text("Linked account")
+                                    Text("Linked Account")
                                 }
                                 if let birthday = profile.birthday {
                                     Text(DateHelpers.formatLocalDate(birthday, timezone: viewModel.timezone, style: .medium))
@@ -1354,7 +1354,7 @@ private struct NativeNotificationsSettingView: View {
                     await appState.rescheduleNativeNotifications()
                 }
             } label: {
-                Label("Allow notifications", systemImage: "bell.fill")
+                Label("Allow Notifications", systemImage: "bell.fill")
             }
             .buttonStyle(HubButtonStyle(emphasis: .primary))
         case .denied:
@@ -1508,7 +1508,7 @@ private struct HubModulesSettingView: View {
                     }
                 }
 
-                Button("Reset layout") {
+                Button("Reset Layout") {
                     confirmingReset = true
                 }
                 .buttonStyle(HubButtonStyle(emphasis: .secondary))
@@ -1692,7 +1692,7 @@ private struct HubModulesSettingView: View {
         savedDefault?.matches(modules, target: editingTarget) == true
     }
 
-    /// "Reset layout" goes back to the app's arrangement. This keeps the family's own: save the cards
+    /// "Reset Layout" goes back to the app's arrangement. This keeps the family's own: save the cards
     /// the way you like them, then restore that when they get moved around too much.
     private var defaultLayoutSection: some View {
         Section {
@@ -1719,7 +1719,7 @@ private struct HubModulesSettingView: View {
                 Text("The Today cards for \(editingTarget.label) go back to how you saved them. Which cards are switched on is shared, so that changes on your other devices too.")
             }
         } header: {
-            Text("Default layout")
+            Text("Default Layout")
                 .textCase(nil)
         } footer: {
             Text(defaultLayoutFooter)

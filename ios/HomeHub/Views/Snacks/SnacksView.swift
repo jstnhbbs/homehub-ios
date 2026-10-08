@@ -53,7 +53,7 @@ struct SnacksView: View {
             VStack(alignment: .leading, spacing: 16) {
                 HubCard {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Today's snacks")
+                        Text("Today's Snacks")
                             .font(HubTheme.sectionTitle)
                         if !viewModel.dateLabel.isEmpty {
                             Text(viewModel.dateLabel)
@@ -96,7 +96,7 @@ struct SnacksView: View {
                     HubCard {
                         VStack(alignment: .leading, spacing: 8) {
                             Toggle(
-                                "Track snacks for each child",
+                                "Track Snacks for Each Child",
                                 isOn: Binding(
                                     get: { viewModel.tracksPerChild },
                                     set: { enabled in Task { await viewModel.setPerChild(enabled) } }
@@ -121,7 +121,7 @@ struct SnacksView: View {
             HStack(alignment: .bottom) {
                 VStack(alignment: .leading, spacing: 4) {
                     if horizontalSizeClass != .compact {
-                        Text("Today's snacks")
+                        Text("Today's Snacks")
                             .font(HubTheme.sectionTitle)
                     }
                     if !viewModel.dateLabel.isEmpty {
@@ -184,7 +184,7 @@ struct SnacksView: View {
         if viewModel.canManage && (viewModel.canChoosePerChild || viewModel.tracksPerChild) {
             Section {
                 Toggle(
-                    "Track snacks for each child",
+                    "Track Snacks for Each Child",
                     isOn: Binding(
                         get: { viewModel.tracksPerChild },
                         set: { enabled in Task { await viewModel.setPerChild(enabled) } }

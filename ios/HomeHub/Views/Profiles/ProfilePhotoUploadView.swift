@@ -22,7 +22,7 @@ struct ProfilePhotoUploadView: View {
                 )
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Profile photo")
+                    Text("Profile Photo")
                         .font(.subheadline.weight(.bold))
                     Text("Upload, replace, or remove this family member's photo.")
                         .font(.caption)
@@ -35,7 +35,7 @@ struct ProfilePhotoUploadView: View {
                             photoLibrary: .shared()
                         ) {
                             Label(
-                                ProfilePhotoHelpers.hasPhoto(profile.avatar) ? "Replace" : "Add photo",
+                                ProfilePhotoHelpers.hasPhoto(profile.avatar) ? "Replace" : "Add Photo",
                                 systemImage: "camera.fill"
                             )
                             .font(.caption.weight(.bold))

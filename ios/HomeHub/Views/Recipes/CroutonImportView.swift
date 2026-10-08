@@ -81,7 +81,7 @@ struct CroutonImportView: View {
 
     private var progress: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("Importing recipes", systemImage: "arrow.down.circle")
+            Label("Importing Recipes", systemImage: "arrow.down.circle")
                 .font(.headline)
             ProgressView(value: Double(model.processed), total: Double(max(model.total, 1)))
                 .tint(HubTheme.accentText)
@@ -154,7 +154,7 @@ struct CroutonImportView: View {
             }
 
             if !model.problems.isEmpty {
-                DisclosureGroup("What went wrong", isExpanded: $showingProblems) {
+                DisclosureGroup("What Went Wrong", isExpanded: $showingProblems) {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(model.problems) { problem in
                             VStack(alignment: .leading, spacing: 2) {
@@ -193,7 +193,7 @@ struct CroutonImportView: View {
                 .font(.headline)
                 .foregroundStyle(HubTheme.coral)
         } else if model.wasCancelled {
-            Label("Import stopped", systemImage: "stop.circle")
+            Label("Import Stopped", systemImage: "stop.circle")
                 .font(.headline)
                 .foregroundStyle(HubTheme.muted)
         } else if model.created == 0 && model.duplicates == 0 {
@@ -201,7 +201,7 @@ struct CroutonImportView: View {
                 .font(.headline)
                 .foregroundStyle(HubTheme.coral)
         } else {
-            Label("Import finished", systemImage: "checkmark.circle.fill")
+            Label("Import Finished", systemImage: "checkmark.circle.fill")
                 .font(.headline)
                 .foregroundStyle(HubTheme.accentText)
         }

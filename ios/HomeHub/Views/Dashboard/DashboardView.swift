@@ -2236,7 +2236,7 @@ private struct DashboardSleepRow: View {
             ProfileAvatarView(name: profile.name, avatar: profile.avatar, color: profile.color, size: 28)
         } trailing: {
             if let activeLogId = status.activeLogId {
-                Button(status.state == .inBed ? "Wake up" : "End") { end(activeLogId) }
+                Button(status.state == .inBed ? "Wake Up" : "End") { end(activeLogId) }
                     .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .mini))
             }
         }

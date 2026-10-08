@@ -11,7 +11,7 @@ struct InviteCodesSection: View {
         case guest
 
         var id: String { rawValue }
-        var title: String { self == .parent ? "Parent invite" : "Guest invite" }
+        var title: String { self == .parent ? "Parent Invite" : "Guest Invite" }
     }
 
     @State private var confirming: Which?
@@ -26,7 +26,7 @@ struct InviteCodesSection: View {
                 Text(errorMessage).font(.footnote).foregroundStyle(.red)
             }
         } header: {
-            Text("Invite codes")
+            Text("Invite Codes")
         } footer: {
             Text("Share the parent code with another parent after they create an account. The guest code is for grandparents, nannies, and other helpers. If a code goes to the wrong person, replace it: the old one stops working at once, and people already in the household stay.")
         }

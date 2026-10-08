@@ -121,7 +121,7 @@ struct SleepStatusCard: View {
                 Button {
                     Task { await startNap() }
                 } label: {
-                    Label("Start nap", systemImage: "moon.zzz.fill")
+                    Label("Start Nap", systemImage: "moon.zzz.fill")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(HubButtonStyle(emphasis: .primary))

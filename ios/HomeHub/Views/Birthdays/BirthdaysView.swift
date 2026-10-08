@@ -151,7 +151,7 @@ struct BirthdaysView: View {
     private var monthStrip: some View {
         HubCard {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Year overview")
+                Text("Year Overview")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(HubTheme.muted)
                 HStack(alignment: .bottom, spacing: 4) {
@@ -282,7 +282,7 @@ struct BirthdaysView: View {
     private var laterSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             if !viewModel.laterItems.isEmpty {
-                Text("Rest of the year")
+                Text("Rest of the Year")
                     .font(.headline.weight(.semibold))
             }
             ForEach(viewModel.laterGroups) { group in
@@ -379,7 +379,7 @@ struct BirthdaysView: View {
         if item.kind == .anniversary { return item.kind.capitalizedNoun }
         switch item.source {
         case .profile: return "Profile"
-        case .family: return "Extra person"
+        case .family: return "Extra Person"
         }
     }
 }
@@ -573,11 +573,11 @@ private struct BirthdayFormView: View {
             }
 
             // Only worth asking when a household member is still missing a birthday; otherwise
-            // "Someone else" is the one choice.
+            // "Someone Else" is the one choice.
             if editorIsAdd, kind == .birthday, !profilesWithoutBirthday.isEmpty {
                 FormField(label: "Who") {
                     Picker("Who", selection: $target) {
-                        Text("Someone else").tag(FormTarget.newPerson)
+                        Text("Someone Else").tag(FormTarget.newPerson)
                         ForEach(profilesWithoutBirthday) { profile in
                             Text(profile.name).tag(FormTarget.profile(profile.id))
                         }
@@ -609,7 +609,7 @@ private struct BirthdayFormView: View {
                     .font(.caption)
                     .foregroundStyle(HubTheme.muted)
             } else if editingItem?.source == .family {
-                Label("Extra person", systemImage: "person.crop.circle.badge.plus")
+                Label("Extra Person", systemImage: "person.crop.circle.badge.plus")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(HubTheme.muted)
             }

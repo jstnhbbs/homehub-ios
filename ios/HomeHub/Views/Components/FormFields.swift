@@ -61,7 +61,7 @@ struct BirthdayPickerField: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Toggle("Show birthday on calendar", isOn: $hasBirthday)
+            Toggle("Show Birthday on Calendar", isOn: $hasBirthday)
                 .font(.subheadline.weight(.semibold))
 
             if hasBirthday {

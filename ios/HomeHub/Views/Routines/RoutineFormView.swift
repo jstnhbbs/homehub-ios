@@ -19,7 +19,7 @@ struct RoutineFormView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            FormField(label: "Routine name") {
+            FormField(label: "Routine Name") {
                 TextField("Bedtime routine", text: $name)
                     .textFieldStyle(HubFieldStyle())
             }
@@ -28,7 +28,7 @@ struct RoutineFormView: View {
                 ProfilePickerField(profiles: profiles, profileId: $profileId)
             }
 
-            FormField(label: "Time of day") {
+            FormField(label: "Time of Day") {
                 Picker("Period", selection: $period) {
                     ForEach(RoutinePeriod.allCases, id: \.self) { value in
                         Text(periodLabel(value)).tag(value)
@@ -80,7 +80,7 @@ struct RoutineFormView: View {
                     Button {
                         addStep()
                     } label: {
-                        Label("Add step", systemImage: "plus.circle.fill")
+                        Label("Add Step", systemImage: "plus.circle.fill")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
@@ -196,7 +196,7 @@ struct RoutineFormView: View {
     private func periodLabel(_ period: RoutinePeriod) -> String {
         switch period {
         case .morning: "Morning"
-        case .afternoon: "After school"
+        case .afternoon: "After School"
         case .evening: "Bedtime"
         }
     }
@@ -295,7 +295,7 @@ private struct RoutineStepDraftRow: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Remove step")
+            .accessibilityLabel("Remove Step")
         }
         .padding(.vertical, 2)
         .background(

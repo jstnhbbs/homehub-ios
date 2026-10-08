@@ -119,7 +119,7 @@ struct CalendarView: View {
 
     private var headerTitle: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Family calendar")
+            Text("Family Calendar")
                 .font(HubTheme.pageTitle)
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
@@ -243,7 +243,7 @@ struct CalendarView: View {
                         .foregroundStyle(HubTheme.muted)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Clear search")
+                .accessibilityLabel("Clear Search")
             }
         }
         .padding(.horizontal, 12)

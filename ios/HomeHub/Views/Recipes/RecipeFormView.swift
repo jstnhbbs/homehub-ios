@@ -40,16 +40,16 @@ struct RecipeFormView: View {
                 FormField(label: "Servings") {
                     TextField("4", text: $servings).textFieldStyle(HubFieldStyle())
                 }
-                FormField(label: "Total time") {
+                FormField(label: "Total Time") {
                     TextField("45 min", text: $totalTime).textFieldStyle(HubFieldStyle())
                 }
             }
 
             HStack(spacing: 8) {
-                FormField(label: "Prep time") {
+                FormField(label: "Prep Time") {
                     TextField("15 min", text: $prepTime).textFieldStyle(HubFieldStyle())
                 }
-                FormField(label: "Cook time") {
+                FormField(label: "Cook Time") {
                     TextField("30 min", text: $cookTime).textFieldStyle(HubFieldStyle())
                 }
             }
@@ -120,7 +120,7 @@ struct RecipeFormView: View {
                 }
             }
 
-            FormField(label: "Family notes") {
+            FormField(label: "Family Notes") {
                 TextField("Optional", text: $notes, axis: .vertical)
                     .lineLimit(2...4)
                     .textFieldStyle(HubFieldStyle())

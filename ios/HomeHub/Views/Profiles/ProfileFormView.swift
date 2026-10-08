@@ -55,8 +55,8 @@ struct ProfileFormView: View {
                         .font(.caption)
                         .foregroundStyle(HubTheme.muted)
                 } else {
-                    FormField(label: "Profile type") {
-                        Picker("Profile type", selection: $profileType) {
+                    FormField(label: "Profile Type") {
+                        Picker("Profile Type", selection: $profileType) {
                             Text("Adult").tag(ProfileType.adult)
                             Text("Child").tag(ProfileType.child)
                         }

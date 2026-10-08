@@ -71,7 +71,7 @@ struct GroceriesView: View {
                 Button {
                     Task { await viewModel.clearChecked() }
                 } label: {
-                    Label("Clear checked", systemImage: "trash")
+                    Label("Clear Checked", systemImage: "trash")
                 }
                 .buttonStyle(HubButtonStyle(emphasis: .secondaryDestructive))
                 .disabled(viewModel.isWorking)
@@ -88,7 +88,7 @@ struct GroceriesView: View {
                         .font(.title2)
                         .foregroundStyle(HubTheme.accentText)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Use your shared Reminders list")
+                        Text("Use Your Shared Reminders List")
                             .font(.headline)
                         Text("Add grocery items from Beacon straight into Apple Reminders.")
                             .font(.footnote)
@@ -110,11 +110,11 @@ struct GroceriesView: View {
         } else if !viewModel.reminderLists.isEmpty {
             HubCard {
                 HStack(spacing: 12) {
-                    Label("Reminders list", systemImage: "list.bullet")
+                    Label("Reminders List", systemImage: "list.bullet")
                         .font(.headline)
                         .foregroundStyle(HubTheme.accentText)
                     if viewModel.canSelectReminderList {
-                        Picker("Reminders list", selection: Binding(
+                        Picker("Reminders List", selection: Binding(
                             get: { viewModel.selectedReminderListId },
                             set: { viewModel.selectReminderList(id: $0) }
                         )) {
@@ -191,7 +191,7 @@ struct GroceriesView: View {
     private var checkedPanel: some View {
         HubCard {
             VStack(alignment: .leading, spacing: 12) {
-                Label("Checked off", systemImage: "checkmark.circle.fill")
+                Label("Checked Off", systemImage: "checkmark.circle.fill")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(HubTheme.accentText)
 

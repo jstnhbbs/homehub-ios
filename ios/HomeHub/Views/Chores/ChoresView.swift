@@ -68,7 +68,7 @@ struct ChoresView: View {
     private var header: some View {
         HStack(alignment: .bottom) {
             if horizontalSizeClass != .compact {
-                Text("Chore chart")
+                Text("Chore Chart")
                     .font(HubTheme.pageTitle)
             }
             Spacer()

@@ -78,7 +78,7 @@ struct CalendarSettingsView: View {
                 Task { await viewModel.requestNativeRemindersAccess() }
             }
         } header: {
-            Text("Calendar and Reminders")
+            Text("Calendar & Reminders")
         } footer: {
             Text("Beacon reads Apple Calendar on this device and can write grocery items to Reminders.")
         }

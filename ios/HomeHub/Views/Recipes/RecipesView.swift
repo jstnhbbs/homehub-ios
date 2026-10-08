@@ -135,7 +135,7 @@ struct RecipesView: View {
             if viewModel.filteredRecipes.isEmpty {
                 VStack(spacing: 10) {
                     EmptyStateView(text: "No recipes have all of those tags.")
-                    Button("Clear filters") { viewModel.clearTagFilters() }
+                    Button("Clear Filters") { viewModel.clearTagFilters() }
                         .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
                 }
             }
@@ -390,7 +390,7 @@ private struct RecipeDetailPanel: View {
                                 Button {
                                     Task { await viewModel.addIngredientsToGroceryList(recipe) }
                                 } label: {
-                                    Label("Add to list", systemImage: "cart.badge.plus")
+                                    Label("Add to List", systemImage: "cart.badge.plus")
                                 }
                                 .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
                                 .disabled(viewModel.isWorking)

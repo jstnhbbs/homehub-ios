@@ -77,7 +77,7 @@ struct ClearFiltersChip: View {
 
     var body: some View {
         Button(action: action) {
-            Label("Clear filters", systemImage: "xmark")
+            Label("Clear Filters", systemImage: "xmark")
                 .font(.caption.weight(.bold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
@@ -86,7 +86,7 @@ struct ClearFiltersChip: View {
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Clear all filters")
+        .accessibilityLabel("Clear All Filters")
     }
 }
 

@@ -26,7 +26,7 @@ struct DeleteAccountSheet: View {
                     }
                 }
 
-                Section("Confirm with your password") {
+                Section("Confirm With Your Password") {
                     SecureField("Password", text: $password)
                         .textContentType(.password)
                 }
