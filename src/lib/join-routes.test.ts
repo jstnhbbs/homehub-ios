@@ -58,7 +58,7 @@ beforeAll(async () => {
   ]);
   const owner = await signUp("owner");
   await db.insert(schema.householdMembers).values({ householdId: "old", userId: owner, role: "owner" });
-  for (const name of ["ann", "bob", "cy", "dee", "eli", "flo", "guy", "hal", "ivy", "jon", "kim", "zed", "yan", "xia"]) {
+  for (const name of ["ann", "bob", "cy", "dee", "eli", "flo", "guy", "hal", "ivy", "jon", "kim", "zed", "yan", "xia", "una"]) {
     await signUp(name);
   }
 });
@@ -115,6 +115,28 @@ describe("joining a household", () => {
     expect(joined.json.guestInviteCode).toBe("");
   });
 
+  it("lets someone use their own household's code again, but not join a second household", async () => {
+    // ann joined "old" above.
+    const again = await post("ann", "household/join", { inviteCode: "A1B2C3D4" });
+    expect(again.status).toBe(200);
+    expect(again.json.name).toBe("Old");
+
+    const other = await post("ann", "household/join", { inviteCode: "KQ7M2XW9HP" });
+    expect(other.status).toBe(400);
+    expect(String(other.json.error)).toContain("already belong to a household");
+    const asGuest = await post("ann", "household/join-guest", { guestInviteCode: "TR4N8ZC3VD" });
+    expect(asGuest.status).toBe(400);
+
+    const { db } = await import("@/db/client");
+    const schema = await import("@/db/schema");
+    const { eq } = await import("drizzle-orm");
+    const memberships = await db
+      .select()
+      .from(schema.householdMembers)
+      .where(eq(schema.householdMembers.householdId, "new"));
+    expect(memberships.some((member) => member.role === "parent")).toBe(false);
+  });
+
   it("answers a wrong code with 400 and a plain message", async () => {
     const wrong = await post("cy", "household/join", { inviteCode: "ZZZZZZZZZZ" });
     expect(wrong.status).toBe(400);
@@ -164,6 +186,26 @@ describe("joining a household", () => {
     }
     // 40 tries per address per hour; the 41st is refused.
     expect(blockedAt).toBe(40);
+  });
+});
+
+describe("starting a household", () => {
+  const start = (who: string, timezone: string) =>
+    post(who, "household", { name: "Una's", ownerLastName: "Una", timezone });
+
+  it("refuses a time zone the server doesn't know, which would break every later request", async () => {
+    const result = await start("una", "Mars/Olympus_Mons");
+    expect(result.status).toBe(400);
+    expect(String(result.json.error)).toContain("time zone");
+  });
+
+  it("starts one for someone with none, and refuses a second", async () => {
+    const first = await start("una", "America/Chicago");
+    expect(first.status).toBe(201);
+    expect(first.json.role).toBe("owner");
+    const second = await start("una", "America/Chicago");
+    expect(second.status).toBe(400);
+    expect(String(second.json.error)).toContain("already belong to a household");
   });
 });
 

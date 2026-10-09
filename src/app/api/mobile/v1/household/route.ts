@@ -3,7 +3,8 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { householdMembers, households, profiles, users } from "@/db/schema";
-import { getCurrentHousehold } from "@/lib/household";
+import { isKnownTimeZone } from "@/lib/dates";
+import { assertNoOtherHousehold, getCurrentHousehold } from "@/lib/household";
 import { generateInviteCodePair } from "@/lib/invite-codes";
 import {
   handleMobileError,
@@ -33,9 +34,15 @@ export async function POST(request: Request) {
         name: shortText,
         ownerLastName: z.string().trim().min(1).max(80),
         childName: z.string().trim().max(60).optional(),
-        timezone: z.string().trim().min(1).max(80),
+        timezone: z
+          .string()
+          .trim()
+          .min(1)
+          .max(80)
+          .refine(isKnownTimeZone, "That time zone isn't recognised."),
       })
       .parse(await parseJsonBody(request));
+    await assertNoOtherHousehold(user.id);
 
     const id = randomUUID();
     const { inviteCode, guestInviteCode } = generateInviteCodePair();

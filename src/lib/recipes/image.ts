@@ -1,5 +1,5 @@
-import { del, put } from "@vercel/blob";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { del, list, put } from "@vercel/blob";
+import { mkdir, rm, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { PROFILE_PHOTO_MAX_BYTES } from "@/lib/profile-photo";
 
@@ -105,5 +105,32 @@ export async function deleteStoredRecipeImage(url: string, householdId: string) 
   if (isLocalDevImage(url, householdId)) {
     const relativePath = new URL(url).pathname.replace(/^\//, "");
     await unlink(path.join(process.cwd(), "public", relativePath)).catch(() => undefined);
+  }
+}
+
+/**
+ * Removes every photo stored for a recipe (`recipeId`) or for a whole household (without one). The
+ * store is public, so a photo left behind would stay readable by anyone with its link after the
+ * recipe or household is gone. Listing the folder also catches photos an earlier version left.
+ * Never throws: a recipe is still deleted if the photo store can't be reached.
+ */
+export async function deleteAllRecipeImages(householdId: string, recipeId?: string) {
+  const folder = recipeId ? `recipes/${householdId}/${recipeId}/` : `recipes/${householdId}/`;
+  try {
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      let cursor: string | undefined;
+      do {
+        const page = await list({ prefix: folder, cursor });
+        if (page.blobs.length) await del(page.blobs.map((blob) => blob.url));
+        cursor = page.hasMore ? page.cursor : undefined;
+      } while (cursor);
+    } else if (process.env.NODE_ENV === "development") {
+      const local = recipeId
+        ? path.join("recipe-images", householdId, recipeId)
+        : path.join("recipe-images", householdId);
+      await rm(path.join(process.cwd(), "public", local), { recursive: true, force: true });
+    }
+  } catch (error) {
+    console.error("[recipe images] could not remove", folder, error);
   }
 }

@@ -21,6 +21,18 @@ describe("handleMobileError", () => {
     });
   });
 
+  it("keeps the message of the app's own error classes", async () => {
+    const { BlockedUrlError } = await import("@/lib/recipes/fetch");
+    const { AccountDeletionBlockedError } = await import("@/lib/account-deletion");
+    expect(await answer(new BlockedUrlError())).toEqual({
+      status: 400,
+      body: { error: "That URL cannot be imported." },
+    });
+    expect((await answer(new AccountDeletionBlockedError("Make another owner first."))).body.error).toBe(
+      "Make another owner first.",
+    );
+  });
+
   it("keeps 401 for Unauthorized", async () => {
     expect((await answer(new Error("Unauthorized"))).status).toBe(401);
   });
@@ -73,6 +85,14 @@ describe("handleMobileError", () => {
         }),
       ],
       ["a coding mistake", new TypeError("Cannot read properties of undefined (reading 'id')")],
+      [
+        "a library's own error",
+        new (class BlobServiceNotAvailable extends Error {})("Vercel Blob: store_abc123 is not available (undefined)"),
+      ],
+      [
+        "a system error",
+        Object.assign(new Error("connect ECONNREFUSED 10.0.0.4:443 household_members"), { code: "ECONNREFUSED" }),
+      ],
     ])("%s", async (_label, error) => {
       const log = vi.spyOn(console, "error").mockImplementation(() => {});
       const result = await answer(error);

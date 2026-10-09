@@ -1,10 +1,12 @@
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { householdMembers, households, profiles } from "@/db/schema";
+import { UserFacingError } from "@/lib/errors";
 import { removeHouseholdPhoto } from "@/lib/household-photo";
 import { removeProfilePhotoForHousehold } from "@/lib/profile-photo";
+import { deleteAllRecipeImages } from "@/lib/recipes/image";
 
-export class AccountDeletionBlockedError extends Error {}
+export class AccountDeletionBlockedError extends UserFacingError {}
 
 /**
  * Detaches a user from their households ahead of deleting the account.
@@ -62,6 +64,7 @@ async function deleteHousehold(householdId: string) {
     );
   }
   await removeHouseholdPhoto(householdId).catch(() => undefined);
+  await deleteAllRecipeImages(householdId);
 
   // Everything the household owns is removed by foreign-key cascades.
   await db.delete(households).where(eq(households.id, householdId));

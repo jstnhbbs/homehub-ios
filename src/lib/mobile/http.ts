@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { auth } from "@/lib/auth";
 import { getCurrentHousehold } from "@/lib/household";
-import { RateLimitedError } from "@/lib/errors";
+import { RateLimitedError, UserFacingError } from "@/lib/errors";
 import { canManageHousehold } from "@/lib/household-roles";
 import { ensureMemberProfiles } from "@/lib/member-profiles";
 
@@ -88,6 +88,15 @@ function isInfrastructureError(error: unknown) {
   return false;
 }
 
+/**
+ * A message a route wrote for the person: a `UserFacingError`, or a plain `Error` thrown in this
+ * codebase. A system error is a plain `Error` too, but carries a `code` ("ECONNRESET") and isn't.
+ */
+function isUserFacing(error: Error) {
+  if (error instanceof UserFacingError) return true;
+  return Object.getPrototypeOf(error) === Error.prototype && !("code" in error);
+}
+
 function describeValidationError(error: ZodError) {
   const issue = error.issues[0];
   if (!issue) return "The request was not valid.";
@@ -107,8 +116,8 @@ export function handleMobileError(error: unknown) {
     // Better Auth's own errors (wrong password and the like) already carry a status and a message.
     return mobileError(error.body?.message ?? error.message, error.statusCode);
   }
-  if (isInfrastructureError(error)) {
-    // The detail (SQL, column names, stack) stays in the server log, not in the response.
+  if (isInfrastructureError(error) || (error instanceof Error && !isUserFacing(error))) {
+    // The detail (SQL, column names, a library's wording, stack) stays in the server log.
     console.error("[mobile api]", error);
     return mobileError("Something went wrong on our end. Try again in a moment.", 500);
   }

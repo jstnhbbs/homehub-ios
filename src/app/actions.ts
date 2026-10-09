@@ -12,7 +12,7 @@ import {
   households,
   profiles,
 } from "@/db/schema";
-import { localDateIn } from "@/lib/dates";
+import { isKnownTimeZone, localDateIn } from "@/lib/dates";
 import {
   householdRoles,
   isGuest,
@@ -25,6 +25,7 @@ import {
   normalizeInviteCode,
 } from "@/lib/invite-codes";
 import {
+  assertNoOtherHousehold,
   requireParentHousehold,
   requireUser,
 } from "@/lib/household";
@@ -54,13 +55,19 @@ export async function createHousehold(formData: FormData) {
     .object({
       name: shortText,
       childName: z.string().trim().max(60),
-      timezone: z.string().trim().min(1).max(80),
+      timezone: z
+        .string()
+        .trim()
+        .min(1)
+        .max(80)
+        .refine(isKnownTimeZone, "That time zone isn't recognised."),
     })
     .parse({
       name: text(formData, "name"),
       childName: text(formData, "childName"),
       timezone: text(formData, "timezone") || "America/Chicago",
     });
+  await assertNoOtherHousehold(user.id);
 
   const id = randomUUID();
   const { inviteCode, guestInviteCode } = generateInviteCodePair();
@@ -99,6 +106,7 @@ export async function joinHousehold(formData: FormData) {
     .where(eq(households.inviteCode, inviteCode))
     .limit(1);
   if (!household[0]) throw new Error("That invite code was not found.");
+  await assertNoOtherHousehold(user.id, household[0].id);
   await db
     .insert(householdMembers)
     .values({
@@ -121,6 +129,7 @@ export async function joinHouseholdAsGuest(formData: FormData) {
     .where(eq(households.guestInviteCode, inviteCode))
     .limit(1);
   if (!household[0]) throw new Error("That guest invite code was not found.");
+  await assertNoOtherHousehold(user.id, household[0].id);
   await db
     .insert(householdMembers)
     .values({

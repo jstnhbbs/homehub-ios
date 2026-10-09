@@ -31,4 +31,7 @@ struct ChangePasswordResponse: Codable, Sendable {
 struct ChangeEmailResponse: Codable, Sendable {
     let user: User?
     let status: Bool?
+    /// True when the address changed at once, false when a confirmation link was sent to the new
+    /// address instead (the usual case). Older servers leave it out.
+    let emailChanged: Bool?
 }

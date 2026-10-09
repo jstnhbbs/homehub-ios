@@ -5,13 +5,14 @@ import net from "node:net";
 import { Writable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import zlib from "node:zlib";
+import { UserFacingError } from "@/lib/errors";
 
 const MAX_BYTES = 2_000_000;
 const TIMEOUT_MS = 15_000;
 const MAX_REDIRECTS = 5;
 
 /** Raised when a URL, or the address it leads to, is somewhere recipe import must not go. */
-export class BlockedUrlError extends Error {
+export class BlockedUrlError extends UserFacingError {
   constructor() {
     super("That URL cannot be imported.");
     this.name = "BlockedUrlError";

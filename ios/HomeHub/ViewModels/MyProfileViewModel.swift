@@ -90,7 +90,12 @@ final class MyProfileViewModel: ObservableObject {
                 account = AccountData(user: user, profile: account?.profile)
             }
             await appState.refreshSession()
-            successMessage = "Email updated."
+            if response.emailChanged == true {
+                successMessage = "Email updated."
+            } else {
+                // The address changes only once the link sent to it is followed.
+                successMessage = "Check \(trimmed) for a link to confirm the change. Your email stays the same until then."
+            }
             return true
         } catch {
             errorMessage = error.localizedDescription

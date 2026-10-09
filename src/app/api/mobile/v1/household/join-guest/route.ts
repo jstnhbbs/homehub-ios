@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { householdMembers, households } from "@/db/schema";
-import { getCurrentHousehold } from "@/lib/household";
+import { assertNoOtherHousehold, getCurrentHousehold } from "@/lib/household";
 import {
   assertMayTryInviteCode,
   clientAddress,
@@ -32,6 +32,7 @@ export async function POST(request: Request) {
       .where(eq(households.guestInviteCode, guestInviteCode))
       .limit(1);
     if (!household[0]) throw new Error("That guest invite code was not found.");
+    await assertNoOtherHousehold(user.id, household[0].id);
 
     await db
       .insert(householdMembers)

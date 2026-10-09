@@ -10,6 +10,11 @@ export const outbox: Email[] = [];
 
 const RESEND_URL = "https://api.resend.com/emails";
 
+/** Whether `sendEmail` can actually deliver here: a provider is set up, or this isn't production. */
+export function canSendEmail() {
+  return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM) || process.env.NODE_ENV !== "production";
+}
+
 /**
  * Sends one email through Resend and says whether it was handed over. It never throws: the things
  * that send email (sign-up, "send it again") must not fail because a provider is down or not set up.

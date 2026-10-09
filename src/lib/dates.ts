@@ -2,6 +2,19 @@ import { addDays, format, getISOWeek, startOfWeek, type Day } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { DEFAULT_WEEK_STARTS_ON } from "@/lib/calendar/week-start";
 
+/**
+ * Whether this server can work in the named time zone. A household's zone is used on every request,
+ * so one it doesn't know would break the household for good; it is checked when the household is made.
+ */
+export function isKnownTimeZone(timezone: string) {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function localDateIn(timezone: string, date = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,

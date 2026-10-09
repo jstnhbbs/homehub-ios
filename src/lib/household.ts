@@ -64,6 +64,23 @@ export async function getCurrentHousehold(knownUserId?: string) {
   return result[0] ?? null;
 }
 
+/**
+ * A person belongs to one household. Every screen shows the first one they joined
+ * (`getCurrentHousehold`), so a second membership would be invisible to them while its parents saw
+ * a member who never turns up. Creating a household (no `householdId`) is refused for anyone already
+ * in one; joining is refused only for a different household, so using your own code again is harmless.
+ * Accounts that already belong to two keep both.
+ */
+export async function assertNoOtherHousehold(userId: string, householdId?: string) {
+  const memberships = await db
+    .select({ householdId: householdMembers.householdId })
+    .from(householdMembers)
+    .where(eq(householdMembers.userId, userId));
+  if (memberships.some((membership) => membership.householdId !== householdId)) {
+    throw new Error("You already belong to a household, so you can't join or start another one.");
+  }
+}
+
 export async function requireHousehold() {
   const user = await requireUser();
   const household = await getCurrentHousehold(user.id);

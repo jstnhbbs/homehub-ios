@@ -4,6 +4,7 @@ import { MAX_DIRECTION_LINE } from "@/lib/recipes/limits";
 import { webUrl } from "@/lib/web-url";
 import { db } from "@/db/client";
 import { recipes } from "@/db/schema";
+import { deleteAllRecipeImages, deleteStoredRecipeImage } from "@/lib/recipes/image";
 import { recipeFromRow, serializeRecipeFields } from "@/lib/recipes/store";
 import {
   handleMobileError,
@@ -56,6 +57,11 @@ export async function PATCH(request: Request, context: RouteContext) {
     const id = z.string().uuid().parse((await context.params).id);
     const input = recipeInputSchema.parse(await parseJsonBody(request));
     const fields = serializeRecipeFields(input);
+    const [previous] = await db
+      .select({ imageUrl: recipes.imageUrl })
+      .from(recipes)
+      .where(and(eq(recipes.id, id), eq(recipes.householdId, household.id)))
+      .limit(1);
     const updated = await db
       .update(recipes)
       .set({
@@ -78,6 +84,10 @@ export async function PATCH(request: Request, context: RouteContext) {
       .where(and(eq(recipes.id, id), eq(recipes.householdId, household.id)))
       .returning();
     if (!updated[0]) throw new Error("Recipe not found.");
+    // A stored photo the edit removed or replaced; links to other websites are left alone.
+    if (previous?.imageUrl && previous.imageUrl !== updated[0].imageUrl) {
+      await deleteStoredRecipeImage(previous.imageUrl, household.id);
+    }
     return mobileJson(recipeFromRow(updated[0]));
   } catch (error) {
     return handleMobileError(error);
@@ -93,6 +103,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
       .where(and(eq(recipes.id, id), eq(recipes.householdId, household.id)))
       .returning({ id: recipes.id });
     if (!deleted[0]) throw new Error("Recipe not found.");
+    await deleteAllRecipeImages(household.id, id);
     return mobileJson({ ok: true });
   } catch (error) {
     return handleMobileError(error);

@@ -1,7 +1,13 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+const request = vi.hoisted(() => ({ headers: new Headers() }));
+vi.mock("next/headers", () => ({
+  headers: async () => request.headers,
+  cookies: async () => ({ get: () => undefined, getAll: () => [] }),
+}));
 
 // Sign-up, the email, following its link, and what an unverified address can still do, run against
 // the real Better Auth and a throwaway database. Nothing here talks to a mail provider.
@@ -120,5 +126,61 @@ describe("email verification", () => {
     m.outbox.length = 0;
     await m.auth.api.sendVerificationEmail({ body: { email: "pat@example.com" } }).catch(() => {});
     expect(m.outbox).toHaveLength(0);
+  });
+});
+
+describe("changing the email address", () => {
+  async function signIn(email: string) {
+    const signedIn = await m.auth.api.signInEmail({ body: { email, password }, returnHeaders: true });
+    request.headers = new Headers({
+      cookie: signedIn.headers
+        .getSetCookie()
+        .map((value) => value.split(";")[0])
+        .join("; "),
+    });
+  }
+
+  async function change(newEmail: string) {
+    const route = await import("@/app/api/mobile/v1/account/change-email/route");
+    const response = await route.POST(
+      new Request("http://localhost:3000/api/mobile/v1/account/change-email", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ newEmail }),
+      }),
+    );
+    return { status: response.status, json: (await response.json()) as Record<string, unknown> };
+  }
+
+  it("sends a link to the new address and says the change is waiting on it", async () => {
+    // pat confirmed their address above.
+    await signIn("pat@example.com");
+    m.outbox.length = 0;
+    const result = await change("pat.new@example.com");
+    expect(result.status).toBe(200);
+    expect(result.json.emailChanged).toBe(false);
+
+    const [row] = await m.db.select().from(m.users).where(m.eq(m.users.name, "Pat"));
+    expect(row.email).toBe("pat@example.com");
+    expect(m.outbox).toHaveLength(1);
+    expect(m.outbox[0].to).toBe("pat.new@example.com");
+
+    await m.auth.api.verifyEmail({ query: { token: tokenFrom(m.outbox[0].text).token } });
+    const [after] = await m.db.select().from(m.users).where(m.eq(m.users.name, "Pat"));
+    expect(after.email).toBe("pat.new@example.com");
+  });
+
+  it("is refused in production when no email could be sent, rather than seeming to work", async () => {
+    await signIn("pat.new@example.com");
+    const environment = process.env as Record<string, string | undefined>;
+    const previous = environment.NODE_ENV;
+    environment.NODE_ENV = "production";
+    try {
+      const result = await change("pat.third@example.com");
+      expect(result.status).toBe(400);
+      expect(result.json.error).toBe("Changing your email isn't available yet.");
+    } finally {
+      environment.NODE_ENV = previous;
+    }
   });
 });
