@@ -333,7 +333,7 @@ final class AppState: ObservableObject {
                 lastDeviceRefreshAt = .now
                 await refreshNativeTodaySchedule()
                 await refreshNativeGroceryItems()
-                await refreshNativeWeather()
+                await refreshNativeWeather(force: forcingDeviceRefresh)
             }
             guard isCurrentSession(session, userId: userId), request == dashboardRequestVersion else { return }
             if let dashboard {
@@ -493,8 +493,8 @@ final class AppState: ObservableObject {
         await nativeWeather.requestAccessAndRefresh()
     }
 
-    func refreshNativeWeather() async {
-        await nativeWeather.refreshWeather()
+    func refreshNativeWeather(force: Bool = false) async {
+        await nativeWeather.refreshWeather(force: force)
     }
 
     func applyHubModules(_ modules: HubModules) {

@@ -71,7 +71,11 @@ final class NativeWeatherService: NSObject, ObservableObject {
     private lazy var isWeatherKitEnabled = Self.currentBuildAllowsWeatherKitRequests()
     private var lastRefreshAttemptAt: Date?
 
-    private let automaticRefreshBackoff: TimeInterval = 15 * 60
+    /// A reading is reused for this long. The temperature on a dashboard doesn't change meaningfully
+    /// faster, and every fetch is a WeatherKit call. Pull to refresh asks regardless.
+    private let automaticRefreshBackoff: TimeInterval = 60 * 60
+    /// After a failed attempt with nothing to show, try again sooner than a good reading would be.
+    private let retryBackoff: TimeInterval = 15 * 60
 
     private lazy var locationManager: CLLocationManager = {
         let manager = CLLocationManager()
@@ -145,7 +149,7 @@ final class NativeWeatherService: NSObject, ObservableObject {
             return Date().timeIntervalSince(snapshot.updatedAt) >= automaticRefreshBackoff
         }
         guard let lastRefreshAttemptAt else { return true }
-        return Date().timeIntervalSince(lastRefreshAttemptAt) >= automaticRefreshBackoff
+        return Date().timeIntervalSince(lastRefreshAttemptAt) >= retryBackoff
     }
 
     private func waitForInitialAuthorizationStatus() async throws {
