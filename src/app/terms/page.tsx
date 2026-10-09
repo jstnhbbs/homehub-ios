@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { LegalPage, LegalSection } from "@/components/legal-page";
+import { APP_NAME, CONTACT_EMAIL } from "@/lib/app-info";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
-  description: "Terms for using the Beacon family dashboard.",
+  description: `Terms for using the ${APP_NAME} family dashboard.`,
 };
 
 export default function TermsOfServicePage() {
@@ -63,13 +64,12 @@ export default function TermsOfServicePage() {
 
       <LegalSection title="Availability and changes">
         <p>
-          Beacon is provided on an as-available basis. The operator of your
-          deployment may perform maintenance, updates, or configuration changes
-          that temporarily affect availability.
+          Beacon is provided on an as-available basis. We may perform
+          maintenance or updates that temporarily affect availability.
         </p>
         <p>
-          These terms may be updated from time to time. Continued use of Home
-          Hub after updates become effective constitutes acceptance of the
+          These terms may be updated from time to time. Continued use of{" "}
+          {APP_NAME} after updates become effective constitutes acceptance of the
           revised terms.
         </p>
       </LegalSection>
@@ -85,7 +85,7 @@ export default function TermsOfServicePage() {
 
       <LegalSection title="Limitation of liability">
         <p>
-          To the fullest extent permitted by law, Beacon and its operator
+          To the fullest extent permitted by law, {APP_NAME} and its maker
           will not be liable for indirect, incidental, special, consequential,
           or punitive damages arising from your use of the service.
         </p>
@@ -93,8 +93,11 @@ export default function TermsOfServicePage() {
 
       <LegalSection title="Contact">
         <p>
-          For questions about these terms, contact the parent or administrator
-          who operates your Beacon deployment.
+          For questions about these terms, write to{" "}
+          <a className="font-bold text-[var(--sage)]" href={`mailto:${CONTACT_EMAIL}`}>
+            {CONTACT_EMAIL}
+          </a>
+          .
         </p>
       </LegalSection>
     </LegalPage>

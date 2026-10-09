@@ -1,100 +1,174 @@
 import type { Metadata } from "next";
 import { LegalPage, LegalSection } from "@/components/legal-page";
+import { APP_NAME, CONTACT_EMAIL } from "@/lib/app-info";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description: "How Beacon collects, uses, and protects family data.",
+  description: `How ${APP_NAME} collects, uses, and protects family data.`,
 };
+
+const strong = "text-[var(--foreground)]";
 
 export default function PrivacyPolicyPage() {
   return (
-    <LegalPage title="Privacy Policy" updated="October 5, 2026">
+    <LegalPage title="Privacy Policy" updated="October 8, 2026">
       <p>
-        Beacon is a family dashboard for calendars, routines, chores, meals,
-        and recipes. This policy explains what information the app stores and
-        how it is used when you sign in or grant device permissions.
+        {APP_NAME} is a family dashboard for routines, chores, meals, recipes,
+        groceries, notes, sleep logs, birthdays, and the day&apos;s schedule and
+        weather. This policy explains what information the app stores, what stays
+        on your device, who else handles it, and how you can delete it.
       </p>
 
-      <LegalSection title="Who operates Beacon">
+      <LegalSection title="Who we are">
         <p>
-          Beacon is typically run by a parent or household administrator who
-          deploys and maintains the application. That operator controls the
-          server, database, and environment configuration for their household.
+          {APP_NAME} is made and run by Justin Hobbs, an individual developer.
+          Questions about this policy or your data can go to{" "}
+          <a className="font-bold text-[var(--sage)]" href={`mailto:${CONTACT_EMAIL}`}>
+            {CONTACT_EMAIL}
+          </a>
+          .
         </p>
       </LegalSection>
 
-      <LegalSection title="Information we collect">
+      <LegalSection title="Information we store">
         <p>
-          <strong className="text-[var(--foreground)]">Parent accounts:</strong>{" "}
-          name, email address, and authentication credentials managed through
-          Better Auth. We use your email address to sign you in and to send a
-          one-time link that confirms the address belongs to you (through our
-          email provider, Resend); we do not send marketing email.
+          <strong className={strong}>Your account:</strong> your name, email
+          address, and a password (kept only as a one-way hash, so nobody,
+          including us, can read it). We use your email address to sign you in
+          and to send a one-time link that confirms the address is yours. We do
+          not send marketing email.
         </p>
         <p>
-          <strong className="text-[var(--foreground)]">Household data:</strong>{" "}
-          household name, timezone, invite code, family profiles (including
-          names, colors, birthdays, and optional profile photos), chores,
-          routines, meals, and recipes.
+          <strong className={strong}>Your household:</strong> the household name
+          and time zone, invite codes, and what your family adds: profiles
+          (names, colors, birthdays, and optional photos), birthdays and
+          anniversaries, chores, routines and when each step was done and by
+          whom, snacks, meals and recipes (including recipes you import from a
+          web address or a Crouton file), grocery items (unless you use Reminders), notes, and nap and
+          sleep logs. Parents may enter details about children, such as a name,
+          a birthday, and sleep times.
         </p>
         <p>
-          <strong className="text-[var(--foreground)]">Calendar data:</strong>{" "}
-          Beacon reads calendar events from the calendars available on your
-          iPhone or iPad after you grant iOS calendar permission. Beacon does
-          not store Apple, Google, or other calendar-provider credentials.
+          <strong className={strong}>Photos:</strong> you choose a photo with the
+          system photo picker, so {APP_NAME} sees only the photos you pick. Photos
+          for profiles, the family, and recipes are stored with our storage
+          provider. Each has a long web address that cannot be guessed, but
+          anyone who has the exact address can open it, so do not add photos you
+          would not want shared.
         </p>
         <p>
-          <strong className="text-[var(--foreground)]">Technical data:</strong>{" "}
-          session information, basic request metadata used for security and rate
-          limiting, and profile photos stored through Vercel Blob when uploaded.
-        </p>
-      </LegalSection>
-
-      <LegalSection title="How we use information">
-        <p>
-          Information is used only to operate the household hub: showing shared
-          schedules, managing family tasks and meals, and authenticating
-          parents who manage the household.
-        </p>
-        <p>
-          Beacon does not sell personal information or use household calendar
-          data for advertising.
+          <strong className={strong}>Technical data:</strong> a session that
+          keeps you signed in (stored in the iOS Keychain on your device), and
+          basic request details, including your IP address, used briefly for
+          security and to limit repeated attempts. Our hosting provider also
+          keeps ordinary server logs.
         </p>
       </LegalSection>
 
-      <LegalSection title="How information is protected">
+      <LegalSection title="What stays on your device">
         <p>
-          Access to household data is limited to signed-in parents who belong
-          to that household. Child profiles do not require their own accounts.
+          <strong className={strong}>Calendars:</strong> {APP_NAME} reads events
+          from the calendars on your iPhone or iPad after you allow access. They
+          are shown on your device and are not sent to our servers. We never
+          receive your Apple, Google, or other calendar sign-in details.
+        </p>
+        <p>
+          <strong className={strong}>Reminders:</strong> if you allow access and
+          choose a list, grocery items you add are written to that list in the
+          Reminders app on your device (and shared by Apple if the list is
+          shared), not stored on our servers. Without Reminders access, items are
+          kept in {APP_NAME}&apos;s own grocery list on our servers.
+        </p>
+        <p>
+          <strong className={strong}>Notifications:</strong> reminders for
+          routines, chores, naps, and birthdays are scheduled on your device.
+          {" "}{APP_NAME} does not use a push notification server.
+        </p>
+        <p>
+          <strong className={strong}>A saved copy:</strong> so the app opens
+          without a connection, it keeps a protected copy of your household
+          information on the device. It is left out of device backups.
         </p>
       </LegalSection>
 
-      <LegalSection title="Data retention and deletion">
+      <LegalSection title="Weather and location">
         <p>
-          Data remains available while your household uses Beacon. You can
-          delete recipes, meals, chores, routines, and profile information
-          through the app. Owners and parents can save a JSON copy of their
-          household data from Settings. You can delete your account at any time
-          from the Profile screen in the app. If you are the only member of a
-          household, deleting your account also permanently deletes that
-          household and everything in it. If others share the household, you
-          leave it and your profile is removed; the household&apos;s only owner
-          must first make another member an owner.
+          If you allow location access, {APP_NAME} uses your device&apos;s
+          approximate location to ask Apple Weather for local conditions. The
+          location goes to Apple for that request; it is not sent to our servers
+          and we do not store it. Weather is provided by Apple Weather; see{" "}
+          <a
+            className="font-bold text-[var(--sage)]"
+            href="https://developer.apple.com/weatherkit/data-source-attribution/"
+          >
+            Apple&apos;s data sources
+          </a>
+          .
+        </p>
+      </LegalSection>
+
+      <LegalSection title="Who else handles your information">
+        <p>
+          We use a few providers to run the service, and each handles only what
+          its job needs: Vercel hosts the app and stores photos, Turso hosts the
+          database, Resend delivers the confirmation emails, and Apple provides
+          weather. We do not sell personal information, do not show advertising,
+          and do not track you across other apps or websites. There are no
+          analytics or advertising tools in {APP_NAME}.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="Who can see household information">
+        <p>
+          Everyone in a household can see that household&apos;s information.
+          Parents and owners can change it and manage members; guests can view it
+          and log activity such as naps and check-offs. Invite codes control who
+          can join, so keep them private. Your household&apos;s information is
+          never shown to other households.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="Keeping and deleting your information">
+        <p>
+          Your information is kept while you use {APP_NAME}. You can delete
+          recipes, meals, chores, routines, notes, and profiles in the app, and a
+          photo is removed from storage when you replace it, remove it, or delete
+          what it belongs to. Owners and parents can save a copy of their
+          household information from Settings.
+        </p>
+        <p>
+          You can delete your account at any time from the Profile screen. If you
+          are the only member of a household, this permanently deletes the
+          household and everything in it, including its photos. If others share
+          the household, you leave it and your profile is removed; the
+          household&apos;s only owner must first make another member an owner.
         </p>
       </LegalSection>
 
       <LegalSection title="Children">
         <p>
-          Beacon is designed for family use under parent supervision. Children
-          are represented as household profiles and do not create separate login
-          accounts.
+          {APP_NAME} is for parents and guardians. Children appear only as
+          profiles that a parent creates and do not have accounts. We do not
+          knowingly collect information directly from children. A parent can
+          delete a child&apos;s profile and logs at any time, or ask us to at the
+          address below.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="Changes to this policy">
+        <p>
+          If we change what we collect or how we use it, we will update this
+          page and its date.
         </p>
       </LegalSection>
 
       <LegalSection title="Contact">
         <p>
-          For privacy questions about a specific Beacon deployment, contact the
-          parent or administrator who runs that instance of the application.
+          Write to{" "}
+          <a className="font-bold text-[var(--sage)]" href={`mailto:${CONTACT_EMAIL}`}>
+            {CONTACT_EMAIL}
+          </a>{" "}
+          with any question about your information or to ask us to delete it.
         </p>
       </LegalSection>
     </LegalPage>

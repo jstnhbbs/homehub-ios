@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { APP_NAME } from "@/lib/app-info";
 
 export function LegalPage({
   title,
@@ -13,7 +14,7 @@ export function LegalPage({
   return (
     <main className="mx-auto max-w-3xl px-6 py-12 pb-16">
       <Link href="/sign-in" className="text-sm font-bold text-[var(--sage)]">
-        ← Beacon
+        ← {APP_NAME}
       </Link>
       <h1 className="font-display mt-4 text-4xl font-semibold">{title}</h1>
       <p className="mt-2 text-sm text-[var(--muted)]">Last updated: {updated}</p>
