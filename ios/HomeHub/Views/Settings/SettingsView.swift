@@ -97,6 +97,10 @@ struct SettingsView: View {
             statusMessagesSection
 
             Section {
+                settingsRow(.account)
+            }
+
+            Section {
                 settingsRow(.general)
                 settingsRow(.family)
             } header: {
@@ -203,7 +207,7 @@ struct SettingsView: View {
 
     private func trailingValue(for tab: SettingsTab) -> String? {
         switch tab {
-        case .general:
+        case .general, .account:
             nil
         case .appearance:
             appState.accentPalette.label
@@ -272,6 +276,8 @@ struct SettingsView: View {
     @ViewBuilder
     private func settingsPage(_ tab: SettingsTab) -> some View {
         switch tab {
+        case .account:
+            MyProfileView(embedded: true)
         case .general:
             generalTab
         case .appearance:
@@ -1084,6 +1090,7 @@ private enum DevicePermissionState {
 }
 
 private enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
+    case account
     case general
     case appearance
     case privacyAccess
@@ -1099,6 +1106,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
 
     var label: String {
         switch self {
+        case .account: "Account"
         case .general: "General"
         case .appearance: "Appearance"
         case .privacyAccess: "Privacy & Access"
@@ -1114,6 +1122,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
 
     var description: String {
         switch self {
+        case .account: "Your name, email, password, and photo. Delete your account."
         case .general: "Household details, date, and sign out."
         case .appearance: "Theme, mode, and app icon."
         case .privacyAccess: "Review permissions used on this device."
@@ -1129,6 +1138,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
 
     var systemImage: String {
         switch self {
+        case .account: "person.crop.circle"
         case .general: "gearshape"
         case .appearance: "paintpalette"
         case .privacyAccess: "hand.raised"
@@ -1144,6 +1154,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
 
     var tint: Color {
         switch self {
+        case .account: Color.mint
         case .general: HubTheme.sage
         case .appearance: Color.pink
         case .privacyAccess: Color.cyan

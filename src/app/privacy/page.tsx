@@ -137,7 +137,7 @@ export default function PrivacyPolicyPage() {
           household information from Settings.
         </p>
         <p>
-          You can delete your account at any time from the Profile screen. If you
+          You can delete your account at any time from Settings → Account in the app. If you
           are the only member of a household, this permanently deletes the
           household and everything in it, including its photos. If others share
           the household, you leave it and your profile is removed; the

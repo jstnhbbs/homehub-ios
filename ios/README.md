@@ -78,7 +78,7 @@ To load `http://` during development, add a temporary ATS exception in Info.plis
 - **Recipes**: card grid, import URL, add/edit/delete (parents), and **tags**: meal types (Breakfast, Lunch, Dinner, Snack, Dessert), proteins (Chicken, Beef, Pork, Turkey, Fish, Seafood, Vegetarian), and your own. Imports suggest tags from the page's category and the ingredients, filter chips narrow the list (Dinner + Chicken), and the meal planner shows recipes tagged for the slot first
 - **Profiles**: family member CRUD in Settings (parents); **Profile** tab for account + self-edit (all members, including guests)
 - **Settings**: household members list with guest removal (parents), household data export to Files (parents)
-- **Account deletion** (Profile → Delete Account, password required): a sole member's household is deleted with them, the only owner of a shared household must transfer ownership first, and anyone else just leaves
+- **Account deletion** (Settings → Account → Delete Account, password required): a sole member's household is deleted with them, the only owner of a shared household must transfer ownership first, and anyone else just leaves
 - **Profile photos**: pick from library, upload, replace, remove (parents for any profile; guests for own)
 - Local snapshot cache for the last household/dashboard load
 - Local notifications for routines, chores, sleep, and **birthdays**. Birthday reminders are chosen in Settings → Notifications: on the day, and any of 1 day, 3 days, 1 week, or 2 weeks before, at a time you pick (8:00 AM by default) in the household's time zone. They are planned up to 45 days ahead so they arrive even if the app isn't opened, capped at 30 to leave room for the other reminders

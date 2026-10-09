@@ -1,6 +1,10 @@
 import SwiftUI
 
 struct MyProfileView: View {
+    /// Shown inside Settings (the Account row), which already has the page title, Appearance and
+    /// Sign Out. On its own, as a guest's profile page, it carries all three itself.
+    var embedded = false
+
     @EnvironmentObject private var appState: AppState
     @StateObject private var viewModel = MyProfileViewModel()
 
@@ -13,8 +17,10 @@ struct MyProfileView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            header
-                .padding(.horizontal)
+            if !embedded {
+                header
+                    .padding(.horizontal)
+            }
 
             Form {
                 statusSection
@@ -33,11 +39,13 @@ struct MyProfileView: View {
                     }
                 }
 
-                ThemeSettingView()
+                if !embedded {
+                    ThemeSettingView()
 
-                Section {
-                    Button("Sign Out", role: .destructive) {
-                        Task { await appState.signOut() }
+                    Section {
+                        Button("Sign Out", role: .destructive) {
+                            Task { await appState.signOut() }
+                        }
                     }
                 }
 
@@ -97,7 +105,7 @@ struct MyProfileView: View {
 
     private func accountSection(_ account: AccountData) -> some View {
         Group {
-            Section("Account") {
+            Section(embedded ? "Name" : "Account") {
                 HStack(spacing: 12) {
                     ProfileAvatarView(
                         name: account.user.name,
