@@ -8,10 +8,6 @@ const composedSvgPath = path.join(root, "public/icon.svg");
 const iconsDir = path.join(root, "public/icons");
 const appDir = path.join(root, "src/app");
 const publicIconPartsDir = path.join(root, "public/icon");
-const loadingIconDir = path.join(
-  root,
-  "ios/HomeHub/Assets.xcassets/LoadingIcon.imageset",
-);
 const iosIconDir = path.join(
   root,
   "ios/HomeHub/Assets.xcassets/HomeHub.appiconset",
@@ -33,7 +29,8 @@ const appIconPreviews = [
   ["Ochre", "BeaconOchre"],
 ];
 
-const webSizes = [16, 32, 48, 72, 96, 120, 128, 144, 152, 180, 192, 384, 512];
+// Only the sizes src/app/layout.tsx links to (the 180 px apple-touch-icon is made separately below).
+const webSizes = [32, 192];
 
 const iosSizes = [
   { filename: "Icon-iPhone-20@2x.png", size: 40 },
@@ -165,28 +162,6 @@ const iosContents = {
       idiom: "ios-marketing",
       scale: "1x",
       size: "1024x1024",
-    },
-  ],
-  info: {
-    author: "xcode",
-    version: 1,
-  },
-};
-
-const loadingIconContents = {
-  images: [
-    {
-      filename: "LoadingIcon.png",
-      idiom: "universal",
-      scale: "1x",
-    },
-    {
-      idiom: "universal",
-      scale: "2x",
-    },
-    {
-      idiom: "universal",
-      scale: "3x",
     },
   ],
   info: {
@@ -435,7 +410,6 @@ await writeFile(composedSvgPath, composedSvg);
 await writePublicIconLayers(icon);
 await mkdir(iconsDir, { recursive: true });
 await mkdir(iosIconDir, { recursive: true });
-await mkdir(loadingIconDir, { recursive: true });
 
 for (const size of webSizes) {
   const output = path.join(iconsDir, `icon-${size}.png`);
@@ -474,17 +448,9 @@ for (const { filename, size } of iosSizes) {
   );
 }
 
-await (await composeRaster(1024, composedSvg)).toFile(
-  path.join(loadingIconDir, "LoadingIcon.png"),
-);
-
 await writeFile(
   path.join(iosIconDir, "Contents.json"),
   `${JSON.stringify(iosContents, null, 2)}\n`,
-);
-await writeFile(
-  path.join(loadingIconDir, "Contents.json"),
-  `${JSON.stringify(loadingIconContents, null, 2)}\n`,
 );
 // The picker previews are not made here: they are renders from Icon Composer (ictool, see AGENTS.md), and
 // this script's flat renderer would overwrite them. `--app-icon-previews-only` still makes the flat ones.
@@ -499,4 +465,3 @@ console.log("Updated src/app/favicon.ico");
 console.log(
   `Updated iOS HomeHub.appiconset fallback PNGs (${iosSizes.length} files)`,
 );
-console.log("Updated iOS LoadingIcon.imageset");

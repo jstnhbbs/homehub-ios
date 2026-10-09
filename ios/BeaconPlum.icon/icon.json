@@ -46,7 +46,8 @@
         },
         {
           "image-name" : "glow.svg",
-          "name" : "glow"
+          "name" : "glow",
+          "glass" : false
         },
         {
           "fill-specializations" : [
