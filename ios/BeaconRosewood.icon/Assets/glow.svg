@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <clipPath id="glow-clip"><path transform="translate(512.02 565.78) scale(1.24) translate(-512 -512)" d="M191.5 504.5c-31.5 0-45-39.9-20-58.9L481.5 210c18-13.7 42.9-13.7 60.9 0l116.6 88.6V247c0-16.6 13.4-30 30-30h61c16.6 0 30 13.4 30 30v144.8l72.5 55.1c24.9 18.9 11.5 58.6-19.8 58.6h-31.2V736c0 35.3-28.7 64-64 64h-451c-35.3 0-64-28.7-64-64V504.5h-31z"/></clipPath>
+    <radialGradient id="glow-fill" gradientUnits="userSpaceOnUse" cx="512" cy="650" r="430">
+      <stop offset="0" stop-color="#ffd36b" stop-opacity="0.6"/>
+      <stop offset=".55" stop-color="#ffd36b" stop-opacity="0.270"/>
+      <stop offset="1" stop-color="#ffd36b" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g clip-path="url(#glow-clip)"><circle cx="512" cy="650" r="430" fill="url(#glow-fill)"/></g>
+</svg>

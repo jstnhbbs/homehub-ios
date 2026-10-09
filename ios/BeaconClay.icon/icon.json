@@ -45,6 +45,10 @@
           }
         },
         {
+          "image-name" : "glow.svg",
+          "name" : "glow"
+        },
+        {
           "fill-specializations" : [
             {
               "value" : {
@@ -65,17 +69,6 @@
             "translation-in-points" : [
               0.021685607007270846,
               53.77999999999997
-            ]
-          }
-        },
-        {
-          "image-name" : "sun.svg",
-          "name" : "sun",
-          "position" : {
-            "scale" : 1.24,
-            "translation-in-points" : [
-              2.6504414106333343,
-              0.7799999999999727
             ]
           }
         },

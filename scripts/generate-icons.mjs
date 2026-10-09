@@ -26,7 +26,7 @@ const appIconPreviews = [
   ["Clay", "BeaconClay"],
   ["Plum", "BeaconPlum"],
   ["Slate", "BeaconSlate"],
-  ["Forest", "BeaconForest"],
+  ["Rosewood", "BeaconRosewood"],
   ["Teal", "BeaconTeal"],
   ["Indigo", "BeaconIndigo"],
   ["Rose", "BeaconRose"],
@@ -486,7 +486,8 @@ await writeFile(
   path.join(loadingIconDir, "Contents.json"),
   `${JSON.stringify(loadingIconContents, null, 2)}\n`,
 );
-await generateAppIconPreviews();
+// The picker previews are not made here: they are renders from Icon Composer (ictool, see AGENTS.md), and
+// this script's flat renderer would overwrite them. `--app-icon-previews-only` still makes the flat ones.
 
 console.log(
   `Composed public/icon.svg from ${icon.layers.length} visible layers in ios/Beacon.icon/`,
