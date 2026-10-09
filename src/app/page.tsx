@@ -39,7 +39,7 @@ export default async function Home() {
   return (
     <main className="min-h-dvh">
       <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-6">
-        <div className="font-display text-2xl font-bold">Beacon</div>
+        <div className="font-display text-2xl font-bold">Porchlight</div>
         <div className="flex items-center gap-3">
           <ThemeToggle />
           <Link href="/sign-in" className="hub-button px-5">
@@ -57,7 +57,7 @@ export default async function Home() {
             A calmer way to run the family week.
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-[var(--muted)]">
-            Beacon brings calendars, routines, chores, meals, and recipes
+            Porchlight brings calendars, routines, chores, meals, and recipes
             together on one iPad-friendly screen so everyone knows what&apos;s
             happening today.
           </p>

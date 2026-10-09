@@ -76,9 +76,9 @@ enum NotificationCommands {
     static func failureMessage(for command: NotificationCommand) -> (title: String, body: String) {
         switch command {
         case .completeChore(_, _, let title):
-            return ("Couldn't mark it done", "\(title) wasn't marked done. Open Beacon to try again.")
+            return ("Couldn't mark it done", "\(title) wasn't marked done. Open Porchlight to try again.")
         case .endNap(_, let name):
-            return ("Couldn't end the nap", "\(name)'s nap wasn't ended. Open Beacon to try again.")
+            return ("Couldn't end the nap", "\(name)'s nap wasn't ended. Open Porchlight to try again.")
         }
     }
 }

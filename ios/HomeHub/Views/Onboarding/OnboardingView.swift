@@ -28,7 +28,7 @@ struct OnboardingView: View {
 
     var body: some View {
         VStack(spacing: 24) {
-            Text("Welcome to Beacon")
+            Text("Welcome to Porchlight")
                 .font(.system(size: welcomeSize, weight: .bold, design: .rounded))
             Text("Create a household or join one with an invite code.")
                 .foregroundStyle(HubTheme.muted)

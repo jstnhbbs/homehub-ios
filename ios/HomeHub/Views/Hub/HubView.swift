@@ -302,7 +302,7 @@ struct HubNavView: View {
 
             VStack(spacing: 8) {
                 HouseholdMarkView(
-                    name: appState.household?.name ?? "Beacon",
+                    name: appState.household?.name ?? "Porchlight",
                     photo: appState.household?.photo,
                     ownerName: appState.household?.ownerName,
                     size: 56
@@ -402,7 +402,7 @@ struct HubHeaderView: View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
-                    Text(appState.household?.name ?? "Beacon")
+                    Text(appState.household?.name ?? "Porchlight")
                         .font(.caption.weight(.bold))
                         .textCase(.uppercase)
                         .foregroundStyle(HubTheme.muted)

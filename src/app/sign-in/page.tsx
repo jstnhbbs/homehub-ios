@@ -11,7 +11,7 @@ export default async function SignInPage() {
     <main className="grid min-h-dvh lg:grid-cols-[1.15fr_0.85fr]">
       <section className="relative hidden overflow-hidden bg-[var(--hero)] p-14 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="absolute -right-24 -top-28 h-80 w-80 rounded-full bg-[var(--sun)]/80" />
-        <div className="font-display relative text-3xl font-bold">Beacon</div>
+        <div className="font-display relative text-3xl font-bold">Porchlight</div>
         <div className="relative max-w-xl">
           <p className="font-display text-6xl font-semibold leading-[1.02]">
             A calmer way to run the family week.

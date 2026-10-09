@@ -59,7 +59,7 @@ struct CroutonImportView: View {
             Text("Export your recipes from Crouton as .crumb files into the Files app, then choose that folder here, or pick individual files. Ingredients, steps, times, tags, notes, nutrition and photos come across.")
                 .font(.footnote)
                 .foregroundStyle(HubTheme.muted)
-            Text("Importing the same recipes again is safe: ones already in Beacon are skipped, and any that are missing their photo get it.")
+            Text("Importing the same recipes again is safe: ones already in Porchlight are skipped, and any that are missing their photo get it.")
                 .font(.footnote)
                 .foregroundStyle(HubTheme.muted)
 
@@ -136,7 +136,7 @@ struct CroutonImportView: View {
             VStack(alignment: .leading, spacing: 8) {
                 summaryRow("\(model.created) recipe\(model.created == 1 ? "" : "s") added", systemImage: "plus.circle.fill", tint: HubTheme.accentText)
                 if model.duplicates > 0 {
-                    summaryRow("\(model.duplicates) already in Beacon, skipped", systemImage: "equal.circle", tint: HubTheme.muted)
+                    summaryRow("\(model.duplicates) already in Porchlight, skipped", systemImage: "equal.circle", tint: HubTheme.muted)
                 }
                 if model.photosSaved > 0 {
                     summaryRow("\(model.photosSaved) photo\(model.photosSaved == 1 ? "" : "s") saved", systemImage: "photo", tint: HubTheme.muted)

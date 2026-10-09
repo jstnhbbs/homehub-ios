@@ -93,9 +93,9 @@ func makeApp(store: SecretStore = InMemorySecretStore()) -> (auth: AuthService, 
 check("origin with a port", APIClient.origin(of: URL(string: "http://localhost:3000")!) ?? "nil", "http://localhost:3000")
 check("origin without a port", APIClient.origin(of: URL(string: "https://hobbshomehub.vercel.app/some/path")!) ?? "nil", "https://hobbshomehub.vercel.app")
 check("sign-in service paths", String(APIClient.isAuthPath("/api/auth/sign-out")), "true")
-check("Beacon's own paths", String(APIClient.isAuthPath("/api/mobile/v1/dashboard")), "false")
+check("Porchlight's own paths", String(APIClient.isAuthPath("/api/mobile/v1/dashboard")), "false")
 check("a message from the sign-in service", APIClient.serverErrorMessage(statusCode: 401, data: Data(#"{"message":"Invalid email or password","code":"INVALID_EMAIL_OR_PASSWORD"}"#.utf8)), "Invalid email or password")
-check("an error from Beacon's own routes", APIClient.serverErrorMessage(statusCode: 400, data: Data(#"{"error":"Nothing to update."}"#.utf8)), "Nothing to update.")
+check("an error from Porchlight's own routes", APIClient.serverErrorMessage(statusCode: 400, data: Data(#"{"error":"Nothing to update."}"#.utf8)), "Nothing to update.")
 check("a page that is not JSON", APIClient.serverErrorMessage(statusCode: 502, data: Data("<html>bad gateway</html>".utf8)), "Unexpected server response (502).")
 
 @MainActor

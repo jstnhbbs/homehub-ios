@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export function IOSOnlyPage({
   title,
-  detail = "This product surface now lives in the Beacon iOS app. The web app is kept as a lightweight account and backend shell.",
+  detail = "This product surface now lives in the Porchlight iOS app. The web app is kept as a lightweight account and backend shell.",
 }: {
   title: string;
   detail?: string;

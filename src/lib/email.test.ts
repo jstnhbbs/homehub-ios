@@ -32,7 +32,7 @@ describe("sendEmail", () => {
 
   it("posts the message to Resend with the key and the sender", async () => {
     vi.stubEnv("RESEND_API_KEY", "re_test_key");
-    vi.stubEnv("EMAIL_FROM", "Beacon <hello@example.com>");
+    vi.stubEnv("EMAIL_FROM", "Porchlight <hello@example.com>");
     const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -43,7 +43,7 @@ describe("sendEmail", () => {
     expect(url).toBe("https://api.resend.com/emails");
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer re_test_key");
     expect(JSON.parse(init.body as string)).toEqual({
-      from: "Beacon <hello@example.com>",
+      from: "Porchlight <hello@example.com>",
       to: ["pat@example.com"],
       subject: "Hello",
       text: "Hi",
@@ -97,7 +97,7 @@ describe("verification email", () => {
   it("is addressed to the person, with the link in both the text and the html", () => {
     const email = verificationEmail({ to: "pat@example.com", name: "Pat", url: raw });
     expect(email.to).toBe("pat@example.com");
-    expect(email.subject).toBe("Confirm your email for Beacon");
+    expect(email.subject).toBe("Confirm your email for Porchlight");
     expect(email.text).toContain("Hi Pat,");
     expect(email.text).toContain("token=abc.def");
     expect(email.html).toContain("token=abc.def");

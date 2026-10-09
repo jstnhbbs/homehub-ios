@@ -11,13 +11,13 @@ export default function TermsOfServicePage() {
   return (
     <LegalPage title="Terms of Service" updated="July 15, 2026">
       <p>
-        These Terms of Service govern your use of Beacon. By creating a parent
+        These Terms of Service govern your use of {APP_NAME}. By creating a parent
         account or joining a household, you agree to these terms.
       </p>
 
       <LegalSection title="The service">
         <p>
-          Beacon provides a shared family dashboard for calendars, routines,
+          {APP_NAME} provides a shared family dashboard for calendars, routines,
           chores, meals, and recipes. Features may change as the application is
           updated.
         </p>
@@ -25,7 +25,7 @@ export default function TermsOfServicePage() {
 
       <LegalSection title="Eligibility and accounts">
         <p>
-          Beacon is intended for parents or guardians managing a household.
+          {APP_NAME} is intended for parents or guardians managing a household.
           You are responsible for keeping your sign-in credentials secure and
           for activity that occurs through your account.
         </p>
@@ -37,7 +37,7 @@ export default function TermsOfServicePage() {
 
       <LegalSection title="Device permissions">
         <p>
-          If you grant calendar access on iPhone or iPad, you authorize Beacon
+          If you grant calendar access on iPhone or iPad, you authorize {APP_NAME}
           to read calendar data available on that device. You are responsible
           for ensuring you have the right to show any calendar content inside
           the household app.
@@ -45,7 +45,7 @@ export default function TermsOfServicePage() {
       </LegalSection>
 
       <LegalSection title="Acceptable use">
-        <p>You agree not to misuse Beacon, including by:</p>
+        <p>You agree not to misuse {APP_NAME}, including by:</p>
         <ul className="list-disc space-y-2 pl-5">
           <li>attempting to access another household&apos;s data</li>
           <li>interfering with the security or operation of the service</li>
@@ -55,16 +55,16 @@ export default function TermsOfServicePage() {
 
       <LegalSection title="Your content">
         <p>
-          You retain responsibility for the information you add to Beacon,
+          You retain responsibility for the information you add to {APP_NAME},
           including family profile details, calendar events, recipes, and meal
-          plans. You grant Beacon permission to store and process that
+          plans. You grant {APP_NAME} permission to store and process that
           information solely to provide the service to your household.
         </p>
       </LegalSection>
 
       <LegalSection title="Availability and changes">
         <p>
-          Beacon is provided on an as-available basis. We may perform
+          {APP_NAME} is provided on an as-available basis. We may perform
           maintenance or updates that temporarily affect availability.
         </p>
         <p>
@@ -76,7 +76,7 @@ export default function TermsOfServicePage() {
 
       <LegalSection title="Disclaimer">
         <p>
-          Beacon is provided without warranties of any kind, to the fullest
+          {APP_NAME} is provided without warranties of any kind, to the fullest
           extent permitted by law. Calendar sync, reminders, and household
           planning features should not be relied on as your only source of
           time-sensitive scheduling information.

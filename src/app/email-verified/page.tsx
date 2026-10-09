@@ -28,11 +28,11 @@ export default async function EmailVerifiedPage({
         </h1>
         <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
           {failed
-            ? "It may have expired or already been used. Open Beacon, go to Settings, and ask for a new confirmation email."
-            : "Thanks. Your email address is confirmed. You can close this page and go back to Beacon."}
+            ? "It may have expired or already been used. Open Porchlight, go to Settings, and ask for a new confirmation email."
+            : "Thanks. Your email address is confirmed. You can close this page and go back to Porchlight."}
         </p>
         <Link href="/" className="hub-button secondary mt-6 inline-flex">
-          Open Beacon on the web
+          Open Porchlight on the web
         </Link>
       </section>
     </main>

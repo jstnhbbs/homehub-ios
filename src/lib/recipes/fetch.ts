@@ -244,7 +244,7 @@ function requestOnce(url: URL, policy: FetchPolicy, deadline: number): Promise<P
         headers: {
           Accept: "text/html,application/xhtml+xml",
           "Accept-Encoding": "gzip, deflate, br",
-          "User-Agent": "Beacon Recipe Importer/1.0",
+          "User-Agent": "Porchlight Recipe Importer/1.0",
         },
       },
       (response) => {

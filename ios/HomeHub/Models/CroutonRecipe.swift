@@ -1,7 +1,7 @@
 import Foundation
 
 /// One recipe from a Crouton export. A `.crumb` file is JSON; only the text fields are kept here
-/// and they are sent as they are, because the server decides how each one becomes a Beacon recipe
+/// and they are sent as they are, because the server decides how each one becomes a Porchlight recipe
 /// (see `src/lib/recipes/crouton.ts`). The photos travel separately, resized.
 struct CroutonRecipePayload: Codable, Sendable, Equatable {
     var uuid: String
@@ -85,6 +85,6 @@ struct CroutonImportResult: Decodable, Sendable {
     let status: Status
     let id: String?
     let error: String?
-    /// For a duplicate: whether Beacon already has its photo. Nil from a server that doesn't say.
+    /// For a duplicate: whether Porchlight already has its photo. Nil from a server that doesn't say.
     let hasPhoto: Bool?
 }

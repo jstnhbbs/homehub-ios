@@ -1,6 +1,6 @@
-# Beacon iOS
+# Porchlight iOS
 
-Native SwiftUI app for Beacon on iPhone and iPad. It talks to the existing Next.js backend through Better Auth and the `/api/mobile/v1/*` JSON API added for native clients, so edits made on a parent's phone show up on the family iPad and the other way round.
+Native SwiftUI app for Porchlight on iPhone and iPad. It talks to the existing Next.js backend through Better Auth and the `/api/mobile/v1/*` JSON API added for native clients, so edits made on a parent's phone show up on the family iPad and the other way round.
 
 ## Architecture
 
@@ -13,12 +13,12 @@ ios/HomeHub/
 └── App/             # AppState and root navigation
 ```
 
-The Next.js server in the repo root is the source of truth for household data, routines, chores, meals, recipes, and profiles. Its own web pages are only sign-in, onboarding, a settings page and the legal pages; everything else is this app. The iOS app reads calendars through native EventKit access only; any iCloud or Google calendars should be added to Apple Calendar on the device, then selected inside Beacon.
+The Next.js server in the repo root is the source of truth for household data, routines, chores, meals, recipes, and profiles. Its own web pages are only sign-in, onboarding, a settings page and the legal pages; everything else is this app. The iOS app reads calendars through native EventKit access only; any iCloud or Google calendars should be added to Apple Calendar on the device, then selected inside Porchlight.
 
 ## Prerequisites
 
 1. Xcode 16+ with iOS 17 SDK
-2. Running Beacon backend (`npm run dev` at repo root)
+2. Running Porchlight backend (`npm run dev` at repo root)
 3. Simulator or iPhone/iPad device on the same network as the API host
 
 ## Generate the Xcode project

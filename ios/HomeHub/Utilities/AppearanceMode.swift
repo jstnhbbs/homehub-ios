@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Whether Beacon follows the device's light and dark setting or is held to one of them. Saved on
+/// Whether Porchlight follows the device's light and dark setting or is held to one of them. Saved on
 /// the device, like the theme color.
 enum AppearanceMode: String, CaseIterable, Identifiable {
     case system

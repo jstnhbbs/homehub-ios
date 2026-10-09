@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { APP_NAME } from "@/lib/app-info";
 
 export const metadata: Metadata = {
   title: {
-    default: "Beacon",
-    template: "%s · Beacon",
+    default: APP_NAME,
+    template: `%s · ${APP_NAME}`,
   },
   description: "A calm place for your family's days, meals, and routines.",
-  applicationName: "Beacon",
+  applicationName: APP_NAME,
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },
@@ -25,7 +26,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Beacon",
+    title: APP_NAME,
   },
   formatDetection: { telephone: false },
   ...(process.env.GOOGLE_SITE_VERIFICATION

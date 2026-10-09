@@ -114,7 +114,7 @@ struct SettingsView: View {
                 settingsRow(.appearance)
                 settingsRow(.privacyAccess)
             } header: {
-                Text("Beacon")
+                Text("Porchlight")
             }
 
             Section {
@@ -137,7 +137,7 @@ struct SettingsView: View {
         Section {
             HStack(spacing: 14) {
                 ProfileAvatarView(
-                    name: appState.currentUser?.name ?? "Beacon",
+                    name: appState.currentUser?.name ?? "Porchlight",
                     avatar: appState.currentUser?.image,
                     color: appState.myProfile(from: viewModel.profiles)?.color ?? "#4f7c6d",
                     size: 56
@@ -146,7 +146,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(appState.currentUser?.name ?? "Signed in")
                         .font(.headline)
-                    Text(appState.currentUser?.email ?? appState.household?.name ?? "Beacon")
+                    Text(appState.currentUser?.email ?? appState.household?.name ?? "Porchlight")
                         .font(.subheadline)
                         .foregroundStyle(HubTheme.muted)
                         .lineLimit(1)
@@ -331,7 +331,7 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .hubPageBackground()
-        .confirmationDialog("Sign out of Beacon?", isPresented: $confirmingSignOut, titleVisibility: .visible) {
+        .confirmationDialog("Sign out of Porchlight?", isPresented: $confirmingSignOut, titleVisibility: .visible) {
             Button("Sign Out", role: .destructive) {
                 Task { await appState.signOut() }
             }
@@ -342,7 +342,7 @@ struct SettingsView: View {
             isPresented: $showExporter,
             document: exportDocument,
             contentType: .json,
-            defaultFilename: "beacon-export-\(DateHelpers.localDateIn(timezone: .current))"
+            defaultFilename: "porchlight-export-\(DateHelpers.localDateIn(timezone: .current))"
         ) { result in
             if case .failure(let error) = result {
                 appState.report(error)
@@ -461,7 +461,7 @@ struct SettingsView: View {
             } header: {
                 Text("Sync Status")
             } footer: {
-                Text("Beacon keeps your household's information on its server and uses this device for calendars, reminders, weather, and notifications.")
+                Text("Porchlight keeps your household's information on its server and uses this device for calendars, reminders, weather, and notifications.")
             }
 
             Section {
@@ -486,7 +486,7 @@ struct SettingsView: View {
             Section {
                 LabeledContent("Version", value: appVersionLabel)
             } header: {
-                Text("About Beacon")
+                Text("About Porchlight")
             }
 
             Section {
@@ -810,8 +810,8 @@ private struct SettingsFAQView: View {
 
     private static let sections: [FAQSection] = [
         FAQSection(title: "Getting Started", questions: [
-            FAQItem("How do I use Beacon on more than one device?", "Install Beacon on each device and sign in. Use the same account, or have another parent create an account and join your household with the parent invite code in Settings > Family. Shared household information is the same on your phone and your iPad."),
-            FAQItem("What is the difference between an account and a family profile?", "An account is a sign-in for someone using Beacon. A family profile represents a person in your household, including children who do not need their own sign-in. Profiles let you assign routines and chores and keep birthdays together."),
+            FAQItem("How do I use Porchlight on more than one device?", "Install Porchlight on each device and sign in. Use the same account, or have another parent create an account and join your household with the parent invite code in Settings > Family. Shared household information is the same on your phone and your iPad."),
+            FAQItem("What is the difference between an account and a family profile?", "An account is a sign-in for someone using Porchlight. A family profile represents a person in your household, including children who do not need their own sign-in. Profiles let you assign routines and chores and keep birthdays together."),
             FAQItem("How do I invite a parent or helper?", "Find the invite codes in Settings > Family. Share the parent code with another parent, or the guest code with a helper. They create an account and join with that code. Treat invite codes as private household information."),
             FAQItem("What can owners, parents, and guests do?", "Owners and parents manage household setup and family information. Guests can use household views without changing global settings. Your role and available permissions appear in Settings > General.")
         ]),
@@ -823,12 +823,12 @@ private struct SettingsFAQView: View {
             FAQItem("Where are the sections I cannot see in navigation?", "Tap More to see overflow sections. Larger screens show more sections directly when space allows. Open Settings > Layout > Navigation to choose and reorder optional sections; Today stays available.")
         ]),
         FAQSection(title: "Calendar & Reminders", questions: [
-            FAQItem("How do I connect my calendar?", "Open Settings > Calendar & Reminders and allow native calendar access. Beacon reads the calendars available in Apple Calendar on that device. Add iCloud, Google, or other accounts to the device's Calendar settings first; you do not sign in to those providers inside Beacon."),
+            FAQItem("How do I connect my calendar?", "Open Settings > Calendar & Reminders and allow native calendar access. Porchlight reads the calendars available in Apple Calendar on that device. Add iCloud, Google, or other accounts to the device's Calendar settings first; you do not sign in to those providers inside Porchlight."),
             FAQItem("How do I choose which calendars appear?", "In Settings > Calendar & Reminders, open the calendar selection and choose from the accessible device calendars. Save your selection, or select all calendars. Configure calendar access and selection separately on each device."),
-            FAQItem("Why are events different on my phone and iPad?", "Calendars are read locally through Apple Calendar. Check that both devices have the same calendar accounts, that the calendars are syncing in Apple Calendar, and that Beacon has access and the intended calendars selected on each device. Joining the same Beacon household does not share a calendar account."),
+            FAQItem("Why are events different on my phone and iPad?", "Calendars are read locally through Apple Calendar. Check that both devices have the same calendar accounts, that the calendars are syncing in Apple Calendar, and that Porchlight has access and the intended calendars selected on each device. Joining the same Porchlight household does not share a calendar account."),
             FAQItem("How do I switch between day, week, and month?", "Open Calendar and select Day, Week, or Month. Tap a date in the grid to open Day view, or tap an event to see its details. Use the previous and next controls to move through dates, or Today to return to the current date. Search filters the events in the current calendar range."),
-            FAQItem("How do groceries work with Apple Reminders?", "Allow Reminders access in Settings > Calendar & Reminders and choose a list. Beacon uses that device's selected Reminders list. To see the same items elsewhere, share or sync the list through Apple Reminders and select it on each device. Without Reminders access, Beacon uses its own household grocery list; these are separate lists."),
-            FAQItem("What if I denied Calendar or Reminders access?", "Open the permission settings from Beacon's Calendar & Reminders page, or open iOS Settings and find Beacon. Enable access, then return to Beacon and refresh. Calendars and lists must also be available in the Apple apps on that device.")
+            FAQItem("How do groceries work with Apple Reminders?", "Allow Reminders access in Settings > Calendar & Reminders and choose a list. Porchlight uses that device's selected Reminders list. To see the same items elsewhere, share or sync the list through Apple Reminders and select it on each device. Without Reminders access, Porchlight uses its own household grocery list; these are separate lists."),
+            FAQItem("What if I denied Calendar or Reminders access?", "Open the permission settings from Porchlight's Calendar & Reminders page, or open iOS Settings and find Porchlight. Enable access, then return to Porchlight and refresh. Calendars and lists must also be available in the Apple apps on that device.")
         ]),
         FAQSection(title: "Routines, Chores & Food", questions: [
             FAQItem("How do I organize routines by child?", "Create or edit a routine in Routines and assign it to the child's family profile. Add the steps and choose a period. The Today routines card groups assigned steps by person and shows completion progress with a ring and count."),
@@ -837,10 +837,10 @@ private struct SettingsFAQView: View {
             FAQItem("How do I change the snack checklist?", "Open Snacks to edit the snack options if you are an owner or parent. Tap the checklist controls to record snacks for the day. Reset the day's checklist when you need to clear those selections.")
         ]),
         FAQSection(title: "Sync & Troubleshooting", questions: [
-            FAQItem("When does shared information refresh?", "Beacon loads shared data when it starts and when screens load or refresh. Edits refresh the relevant data on the device making the change. Other devices receive changes when they fetch fresh data; this is not a continuous live connection. Use Settings > Data & Sync > Refresh Now if a device looks out of date."),
-            FAQItem("Can I use Beacon offline?", "Beacon can show cached household and Today content when it is available. Shared household edits need a working connection; do not assume offline edits will be queued and uploaded later. Native calendars and Reminders depend on what is available locally on your device."),
-            FAQItem("Why is weather unavailable?", "Weather needs device location access and an available weather service. Allow location access when prompted, check Beacon's permissions in system settings, and make sure the device has a connection. Weather may be unavailable on some devices or environments."),
-            FAQItem("Why am I not receiving reminders?", "Open Settings > Notifications in Beacon, allow notifications, and enable the reminders and times you want. Also check the device's notification settings, Focus modes, and Scheduled Summary. Beacon's reminder preferences and notification permission are configured on each device."),
+            FAQItem("When does shared information refresh?", "Porchlight loads shared data when it starts and when screens load or refresh. Edits refresh the relevant data on the device making the change. Other devices receive changes when they fetch fresh data; this is not a continuous live connection. Use Settings > Data & Sync > Refresh Now if a device looks out of date."),
+            FAQItem("Can I use Porchlight offline?", "Porchlight can show cached household and Today content when it is available. Shared household edits need a working connection; do not assume offline edits will be queued and uploaded later. Native calendars and Reminders depend on what is available locally on your device."),
+            FAQItem("Why is weather unavailable?", "Weather needs device location access and an available weather service. Allow location access when prompted, check Porchlight's permissions in system settings, and make sure the device has a connection. Weather may be unavailable on some devices or environments."),
+            FAQItem("Why am I not receiving reminders?", "Open Settings > Notifications in Porchlight, allow notifications, and enable the reminders and times you want. Also check the device's notification settings, Focus modes, and Scheduled Summary. Porchlight's reminder preferences and notification permission are configured on each device."),
             FAQItem("How do I change colors or light and dark mode?", "Open Settings > Appearance to choose Automatic, Light or Dark, switch on True Black for pure black pages in dark mode, pick a theme color, or change the app icon. Automatic follows your device's setting. These choices apply only to the device you make them on.")
         ])
     ]
@@ -914,14 +914,14 @@ private struct PrivacyAccessSettingsView: View {
             } header: {
                 Text("Device Access")
             } footer: {
-                Text("These permissions apply only to this device. Beacon does not upload calendar or reminder contents to its server.")
+                Text("These permissions apply only to this device. Porchlight does not upload calendar or reminder contents to its server.")
             }
 
             Section {
                 Button {
                     openSystemSettings()
                 } label: {
-                    Label("Open Beacon in iOS Settings", systemImage: "gearshape")
+                    Label("Open Porchlight in iOS Settings", systemImage: "gearshape")
                 }
             } footer: {
                 Text("Use iOS Settings to restore access after a permission has been denied or to change an existing choice.")
@@ -1116,7 +1116,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
         case .layout: "Layout"
         case .data: "Data & Sync"
         case .faq: "FAQ & Help"
-        case .about: "About Beacon"
+        case .about: "About Porchlight"
         }
     }
 
@@ -1289,7 +1289,7 @@ private struct NativeNotificationsSettingView: View {
             } header: {
                 Text("Local Reminders")
             } footer: {
-                Text("Beacon can remind this device about routines, chores, bedtime, active naps, and birthdays and anniversaries without relying on server jobs.")
+                Text("Porchlight can remind this device about routines, chores, bedtime, active naps, and birthdays and anniversaries without relying on server jobs.")
             }
 
             Section("Routines") {
@@ -1337,7 +1337,7 @@ private struct NativeNotificationsSettingView: View {
                 } header: {
                     Text(CelebrationNaming.current)
                 } footer: {
-                    Text("Pick as many reminders as you like. Beacon plans them up to 45 days ahead, so they still arrive if you don't open the app, using the household's time zone.")
+                    Text("Pick as many reminders as you like. Porchlight plans them up to 45 days ahead, so they still arrive if you don't open the app, using the household's time zone.")
                 }
             }
         }

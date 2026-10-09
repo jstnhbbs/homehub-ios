@@ -78,7 +78,7 @@ struct CalendarSettingsView: View {
                 Task { await viewModel.requestNativeRemindersAccess() }
             }
         } footer: {
-            Text("Beacon reads Apple Calendar on this device and can write grocery items to Reminders.")
+            Text("Porchlight reads Apple Calendar on this device and can write grocery items to Reminders.")
         }
     }
 
@@ -159,8 +159,8 @@ struct CalendarSettingsView: View {
             }
         } footer: {
             Text(viewModel.canManageReminderList
-                ? "Automatic uses this device’s default Calendar and Reminders destinations. Alerts apply to new items created in Beacon."
-                : "Owners and parents can choose the Reminders list used for groceries. Alerts apply to new items created in Beacon.")
+                ? "Automatic uses this device’s default Calendar and Reminders destinations. Alerts apply to new items created in Porchlight."
+                : "Owners and parents can choose the Reminders list used for groceries. Alerts apply to new items created in Porchlight.")
         }
     }
 
@@ -211,7 +211,7 @@ struct CalendarSettingsView: View {
                     description: Text("No calendars are available on this device.")
                 )
             } header: {
-                Text("Calendars Shown in Beacon")
+                Text("Calendars Shown in Porchlight")
             }
         } else {
             ForEach(CalendarPickerOption.groupedByAccount(viewModel.calendars), id: \.account) { group in
@@ -233,9 +233,9 @@ struct CalendarSettingsView: View {
                 .disabled(viewModel.isWorking || allCalendarsSelected)
             } footer: {
                 if viewModel.selectedCalendarIds.isEmpty {
-                    Text("No calendars are on, so Beacon shows no events. Changes apply as soon as you make them.")
+                    Text("No calendars are on, so Porchlight shows no events. Changes apply as soon as you make them.")
                 } else {
-                    Text("Changes apply as soon as you make them. Calendars that are off stay hidden in Beacon.")
+                    Text("Changes apply as soon as you make them. Calendars that are off stay hidden in Porchlight.")
                 }
             }
         }

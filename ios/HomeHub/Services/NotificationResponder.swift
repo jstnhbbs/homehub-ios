@@ -9,7 +9,7 @@ extension Notification.Name {
     static let homeHubOpenDestination = Notification.Name("homehub.openDestination")
 }
 
-/// Handles the buttons on Beacon's notifications ("Done" on a chore reminder, "End Nap" on a nap
+/// Handles the buttons on Porchlight's notifications ("Done" on a chore reminder, "End Nap" on a nap
 /// check). The system runs this even when the app is not open, and the same buttons show on an
 /// Apple Watch paired with the phone, so a chore can be ticked off from the wrist.
 ///

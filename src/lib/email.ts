@@ -20,7 +20,7 @@ export function canSendEmail() {
  * that send email (sign-up, "send it again") must not fail because a provider is down or not set up.
  *
  * Production needs `RESEND_API_KEY` and `EMAIL_FROM` (an address on a domain verified with Resend,
- * such as `Beacon <hello@example.com>`). Without them nothing is sent and a warning is logged.
+ * such as `Porchlight <hello@example.com>`). Without them nothing is sent and a warning is logged.
  * Outside production, with no provider, the email goes to the server log instead (and to `outbox`
  * under test), so the verification link can be followed while developing.
  */

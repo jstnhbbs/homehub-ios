@@ -4,5 +4,5 @@
  * to do it on the web side; the app's name also appears in the iOS app, its icon label and the email
  * templates, so search for the old name when it changes.
  */
-export const APP_NAME = "Beacon";
+export const APP_NAME = "Porchlight";
 export const CONTACT_EMAIL = "jjhobbs89@gmail.com";

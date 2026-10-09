@@ -135,7 +135,7 @@ final class NativeWeatherService: NSObject, ObservableObject {
             if !error.isCancellation {
                 // The reason (never the location), so a WeatherKit setup problem can be told apart
                 // from a location or network one.
-                NSLog("Beacon: weather request failed: %@", String(describing: error))
+                NSLog("Porchlight: weather request failed: %@", String(describing: error))
                 errorMessage = NativeWeatherError.userFacingMessage(for: error)
             }
         }

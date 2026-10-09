@@ -62,7 +62,7 @@ describe("email verification", () => {
     expect(m.outbox).toHaveLength(1);
     const email = m.outbox[0];
     expect(email.to).toBe("pat@example.com");
-    expect(email.subject).toBe("Confirm your email for Beacon");
+    expect(email.subject).toBe("Confirm your email for Porchlight");
     const { link } = tokenFrom(email.text);
     expect(new URL(link).origin).toBe("http://localhost:3000");
     expect(new URL(link).searchParams.get("callbackURL")).toBe("/email-verified");

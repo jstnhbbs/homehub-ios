@@ -55,7 +55,7 @@ export default async function SettingsPage() {
             Household settings
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-            The actively maintained Beacon experience is the iOS app. This web
+            The actively maintained Porchlight experience is the iOS app. This web
             shell stays focused on account setup, household membership, and
             backend support.
           </p>
@@ -213,7 +213,7 @@ export default async function SettingsPage() {
             Household support
           </h2>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            Family data is stored on the Beacon backend for the iOS app.
+            Family data is stored on the Porchlight backend for the iOS app.
             Calendar access is native to each device and is not configured on
             the web.
           </p>

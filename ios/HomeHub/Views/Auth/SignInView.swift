@@ -18,7 +18,7 @@ struct SignInView: View {
     var body: some View {
         VStack(spacing: 28) {
             VStack(spacing: 8) {
-                Text("Beacon")
+                Text("Porchlight")
                     .font(.system(size: brandSize, weight: .bold, design: .rounded))
                 Text("Your family dashboard")
                     .font(.title3)

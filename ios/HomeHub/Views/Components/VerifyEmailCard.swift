@@ -66,7 +66,7 @@ struct VerifyEmailCard: View {
         case .idle, .sending:
             return "\(email) isn't confirmed yet. It only takes a tap on a link."
         case .sent:
-            return "We sent a link to \(email). Open it, then come back to Beacon."
+            return "We sent a link to \(email). Open it, then come back to Porchlight."
         case .failed(let reason):
             return reason
         }

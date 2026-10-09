@@ -70,7 +70,7 @@ struct APIClient: Sendable {
         return "\(scheme)://\(host)"
     }
 
-    /// The paths served by the sign-in service rather than Beacon's own mobile API.
+    /// The paths served by the sign-in service rather than Porchlight's own mobile API.
     static func isAuthPath(_ path: String) -> Bool {
         path.hasPrefix("/api/auth/")
     }
@@ -114,7 +114,7 @@ struct APIClient: Sendable {
         request.httpMethod = method
         request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("Beacon-iOS/1.0", forHTTPHeaderField: "User-Agent")
+        request.setValue("Porchlight-iOS/1.0", forHTTPHeaderField: "User-Agent")
         addOriginIfNeeded(to: &request, path: path)
 
         if let body {
@@ -150,7 +150,7 @@ struct APIClient: Sendable {
 
         var request = URLRequest(url: url)
         request.timeoutInterval = timeout
-        request.setValue("Beacon-iOS/1.0", forHTTPHeaderField: "User-Agent")
+        request.setValue("Porchlight-iOS/1.0", forHTTPHeaderField: "User-Agent")
 
         let (data, response) = try await send(request)
         guard let http = response as? HTTPURLResponse else {
@@ -197,7 +197,7 @@ struct APIClient: Sendable {
         request.timeoutInterval = 30
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("Beacon-iOS/1.0", forHTTPHeaderField: "User-Agent")
+        request.setValue("Porchlight-iOS/1.0", forHTTPHeaderField: "User-Agent")
         request.httpBody = body
 
         let (data, response) = try await send(request)
@@ -233,7 +233,7 @@ struct APIClient: Sendable {
         request.httpMethod = method
         request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("Beacon-iOS/1.0", forHTTPHeaderField: "User-Agent")
+        request.setValue("Porchlight-iOS/1.0", forHTTPHeaderField: "User-Agent")
         addOriginIfNeeded(to: &request, path: path)
 
         if let jsonBody {
@@ -256,7 +256,7 @@ struct APIClient: Sendable {
     }
 
     static func serverErrorMessage(statusCode: Int, data: Data) -> String {
-        // Beacon's own routes answer {"error": "..."}; the sign-in service answers {"message": "..."}.
+        // Porchlight's own routes answer {"error": "..."}; the sign-in service answers {"message": "..."}.
         if let response = try? JSONDecoder.api.decode(ErrorResponse.self, from: data),
            let text = response.error ?? response.message,
            !text.isEmpty {
@@ -268,7 +268,7 @@ struct APIClient: Sendable {
             switch statusCode {
             case 404:
                 return """
-                Beacon's server doesn't support this yet (404). \
+                Porchlight's server doesn't support this yet (404). \
                 If you run your own server, deploy the latest version, or check the server address (HOMEHUB_API_URL).
                 """
             default:
