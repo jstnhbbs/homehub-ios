@@ -6,8 +6,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 PROJECT = "HomeHub"
-BUNDLE_ID = "com.jstnhbbs.beacon"
-DEVELOPMENT_TEAM = "JVU3FF9RR3"
+BUNDLE_ID = "com.jstnhbbs.app"
+DEVELOPMENT_TEAM = "25TTL3SG99"
 EXTENSION = "HomeHubLiveActivity"
 EXTENSION_BUNDLE_ID = f"{BUNDLE_ID}.liveactivity"
 # Compiled into both the app and the extension.

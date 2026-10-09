@@ -344,16 +344,30 @@ struct CheckItemView: View {
 /// as a tile. Renders nothing at all when there's nothing useful to say.
 struct WeatherHeaderReadout: View {
     @EnvironmentObject private var appState: AppState
+    @State private var showsDetails = false
 
     private var service: NativeWeatherService { appState.nativeWeather }
 
     var body: some View {
         Group {
             if let weather = service.snapshot {
-                // Shed the high/low stack as space tightens instead of truncating.
-                ViewThatFits(in: .horizontal) {
-                    readout(weather, showsRange: true)
-                    readout(weather, showsRange: false)
+                // Tapping opens the rest of the reading and the Apple Weather attribution, which
+                // Apple requires wherever WeatherKit data is shown.
+                Button {
+                    showsDetails = true
+                } label: {
+                    // Shed the high/low stack as space tightens instead of truncating.
+                    ViewThatFits(in: .horizontal) {
+                        readout(weather, showsRange: true)
+                        readout(weather, showsRange: false)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Shows today's weather details.")
+                .popover(isPresented: $showsDetails) {
+                    WeatherDetailsPanel(weather: weather, attribution: service.attribution)
+                        .presentationCompactAdaptation(.popover)
                 }
             } else if service.accessStatus == .notDetermined {
                 // The weather card used to be the only place to grant location, so the

@@ -37,7 +37,22 @@ struct NativeWeatherSnapshot: Sendable, Equatable {
     var precipitationChance: Int?
     var condition: String
     var symbolName: String
+    var humidity: Int?
+    var windSpeed: Int?
+    var uvIndex: Int?
     var updatedAt: Date
+    /// The debug placeholder shown while WeatherKit is off, so the details panel can say so instead
+    /// of crediting Apple Weather for invented numbers.
+    var isSample = false
+}
+
+/// What Apple requires next to WeatherKit data: its Apple Weather mark (one for light and one for
+/// dark backgrounds) and a link to the page that lists the other data sources.
+struct WeatherAttributionInfo: Sendable, Equatable {
+    var lightMarkURL: URL
+    var darkMarkURL: URL
+    var legalPageURL: URL
+    var serviceName: String
 }
 
 @MainActor
@@ -46,6 +61,7 @@ final class NativeWeatherService: NSObject, ObservableObject {
     @Published private(set) var snapshot: NativeWeatherSnapshot?
     @Published private(set) var errorMessage: String?
     @Published private(set) var isLoading = false
+    @Published private(set) var attribution: WeatherAttributionInfo?
 
     private let locationWaiters = AsyncCallbackWaiters<CLLocation>()
     private let authorizationWaiters = AsyncCallbackWaiters<Void>()
@@ -102,8 +118,22 @@ final class NativeWeatherService: NSObject, ObservableObject {
             let weather = try await WeatherService.shared.weather(for: location)
             try Task.checkCancellation()
             snapshot = NativeWeatherSnapshot(weather: weather)
+            // Fetched once; it only changes with the service itself.
+            if attribution == nil, let info = try? await WeatherService.shared.attribution {
+                attribution = WeatherAttributionInfo(
+                    lightMarkURL: info.combinedMarkLightURL,
+                    darkMarkURL: info.combinedMarkDarkURL,
+                    legalPageURL: info.legalPageURL,
+                    serviceName: info.serviceName
+                )
+            }
         } catch {
-            if !error.isCancellation { errorMessage = NativeWeatherError.userFacingMessage(for: error) }
+            if !error.isCancellation {
+                // The reason (never the location), so a WeatherKit setup problem can be told apart
+                // from a location or network one.
+                NSLog("Beacon: weather request failed: %@", String(describing: error))
+                errorMessage = NativeWeatherError.userFacingMessage(for: error)
+            }
         }
     }
 
@@ -196,7 +226,11 @@ extension NativeWeatherSnapshot {
         precipitationChance: 20,
         condition: "Partly Cloudy",
         symbolName: "cloud.sun.fill",
-        updatedAt: .now
+        humidity: 48,
+        windSpeed: 8,
+        uvIndex: 5,
+        updatedAt: .now,
+        isSample: true
     )
 }
 #endif
@@ -214,6 +248,9 @@ extension NativeWeatherSnapshot {
             precipitationChance: today.map { Int(($0.precipitationChance * 100).rounded()) },
             condition: current.condition.description,
             symbolName: current.symbolName,
+            humidity: Int((current.humidity * 100).rounded()),
+            windSpeed: Int(current.wind.speed.converted(to: .milesPerHour).value.rounded()),
+            uvIndex: current.uvIndex.value,
             updatedAt: .now
         )
     }

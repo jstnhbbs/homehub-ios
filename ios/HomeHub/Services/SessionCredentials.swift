@@ -12,7 +12,7 @@ protocol SecretStore: Sendable {
 /// that runs while the phone is locked still works) and never leave this device: they are excluded
 /// from backups and don't move to a new phone.
 struct KeychainSecretStore: SecretStore {
-    var service = "com.jstnhbbs.beacon.session"
+    var service = "com.jstnhbbs.app.session"
 
     private func query(_ account: String) -> [CFString: Any] {
         [kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: account]
