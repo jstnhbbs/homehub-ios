@@ -260,23 +260,78 @@ enum DashboardCardId: String, Codable, Sendable, CaseIterable, Hashable, Identif
     }
 }
 
+/// How much of the Today grid a card takes, in grid cells: Small is 1 x 1 (one column), Medium is
+/// 2 x 1 (two columns wide, the card most people know) and Large is 2 x 2 (two columns, two rows
+/// tall, so a list shows far more of itself). On a narrower grid a card is never wider than the grid.
+///
+/// Layouts saved before these names existed used `standard` (one column) and `expanded` (two
+/// columns), and `compact` was an unused alias of `standard`; `init(stored:)` reads those as Small
+/// and Medium, so nobody's arrangement changes when they update.
 enum DashboardCardSize: String, Codable, Sendable, CaseIterable, Hashable, Identifiable {
-    case compact
-    case standard
-    case expanded
+    case small
+    case medium
+    case large
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .compact: "Standard"
-        case .standard: "Standard"
-        case .expanded: "Expanded"
+        case .small: "Small"
+        case .medium: "Medium"
+        case .large: "Large"
         }
     }
 
-    static let layoutOptions: [DashboardCardSize] = [.standard, .expanded]
+    /// Grid cells across, before the grid's own column count caps it.
+    var columns: Int { self == .small ? 1 : 2 }
+    var rows: Int { self == .large ? 2 : 1 }
 
+    static let layoutOptions: [DashboardCardSize] = allCases
+
+    /// Reads a stored value, including the names older versions saved. Nil for anything unknown.
+    init?(stored raw: String) {
+        switch raw {
+        case "small", "standard", "compact": self = .small
+        case "medium", "expanded": self = .medium
+        case "large": self = .large
+        default: return nil
+        }
+    }
+
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        guard let size = DashboardCardSize(stored: raw) else {
+            throw DecodingError.dataCorrupted(
+                .init(codingPath: decoder.codingPath, debugDescription: "Unknown DashboardCardSize: \(raw)")
+            )
+        }
+        self = size
+    }
+
+    /// The next size up, wrapping from the largest back to the smallest, among `options`.
+    func cycled(among options: [DashboardCardSize]) -> DashboardCardSize {
+        guard options.count > 1 else { return self }
+        let index = options.firstIndex(of: self) ?? 0
+        return options[(index + 1) % options.count]
+    }
+}
+
+extension DashboardCardId {
+    /// The sizes that make sense for a card. A card with nothing more to show at Large (a single
+    /// sleep timer, a count of snacks) stops at Medium; a saved size outside this list is brought
+    /// back to the nearest allowed one by `clamped`.
+    var allowedSizes: [DashboardCardSize] {
+        switch self {
+        case .weather, .snacks, .sleep, .birthdays: [.small, .medium]
+        case .schedule, .routines, .chores, .meals, .groceries, .notes: [.small, .medium, .large]
+        }
+    }
+
+    func clamped(_ size: DashboardCardSize) -> DashboardCardSize {
+        let allowed = allowedSizes
+        if allowed.contains(size) { return size }
+        return allowed.last ?? .small
+    }
 }
 
 /// The dashboard grid is arranged and sized separately for iPhone and for iPad/Mac, since the
@@ -487,7 +542,7 @@ struct HubModules: Codable, Sendable, Equatable {
             uniqueKeysWithValues: raw.compactMap { key, value in
                 let normalizedKey = key == "shopping" ? "groceries" : key
                 guard let card = DashboardCardId(rawValue: normalizedKey),
-                      let size = DashboardCardSize(rawValue: value) else {
+                      let size = DashboardCardSize(stored: value) else {
                     return nil
                 }
                 return (card, size)
@@ -498,14 +553,13 @@ struct HubModules: Codable, Sendable, Equatable {
     static let sidebarModules: [HubModuleId] = [.notes, .calendar, .groceries, .routines, .chores, .meals, .sleep, .birthdays]
     static let foodModules: [HubModuleId] = [.snacks, .recipes]
     private static let defaultsSidebarOrder: [HubModuleId] = [.notes, .calendar, .groceries, .routines, .chores, .meals, .sleep, .birthdays]
-    /// Card size means "how many columns this card spans" — 1 for standard, 2 for
-    /// expanded. Schedule is a list of events and Notes hosts a text field, so both
-    /// need the extra column. Everything else is a single number or short phrase.
+    /// Schedule is a list of events and Notes hosts a text field, so both start at Medium (two
+    /// columns). Everything else starts Small.
     static let defaultsDashboardCardSizes: [DashboardCardId: DashboardCardSize] = Dictionary(
         uniqueKeysWithValues: DashboardCardId.allCases.map { card in
             switch card {
-            case .schedule, .notes: (card, DashboardCardSize.expanded)
-            default: (card, DashboardCardSize.standard)
+            case .schedule, .notes: (card, DashboardCardSize.medium)
+            default: (card, DashboardCardSize.small)
             }
         }
     )
@@ -585,7 +639,7 @@ struct HubModules: Codable, Sendable, Equatable {
     }
 
     func dashboardCardSize(_ card: DashboardCardId, for target: DashboardLayoutTarget) -> DashboardCardSize {
-        dashboardCardSizes(for: target)[card, default: .standard]
+        card.clamped(dashboardCardSizes(for: target)[card, default: .small])
     }
 
     func movingSidebarModule(_ module: HubModuleId, by offset: Int) -> HubModules {
@@ -605,7 +659,7 @@ struct HubModules: Codable, Sendable, Equatable {
     }
 
     private static func normalizedDashboardCardSizes(_ sizes: [DashboardCardId: DashboardCardSize]) -> [DashboardCardId: DashboardCardSize] {
-        var normalized = Dictionary(uniqueKeysWithValues: DashboardCardId.allCases.map { ($0, DashboardCardSize.standard) })
+        var normalized = Dictionary(uniqueKeysWithValues: DashboardCardId.allCases.map { ($0, DashboardCardSize.small) })
         for card in DashboardCardId.allCases {
             if let size = sizes[card] {
                 normalized[card] = size

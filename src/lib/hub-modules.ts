@@ -28,7 +28,12 @@ export const DASHBOARD_CARD_IDS = [
 
 export type DashboardCardId = (typeof DASHBOARD_CARD_IDS)[number];
 
-export const DASHBOARD_CARD_SIZES = ["compact", "standard", "expanded"] as const;
+/**
+ * Small is one grid column, Medium two columns, Large two columns and two rows. "compact", "standard"
+ * and "expanded" are what versions before these names saved (small, small and medium); they are
+ * still accepted so an older app can keep saving its layout, and the app reads them as such.
+ */
+export const DASHBOARD_CARD_SIZES = ["small", "medium", "large", "compact", "standard", "expanded"] as const;
 
 export type DashboardCardSize = (typeof DASHBOARD_CARD_SIZES)[number];
 
@@ -64,16 +69,16 @@ export type HubModulesInput = Partial<HubModuleToggles> & {
 };
 
 const DEFAULT_DASHBOARD_CARD_SIZES: Record<DashboardCardId, DashboardCardSize> = {
-  weather: "standard",
-  schedule: "standard",
-  routines: "standard",
-  chores: "standard",
-  meals: "standard",
-  snacks: "standard",
-  sleep: "standard",
-  groceries: "standard",
-  notes: "standard",
-  birthdays: "standard",
+  weather: "small",
+  schedule: "medium",
+  routines: "small",
+  chores: "small",
+  meals: "small",
+  snacks: "small",
+  sleep: "small",
+  groceries: "small",
+  notes: "medium",
+  birthdays: "small",
 };
 
 const DEFAULT_DASHBOARD_ORDER: DashboardCardId[] = [

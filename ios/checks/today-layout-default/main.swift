@@ -11,8 +11,8 @@ let target = DashboardLayoutTarget.phone
 // A family's own arrangement: Notes first and big, Sleep next, Groceries and Birthdays off, Snacks large.
 var good = HubModules.defaults
 good.dashboardOrderPhone = [.weather, .notes, .sleep, .routines, .chores, .meals, .snacks, .schedule, .groceries, .birthdays]
-good = good.updatingDashboardCardSize(.snacks, size: .expanded, for: .phone)
-good = good.updatingDashboardCardSize(.schedule, size: .standard, for: .phone)
+good = good.updatingDashboardCardSize(.snacks, size: .medium, for: .phone)
+good = good.updatingDashboardCardSize(.schedule, size: .small, for: .phone)
 good = good.updatingDashboardCard(.groceries, enabled: false)
 good = good.updatingDashboardCard(.birthdays, enabled: false)
 let saved = TodayLayoutDefault.capture(from: good, target: target)
@@ -20,8 +20,8 @@ let saved = TodayLayoutDefault.capture(from: good, target: target)
 // Then it gets messy.
 var messy = good
 messy.dashboardOrderPhone = messy.dashboardOrderPhone.reversed()
-messy = messy.updatingDashboardCardSize(.notes, size: .standard, for: .phone)
-messy = messy.updatingDashboardCardSize(.routines, size: .expanded, for: .phone)
+messy = messy.updatingDashboardCardSize(.notes, size: .small, for: .phone)
+messy = messy.updatingDashboardCardSize(.routines, size: .large, for: .phone)
 messy = messy.updatingDashboardCard(.groceries, enabled: true)
 messy = messy.updatingDashboardCard(.sleep, enabled: false)
 
@@ -36,7 +36,7 @@ var elsewhere = messy
 elsewhere.sidebarOrder = elsewhere.sidebarOrder.reversed()
 elsewhere.snacks = false
 elsewhere.dashboardOrderTablet = [.notes, .schedule]
-elsewhere = elsewhere.updatingDashboardCardSize(.chores, size: .expanded, for: .tablet)
+elsewhere = elsewhere.updatingDashboardCardSize(.chores, size: .large, for: .tablet)
 let kept = saved.applied(to: elsewhere, target: target)
 check("navigation order is left alone", kept.sidebarOrder == elsewhere.sidebarOrder ? "same" : "different", "same")
 check("Food tabs are left alone", String(kept.snacks), "false")

@@ -7,6 +7,9 @@ struct DashboardView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     private static let gridMinimumWidth: CGFloat = 520
     @State private var compactNavigationPath = NavigationPath()
+    /// Rearranging the cards on the page itself (the wiggle mode); see DashboardEditing.swift.
+    @StateObject private var edit = DashboardEditState()
+    @State private var layoutSaveTask: Task<Void, Never>?
     /// The moment the day-dependent parts (header date, birthday banner) were last drawn for. It is
     /// only replaced when the day changes, so the banner appears and goes away at midnight on its own
     /// without redrawing the whole dashboard every minute.
@@ -40,7 +43,7 @@ struct DashboardView: View {
                     // grid. 520 lets an iPad mini in portrait (about 550pt of page beside the sidebar) have two
                     // columns and honour each card's Standard/Expanded size, as larger iPads do.
                     let isCompact = proxy.size.width < Self.gridMinimumWidth
-                    let cards = dashboardCards(for: .tablet)
+                    let cards = arranged(dashboardCards(for: .tablet))
                     let layout = DashboardCardLayout(
                         cards: cards,
                         cardSizes: appState.hubModules.dashboardCardSizes(for: .tablet),
@@ -53,6 +56,14 @@ struct DashboardView: View {
                     dashboardContent(cards: cards, layout: layout, isCompact: isCompact)
                         .frame(maxWidth: contentMaxWidth, maxHeight: .infinity, alignment: .topLeading)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .overlay(alignment: .bottomTrailing) {
+                            // The narrow single-column fallback keeps its fixed cards; it is edited in Settings.
+                            if !isCompact, appState.dashboard != nil {
+                                DashboardEditButton(isEditing: edit.isEditing, action: toggleEditing)
+                                    .padding(.trailing, 16)
+                                    .padding(.bottom, 4)
+                            }
+                        }
                 }
             }
         }
@@ -111,43 +122,68 @@ struct DashboardView: View {
                             onNavigate: openDestination
                         )
 
-                        // Hand-packed rows rather than a LazyVGrid, because a grid with a
-                        // fixed column count can't let a card span both columns.
-                        // At the largest text sizes a half-width tile cannot hold its text, so every tile takes the
-                        // full width, whatever size was chosen for it in Settings.
+                        // One layout places the tiles: half-width tiles pair up, full-width ones take a row,
+                        // and a Large tile is a full row twice as tall. At the largest text sizes a
+                        // half-width tile cannot hold its text, so every tile takes the full width,
+                        // whatever size was chosen for it in Settings.
                         let cardSizes: [DashboardCardId: DashboardCardSize] = DashboardMetrics.usesAccessibilityLayout(dynamicTypeSize)
-                            ? Dictionary(uniqueKeysWithValues: DashboardCardId.allCases.map { ($0, DashboardCardSize.expanded) })
+                            ? Dictionary(uniqueKeysWithValues: DashboardCardId.allCases.map { ($0, DashboardCardSize.medium) })
                             : appState.hubModules.dashboardCardSizes(for: .phone)
-                        let tileRows = compactTileRows(
-                            compactGridCards(cards, dashboard: dashboard),
-                            sizes: cardSizes
-                        )
-                        ForEach(Array(tileRows.enumerated()), id: \.offset) { _, row in
-                            // fixedSize makes the row as tall as its tallest tile; the tiles then
-                            // stretch to match, so a pair never ends up ragged.
-                            HStack(alignment: .top, spacing: 10) {
-                                ForEach(row) { card in
-                                    let span = card.compactSpan(size: cardSizes[card, default: .standard])
-                                    CompactDashboardTile(
-                                        card: card,
-                                        dashboard: dashboard,
-                                        span: span,
-                                        onNavigate: openDestination
-                                    )
-                                }
-                                // Stops a lone half-width tile stretching across the row.
-                                if row.count == 1,
-                                   row[0].compactSpan(size: cardSizes[row[0], default: .standard]) == .half {
-                                    Color.clear.frame(maxWidth: .infinity)
-                                }
+                        let tileCards = arranged(edit.isEditing ? cards : compactGridCards(cards, dashboard: dashboard))
+                        let tileItems = Dictionary(uniqueKeysWithValues: tileCards.map { card -> (DashboardCardId, DashboardFlowLayout.Item) in
+                            let size = card.clamped(cardSizes[card, default: .small])
+                            let isFull = card.compactSpan(size: size) == .full
+                            return (card, .init(isFull: isFull, minHeight: size == .large ? 154 * 2 + 10 : (isFull ? 88 : 154)))
+                        })
+                        DashboardFlowLayout(
+                            items: tileItems,
+                            frames: edit.frames,
+                            dragged: edit.draggingCard,
+                            draggedOrigin: edit.draggedOrigin
+                        ) {
+                            ForEach(Array(tileCards.enumerated()), id: \.element) { index, card in
+                                let size = card.clamped(cardSizes[card, default: .small])
+                                CompactDashboardTile(
+                                    card: card,
+                                    dashboard: dashboard,
+                                    span: card.compactSpan(size: size),
+                                    size: size,
+                                    onNavigate: openDestination
+                                )
+                                .dashboardEditable(
+                                    card: card,
+                                    size: size,
+                                    cornerRadius: 18,
+                                    wiggleSeed: index,
+                                    isEditing: edit.isEditing,
+                                    isDragging: edit.draggingCard == card,
+                                    onBeginEditing: { edit.enter() },
+                                    onDragChanged: { edit.dragChanged(card, locationInWindow: $0, order: tileCards) },
+                                    onDragEnded: endDrag,
+                                    onResize: { resize(card) },
+                                    onRemove: { setEnabled(card, false) },
+                                    onMove: { move(card, by: $0, within: tileCards) }
+                                )
+                                .layoutValue(key: DashboardCardKey.self, value: card)
                             }
-                            .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .background(DashboardGridProbe(reference: edit.probe))
+
+                        if edit.isEditing {
+                            DashboardAddCardsTray(cards: TodayLayoutEditing.addableCards(in: appState.hubModules), onAdd: { setEnabled($0, true) })
                         }
                     }
                 }
-                .padding(.bottom, 10)
+                .padding(.bottom, 64)
+                // Room for the minus badges, which sit half outside their tiles (see the iPad grid).
+                .padding(.horizontal, edit.isEditing ? 8 : 0)
             }
             .scrollIndicators(.hidden)
+            .overlay(alignment: .bottomTrailing) {
+                DashboardEditButton(isEditing: edit.isEditing, action: toggleEditing)
+                    .padding(.trailing, 2)
+                    .padding(.bottom, 4)
+            }
         } else if let errorMessage = appState.errorMessage {
             DashboardErrorView(message: errorMessage) {
                 await appState.refreshDashboard()
@@ -260,34 +296,91 @@ struct DashboardView: View {
                     BirthdayTodayBanners(items: todaysBirthdays.items, localDate: todaysBirthdays.localDate)
                 }
 
-                if cards.isEmpty {
+                if edit.isEditing {
+                    Text("Drag a card to move it. Tap its size button to resize it, or the minus to take it off.")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(HubTheme.muted)
+                        .transition(.opacity)
+                }
+
+                if cards.isEmpty && !edit.isEditing {
                     ContentUnavailableView(
                         "No Today Cards",
                         systemImage: "rectangle.3.group",
-                        description: Text("Turn cards back on in Settings.")
+                        description: Text("Tap the pencil to add cards back.")
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ScrollView {
-                        VStack(spacing: 16) {
-                            ForEach(Array(layout.rows(for: cards).enumerated()), id: \.offset) { _, row in
-                                HStack(alignment: .top, spacing: 16) {
-                                    ForEach(row) { item in
+                        VStack(alignment: .leading, spacing: 16) {
+                            if isCompact {
+                                VStack(spacing: 16) {
+                                    ForEach(cards) { card in
                                         dashboardCard(
-                                            item.card,
+                                            card,
                                             dashboard: dashboard,
-                                            rowHeight: layout.rowHeight,
-                                            fillsHeight: !isCompact,
+                                            rowHeight: layout.height(for: card),
+                                            fillsHeight: false,
                                             isCompact: isCompact,
                                             scheduleEvents: scheduleEvents,
                                             calendarConnected: calendarConnected
                                         )
-                                        .frame(width: layout.width(for: item))
                                     }
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                            } else {
+                                let packing = layout.packing
+                                DashboardGridLayout(
+                                    placements: Dictionary(uniqueKeysWithValues: packing.placements.map { ($0.card, $0) }),
+                                    columnCount: layout.columnCount,
+                                    rowCount: packing.rowCount,
+                                    rowHeight: layout.rowHeight,
+                                    spacing: 16,
+                                    frames: edit.frames,
+                                    dragged: edit.draggingCard,
+                                    draggedOrigin: edit.draggedOrigin
+                                ) {
+                                    ForEach(Array(cards.enumerated()), id: \.element) { index, card in
+                                        let size = card.clamped(layout.cardSizes[card, default: .small])
+                                        dashboardCard(
+                                            card,
+                                            dashboard: dashboard,
+                                            rowHeight: layout.height(for: card),
+                                            fillsHeight: true,
+                                            isCompact: isCompact,
+                                            scheduleEvents: scheduleEvents,
+                                            calendarConnected: calendarConnected
+                                        )
+                                        .dashboardEditable(
+                                            card: card,
+                                            size: size,
+                                            cornerRadius: 24,
+                                            wiggleSeed: index,
+                                            isEditing: edit.isEditing,
+                                            isDragging: edit.draggingCard == card,
+                                            onBeginEditing: { edit.enter() },
+                                            onDragChanged: { edit.dragChanged(card, locationInWindow: $0, order: cards) },
+                                            onDragEnded: endDrag,
+                                            onResize: { resize(card) },
+                                            onRemove: { setEnabled(card, false) },
+                                            onMove: { move(card, by: $0, within: cards) }
+                                        )
+                                        .layoutValue(key: DashboardCardKey.self, value: card)
+                                    }
+                                }
+                                .background(DashboardGridProbe(reference: edit.probe))
+                            }
+
+                            if edit.isEditing {
+                                DashboardAddCardsTray(
+                                    cards: TodayLayoutEditing.addableCards(in: appState.hubModules),
+                                    onAdd: { setEnabled($0, true) }
+                                )
+                                .padding(.bottom, 72)
                             }
                         }
+                        // The minus badges sit half outside their cards, so the grid steps in a little
+                        // while editing rather than have the scroll view cut them off.
+                        .padding(.horizontal, edit.isEditing ? 10 : 0)
                     }
                     .scrollIndicators(.hidden)
                 }
@@ -301,6 +394,66 @@ struct DashboardView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+    }
+
+    // MARK: Editing the layout on the page
+
+    private var layoutTarget: DashboardLayoutTarget {
+        horizontalSizeClass == .compact ? .phone : .tablet
+    }
+
+    /// `base` in the order the cards are being dragged into, while a drag is under way.
+    private func arranged(_ base: [DashboardCardId]) -> [DashboardCardId] {
+        guard let preview = edit.previewOrder else { return base }
+        let known = Set(base)
+        var result = preview.filter(known.contains)
+        result.append(contentsOf: base.filter { !result.contains($0) })
+        return result
+    }
+
+    private func toggleEditing() {
+        if edit.isEditing { edit.exit() } else { edit.enter() }
+    }
+
+    /// Applies and saves a layout change right away, like every other switch in Settings.
+    private func commitLayout(_ next: HubModules) {
+        guard next != appState.hubModules else { return }
+        appState.applyHubModules(next)
+        layoutSaveTask?.cancel()
+        layoutSaveTask = Task { await appState.saveHubModules(next) }
+    }
+
+    private func resize(_ card: DashboardCardId) {
+        let modules = appState.hubModules
+        let next = TodayLayoutEditing.nextSize(for: card, from: modules.dashboardCardSize(card, for: layoutTarget))
+        UISelectionFeedbackGenerator().selectionChanged()
+        withAnimation(.snappy(duration: 0.3)) {
+            commitLayout(modules.updatingDashboardCardSize(card, size: next, for: layoutTarget))
+        }
+    }
+
+    private func setEnabled(_ card: DashboardCardId, _ enabled: Bool) {
+        withAnimation(.snappy(duration: 0.3)) {
+            commitLayout(appState.hubModules.updatingDashboardCard(card, enabled: enabled))
+        }
+    }
+
+    /// The Move earlier and Move later actions, for VoiceOver and Switch Control.
+    private func move(_ card: DashboardCardId, by offset: Int, within visible: [DashboardCardId]) {
+        let next = TodayLayoutEditing.moving(card, by: offset, in: visible)
+        guard next != visible else { return }
+        withAnimation(.snappy(duration: 0.3)) {
+            commitLayout(appState.hubModules.arrangingDashboardCards(next, for: layoutTarget))
+        }
+    }
+
+    private func endDrag() {
+        if let final = edit.dragEnded() {
+            withAnimation(.snappy(duration: 0.3)) {
+                commitLayout(appState.hubModules.arrangingDashboardCards(final, for: layoutTarget))
+            }
+        }
+        edit.finishCommit()
     }
 
     private func dashboardCards(for target: DashboardLayoutTarget) -> [DashboardCardId] {
@@ -568,11 +721,10 @@ private extension DashboardCardId {
     /// Notes hosts a live text field, and a ~150pt input is unusable.
     var requiresFullCompactWidth: Bool { self == .notes }
 
-    /// iPhone has two columns, so the existing card size maps straight across:
-    /// standard spans one column, expanded spans both.
+    /// iPhone has two columns, so Small takes one and Medium and Large take both (Large is twice as tall).
     func compactSpan(size: DashboardCardSize) -> CompactTileSpan {
         if requiresFullCompactWidth { return .full }
-        return size == .expanded ? .full : .half
+        return size == .small ? .half : .full
     }
 
     /// Shortened so a half-width tile header doesn't truncate.
@@ -585,39 +737,6 @@ private extension DashboardCardId {
         }
     }
 
-}
-
-/// Packs cards into rows, preserving the user's chosen order while pairing
-/// half-width tiles and giving full-width tiles a row to themselves.
-private func compactTileRows(
-    _ cards: [DashboardCardId],
-    sizes: [DashboardCardId: DashboardCardSize]
-) -> [[DashboardCardId]] {
-    var rows: [[DashboardCardId]] = []
-    var pendingHalf: DashboardCardId?
-
-    for card in cards {
-        switch card.compactSpan(size: sizes[card, default: .standard]) {
-        case .full:
-            if let pending = pendingHalf {
-                rows.append([pending])
-                pendingHalf = nil
-            }
-            rows.append([card])
-        case .half:
-            if let pending = pendingHalf {
-                rows.append([pending, card])
-                pendingHalf = nil
-            } else {
-                pendingHalf = card
-            }
-        }
-    }
-
-    if let pending = pendingHalf {
-        rows.append([pending])
-    }
-    return rows
 }
 
 /// Big number, qualifier, optional progress bar — the unit of a compact tile.
@@ -680,6 +799,7 @@ private func compactCompletion(report: (Error) -> Void, _ work: () async throws 
 private struct CompactTileShell<Content: View>: View {
     let card: DashboardCardId
     let span: CompactTileSpan
+    var size: DashboardCardSize = .small
     let onNavigate: (HubDestination) -> Void
     var beforeNavigate: (() -> Void)?
     @ViewBuilder var content: () -> Content
@@ -704,7 +824,8 @@ private struct CompactTileShell<Content: View>: View {
     /// has on; a household with few cards shouldn't get differently sized tiles. Full-width tiles
     /// hold a variable amount (a schedule may have one event or three), so they fit their content.
     private var minHeight: CGFloat {
-        span == .half ? 154 : 88
+        if size == .large { return 154 * 2 + 10 }
+        return span == .half ? 154 : 88
     }
 
     @ViewBuilder
@@ -749,16 +870,18 @@ private struct CompactDashboardTile: View {
     let card: DashboardCardId
     let dashboard: DashboardData
     let span: CompactTileSpan
+    let size: DashboardCardSize
     let onNavigate: (HubDestination) -> Void
 
     /// A half-width tile can only show a couple of names before they truncate;
-    /// a full-width one has room for the whole group.
-    private var groupRowLimit: Int { span == .full ? 8 : 4 }
+    /// a full-width one has room for the whole group, and a Large one for twice that.
+    private var groupRowLimit: Int { size == .large ? 16 : (span == .full ? 8 : 4) }
 
     var body: some View {
         CompactTileShell(
             card: card,
             span: span,
+            size: size,
             onNavigate: onNavigate,
             beforeNavigate: card == .snacks ? { appState.pendingFoodSection = .snacks } : nil
         ) {
@@ -1320,13 +1443,6 @@ private struct DashboardErrorView: View {
 // MARK: - Layout primitives
 
 private struct DashboardCardLayout {
-    struct RowItem: Identifiable {
-        let card: DashboardCardId
-        let span: Int
-
-        var id: DashboardCardId { card }
-    }
-
     let cards: [DashboardCardId]
     let cardSizes: [DashboardCardId: DashboardCardSize]
     let availableSize: CGSize
@@ -1335,125 +1451,200 @@ private struct DashboardCardLayout {
     /// The very largest text sizes: one card per row, since half a screen cannot hold the text.
     var usesAccessibilityLayout = false
 
-    private var cardCount: Int { cards.count }
     private var spacing: CGFloat { 16 }
+    /// Room under the cards for the edit button, so it never sits over a card.
+    private var bottomReserve: CGFloat { isCompact ? 0 : 56 }
     private var contentWidth: CGFloat {
         guard !isCompact else { return max(0, availableSize.width - 32) }
         return usesFlexibleMacLayout ? availableSize.width : min(availableSize.width, 1_500)
     }
 
-    var columnCount: Int {
-        guard !isCompact, !usesAccessibilityLayout else { return 1 }
-        guard cardCount > 0 else { return 1 }
+    /// Every card with the size it takes on this grid (a size the card doesn't offer is brought back
+    /// to one it does).
+    var items: [DashboardGridItem] {
+        cards.map { card in
+            let size = card.clamped(cardSizes[card, default: .small])
+            return DashboardGridItem(card: card, columns: size.columns, rows: size.rows)
+        }
+    }
 
-        let widthCap: Int
+    private var widthCap: Int {
+        guard !isCompact, !usesAccessibilityLayout else { return 1 }
         if usesFlexibleMacLayout {
             let minimumColumnWidth: CGFloat = 250
             let columnsByWidth = Int(floor((contentWidth + spacing) / (minimumColumnWidth + spacing)))
-            widthCap = min(6, max(2, columnsByWidth))
-        } else if availableSize.width >= 1_060 {
-            widthCap = 4
-        } else if availableSize.width >= 720 {
-            widthCap = 3
-        } else {
-            widthCap = 2
+            return min(6, max(2, columnsByWidth))
         }
-
-        let preferred: Int
-        if usesFlexibleMacLayout {
-            preferred = flexiblePreferredColumnCount(widthCap: widthCap)
-        } else {
-            switch cardCount {
-            case 1:
-                preferred = 1
-            case 2:
-                preferred = 2
-            case 3:
-                preferred = 3
-            case 4:
-                preferred = 2
-            case 5...6:
-                preferred = 3
-            default:
-                preferred = 4
-            }
-        }
-
-        return max(1, min(preferred, widthCap))
+        if availableSize.width >= 1_060 { return 4 }
+        if availableSize.width >= 720 { return 3 }
+        return 2
     }
 
+    /// The grid's width in cells. The page's height matters too: the grid is sized to fill the screen,
+    /// so the count is the one that leaves the cards the best shape.
+    var columnCount: Int {
+        DashboardGridPacker.columnCount(
+            widthCap: widthCap,
+            items: items,
+            size: CGSize(width: contentWidth, height: max(360, availableSize.height - 72 - bottomReserve)),
+            spacing: spacing
+        )
+    }
+
+    var packing: DashboardGridPacker.Result {
+        DashboardGridPacker.pack(items, columnCount: columnCount)
+    }
+
+    /// The height of one grid row. A card's own title and padding grow with the text, so its smallest
+    /// height does too.
     var rowHeight: CGFloat {
-        // A card's own title and padding grow with the text, so its smallest height does too.
         guard !isCompact else { return DashboardMetrics.scaled(300, .body) }
 
-        let rows = max(1, rowCount)
+        let rows = max(1, packing.rowCount)
         let rowSpacing = CGFloat(rows - 1) * spacing
-        let availableHeight = max(360, availableSize.height - 72 - rowSpacing)
+        let availableHeight = max(360, availableSize.height - 72 - bottomReserve - rowSpacing)
         return max(DashboardMetrics.scaled(170, .body), floor(availableHeight / CGFloat(rows)))
     }
 
-    private var rowCount: Int {
-        rows(for: cards).count
+    /// How tall a card of this size is: its rows and the gaps between them.
+    func height(for card: DashboardCardId) -> CGFloat {
+        let rows = CGFloat(items.first { $0.card == card }?.rows ?? 1)
+        return rowHeight * rows + spacing * (rows - 1)
+    }
+}
+
+/// Places each card at the cells the packer gave it. Used for the iPad and Mac grid, where every row
+/// is the same height and a Large card is exactly two rows tall.
+private struct DashboardGridLayout: Layout {
+    let placements: [DashboardCardId: DashboardGridPlacement]
+    let columnCount: Int
+    let rowCount: Int
+    let rowHeight: CGFloat
+    let spacing: CGFloat
+    /// Told where each card's cell is, so a drag can find the card under the finger.
+    let frames: DashboardFrameStore
+    /// The card being dragged is drawn where the finger has it instead of in its cell.
+    let dragged: DashboardCardId?
+    let draggedOrigin: CGPoint?
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = CGFloat(max(1, rowCount))
+        return CGSize(
+            width: proposal.width ?? 600,
+            height: rowHeight * rows + spacing * (rows - 1)
+        )
     }
 
-    func width(for item: RowItem) -> CGFloat? {
-        guard !isCompact else { return nil }
-        let totalSpacing = CGFloat(columnCount - 1) * spacing
-        let columnWidth = max(0, (contentWidth - totalSpacing) / CGFloat(columnCount))
-        return columnWidth * CGFloat(item.span) + spacing * CGFloat(item.span - 1)
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let columns = CGFloat(max(1, columnCount))
+        let columnWidth = max(0, (bounds.width - spacing * (columns - 1)) / columns)
+        var cells: [DashboardCardId: CGRect] = [:]
+        for subview in subviews {
+            guard let card = subview[DashboardCardKey.self], let placement = placements[card] else { continue }
+            let width = columnWidth * CGFloat(placement.columns) + spacing * CGFloat(placement.columns - 1)
+            let height = rowHeight * CGFloat(placement.rows) + spacing * CGFloat(placement.rows - 1)
+            let cell = CGRect(
+                x: CGFloat(placement.column) * (columnWidth + spacing),
+                y: CGFloat(placement.row) * (rowHeight + spacing),
+                width: width,
+                height: height
+            )
+            cells[card] = cell
+            let origin = card == dragged ? (draggedOrigin ?? cell.origin) : cell.origin
+            subview.place(
+                at: CGPoint(x: bounds.minX + origin.x, y: bounds.minY + origin.y),
+                anchor: .topLeading,
+                proposal: ProposedViewSize(width: width, height: height)
+            )
+        }
+        frames.frames = cells
+    }
+}
+
+private struct DashboardCardKey: LayoutValueKey {
+    static let defaultValue: DashboardCardId? = nil
+}
+
+/// Places the iPhone's tiles: half-width tiles pair up, full-width tiles take a row, and every row is
+/// as tall as its tallest tile (a Large tile is at least two tiles tall). Like the iPad grid it tells
+/// `frames` where each tile is, and draws a dragged tile where the finger has it.
+private struct DashboardFlowLayout: Layout {
+    struct Item {
+        var isFull: Bool
+        var minHeight: CGFloat
     }
 
-    func rows(for cards: [DashboardCardId]) -> [[RowItem]] {
-        var rows: [[RowItem]] = []
-        var currentRow: [RowItem] = []
-        var usedColumns = 0
+    let items: [DashboardCardId: Item]
+    let frames: DashboardFrameStore
+    let dragged: DashboardCardId?
+    let draggedOrigin: CGPoint?
 
-        for card in cards {
-            let span = span(for: card)
-            if !currentRow.isEmpty && usedColumns + span > columnCount {
-                rows.append(currentRow)
-                currentRow = []
-                usedColumns = 0
+    private let columnSpacing: CGFloat = 10
+    private let rowSpacing: CGFloat = 12
+
+    private struct Row {
+        var indices: [Int]
+        var height: CGFloat
+    }
+
+    private func rows(width: CGFloat, subviews: Subviews) -> [Row] {
+        let half = max(0, (width - columnSpacing) / 2)
+        func height(_ index: Int, _ width: CGFloat) -> CGFloat {
+            let minimum = subviews[index][DashboardCardKey.self].flatMap { items[$0]?.minHeight } ?? 0
+            return max(minimum, subviews[index].sizeThatFits(ProposedViewSize(width: width, height: nil)).height)
+        }
+        var rows: [Row] = []
+        var pending: Int?
+        for index in subviews.indices {
+            let isFull = subviews[index][DashboardCardKey.self].flatMap { items[$0]?.isFull } ?? false
+            if isFull {
+                if let waiting = pending {
+                    rows.append(Row(indices: [waiting], height: height(waiting, half)))
+                    pending = nil
+                }
+                rows.append(Row(indices: [index], height: height(index, width)))
+            } else if let waiting = pending {
+                rows.append(Row(indices: [waiting, index], height: max(height(waiting, half), height(index, half))))
+                pending = nil
+            } else {
+                pending = index
             }
-
-            currentRow.append(RowItem(card: card, span: span))
-            usedColumns += span
         }
-
-        if !currentRow.isEmpty {
-            rows.append(currentRow)
+        if let waiting = pending {
+            rows.append(Row(indices: [waiting], height: height(waiting, half)))
         }
-
         return rows
     }
 
-    private func span(for card: DashboardCardId) -> Int {
-        guard !isCompact else { return 1 }
-        let size = cardSizes[card, default: .standard]
-        return size == .expanded ? min(2, columnCount) : 1
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? 360
+        let rows = rows(width: width, subviews: subviews)
+        let total = rows.reduce(CGFloat(0)) { $0 + $1.height } + rowSpacing * CGFloat(max(0, rows.count - 1))
+        return CGSize(width: width, height: total)
     }
 
-    private func flexiblePreferredColumnCount(widthCap: Int) -> Int {
-        guard cardCount > 0 else { return 1 }
-        guard cardCount > 3 else { return cardCount }
-
-        var bestColumns = min(cardCount, widthCap)
-        var bestScore = Int.max
-
-        for columns in 2...min(cardCount, widthCap) {
-            let rows = Int(ceil(Double(cardCount) / Double(columns)))
-            let lastRowCount = cardCount - (rows - 1) * columns
-            let raggedness = columns - lastRowCount
-            let rowPenalty = rows * 2
-            let score = raggedness * 3 + rowPenalty
-
-            if score < bestScore {
-                bestScore = score
-                bestColumns = columns
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let half = max(0, (bounds.width - columnSpacing) / 2)
+        var cells: [DashboardCardId: CGRect] = [:]
+        var y: CGFloat = 0
+        for row in rows(width: bounds.width, subviews: subviews) {
+            for (position, index) in row.indices.enumerated() {
+                let subview = subviews[index]
+                let isFull = subview[DashboardCardKey.self].flatMap { items[$0]?.isFull } ?? false
+                let width = isFull ? bounds.width : half
+                let cell = CGRect(x: position == 0 ? 0 : half + columnSpacing, y: y, width: width, height: row.height)
+                let card = subview[DashboardCardKey.self]
+                if let card { cells[card] = cell }
+                let origin = (card != nil && card == dragged) ? (draggedOrigin ?? cell.origin) : cell.origin
+                subview.place(
+                    at: CGPoint(x: bounds.minX + origin.x, y: bounds.minY + origin.y),
+                    anchor: .topLeading,
+                    proposal: ProposedViewSize(width: width, height: row.height)
+                )
             }
+            y += row.height + rowSpacing
         }
-
-        return bestColumns
+        frames.frames = cells
     }
 }
 

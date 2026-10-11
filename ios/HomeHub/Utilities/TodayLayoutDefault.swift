@@ -45,7 +45,7 @@ struct TodayLayoutDefault: Codable, Equatable, Sendable {
 
         var restoredSizes = modules.dashboardCardSizes(for: target)
         for (raw, size) in sizes {
-            if let card = DashboardCardId(rawValue: raw), let value = DashboardCardSize(rawValue: size) {
+            if let card = DashboardCardId(rawValue: raw), let value = DashboardCardSize(stored: size) {
                 restoredSizes[card] = value
             }
         }

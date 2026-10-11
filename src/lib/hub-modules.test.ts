@@ -84,6 +84,17 @@ describe("mergeHubModules", () => {
     expect(parsed.dashboardCardSizesTablet).toMatchObject({ snacks: "standard", notes: "expanded" });
   });
 
+  it("keeps the Small, Medium and Large sizes", () => {
+    const serialized = serializeHubModules({
+      dashboardCardSizesPhone: { schedule: "large", chores: "small" },
+      dashboardCardSizesTablet: { notes: "medium" },
+    });
+
+    const parsed = parseHubModules(serialized);
+    expect(parsed.dashboardCardSizesPhone).toMatchObject({ schedule: "large", chores: "small" });
+    expect(parsed.dashboardCardSizesTablet).toMatchObject({ notes: "medium" });
+  });
+
   it("maps legacy shopping keys to groceries", () => {
     expect(
       mergeHubModules({

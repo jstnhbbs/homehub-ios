@@ -816,8 +816,8 @@ private struct SettingsFAQView: View {
             FAQItem("What can owners, parents, and guests do?", "Owners and parents manage household setup and family information. Guests can use household views without changing global settings. Your role and available permissions appear in Settings > General.")
         ]),
         FAQSection(title: "Today & Layout", questions: [
-            FAQItem("How do I choose and arrange Today cards?", "Open Settings > Layout > Today Cards. Toggle the cards you want to see and use the reorder controls to arrange them. Your card choices and order are saved for your signed-in user."),
-            FAQItem("What do Standard and Expanded mean?", "Standard takes one column and Expanded takes two, when there is room. On iPhone that is half the width or the full width of the screen. Expanded changes width rather than making a card taller."),
+            FAQItem("How do I choose and arrange Today cards?", "On Today, tap the pencil button (or press and hold any card). The cards wiggle: drag one to move it, tap its size button to make it Small, Medium or Large, tap the minus to take it off, and use Add Cards to bring one back. Tap Done when you are finished. You can also do this in Settings > Layout > Today Cards. Your card choices, sizes and order are saved for your signed-in user."),
+            FAQItem("What do Small, Medium and Large mean?", "Small takes one column, Medium takes two columns, and Large takes two columns and two rows, so a list can show far more of itself. When there is not room for two columns (a narrow window, or iPhone), Medium and Large are the full width of the screen, and Large is twice as tall. Not every card offers Large: cards with only a number or a short phrase stop at Medium."),
             FAQItem("What do Set as Default and Restore Default do?", "At the bottom of Settings > Layout > Today Cards, Set as Default saves your current Today layout (which cards are on, their order, and their sizes) for iPhone or for iPad & Mac, whichever you are editing. Restore Default brings it back after the cards have been moved around. It is saved on the device you set it on, and which cards are switched on is shared with your other devices."),
             FAQItem("Do my layout choices follow me between iPhone and iPad?", "Yes. Layout preferences are saved to your account, so the same user can use them on iPhone and iPad. Another parent has their own layout preferences. Each device adapts the arrangement to its available space."),
             FAQItem("Where are the sections I cannot see in navigation?", "Tap More to see overflow sections. Larger screens show more sections directly when space allows. Open Settings > Layout > Navigation to choose and reorder optional sections; Today stays available.")
@@ -1665,11 +1665,9 @@ private struct HubModulesSettingView: View {
                             updateModules(next)
                         }
                     ),
+                    sizeOptions: card.allowedSizes,
                     size: Binding(
-                        get: {
-                            let size = modules.dashboardCardSize(card, for: editingTarget)
-                            return size == .compact ? .standard : size
-                        },
+                        get: { modules.dashboardCardSize(card, for: editingTarget) },
                         set: { size in
                             let next = modules.updatingDashboardCardSize(card, size: size, for: editingTarget)
                             updateModules(next)
@@ -1684,7 +1682,7 @@ private struct HubModulesSettingView: View {
             }
             .onMove(perform: moveDashboardCards)
         } header: {
-            Text("Choose what appears in Today, arrange the order, and set each card’s size for \(editingTarget.label). Tap Edit to reorder.")
+            Text("Choose what appears in Today, arrange the order, and set each card’s size for \(editingTarget.label). Tap Edit to reorder. You can also rearrange on Today itself: tap the pencil, or press and hold a card.")
                 .font(.caption)
                 .foregroundStyle(HubTheme.muted)
                 .textCase(nil)
@@ -1971,6 +1969,7 @@ private struct DashboardCardLayoutOptionRow: View {
     let title: String
     let systemImage: String
     @Binding var isOn: Bool
+    let sizeOptions: [DashboardCardSize]
     @Binding var size: DashboardCardSize
     var canMoveUp = false
     var canMoveDown = false
@@ -1999,7 +1998,7 @@ private struct DashboardCardLayoutOptionRow: View {
 
     private var sizeMenu: some View {
         Menu {
-            ForEach(DashboardCardSize.layoutOptions) { option in
+            ForEach(sizeOptions) { option in
                 Button {
                     size = option
                 } label: {
