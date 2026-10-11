@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 PROJECT = "HomeHub"
-BUNDLE_ID = "com.jstnhbbs.app"
+BUNDLE_ID = "com.porchlighthome.app"
 DEVELOPMENT_TEAM = "25TTL3SG99"
 # The version shown to people (0.1 for the first TestFlight build) and the build number, which must go
 # up with every upload to App Store Connect. Both targets read these, and both Info.plists point at
