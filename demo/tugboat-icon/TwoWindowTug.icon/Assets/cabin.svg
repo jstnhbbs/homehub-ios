@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="cabin" x1="420" y1="355" x2="600" y2="585" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFBEF"/>
+      <stop offset="1" stop-color="#E9DCBD"/>
+    </linearGradient>
+  </defs>
+  <path d="M328 585 L332 434 C333 406 347 390 375 386 L645 350 C673 346 690 359 693 386 L705 533 L705 585 Z" fill="url(#cabin)"/>
+</svg>

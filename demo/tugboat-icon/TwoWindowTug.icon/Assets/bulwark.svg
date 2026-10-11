@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bulwark" x1="200" y1="494" x2="290" y2="575" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#406641"/>
+      <stop offset="1" stop-color="#25472B"/>
+    </linearGradient>
+  </defs>
+  <path d="M193 583 L194 526 C194 508 202 500 220 497 L335 482 L335 583 Z" fill="url(#bulwark)"/>
+</svg>

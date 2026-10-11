@@ -1,0 +1,96 @@
+{
+  "fill": {
+    "solid": "srgb:0.98431,0.96078,0.90196,1.00000"
+  },
+  "groups": [
+    {
+      "layers": [
+        {
+          "name": "Cabin Windows",
+          "image-name": "windows.svg",
+          "glass": false
+        },
+        {
+          "name": "Hull Shading",
+          "image-name": "hull-shade.svg",
+          "glass": false
+        },
+        {
+          "name": "Hull",
+          "image-name": "hull.svg",
+          "glass": false,
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.42353,0.46275,0.51765,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.42353,0.46275,0.51765,1.00000"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cabin",
+          "image-name": "cabin.svg",
+          "glass": false
+        },
+        {
+          "name": "Smokestack Band",
+          "image-name": "stack-band.svg",
+          "glass": false
+        },
+        {
+          "name": "Smokestack",
+          "image-name": "stack.svg",
+          "glass": false
+        },
+        {
+          "name": "Bulwark Shading",
+          "image-name": "bulwark-shade.svg",
+          "glass": false
+        },
+        {
+          "name": "Rear Bulwark",
+          "image-name": "bulwark.svg",
+          "glass": false,
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.42353,0.46275,0.51765,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.42353,0.46275,0.51765,1.00000"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Wave",
+          "image-name": "wave.svg",
+          "glass": false
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.15
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0
+      }
+    }
+  ],
+  "supported-platforms": {
+    "circles": [
+      "watchOS"
+    ],
+    "squares": "shared"
+  }
+}

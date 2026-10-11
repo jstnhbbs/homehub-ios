@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="translate(512 512) translate(0 0) scale(1) translate(-512 -512)">
+    <defs><linearGradient id="s" gradientUnits="userSpaceOnUse" x1="220" y1="535" x2="720" y2="760"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.34"/></linearGradient></defs>
+  <path d="M150 575 C335 574 605 536 862 470 C894 462 916 478 913 511 C909 590 873 716 812 725 C700 743 582 731 466 696 C350 661 249 652 150 689 C140 693 130 691 126 677 L117 607 C114 584 128 575 150 575 Z" fill="url(#s)"/>
+  </g>
+</svg>

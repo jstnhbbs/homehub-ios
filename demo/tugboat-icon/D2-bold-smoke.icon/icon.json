@@ -1,0 +1,66 @@
+{
+  "fill": {
+    "solid": "srgb:0.96863,0.95294,0.91373,1.00000"
+  },
+  "groups": [
+    {
+      "layers": [
+        {
+          "image-name": "portholes.svg",
+          "name": "portholes"
+        },
+        {
+          "image-name": "window.svg",
+          "name": "window"
+        },
+        {
+          "image-name": "smoke.svg",
+          "name": "smoke"
+        },
+        {
+          "image-name": "stack.svg",
+          "name": "stack"
+        },
+        {
+          "image-name": "cabin.svg",
+          "name": "cabin"
+        },
+        {
+          "image-name": "waves.svg",
+          "name": "waves"
+        },
+        {
+          "image-name": "hull.svg",
+          "name": "hull",
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.34118,0.46275,0.29804,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.37255,0.50588,0.32549,1.00000"
+              }
+            }
+          ]
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.2
+      }
+    }
+  ],
+  "supported-platforms": {
+    "circles": [
+      "watchOS"
+    ],
+    "squares": "shared"
+  }
+}

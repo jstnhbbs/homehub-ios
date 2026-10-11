@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs><clipPath id="k"><path d="M373 420 L362 274 C360 254 371 247 391 244 L480 234 C502 231 513 239 515 258 L528 400 Z"/></clipPath></defs>
+  <path d="M340 289 L540 266 V335 L340 358 Z" fill="#2C383B" clip-path="url(#k)"/>
+</svg>

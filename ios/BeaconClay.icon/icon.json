@@ -1,111 +1,96 @@
 {
-  "fill" : {
-    "solid" : "srgb:0.96863,0.95294,0.91373,1.00000"
+  "fill": {
+    "solid": "srgb:0.98431,0.96078,0.90196,1.00000"
   },
-  "groups" : [
+  "groups": [
     {
-      "layers" : [
+      "layers": [
         {
-          "fill" : {
-            "solid" : "srgb:0.14118,0.19216,0.25882,1.00000"
-          },
-          "image-name" : "check-sage.svg",
-          "name" : "check-sage",
-          "position" : {
-            "scale" : 1.31,
-            "translation-in-points" : [
-              -13.86704698211446,
-              93.77999999999997
-            ]
-          }
+          "name": "Cabin Windows",
+          "image-name": "windows.svg",
+          "glass": false
         },
         {
-          "fill" : {
-            "solid" : "srgb:0.89020,0.66275,0.29020,1.00000"
-          },
-          "image-name" : "check-gold.svg",
-          "name" : "check-gold",
-          "position" : {
-            "scale" : 1.31,
-            "translation-in-points" : [
-              -19.1245585893667,
-              72.77999999999997
-            ]
-          }
+          "name": "Hull Shading",
+          "image-name": "hull-shade.svg",
+          "glass": false
         },
         {
-          "image-name" : "doorway-panel.svg",
-          "name" : "doorway-panel",
-          "position" : {
-            "scale" : 1.31,
-            "translation-in-points" : [
-              0.021685607007270846,
-              25.779999999999973
-            ]
-          }
-        },
-        {
-          "image-name" : "glow.svg",
-          "name" : "glow",
-          "glass" : false
-        },
-        {
-          "fill-specializations" : [
+          "name": "Hull",
+          "image-name": "hull.svg",
+          "glass": false,
+          "fill-specializations": [
             {
-              "value" : {
-                "solid" : "srgb:0.85098,0.40000,0.03137,1.00000"
+              "value": {
+                "solid": "srgb:0.85098,0.40000,0.03137,1.00000"
               }
             },
             {
-              "appearance" : "dark",
-              "value" : {
-                "solid" : "srgb:0.94902,0.52157,0.17255,1.00000"
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.94902,0.52157,0.17255,1.00000"
               }
             }
-          ],
-          "image-name" : "house.svg",
-          "name" : "house",
-          "position" : {
-            "scale" : 1.24,
-            "translation-in-points" : [
-              0.021685607007270846,
-              53.77999999999997
-            ]
-          }
+          ]
         },
         {
-          "fill-specializations" : [
+          "name": "Cabin",
+          "image-name": "cabin.svg",
+          "glass": false
+        },
+        {
+          "name": "Smokestack Band",
+          "image-name": "stack-band.svg",
+          "glass": false
+        },
+        {
+          "name": "Smokestack",
+          "image-name": "stack.svg",
+          "glass": false
+        },
+        {
+          "name": "Bulwark Shading",
+          "image-name": "bulwark-shade.svg",
+          "glass": false
+        },
+        {
+          "name": "Rear Bulwark",
+          "image-name": "bulwark.svg",
+          "glass": false,
+          "fill-specializations": [
             {
-              "appearance" : "dark",
-              "value" : "none"
+              "value": {
+                "solid": "srgb:0.85098,0.40000,0.03137,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.94902,0.52157,0.17255,1.00000"
+              }
             }
-          ],
-          "hidden" : true,
-          "image-name" : "background.svg",
-          "name" : "background",
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              0,
-              0
-            ]
-          }
+          ]
+        },
+        {
+          "name": "Wave",
+          "image-name": "wave.svg",
+          "glass": false
         }
       ],
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.5
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.15
       },
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.2
+      "translucency": {
+        "enabled": false,
+        "value": 0
       }
     }
   ],
-  "supported-platforms" : {
-    "circles" : [
+  "supported-platforms": {
+    "circles": [
       "watchOS"
     ],
-    "squares" : "shared"
+    "squares": "shared"
   }
 }
