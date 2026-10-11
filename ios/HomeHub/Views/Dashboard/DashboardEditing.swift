@@ -18,6 +18,7 @@ final class DashboardFrameStore {
 
 /// Lets the drag turn a finger position on the screen into a position in the grid, and find the
 /// scroll view so it can scroll when a card is dragged to the top or bottom edge.
+@MainActor
 final class DashboardGridProbeReference {
     fileprivate(set) weak var view: UIView?
 
@@ -42,7 +43,6 @@ final class DashboardGridProbeReference {
     private var scrollSettleTask: Task<Void, Never>?
     private var reportedScrolling = false
 
-    @MainActor
     func observeScrolling(_ change: @escaping @MainActor (Bool) -> Void) {
         stopObservingScrolling()
         guard let scroll = scrollView else { return }
@@ -64,7 +64,6 @@ final class DashboardGridProbeReference {
         }
     }
 
-    @MainActor
     func stopObservingScrolling() {
         scrollObservation = nil
         scrollSettleTask?.cancel()
@@ -276,6 +275,46 @@ struct DashboardDragSurface: UIViewRepresentable {
     }
 }
 
+
+private struct DashboardIsEditingKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// True inside a Today card while the page is being edited. A card is drawn as a flat picture then
+    /// (so it wiggles smoothly), and a flat picture can't hold a text field.
+    var dashboardIsEditing: Bool {
+        get { self[DashboardIsEditingKey.self] }
+        set { self[DashboardIsEditingKey.self] = newValue }
+    }
+}
+
+/// The "Add a note" field on the Notes card: a real text field normally, and the same look as plain
+/// text while the page is being edited.
+struct DashboardNoteField: View {
+    @Binding var text: String
+    let font: Font
+    let onSubmit: () -> Void
+
+    @Environment(\.dashboardIsEditing) private var isEditing
+
+    var body: some View {
+        if isEditing {
+            Text(text.isEmpty ? "Add a note" : text)
+                .font(font)
+                .foregroundStyle(text.isEmpty ? HubTheme.muted : .primary)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            TextField("Add a note", text: $text)
+                .textFieldStyle(.plain)
+                .font(font)
+                .submitLabel(.done)
+                .onSubmit(onSubmit)
+        }
+    }
+}
+
 // MARK: - Card chrome while editing
 
 /// What a card gets while the page is being edited: it wiggles, its own buttons stop working, a minus
@@ -299,8 +338,26 @@ private struct DashboardEditChrome: ViewModifier {
 
     private var canResize: Bool { card.allowedSizes.count > 1 }
 
+    /// Alternate cards lean the opposite way, so neighbours never move in step.
+    private var wiggleSign: Double { wiggleSeed.isMultiple(of: 2) ? 1 : -1 }
+
+    /// Every card starts its wiggle the same way: put it at one end with no animation, then make one
+    /// change that the repeating animation picks up. (Starting some cards by setting the value to true
+    /// and others to false, in the same update as the animation was attached, started two animations on
+    /// every other card, and those ones stuttered.)
+    private func restartWiggle() {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { wiggle = false }
+        DispatchQueue.main.async { wiggle = true }
+    }
+
     func body(content: Content) -> some View {
         content
+            .environment(\.dashboardIsEditing, true)
+            // Flattened to one picture, so wiggling turns a picture instead of redrawing every row, ring
+            // and photo of the card on every frame.
+            .drawingGroup()
             .allowsHitTesting(false)
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -351,17 +408,16 @@ private struct DashboardEditChrome: ViewModifier {
                 .offset(x: -8, y: -8)
                 .accessibilityLabel("Remove \(card.label)")
             }
-            .rotationEffect(.degrees(isDragging || isScrolling || reduceMotion ? 0 : (wiggle ? 1.0 : -1.0)))
+            .rotationEffect(.degrees(isDragging || isScrolling || reduceMotion ? 0 : (wiggle ? 1.2 : -1.2) * wiggleSign))
             .scaleEffect(isDragging ? 1.04 : 1)
             .shadow(color: .black.opacity(isDragging ? 0.28 : 0), radius: isDragging ? 14 : 0, y: isDragging ? 8 : 0)
             .zIndex(isDragging ? 10 : 0)
             .animation(.snappy(duration: 0.2), value: isDragging)
-            .animation(reduceMotion || isScrolling ? nil : .easeInOut(duration: 0.13 + Double(wiggleSeed % 4) * 0.012).repeatForever(autoreverses: true), value: wiggle)
-            .onAppear {
-                // Cards start at opposite ends of the wiggle so they never move in step.
-                wiggle = wiggleSeed.isMultiple(of: 2)
-                DispatchQueue.main.async { wiggle.toggle() }
-            }
+            .animation(reduceMotion || isScrolling ? nil : .easeInOut(duration: 0.17 + Double(wiggleSeed % 4) * 0.02).repeatForever(autoreverses: true), value: wiggle)
+            .onAppear(perform: restartWiggle)
+            // The wiggle holds still while a card is lifted or the page scrolls; it starts again after.
+            .onChange(of: isDragging) { _, dragging in if !dragging { restartWiggle() } }
+            .onChange(of: isScrolling) { _, scrolling in if !scrolling { restartWiggle() } }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(card.label) card")
             .accessibilityValue(size.label)

@@ -85,7 +85,10 @@ struct RemoteImage<Placeholder: View>: View {
         Color.clear
             .overlay {
                 Group {
-                    if let image = imageState.image(for: request) {
+                    // From the cache when the state was just cleared (the view went away and came back, as
+                    // when a card is redrawn), so the placeholder doesn't flash before the task runs.
+                    if let image = imageState.image(for: request)
+                        ?? RemoteImageLoader.shared.cachedImage(for: request.url, maxPixelSize: request.maxPixelSize) {
                         Image(uiImage: image)
                             .resizable()
                             .scaledToFill()
