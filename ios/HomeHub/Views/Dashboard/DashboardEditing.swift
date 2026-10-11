@@ -34,6 +34,43 @@ final class DashboardGridProbeReference {
         }
         return nil
     }
+
+    /// Calls `change` with true when the page starts moving under a finger or a flick, and false a
+    /// moment after it stops. It only calls when the answer changes, so scrolling doesn't redraw the
+    /// screen on every frame.
+    private var scrollObservation: NSKeyValueObservation?
+    private var scrollSettleTask: Task<Void, Never>?
+    private var reportedScrolling = false
+
+    @MainActor
+    func observeScrolling(_ change: @escaping @MainActor (Bool) -> Void) {
+        stopObservingScrolling()
+        guard let scroll = scrollView else { return }
+        scrollObservation = scroll.observe(\.contentOffset, options: [.new]) { [weak self] _, _ in
+            Task { @MainActor in
+                guard let self else { return }
+                if !self.reportedScrolling {
+                    self.reportedScrolling = true
+                    change(true)
+                }
+                self.scrollSettleTask?.cancel()
+                self.scrollSettleTask = Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 300_000_000)
+                    guard !Task.isCancelled else { return }
+                    self.reportedScrolling = false
+                    change(false)
+                }
+            }
+        }
+    }
+
+    @MainActor
+    func stopObservingScrolling() {
+        scrollObservation = nil
+        scrollSettleTask?.cancel()
+        scrollSettleTask = nil
+        reportedScrolling = false
+    }
 }
 
 /// A view with no size placed behind the grid, so `DashboardGridProbeReference` has something in the
@@ -61,6 +98,8 @@ final class DashboardEditState: ObservableObject {
     @Published var draggingCard: DashboardCardId?
     /// Where the dragged card's top-left corner is drawn, in the grid's coordinates.
     @Published var draggedOrigin: CGPoint?
+    /// The page is scrolling (not a card being dragged): the wiggle pauses so it stays smooth.
+    @Published var isScrolling = false
 
     let frames = DashboardFrameStore()
     let probe = DashboardGridProbeReference()
@@ -75,10 +114,21 @@ final class DashboardEditState: ObservableObject {
         guard !isEditing else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         withAnimation(.snappy(duration: 0.25)) { isEditing = true }
+        // The grid is on screen by the next pass, so the scroll view can be found then.
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.probe.observeScrolling { [weak self] scrolling in
+                // While a card is being dragged the page is moved by the drag; leave the wiggle alone.
+                guard let self, self.draggingCard == nil else { return }
+                self.isScrolling = scrolling
+            }
+        }
     }
 
     func exit() {
         cancelDrag()
+        probe.stopObservingScrolling()
+        isScrolling = false
         withAnimation(.snappy(duration: 0.25)) { isEditing = false }
     }
 
@@ -104,6 +154,7 @@ final class DashboardEditState: ObservableObject {
     /// The order the drag ended on, or nil if nothing was moved. The dragged card settles into its
     /// place; the caller saves the order and then calls `finishCommit`.
     func dragEnded() -> [DashboardCardId]? {
+        guard draggingCard != nil else { return nil }
         stopAutoscroll()
         let final = previewOrder
         withAnimation(.snappy(duration: 0.25)) {
@@ -182,6 +233,49 @@ final class DashboardEditState: ObservableObject {
     }
 }
 
+
+/// A transparent view that turns a press-and-hold into a drag: `onChanged` is called with the finger's
+/// position in window coordinates when the hold succeeds and on every movement after it, `onEnded`
+/// when the finger lifts or the system cancels the touch.
+struct DashboardDragSurface: UIViewRepresentable {
+    let onChanged: (CGPoint) -> Void
+    let onEnded: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .clear
+        let recognizer = UILongPressGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handle(_:)))
+        recognizer.minimumPressDuration = 0.35
+        // A little movement while holding is fine; more than this means the person is scrolling.
+        recognizer.allowableMovement = 8
+        view.addGestureRecognizer(recognizer)
+        return view
+    }
+
+    func updateUIView(_ view: UIView, context: Context) {
+        context.coordinator.onChanged = onChanged
+        context.coordinator.onEnded = onEnded
+    }
+
+    final class Coordinator: NSObject {
+        var onChanged: (CGPoint) -> Void = { _ in }
+        var onEnded: () -> Void = {}
+
+        @objc func handle(_ recognizer: UILongPressGestureRecognizer) {
+            switch recognizer.state {
+            case .began, .changed:
+                onChanged(recognizer.location(in: nil))
+            case .ended, .cancelled, .failed:
+                onEnded()
+            default:
+                break
+            }
+        }
+    }
+}
+
 // MARK: - Card chrome while editing
 
 /// What a card gets while the page is being edited: it wiggles, its own buttons stop working, a minus
@@ -192,6 +286,8 @@ private struct DashboardEditChrome: ViewModifier {
     let cornerRadius: CGFloat
     let wiggleSeed: Int
     let isDragging: Bool
+    /// The page is being scrolled: the cards hold still so the scrolling stays smooth.
+    let isScrolling: Bool
     let onDragChanged: (CGPoint) -> Void
     let onDragEnded: () -> Void
     let onResize: () -> Void
@@ -212,20 +308,13 @@ private struct DashboardEditChrome: ViewModifier {
                     .allowsHitTesting(false)
             }
             .overlay {
-                // The surface that takes the touch: press and hold briefly, then drag. A plain drag
-                // still scrolls the page.
-                Color.clear
-                    .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                    .gesture(
-                        LongPressGesture(minimumDuration: 0.2)
-                            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
-                            .onChanged { value in
-                                if case .second(true, let drag?) = value {
-                                    onDragChanged(drag.location)
-                                }
-                            }
-                            .onEnded { _ in onDragEnded() }
-                    )
+                // The surface that takes the touch. It is a UIKit long-press recognizer, not a SwiftUI
+                // gesture, because UIKit already knows how to share a touch with the scroll view: moving
+                // before the hold is over scrolls the page, holding still lifts the card.
+                DashboardDragSurface(
+                    onChanged: onDragChanged,
+                    onEnded: onDragEnded
+                )
             }
             .overlay(alignment: .bottomTrailing) {
                 if canResize {
@@ -262,12 +351,12 @@ private struct DashboardEditChrome: ViewModifier {
                 .offset(x: -8, y: -8)
                 .accessibilityLabel("Remove \(card.label)")
             }
-            .rotationEffect(.degrees(isDragging || reduceMotion ? 0 : (wiggle ? 1.0 : -1.0)))
+            .rotationEffect(.degrees(isDragging || isScrolling || reduceMotion ? 0 : (wiggle ? 1.0 : -1.0)))
             .scaleEffect(isDragging ? 1.04 : 1)
             .shadow(color: .black.opacity(isDragging ? 0.28 : 0), radius: isDragging ? 14 : 0, y: isDragging ? 8 : 0)
             .zIndex(isDragging ? 10 : 0)
             .animation(.snappy(duration: 0.2), value: isDragging)
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.13 + Double(wiggleSeed % 4) * 0.012).repeatForever(autoreverses: true), value: wiggle)
+            .animation(reduceMotion || isScrolling ? nil : .easeInOut(duration: 0.13 + Double(wiggleSeed % 4) * 0.012).repeatForever(autoreverses: true), value: wiggle)
             .onAppear {
                 // Cards start at opposite ends of the wiggle so they never move in step.
                 wiggle = wiggleSeed.isMultiple(of: 2)
@@ -295,6 +384,7 @@ extension View {
         wiggleSeed: Int,
         isEditing: Bool,
         isDragging: Bool,
+        isScrolling: Bool,
         onBeginEditing: @escaping () -> Void,
         onDragChanged: @escaping (CGPoint) -> Void,
         onDragEnded: @escaping () -> Void,
@@ -309,6 +399,7 @@ extension View {
                 cornerRadius: cornerRadius,
                 wiggleSeed: wiggleSeed,
                 isDragging: isDragging,
+                isScrolling: isScrolling,
                 onDragChanged: onDragChanged,
                 onDragEnded: onDragEnded,
                 onResize: onResize,
