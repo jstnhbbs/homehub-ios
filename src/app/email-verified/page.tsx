@@ -28,11 +28,11 @@ export default async function EmailVerifiedPage({
         </h1>
         <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
           {failed
-            ? "It may have expired or already been used. Open Porchlight, go to Settings, and ask for a new confirmation email."
-            : "Thanks. Your email address is confirmed. You can close this page and go back to Porchlight."}
+            ? "It may have expired or already been used. Open Tugboat, go to Settings, and ask for a new confirmation email."
+            : "Thanks. Your email address is confirmed. You can close this page and go back to Tugboat."}
         </p>
         <Link href="/" className="hub-button secondary mt-6 inline-flex">
-          Open Porchlight on the web
+          Open Tugboat on the web
         </Link>
       </section>
     </main>

@@ -1,6 +1,6 @@
-# Porchlight
+# Tugboat
 
-A family dashboard for native iOS calendars, routines, chores, notes, and weekly meal planning. Porchlight is optimized for family iPhone and iPad use, with a web dashboard for shared household management.
+A family dashboard for native iOS calendars, routines, chores, notes, and weekly meal planning. Tugboat is optimized for family iPhone and iPad use, with a web dashboard for shared household management.
 
 ## Stack
 
@@ -33,8 +33,8 @@ Open `http://localhost:3000`, create a parent account, then create or join a hou
 
 ## Calendars
 
-Porchlight does not store calendar provider credentials. Add iCloud, Google, or
-other calendar accounts to Apple Calendar on each device, then grant Porchlight
+Tugboat does not store calendar provider credentials. Add iCloud, Google, or
+other calendar accounts to Apple Calendar on each device, then grant Tugboat
 calendar access in the iOS app and choose which device calendars to show.
 
 ## Turso and Vercel deployment

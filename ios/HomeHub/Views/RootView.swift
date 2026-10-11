@@ -9,7 +9,7 @@ struct RootView: View {
         Group {
             if appState.isBootstrapping || appState.auth.isLoading {
                 BeaconLoadingIndicator()
-                    .accessibilityLabel("Porchlight is loading")
+                    .accessibilityLabel("Tugboat is loading")
             } else if !appState.auth.isSignedIn {
                 SignInView()
             } else if appState.needsOnboarding {

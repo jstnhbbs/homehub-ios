@@ -36,7 +36,7 @@ struct KeychainSecretStore: SecretStore {
         let status = SecItemAdd(add as CFDictionary, nil)
         if status != errSecSuccess {
             // The status says why (never what was being stored).
-            NSLog("Porchlight: could not save the session to the Keychain (status %d)", status)
+            NSLog("Tugboat: could not save the session to the Keychain (status %d)", status)
         }
     }
 

@@ -11,7 +11,7 @@ import { sendEmail } from "@/lib/email";
 import { verificationEmail } from "@/lib/email-templates";
 
 export const auth = betterAuth({
-  appName: "Porchlight",
+  appName: "Tugboat",
   secret:
     process.env.BETTER_AUTH_SECRET ??
     (process.env.NODE_ENV === "development"

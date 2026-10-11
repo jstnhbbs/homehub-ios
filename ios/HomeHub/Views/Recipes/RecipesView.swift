@@ -609,7 +609,7 @@ private struct RecipeImportForm: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Paste a recipe URL. Porchlight will pull ingredients, directions, times, and nutrition from structured page data.")
+            Text("Paste a recipe URL. Tugboat will pull ingredients, directions, times, and nutrition from structured page data.")
                 .font(.footnote)
                 .foregroundStyle(HubTheme.muted)
 

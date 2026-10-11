@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Porchlight</string>
+	<string>Tugboat</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -34,15 +34,15 @@
 		<true/>
 	</dict>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Porchlight uses your calendars to show your family's schedule on this device.</string>
+	<string>Tugboat uses your calendars to show your family's schedule on this device.</string>
 	<key>NSCalendarsUsageDescription</key>
-	<string>Porchlight uses your calendars to show your family's schedule on this device.</string>
+	<string>Tugboat uses your calendars to show your family's schedule on this device.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Porchlight uses this device's location to show local weather on the dashboard.</string>
+	<string>Tugboat uses this device's location to show local weather on the dashboard.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
-	<string>Porchlight uses Reminders to add items to your shared grocery list.</string>
+	<string>Tugboat uses Reminders to add items to your shared grocery list.</string>
 	<key>NSRemindersUsageDescription</key>
-	<string>Porchlight uses Reminders to add items to your shared grocery list.</string>
+	<string>Tugboat uses Reminders to add items to your shared grocery list.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

@@ -591,7 +591,7 @@ struct DashboardView: View {
         HStack(alignment: .center, spacing: 12) {
             if horizontalSizeClass == .compact {
                 HouseholdMarkView(
-                    name: appState.household?.name ?? "Porchlight",
+                    name: appState.household?.name ?? "Tugboat",
                     photo: appState.household?.photo,
                     ownerName: appState.household?.ownerName,
                     size: 44

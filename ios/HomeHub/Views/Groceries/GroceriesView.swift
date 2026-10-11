@@ -63,7 +63,7 @@ struct GroceriesView: View {
                         .font(HubTheme.pageTitle)
                         .accessibilityAddTraits(.isHeader)
                 }
-                Text(viewModel.usesNativeReminders ? "Writing to Reminders" : "Using Porchlight list")
+                Text(viewModel.usesNativeReminders ? "Writing to Reminders" : "Using Tugboat list")
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(HubTheme.muted)
             }
@@ -91,7 +91,7 @@ struct GroceriesView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Use Your Shared Reminders List")
                             .font(.headline)
-                        Text("Add grocery items from Porchlight straight into Apple Reminders.")
+                        Text("Add grocery items from Tugboat straight into Apple Reminders.")
                             .font(.footnote)
                             .foregroundStyle(HubTheme.muted)
                     }
