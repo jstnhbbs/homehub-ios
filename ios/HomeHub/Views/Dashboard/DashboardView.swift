@@ -356,8 +356,10 @@ struct DashboardView: View {
                             }
                         }
                         // The minus badges sit half outside their cards, so the grid steps in a little
-                        // while editing rather than have the scroll view cut them off.
+                        // while editing (to the side and from the top) rather than have the scroll view cut
+                        // them off; the first row's badges were clipped at the top edge.
                         .padding(.horizontal, edit.isEditing ? 10 : 0)
+                        .padding(.top, edit.isEditing ? 14 : 0)
                     }
                     .scrollIndicators(.hidden)
                 }
@@ -492,61 +494,35 @@ struct DashboardView: View {
     }
 }
 
-private struct CompactNextUpItem {
-    let eyebrow: String
-    let title: String
-    let detail: String
-    let systemImage: String
-    let destination: HubDestination
-}
-
-/// The next thing that needs doing, drawn from routines and chores. Calendar events are left
-/// to the Schedule tile below, so the two never say the same thing. When nothing needs
-/// attention the card doesn't appear at all rather than spend space saying so.
+/// The next thing with a time on it, across calendar events and chores (see `NextUpSummary`), at the top of
+/// Today on iPhone. When nothing has a time the banner doesn't appear at all rather than spend space saying
+/// so. Routines have no times, so they are not here; the Routines card says what is next for them.
 private struct CompactNextUpPanel: View {
+    @EnvironmentObject private var appState: AppState
     let dashboard: DashboardData
     let enabledCards: [DashboardCardId]
     let onNavigate: (HubDestination) -> Void
 
-    /// Checks each enabled module in the order the household arranged Today's cards, so
-    /// reordering cards in Settings changes what surfaces here, not just the grid below.
-    private var item: CompactNextUpItem? {
-        for card in enabledCards {
-            switch card {
-            case .routines:
-                if let step = dashboard.routineSteps.first(where: { !$0.completed }) {
-                    return CompactNextUpItem(
-                        eyebrow: "NEXT ROUTINE",
-                        title: RoutineGlyphs.display(for: step.label).label,
-                        detail: step.profileId.flatMap(profileName) ?? step.routineName,
-                        systemImage: "checklist",
-                        destination: .routines
-                    )
-                }
-            case .chores:
-                if let chore = dashboard.chores.first(where: { !$0.completed }) {
-                    return CompactNextUpItem(
-                        eyebrow: "NEXT CHORE",
-                        title: chore.title,
-                        detail: chore.profileId.flatMap(profileName) ?? "Anyone",
-                        systemImage: "checkmark.square.fill",
-                        destination: .chores
-                    )
-                }
-            default:
-                continue
-            }
-        }
-        return nil
+    @State private var now = Date.now
+
+    private var item: NextUpItem? {
+        NextUpSummary.next(
+            chores: enabledCards.contains(.chores) ? dashboard.chores : [],
+            events: enabledCards.contains(.schedule) && appState.nativeCalendar.hasFullAccess ? appState.nativeTodayScheduleEvents : [],
+            profiles: dashboard.profiles,
+            todayDate: dashboard.localDate,
+            timezone: TimeZone(identifier: dashboard.household.timezone) ?? .current,
+            now: now
+        )
     }
 
     var body: some View {
         if let item {
             Button {
-                onNavigate(item.destination)
+                onNavigate(item.kind == .event ? .calendar : .chores)
             } label: {
                 HStack(spacing: 12) {
-                    Image(systemName: item.systemImage)
+                    Image(systemName: item.kind == .event ? "calendar" : "checkmark.square.fill")
                         .font(.title3.weight(.bold))
                         .foregroundStyle(HubTheme.accentText)
                         .frame(width: 38, height: 38)
@@ -583,11 +559,8 @@ private struct CompactNextUpPanel: View {
                 )
             }
             .buttonStyle(.plain)
+            .onTick(every: 60) { now = Date() }
         }
-    }
-
-    private func profileName(_ id: String) -> String? {
-        dashboard.profiles.first { $0.id == id }?.name
     }
 }
 

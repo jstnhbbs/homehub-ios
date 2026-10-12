@@ -679,8 +679,10 @@ struct SettingsView: View {
                     )
                 }
             } else {
-                profileGroup(title: "Adults", profiles: viewModel.adultProfiles)
-                profileGroup(title: "Children", profiles: viewModel.childProfiles)
+                // Adults, then children, then guests; a section with nobody in it is left out.
+                if !viewModel.adultProfiles.isEmpty { profileGroup(title: "Adults", profiles: viewModel.adultProfiles) }
+                if !viewModel.childProfiles.isEmpty { profileGroup(title: "Children", profiles: viewModel.childProfiles) }
+                if !viewModel.guestProfiles.isEmpty { profileGroup(title: "Guests", profiles: viewModel.guestProfiles) }
             }
 
             if viewModel.canManage {
@@ -1227,7 +1229,8 @@ private struct ProfileEditorSheet: View {
                         ProfileFormView(
                             mode: .manage,
                             timezone: timezone,
-                            submitLabel: "Add Member"
+                            submitLabel: "Add Member",
+                            otherProfiles: profiles
                         ) { input in
                             let saved = await viewModel.addProfile(input)
                             if saved {
@@ -1245,7 +1248,8 @@ private struct ProfileEditorSheet: View {
                                 profile: profile,
                                 mode: .manage,
                                 timezone: timezone,
-                                submitLabel: "Save Changes"
+                                submitLabel: "Save Changes",
+                                otherProfiles: profiles.filter { $0.id != profile.id }
                             ) { input in
                                 let saved = await viewModel.updateProfile(id: profile.id, input: input)
                                 if saved {

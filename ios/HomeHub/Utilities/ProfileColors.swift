@@ -30,4 +30,20 @@ enum ProfileColors {
         }
         return options[sum % options.count].value
     }
+
+    /// The color a new profile should start with: the first in the palette that nobody has, so two people added
+    /// in a row don't come out the same. Once all nine are taken, the one used least (the first of those in
+    /// palette order). The server applies the same rule to profiles it creates (`pickProfileColor`).
+    static func firstUnused(taken: [String]) -> String {
+        var counts: [String: Int] = [:]
+        for color in taken { counts[color.lowercased(), default: 0] += 1 }
+        var best = options[0].value
+        var bestCount = Int.max
+        for option in options {
+            let count = counts[option.value.lowercased(), default: 0]
+            if count == 0 { return option.value }
+            if count < bestCount { best = option.value; bestCount = count }
+        }
+        return best
+    }
 }

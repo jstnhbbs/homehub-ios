@@ -24,12 +24,18 @@ final class ProfilesViewModel: ObservableObject {
         appState?.household.flatMap { TimeZone(identifier: $0.timezone) } ?? .current
     }
 
+    /// Adults who are not guests (owners, parents, and grown-ups with no account).
     var adultProfiles: [Profile] {
-        profiles.filter { $0.profileType == .adult }
+        profiles.filter { $0.profileType == .adult && !$0.isGuest }
     }
 
     var childProfiles: [Profile] {
         profiles.filter { $0.profileType == .child }
+    }
+
+    /// People signed in with a guest account. They have their own section.
+    var guestProfiles: [Profile] {
+        profiles.filter { $0.profileType == .adult && $0.isGuest }
     }
 
     var selectedProfile: Profile? {

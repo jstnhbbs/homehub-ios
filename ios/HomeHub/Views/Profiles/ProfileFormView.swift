@@ -13,6 +13,9 @@ struct ProfileFormView: View {
     var includeName: Bool = true
     let submitLabel: String
     var accountName: String?
+    /// The other people in the family, so the color picker can mark the colors they have and a new profile
+    /// starts on one nobody has.
+    var otherProfiles: [Profile] = []
     var onSubmit: (ProfileInput) async -> Bool
 
     @State private var name = ""
@@ -24,6 +27,11 @@ struct ProfileFormView: View {
 
     private var isLinkedAccount: Bool {
         profile?.userId != nil
+    }
+
+    /// Who has each color (hex, lowercased, to names) among the other people.
+    private var takenBy: [String: [String]] {
+        Dictionary(grouping: otherProfiles, by: { $0.color.lowercased() }).mapValues { $0.map(\.name) }
     }
 
     private var maxBirthdayDate: Date {
@@ -69,7 +77,7 @@ struct ProfileFormView: View {
                     .foregroundStyle(HubTheme.muted)
             }
 
-            ProfileColorPickerView(selectedColor: $color)
+            ProfileColorPickerView(selectedColor: $color, takenBy: takenBy)
 
             Button(submitLabel) {
                 Task {
@@ -101,7 +109,7 @@ struct ProfileFormView: View {
         guard let profile else {
             name = ""
             profileType = .child
-            color = ProfileColors.options[2].value
+            color = ProfileColors.firstUnused(taken: otherProfiles.map(\.color))
             hasBirthday = false
             birthdayDate = maxBirthdayDate
             return

@@ -194,7 +194,8 @@ struct MyProfileView: View {
                 birthdayPickerStyle: .graphical,
                 includeName: false,
                 submitLabel: "Save Profile",
-                accountName: viewModel.account?.user.name
+                accountName: viewModel.account?.user.name,
+                otherProfiles: (appState.dashboard?.profiles ?? []).filter { $0.id != viewModel.account?.profile?.id }
             ) { input in
                 await viewModel.updateProfile(input)
             }

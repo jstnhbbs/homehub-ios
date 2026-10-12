@@ -18,6 +18,9 @@ struct Profile: Codable, Identifiable, Sendable {
 }
 
 extension Profile {
+    /// Signed in with a guest account (view and log only).
+    var isGuest: Bool { memberRole == "guest" }
+
     /// Who a chore can be given to: children, owners and parents. Other adults (guests, and
     /// grown-ups with no account here) are left out. A server that doesn't send `memberRole`
     /// can't say what an account's role is, so its adults stay on the list.

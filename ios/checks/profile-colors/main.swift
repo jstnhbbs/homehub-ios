@@ -26,5 +26,17 @@ for (name, expected) in fromServer {
 check("the palette has the nine colors the server allows", String(ProfileColors.options.count), "9")
 check("the same name always gets the same color", ProfileColors.automatic(forName: "Riley"), ProfileColors.automatic(forName: "Riley"))
 
+// MARK: a new profile's color
+
+let palette = ProfileColors.options.map(\.value)
+check("nobody has one: the first color", ProfileColors.firstUnused(taken: []), palette[0])
+check("taken colors are skipped", ProfileColors.firstUnused(taken: [palette[0]]), palette[1])
+check("a gap is filled", ProfileColors.firstUnused(taken: [palette[1], palette[2]]), palette[0])
+check("case is ignored", ProfileColors.firstUnused(taken: [palette[0].uppercased()]), palette[1])
+check("a color outside the palette changes nothing", ProfileColors.firstUnused(taken: ["#123456"]), palette[0])
+check("all taken: the first", ProfileColors.firstUnused(taken: palette), palette[0])
+check("all taken, one doubled: the next", ProfileColors.firstUnused(taken: palette + [palette[0]]), palette[1])
+check("repeats are spread out", ProfileColors.firstUnused(taken: palette + Array(palette.prefix(8))), palette[8])
+
 if failures > 0 { print("\n\(failures) failed"); exit(1) }
 print("\nall profile color checks passed")
