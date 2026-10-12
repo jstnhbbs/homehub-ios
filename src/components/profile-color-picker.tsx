@@ -1,4 +1,4 @@
-import { PROFILE_COLORS } from "@/lib/profile-colors";
+import { PROFILE_COLOR_CHOICES, PROFILE_COLORS } from "@/lib/profile-colors";
 
 export function ProfileColorPicker({
   defaultColor = PROFILE_COLORS[0].value,
@@ -9,7 +9,7 @@ export function ProfileColorPicker({
     <fieldset>
       <legend className="mb-2 text-xs font-bold">Profile color</legend>
       <div className="flex flex-wrap gap-2.5">
-        {PROFILE_COLORS.map((color) => (
+        {PROFILE_COLOR_CHOICES.map((color) => (
           <label
             key={color.value}
             className="cursor-pointer"

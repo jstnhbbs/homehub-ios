@@ -38,5 +38,15 @@ check("all taken: the first", ProfileColors.firstUnused(taken: palette), palette
 check("all taken, one doubled: the next", ProfileColors.firstUnused(taken: palette + [palette[0]]), palette[1])
 check("repeats are spread out", ProfileColors.firstUnused(taken: palette + Array(palette.prefix(8))), palette[8])
 
+// MARK: the guest grey
+
+// Must be the server's GUEST_PROFILE_COLOR (src/lib/profile-colors.ts).
+check("the guest grey is the server's", ProfileColors.guestGrey.value, "#8e939b")
+check("the picker offers the nine and then the grey", String(ProfileColors.choices.count), "10")
+check("the grey is last in the picker", ProfileColors.choices.last?.value ?? "", ProfileColors.guestGrey.value)
+check("the grey is not one of the nine", String(palette.contains(ProfileColors.guestGrey.value)), "false")
+check("the grey is not handed to a new profile", ProfileColors.firstUnused(taken: palette), palette[0])
+check("a taken grey changes nothing for a new profile", ProfileColors.firstUnused(taken: [ProfileColors.guestGrey.value]), palette[0])
+
 if failures > 0 { print("\n\(failures) failed"); exit(1) }
 print("\nall profile color checks passed")

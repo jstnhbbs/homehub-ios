@@ -20,6 +20,7 @@ type Handler = (request: Request, context: { params: Promise<Record<string, stri
 
 const cookies: Partial<Record<Role, string>> = {};
 const ids = { guestProfile: "", ownerProfile: "", note: "" };
+const guestColors = { guest: "", others: [] as string[] };
 const password = "correct-horse-battery";
 
 /** Calls a route handler as the given role and returns its status and parsed body. */
@@ -89,6 +90,9 @@ beforeAll(async () => {
   const userId = (email: string) => users.find((user) => user.email === email)!.id;
   ids.guestProfile = profiles.find((p) => p.userId === userId("guest@example.com"))!.id;
   ids.ownerProfile = profiles.find((p) => p.userId === userId("owner@example.com"))!.id;
+  // The guest starts with the quiet grey; the others take the family's colors in turn.
+  guestColors.guest = profiles.find((p) => p.id === ids.guestProfile)!.color;
+  guestColors.others = profiles.filter((p) => p.id !== ids.guestProfile).map((p) => p.color);
 
   const note = await call("owner", "notes", "POST", { body: { title: "Owner note" } });
   ids.note = (note.json as unknown as { id: string }).id;
@@ -96,6 +100,17 @@ beforeAll(async () => {
 
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
+
+describe("a guest's starting color", () => {
+  it("is the guest grey, and the family keeps the family colors", async () => {
+    const { GUEST_PROFILE_COLOR, PROFILE_COLORS } = await import("@/lib/profile-colors");
+    expect(guestColors.guest).toBe(GUEST_PROFILE_COLOR.value);
+    const family = PROFILE_COLORS.map((color) => color.value);
+    expect(guestColors.others).toHaveLength(2);
+    expect(guestColors.others.every((color) => family.includes(color as (typeof family)[number]))).toBe(true);
+    expect(new Set(guestColors.others).size).toBe(2);
+  });
+});
 });
 
 // Routes that change household setup or shared data. Guests must be refused; parents must reach

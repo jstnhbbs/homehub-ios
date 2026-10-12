@@ -160,6 +160,7 @@ enum HubTheme {
         "#8c7ca8": "indigo",    // Lavender shows as Amethyst
         "#b86f4d": "clay",      // Terracotta shows as Tangerine
         "#7f8757": "rosewood",  // Olive shows as Rosewood
+        "#8e939b": "slate",     // Grey (a guest's starting color) shows as Slate
     ]
 
     static func profileColor(_ hex: String?) -> Color {

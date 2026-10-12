@@ -10,8 +10,20 @@ export const PROFILE_COLORS = [
   { value: "#7f8757", label: "Olive" },
 ] as const;
 
+/**
+ * The color a guest's profile starts with: a quiet grey (the app shows it as Slate), since a guest mostly looks
+ * and logs and shouldn't use up one of the family's colors. It is kept out of `PROFILE_COLORS` on purpose: the
+ * automatic color for a celebration is picked from that list by position (`colorForBirthdayName`) and
+ * `pickProfileColor` hands out only those nine, so adding to it would change colors people already have.
+ * It can still be chosen from the picker, for anyone, through `PROFILE_COLOR_CHOICES`.
+ */
+export const GUEST_PROFILE_COLOR = { value: "#8e939b", label: "Grey" } as const;
+
+/** Everything a profile or celebration may be given: the nine family colors, then the guest grey. */
+export const PROFILE_COLOR_CHOICES = [...PROFILE_COLORS, GUEST_PROFILE_COLOR] as const;
+
 export function isProfileColor(value: string) {
-  return PROFILE_COLORS.some((color) => color.value === value);
+  return PROFILE_COLOR_CHOICES.some((color) => color.value === value);
 }
 
 /**

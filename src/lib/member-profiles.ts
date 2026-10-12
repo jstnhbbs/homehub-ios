@@ -2,12 +2,13 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { householdMembers, profiles, users } from "@/db/schema";
-import { pickProfileColor } from "@/lib/profile-colors";
+import { GUEST_PROFILE_COLOR, pickProfileColor } from "@/lib/profile-colors";
 
 export async function ensureMemberProfiles(householdId: string) {
   const members = await db
     .select({
       userId: householdMembers.userId,
+      role: householdMembers.role,
       name: users.name,
       profileId: profiles.id,
     })
@@ -23,13 +24,14 @@ export async function ensureMemberProfiles(householdId: string) {
     .where(eq(householdMembers.householdId, householdId));
 
   // Each new profile takes the first color nobody in the household has, including the ones made just before it.
+  // A guest starts with the quiet grey instead, so they don't use up one of the family's colors.
   const used: Array<string | null> = (
     await db.select({ color: profiles.color }).from(profiles).where(eq(profiles.householdId, householdId))
   ).map((row) => row.color);
   const missingProfiles = members
     .filter((member) => !member.profileId)
     .map((member, index) => {
-      const color = pickProfileColor(used);
+      const color = member.role === "guest" ? GUEST_PROFILE_COLOR.value : pickProfileColor(used);
       used.push(color);
       return {
         id: randomUUID(),

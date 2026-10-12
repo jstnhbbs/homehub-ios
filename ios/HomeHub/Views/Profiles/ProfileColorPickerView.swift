@@ -13,7 +13,7 @@ struct ProfileColorPickerView: View {
                 .foregroundStyle(HubTheme.muted)
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 10) {
-                ForEach(ProfileColors.options) { option in
+                ForEach(ProfileColors.choices) { option in
                     Button {
                         selectedColor = option.value
                     } label: {

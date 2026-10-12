@@ -21,6 +21,15 @@ enum ProfileColors {
         .init(value: "#7f8757", label: "Rosewood"),
     ]
 
+    /// The color a guest's profile starts with (the server gives it out, `GUEST_PROFILE_COLOR`): a quiet grey,
+    /// shown as Slate, since a guest mostly looks and logs and shouldn't use up one of the family's colors.
+    /// It is not in `options` on purpose: `automatic(forName:)` and `firstUnused` work by position in that
+    /// list, so adding to it would change colors people already have.
+    static let guestGrey = ProfileColorOption(value: "#8e939b", label: "Slate")
+
+    /// What the color picker offers: the nine family colors, then the guest grey.
+    static let choices: [ProfileColorOption] = options + [guestGrey]
+
     /// The color an entry gets when nobody has chosen one: picked from the name so it stays the
     /// same. This is `colorForBirthdayName` on the server, so a new entry starts out showing the
     /// color it would have been given.
