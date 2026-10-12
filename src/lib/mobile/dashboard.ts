@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   choreCompletions,
@@ -23,6 +23,7 @@ import { parseSnackOptions, snackEatenLabels } from "@/lib/meals/snacks";
 import { fetchNapsForDate, serializeNap } from "@/lib/naps/store";
 import type { getCurrentHousehold } from "@/lib/household";
 import { getUserHubModules } from "@/lib/hub-modules-store";
+import { addDays } from "@/lib/streaks";
 import { loadRoutineStreaks } from "@/lib/streak-store";
 import { serializeHousehold } from "@/lib/mobile/http";
 
@@ -42,9 +43,11 @@ export async function buildDashboardPayload(
     choreRows,
     choreDone,
     todayMeals,
+    upcomingDinnerRows,
     snackDone,
     todayNaps,
     groceryRows,
+    checkedGroceryRows,
     noteRows,
     familyBirthdayRows,
     routineStreaks,
@@ -113,6 +116,20 @@ export async function buildDashboardPayload(
       .where(
         and(eq(meals.householdId, household.id), eq(meals.localDate, localDate))
       ),
+    // Dinners for the next week, for the Large Food card (the rest of this week, or next week when
+    // today is the last day of it). Today's three meals are already in `meals`.
+    db
+      .select()
+      .from(meals)
+      .where(
+        and(
+          eq(meals.householdId, household.id),
+          eq(meals.slot, "dinner"),
+          gte(meals.localDate, addDays(localDate, 1)),
+          lte(meals.localDate, addDays(localDate, 7))
+        )
+      )
+      .orderBy(asc(meals.localDate)),
     db
       .select({
         snackLabel: snackCompletions.snackLabel,
@@ -136,6 +153,19 @@ export async function buildDashboardPayload(
         )
       )
       .orderBy(asc(groceryItems.category), asc(groceryItems.createdAt)),
+    // What was checked off lately, so the Large Groceries card can show it (and let it be undone).
+    db
+      .select()
+      .from(groceryItems)
+      .where(
+        and(
+          eq(groceryItems.householdId, household.id),
+          eq(groceryItems.checked, true),
+          gte(groceryItems.checkedAt, new Date(Date.now() - 24 * 60 * 60 * 1000))
+        )
+      )
+      .orderBy(desc(groceryItems.checkedAt))
+      .limit(12),
     db
       .select()
       .from(householdNotes)
@@ -275,6 +305,7 @@ export async function buildDashboardPayload(
         ),
     }),
     meals: todayMeals,
+    upcomingDinners: upcomingDinnerRows,
     scheduleEvents: schedule.map((event) => ({
       eventId: event.eventId,
       title: event.title,
@@ -293,6 +324,7 @@ export async function buildDashboardPayload(
     snackEaten: snackEatenLabels(snackDone, snacksPerChild, childIds),
     naps: todayNaps.map(serializeNap),
     groceryItems: groceryRows,
+    checkedGroceryItems: checkedGroceryRows,
     notes: noteRows,
     upcomingBirthdays,
     // Says whether any anniversary exists at all, not just within upcomingBirthdays' window, so
