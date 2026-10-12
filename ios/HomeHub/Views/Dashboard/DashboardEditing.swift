@@ -34,19 +34,102 @@ final class DashboardGridProbeReference {
 }
 
 /// A view with no size placed behind the grid, so `DashboardGridProbeReference` has something in the
-/// grid's space to measure from.
+/// grid's space to measure from. It also owns the press-and-hold that starts editing (see `Coordinator`).
 struct DashboardGridProbe: UIViewRepresentable {
     let reference: DashboardGridProbeReference
+    /// Whether the page is being edited (the press-and-hold only starts editing when it is not) and what to
+    /// do when the hold succeeds.
+    var isEditing = false
+    var onPressAndHold: () -> Void = {}
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeUIView(context: Context) -> UIView {
-        let view = UIView()
+        let view = ProbeView()
         view.isUserInteractionEnabled = false
+        view.coordinator = context.coordinator
+        context.coordinator.probe = view
         reference.view = view
         return view
     }
 
     func updateUIView(_ view: UIView, context: Context) {
         reference.view = view
+        context.coordinator.isEditing = isEditing
+        context.coordinator.onPressAndHold = onPressAndHold
+        // The scroll view may not have been above the probe yet when it joined the window.
+        context.coordinator.attach()
+    }
+
+    /// Starts editing when a card is pressed and held. It is a UIKit recognizer on the page's scroll view,
+    /// not a SwiftUI gesture on each card, so that when the hold succeeds the touch is **cancelled** for
+    /// the card under the finger: with a SwiftUI long press running alongside the card's own buttons, lifting the
+    /// finger afterwards still tapped the card, which opened its page just after editing started.
+    /// Moving before the hold is over fails the recognizer, so the page still scrolls.
+    @MainActor
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        fileprivate weak var probe: UIView?
+        var isEditing = false
+        var onPressAndHold: () -> Void = {}
+        private weak var attachedTo: UIScrollView?
+        private let recognizer = UILongPressGestureRecognizer()
+
+        override init() {
+            super.init()
+            recognizer.addTarget(self, action: #selector(handle(_:)))
+            recognizer.minimumPressDuration = 0.6
+            recognizer.allowableMovement = 10
+            recognizer.cancelsTouchesInView = true
+            recognizer.delegate = self
+        }
+
+        /// Called when the probe joins a window, when the scroll view above it exists.
+        fileprivate func attach() {
+            guard let scroll = findScrollView(), scroll !== attachedTo else { return }
+            attachedTo?.removeGestureRecognizer(recognizer)
+            scroll.addGestureRecognizer(recognizer)
+            attachedTo = scroll
+        }
+
+        fileprivate func detach() {
+            attachedTo?.removeGestureRecognizer(recognizer)
+            attachedTo = nil
+        }
+
+        private func findScrollView() -> UIScrollView? {
+            var current = probe?.superview
+            while let candidate = current {
+                if let scroll = candidate as? UIScrollView { return scroll }
+                current = candidate.superview
+            }
+            return nil
+        }
+
+        @objc private func handle(_ recognizer: UILongPressGestureRecognizer) {
+            if recognizer.state == .began { onPressAndHold() }
+        }
+
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard !isEditing, let probe else { return false }
+            // Only a press on the grid of cards (not the greeting or the banner above it).
+            return probe.bounds.contains(gestureRecognizer.location(in: probe))
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
+        ) -> Bool {
+            true
+        }
+    }
+
+    final class ProbeView: UIView {
+        weak var coordinator: Coordinator?
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            if window == nil { coordinator?.detach() } else { coordinator?.attach() }
+        }
     }
 }
 
@@ -425,8 +508,7 @@ private struct DashboardEditChrome: ViewModifier {
 }
 
 extension View {
-    /// Wraps a Today card in the edit-mode controls when `isEditing`, and otherwise lets a long press
-    /// start editing. See `DashboardEditChrome`.
+    /// Wraps a Today card in the edit-mode controls when `isEditing`. See `DashboardEditChrome`.
     @ViewBuilder
     func dashboardEditable(
         card: DashboardCardId,
@@ -435,7 +517,6 @@ extension View {
         isEditing: Bool,
         isDragging: Bool,
         drag: DashboardDragModel,
-        onBeginEditing: @escaping () -> Void,
         dragSpace: DashboardGridProbeReference,
         onDragChanged: @escaping (CGPoint) -> Void,
         onDragEnded: @escaping () -> Void,
@@ -458,9 +539,8 @@ extension View {
             ))
             .modifier(DashboardDragOriginReporter(drag: drag, isDragging: isDragging))
         } else {
-            simultaneousGesture(
-                LongPressGesture(minimumDuration: 0.6).onEnded { _ in onBeginEditing() }
-            )
+            // Press-and-hold to start editing is the grid probe's (`DashboardGridProbe`).
+            self
         }
     }
 }

@@ -149,7 +149,6 @@ struct DashboardView: View {
                                     isEditing: edit.isEditing,
                                     isDragging: edit.draggingCard == card,
                                     drag: edit.drag,
-                                    onBeginEditing: { edit.enter() },
                                     dragSpace: edit.probe,
                                     onDragChanged: { edit.dragChanged(card, locationInGrid: $0, order: tileCards) },
                                     onDragEnded: endDrag,
@@ -160,7 +159,7 @@ struct DashboardView: View {
                                 .layoutValue(key: DashboardCardKey.self, value: card)
                             }
                         }
-                        .background(DashboardGridProbe(reference: edit.probe))
+                        .background(DashboardGridProbe(reference: edit.probe, isEditing: edit.isEditing, onPressAndHold: { edit.enter() }))
 
                         if edit.isEditing {
                             DashboardAddCardsTray(cards: TodayLayoutEditing.addableCards(in: appState.hubModules), onAdd: { setEnabled($0, true) })
@@ -333,7 +332,6 @@ struct DashboardView: View {
                                             isEditing: edit.isEditing,
                                             isDragging: edit.draggingCard == card,
                                             drag: edit.drag,
-                                            onBeginEditing: { edit.enter() },
                                             dragSpace: edit.probe,
                                             onDragChanged: { edit.dragChanged(card, locationInGrid: $0, order: cards) },
                                             onDragEnded: endDrag,
@@ -344,7 +342,7 @@ struct DashboardView: View {
                                         .layoutValue(key: DashboardCardKey.self, value: card)
                                     }
                                 }
-                                .background(DashboardGridProbe(reference: edit.probe))
+                                .background(DashboardGridProbe(reference: edit.probe, isEditing: edit.isEditing, onPressAndHold: { edit.enter() }))
                             }
 
                             if edit.isEditing {
