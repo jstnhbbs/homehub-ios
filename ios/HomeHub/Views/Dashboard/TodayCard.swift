@@ -13,6 +13,8 @@ struct TodayCardFrame<Content: View>: View {
 
     let card: DashboardCardId
     var fixedHeight: CGFloat?
+    /// What tapping the header does, when it is more than opening the card's page (Snacks opens its tab).
+    var onNavigate: (() -> Void)?
     @ViewBuilder var content: () -> Content
 
     var body: some View {
@@ -36,7 +38,7 @@ struct TodayCardFrame<Content: View>: View {
     @ViewBuilder
     private var header: some View {
         if let destination = card.destination {
-            Button { openHubDestination(destination) } label: {
+            Button { if let onNavigate { onNavigate() } else { openHubDestination(destination) } } label: {
                 headerLabel(showsChevron: true)
             }
             .buttonStyle(.plain)
@@ -75,14 +77,18 @@ struct TodayCardFrame<Content: View>: View {
 struct TodayCardHeadline: View {
     let headline: String
     let caption: String
+    /// How many lines the headline may take before it shrinks: one for a number or a time, more for a name.
+    var headlineLines = 1
+    var headlineFont: Font = .title2.weight(.bold)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(headline)
-                .font(.title2.weight(.bold))
+                .font(headlineFont)
                 .monospacedDigit()
-                .lineLimit(1)
+                .lineLimit(headlineLines)
                 .minimumScaleFactor(0.7)
+                .multilineTextAlignment(.leading)
             Text(caption)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(HubTheme.muted)
@@ -146,5 +152,53 @@ extension DashboardCardId {
 
     /// Cards already drawn with `TodayCardFrame` and a layout for every size. The rest still use their
     /// older panels and compact tiles until they are converted.
-    var usesTodayCard: Bool { self == .chores }
+    var usesTodayCard: Bool { self != .weather }
+}
+
+/// A Small card's body: one button that opens the card's page, so a glance is also a way in. Small never
+/// does anything else; actions start at Medium.
+struct TodayCardSmallBody<Content: View>: View {
+    @Environment(\.openHubDestination) private var openHubDestination
+
+    let card: DashboardCardId
+    /// What tapping does when it should be more than opening the card's page.
+    var action: (() -> Void)?
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        Button {
+            if let action {
+                action()
+            } else if let destination = card.destination {
+                openHubDestination(destination)
+            }
+        } label: {
+            content()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Open \(card.label)")
+    }
+}
+
+/// A day as the small marker at the start of a row ("Tue"): a chore coming up, a dinner later in the week.
+/// The nearest one can be set in the accent color so it stands out.
+struct TodayCardDayChip: View {
+    let label: String
+    let highlighted: Bool
+
+
+    var body: some View {
+        Text(label)
+            .font(.caption2.weight(.heavy))
+            .textCase(.uppercase)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            .foregroundStyle(highlighted ? HubTheme.accentText : HubTheme.muted)
+            .frame(width: 28, height: 28)
+            .background(HubTheme.tile, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .accessibilityHidden(true)
+    }
 }

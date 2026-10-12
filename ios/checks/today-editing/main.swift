@@ -43,9 +43,9 @@ check("turned-off cards can be added back, weather never", names(TodayLayoutEdit
 let noSleepModule = some.updating(.sleep, enabled: false)
 check("a card whose module is off can't be added", names(TodayLayoutEditing.addableCards(in: noSleepModule)), "snacks")
 
-// Resizing: a size a card doesn't offer is brought to one it does.
+// Resizing: every card offers every size.
 check("a size the card offers is kept", DashboardCardId.schedule.clamped(.large).rawValue, "large")
-check("a size it doesn't offer comes back to its largest", DashboardCardId.sleep.clamped(.large).rawValue, "medium")
-check("the menu lists the sizes the card offers", DashboardCardId.sleep.allowedSizes.map(\.rawValue).joined(separator: ","), "small,medium")
+check("a card that used to stop at medium offers large too", DashboardCardId.sleep.clamped(.large).rawValue, "large")
+check("the menu lists every size", DashboardCardId.sleep.allowedSizes.map(\.rawValue).joined(separator: ","), "small,medium,large")
 
 if failures > 0 { print("\n\(failures) check(s) failed"); exit(1) } else { print("\nall checks passed") }

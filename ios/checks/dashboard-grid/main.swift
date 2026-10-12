@@ -23,7 +23,7 @@ check("saved 'compact' reads as small", DashboardCardSize(stored: "compact")?.ra
 check("saved 'expanded' reads as medium", DashboardCardSize(stored: "expanded")?.rawValue ?? "nil", "medium")
 check("new names read as themselves", ["small", "medium", "large"].compactMap { DashboardCardSize(stored: $0)?.rawValue }.joined(separator: ","), "small,medium,large")
 check("an unknown size is nil", String(DashboardCardSize(stored: "huge") == nil), "true")
-check("sleep stops at medium", DashboardCardId.sleep.clamped(.large).rawValue, "medium")
+check("every card can be large, sleep included", DashboardCardId.sleep.clamped(.large).rawValue, "large")
 check("schedule can be large", DashboardCardId.schedule.clamped(.large).rawValue, "large")
 
 // MARK: packing

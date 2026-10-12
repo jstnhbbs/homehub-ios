@@ -13,6 +13,8 @@ struct DashboardData: Codable, Sendable {
     /// Chores with a time on the next few days, for scheduling their reminders ahead.
     var upcomingChores: [UpcomingChore]
     var meals: [Meal]
+    /// Dinners on the next seven days, for the Large Food card. Empty from a server that predates it.
+    var upcomingDinners: [Meal]
     var scheduleEvents: [ScheduleEvent]
     var snackOptions: [String]
     var snackEaten: [String]
@@ -21,6 +23,8 @@ struct DashboardData: Codable, Sendable {
     var snacksPerChild: Bool
     var naps: [NapLog]
     var groceryItems: [GroceryItem]
+    /// Items checked off in the last day, for the Large Groceries card. Empty from an older server.
+    var checkedGroceryItems: [GroceryItem]
     var notes: [HouseholdNote]
     var upcomingBirthdays: [BirthdayItem]
     /// True when any anniversary exists, however far away, so the module can be named consistently.
@@ -37,6 +41,7 @@ struct DashboardData: Codable, Sendable {
         case laterChores
         case upcomingChores
         case meals
+        case upcomingDinners
         case scheduleEvents
         case snackOptions
         case snackEaten
@@ -44,6 +49,7 @@ struct DashboardData: Codable, Sendable {
         case snacksPerChild
         case naps
         case groceryItems
+        case checkedGroceryItems
         case notes
         case upcomingBirthdays
         case hasAnniversaries
@@ -61,6 +67,7 @@ struct DashboardData: Codable, Sendable {
         laterChores = try container.decodeIfPresent([ChoreRow].self, forKey: .laterChores) ?? []
         upcomingChores = try container.decodeIfPresent([UpcomingChore].self, forKey: .upcomingChores) ?? []
         meals = try container.decodeIfPresent([Meal].self, forKey: .meals) ?? []
+        upcomingDinners = try container.decodeIfPresent([Meal].self, forKey: .upcomingDinners) ?? []
         scheduleEvents = try container.decodeIfPresent([ScheduleEvent].self, forKey: .scheduleEvents) ?? []
         snackOptions = try container.decodeIfPresent([String].self, forKey: .snackOptions) ?? []
         snackEaten = try container.decodeIfPresent([String].self, forKey: .snackEaten) ?? []
@@ -68,6 +75,7 @@ struct DashboardData: Codable, Sendable {
         snacksPerChild = try container.decodeIfPresent(Bool.self, forKey: .snacksPerChild) ?? false
         naps = try container.decodeIfPresent([NapLog].self, forKey: .naps) ?? []
         groceryItems = try container.decodeIfPresent([GroceryItem].self, forKey: .groceryItems) ?? []
+        checkedGroceryItems = try container.decodeIfPresent([GroceryItem].self, forKey: .checkedGroceryItems) ?? []
         notes = try container.decodeIfPresent([HouseholdNote].self, forKey: .notes) ?? []
         upcomingBirthdays = try container.decodeIfPresent([BirthdayItem].self, forKey: .upcomingBirthdays) ?? []
         hasAnniversaries = try container.decodeIfPresent(Bool.self, forKey: .hasAnniversaries) ?? false
@@ -85,6 +93,7 @@ struct DashboardData: Codable, Sendable {
         try container.encode(laterChores, forKey: .laterChores)
         try container.encode(upcomingChores, forKey: .upcomingChores)
         try container.encode(meals, forKey: .meals)
+        try container.encode(upcomingDinners, forKey: .upcomingDinners)
         try container.encode(scheduleEvents, forKey: .scheduleEvents)
         try container.encode(snackOptions, forKey: .snackOptions)
         try container.encode(snackEaten, forKey: .snackEaten)
@@ -92,6 +101,7 @@ struct DashboardData: Codable, Sendable {
         try container.encode(snacksPerChild, forKey: .snacksPerChild)
         try container.encode(naps, forKey: .naps)
         try container.encode(groceryItems, forKey: .groceryItems)
+        try container.encode(checkedGroceryItems, forKey: .checkedGroceryItems)
         try container.encode(notes, forKey: .notes)
         try container.encode(upcomingBirthdays, forKey: .upcomingBirthdays)
         try container.encode(hasAnniversaries, forKey: .hasAnniversaries)

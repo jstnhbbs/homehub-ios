@@ -310,21 +310,11 @@ enum DashboardCardSize: String, Codable, Sendable, CaseIterable, Hashable, Ident
 }
 
 extension DashboardCardId {
-    /// The sizes that make sense for a card. A card with nothing more to show at Large (a single
-    /// sleep timer, a count of snacks) stops at Medium; a saved size outside this list is brought
-    /// back to the nearest allowed one by `clamped`.
-    var allowedSizes: [DashboardCardSize] {
-        switch self {
-        case .weather, .snacks, .sleep, .birthdays: [.small, .medium]
-        case .schedule, .routines, .chores, .meals, .groceries, .notes: [.small, .medium, .large]
-        }
-    }
+    /// Every card has a layout for every size. (A card used to stop at Medium when it had nothing more to
+    /// show; each now has something worth a Large.)
+    var allowedSizes: [DashboardCardSize] { DashboardCardSize.allCases }
 
-    func clamped(_ size: DashboardCardSize) -> DashboardCardSize {
-        let allowed = allowedSizes
-        if allowed.contains(size) { return size }
-        return allowed.last ?? .small
-    }
+    func clamped(_ size: DashboardCardSize) -> DashboardCardSize { size }
 }
 
 /// The dashboard grid is arranged and sized separately for iPhone and for iPad/Mac, since the

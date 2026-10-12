@@ -132,11 +132,8 @@ struct DashboardView: View {
                         let tileCards = arranged(edit.isEditing ? cards : compactGridCards(cards, dashboard: dashboard))
                         let tileItems = Dictionary(uniqueKeysWithValues: tileCards.map { card -> (DashboardCardId, DashboardFlowLayout.Item) in
                             let size = card.clamped(cardSizes[card, default: .small])
-                            let isFull = card.compactSpan(size: size) == .full
-                            if card.usesTodayCard {
-                                return (card, .init(isFull: isFull, minHeight: 0, fixedHeight: phoneCellHeight * CGFloat(size.rows) + 12 * CGFloat(size.rows - 1)))
-                            }
-                            return (card, .init(isFull: isFull, minHeight: size == .large ? 154 * 2 + 10 : (isFull ? 88 : 154)))
+                            let isFull = size != .small
+                            return (card, .init(isFull: isFull, fixedHeight: phoneCellHeight * CGFloat(size.rows) + 12 * CGFloat(size.rows - 1)))
                         })
                         DashboardFlowLayout(
                             items: tileItems,
@@ -144,7 +141,7 @@ struct DashboardView: View {
                         ) {
                             ForEach(tileCards) { card in
                                 let size = card.clamped(cardSizes[card, default: .small])
-                                phoneTile(card, size: size, dashboard: dashboard)
+                                dashboardCard(card, size: size, dashboard: dashboard)
                                 .dashboardEditable(
                                     card: card,
                                     size: size,
@@ -281,10 +278,6 @@ struct DashboardView: View {
             header
 
             if let dashboard = appState.dashboard {
-                let scheduleEvents = appState.nativeCalendar.hasFullAccess
-                    ? appState.nativeTodayScheduleEvents
-                    : []
-                let calendarConnected = appState.nativeCalendar.hasFullAccess
                 let todaysBirthdays = birthdaysToday(dashboard)
 
                 if !todaysBirthdays.items.isEmpty {
@@ -315,11 +308,7 @@ struct DashboardView: View {
                                             card,
                                             size: card.clamped(layout.cardSizes[card, default: .small]),
                                             dashboard: dashboard,
-                                            rowHeight: layout.height(for: card),
-                                            fillsHeight: false,
-                                            isCompact: isCompact,
-                                            scheduleEvents: scheduleEvents,
-                                            calendarConnected: calendarConnected
+                                            fixedHeight: layout.height(for: card)
                                         )
                                     }
                                 }
@@ -335,16 +324,7 @@ struct DashboardView: View {
                                 ) {
                                     ForEach(cards) { card in
                                         let size = card.clamped(layout.cardSizes[card, default: .small])
-                                        dashboardCard(
-                                            card,
-                                            size: size,
-                                            dashboard: dashboard,
-                                            rowHeight: layout.height(for: card),
-                                            fillsHeight: true,
-                                            isCompact: isCompact,
-                                            scheduleEvents: scheduleEvents,
-                                            calendarConnected: calendarConnected
-                                        )
+                                        dashboardCard(card, size: size, dashboard: dashboard)
                                         .dashboardEditable(
                                             card: card,
                                             size: size,
@@ -388,24 +368,6 @@ struct DashboardView: View {
                 ProgressView("Loading today…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-        }
-    }
-
-    /// A card on the iPhone: converted cards use the shared card (the same one the iPad draws); the rest
-    /// still use their compact tile.
-    @ViewBuilder
-    private func phoneTile(_ card: DashboardCardId, size: DashboardCardSize, dashboard: DashboardData) -> some View {
-        switch card {
-        case .chores:
-            ChoresTodayCard(dashboard: dashboard, size: size)
-        default:
-            CompactDashboardTile(
-                card: card,
-                dashboard: dashboard,
-                span: card.compactSpan(size: size),
-                size: size,
-                onNavigate: openDestination
-            )
         }
     }
 
@@ -481,119 +443,29 @@ struct DashboardView: View {
         }
     }
 
+    /// The card for `card` at `size`, the same on iPhone and iPad. `fixedHeight` is for the one place with no
+    /// grid to size it (the narrow single-column iPad layout).
     @ViewBuilder
     private func dashboardCard(
         _ card: DashboardCardId,
         size: DashboardCardSize,
         dashboard: DashboardData,
-        rowHeight: CGFloat,
-        fillsHeight: Bool,
-        isCompact: Bool,
-        scheduleEvents: [ScheduleEvent],
-        calendarConnected: Bool
+        fixedHeight: CGFloat? = nil
     ) -> some View {
         switch card {
         case .weather:
-            // Weather renders in HubHeaderView, never as a card. `dashboardCards`
-            // filters it out upstream; this case only exists for exhaustiveness.
+            // Weather renders in the header, never as a card. `dashboardCards` filters it out upstream;
+            // this case only exists for exhaustiveness.
             EmptyView()
-        case .schedule:
-            DashboardPanel(
-                systemImage: card.systemImage,
-                title: card.label,
-                destination: card.destination,
-                height: rowHeight,
-                fillsHeight: fillsHeight
-            ) {
-                TodaySchedulePanel(
-                    events: scheduleEvents,
-                    timezone: TimeZone(identifier: dashboard.household.timezone) ?? .current,
-                    connected: calendarConnected
-                ) {
-                    openDestination(.settings)
-                }
-            }
-        case .routines:
-            DashboardPanel(
-                systemImage: card.systemImage,
-                title: card.label,
-                destination: card.destination,
-                height: rowHeight,
-                fillsHeight: fillsHeight
-            ) {
-                RoutinesDashboardPanel(dashboard: dashboard)
-            }
-        case .chores:
-            ChoresTodayCard(dashboard: dashboard, size: size, fixedHeight: fillsHeight ? nil : rowHeight)
-        case .meals:
-            DashboardPanel(
-                systemImage: card.systemImage,
-                title: card.label,
-                destination: card.destination,
-                height: rowHeight,
-                fillsHeight: fillsHeight
-            ) {
-                // Only whole meal tiles are shown; a slot that does not fit becomes "+N more".
-                WholeRowsGrid(
-                    items: [MealSlot.breakfast, .lunch, .dinner].map { slot in
-                        MealTile(slot: slot, meal: dashboard.meals.first { $0.slot == slot })
-                    },
-                    minimumColumnWidth: 125,
-                    maxColumns: 3,
-                    itemHeight: { tile, columnWidth in MealSlotRow.height(for: tile.meal, columnWidth: columnWidth) },
-                    onMore: { openDestination(.meals) }
-                ) { tile, _ in
-                    MealSlotRow(slot: tile.slot, meal: tile.meal)
-                }
-            }
-        case .snacks:
-            DashboardPanel(
-                systemImage: card.systemImage,
-                title: card.label,
-                destination: card.destination,
-                height: rowHeight,
-                fillsHeight: fillsHeight,
-                onNavigate: {
-                    if appState.hubModules.snacks {
-                        appState.pendingFoodSection = .snacks
-                    }
-                    openDestination(.meals)
-                }
-            ) {
-                SnacksDashboardPanel(dashboard: dashboard)
-            }
-        case .sleep:
-            NapsDashboardPanel(dashboard: dashboard, height: rowHeight, fillsHeight: fillsHeight)
-        case .groceries:
-            DashboardPanel(
-                systemImage: card.systemImage,
-                title: card.label,
-                destination: card.destination,
-                height: rowHeight,
-                fillsHeight: fillsHeight
-            ) {
-                GroceriesDashboardPanel(dashboard: dashboard)
-            }
-        case .notes:
-            DashboardPanel(
-                systemImage: card.systemImage,
-                title: card.label,
-                destination: card.destination,
-                height: rowHeight,
-                fillsHeight: fillsHeight
-            ) {
-                NotesDashboardPanel(dashboard: dashboard)
-            }
-        case .birthdays:
-            DashboardPanel(
-                systemImage: card.systemImage,
-                title: card.label,
-                destination: card.destination,
-                height: rowHeight,
-                fillsHeight: fillsHeight
-            ) {
-                BirthdaysDashboardPanel(dashboard: dashboard)
-            }
+        case .schedule: ScheduleTodayCard(dashboard: dashboard, size: size, fixedHeight: fixedHeight)
+        case .routines: RoutinesTodayCard(dashboard: dashboard, size: size, fixedHeight: fixedHeight)
+        case .chores: ChoresTodayCard(dashboard: dashboard, size: size, fixedHeight: fixedHeight)
+        case .meals: FoodTodayCard(dashboard: dashboard, size: size, fixedHeight: fixedHeight)
+        case .snacks: SnacksTodayCard(dashboard: dashboard, size: size, fixedHeight: fixedHeight)
+        case .sleep: SleepTodayCard(dashboard: dashboard, size: size, fixedHeight: fixedHeight)
+        case .groceries: GroceriesTodayCard(dashboard: dashboard, size: size, fixedHeight: fixedHeight)
+        case .notes: NotesTodayCard(dashboard: dashboard, size: size, fixedHeight: fixedHeight)
+        case .birthdays: CelebrationsTodayCard(dashboard: dashboard, size: size, fixedHeight: fixedHeight)
         }
     }
 
@@ -719,69 +591,6 @@ private struct CompactNextUpPanel: View {
 
 // MARK: - Compact tile building blocks
 
-/// Scalars read well two-up; content-heavy cards get the whole row. This is the
-/// mixed-width rhythm a fixed-column grid can't express.
-private enum CompactTileSpan {
-    case half
-    case full
-}
-
-private extension DashboardCardId {
-    /// Content that cannot work in a half-width tile whatever the preference says.
-    /// Notes hosts a live text field, and a ~150pt input is unusable.
-    var requiresFullCompactWidth: Bool { self == .notes }
-
-    /// iPhone has two columns, so Small takes one and Medium and Large take both (Large is twice as tall).
-    func compactSpan(size: DashboardCardSize) -> CompactTileSpan {
-        if requiresFullCompactWidth { return .full }
-        return size == .small ? .half : .full
-    }
-
-
-}
-
-/// Big number, qualifier, optional progress bar — the unit of a compact tile.
-private struct CompactMetric: View {
-    let value: String
-    let detail: String
-    var progress: Double?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(value)
-                .font(.title2.weight(.bold))
-                .foregroundStyle(.primary)
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-            Text(detail)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(HubTheme.muted)
-                .lineLimit(1)
-            if let progress {
-                ProgressView(value: min(max(progress, 0), 1))
-                    .tint(HubTheme.accentText)
-            }
-        }
-    }
-}
-
-private struct CompactDetailChip: View {
-    let text: String
-
-    var body: some View {
-        Text(text)
-            .font(.caption.weight(.bold))
-            .foregroundStyle(.primary)
-            .lineLimit(2)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 7)
-            .background(HubTheme.tileQuiet)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-    }
-}
-
 /// Shared failure handling for one-tap completions: the check animates back off
 /// when the call throws, and the failure is reported so it is not silent. Main-actor because
 /// `report` publishes to the app state, which must happen on the main thread.
@@ -793,559 +602,6 @@ private func compactCompletion(report: (Error) -> Void, _ work: () async throws 
     } catch {
         report(error)
         return false
-    }
-}
-
-/// Chrome every compact tile shares: header with drill-in chevron, frame, background.
-private struct CompactTileShell<Content: View>: View {
-    let card: DashboardCardId
-    let span: CompactTileSpan
-    var size: DashboardCardSize = .small
-    let onNavigate: (HubDestination) -> Void
-    var beforeNavigate: (() -> Void)?
-    @ViewBuilder var content: () -> Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            header
-            content()
-            Spacer(minLength: 0)
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, minHeight: minHeight, maxHeight: .infinity, alignment: .topLeading)
-        .background(HubTheme.tile)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(HubTheme.line, lineWidth: 1)
-        )
-    }
-
-    /// Standard tiles keep one fixed size so the grid looks the same whichever modules a household
-    /// has on; a household with few cards shouldn't get differently sized tiles. Full-width tiles
-    /// hold a variable amount (a schedule may have one event or three), so they fit their content.
-    private var minHeight: CGFloat {
-        if size == .large { return 154 * 2 + 10 }
-        return span == .half ? 154 : 88
-    }
-
-    @ViewBuilder
-    private var header: some View {
-        if let destination = card.destination {
-            Button {
-                beforeNavigate?()
-                onNavigate(destination)
-            } label: {
-                headerLabel(showsChevron: true)
-            }
-            .buttonStyle(.plain)
-        } else {
-            headerLabel(showsChevron: false)
-        }
-    }
-
-    private func headerLabel(showsChevron: Bool) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: card.systemImage)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(HubTheme.accentText)
-            Text(card.compactTitle)
-                .font(.caption.weight(.heavy))
-                .foregroundStyle(HubTheme.muted)
-                .lineLimit(1)
-            Spacer(minLength: 0)
-            if showsChevron {
-                Image(systemName: "chevron.right")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(HubTheme.muted)
-            }
-        }
-        .contentShape(Rectangle())
-    }
-}
-
-/// Thin dispatcher: each card's data and actions live in its own summary view.
-private struct CompactDashboardTile: View {
-    @EnvironmentObject private var appState: AppState
-
-    let card: DashboardCardId
-    let dashboard: DashboardData
-    let span: CompactTileSpan
-    let size: DashboardCardSize
-    let onNavigate: (HubDestination) -> Void
-
-    /// A half-width tile can only show a couple of names before they truncate;
-    /// a full-width one has room for the whole group, and a Large one for twice that.
-    private var groupRowLimit: Int { size == .large ? 16 : (span == .full ? 8 : 4) }
-
-    var body: some View {
-        CompactTileShell(
-            card: card,
-            span: span,
-            size: size,
-            onNavigate: onNavigate,
-            beforeNavigate: card == .snacks ? { appState.pendingFoodSection = .snacks } : nil
-        ) {
-            content
-        }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        switch card {
-        case .weather:
-            // Weather renders in the header readout, never as a tile.
-            EmptyView()
-        case .schedule:
-            CompactScheduleSummary(dashboard: dashboard)
-        case .routines:
-            if dashboard.routineSteps.isEmpty {
-                CompactDetailChip(text: "No routines yet")
-            } else {
-                CompactRoutinesSummary(dashboard: dashboard, visibleLimit: groupRowLimit)
-            }
-        case .chores:
-            // Drawn by ChoresTodayCard, never by a compact tile.
-            EmptyView()
-        case .meals:
-            CompactMealSummary(
-                meals: dashboard.meals,
-                timezone: TimeZone(identifier: dashboard.household.timezone) ?? .current
-            )
-        case .snacks:
-            CompactSnacksSummary(dashboard: dashboard)
-        case .sleep:
-            CompactSleepSummary(dashboard: dashboard)
-        case .groceries:
-            CompactGroceriesSummary(dashboard: dashboard)
-        case .notes:
-            CompactNotesSummary(dashboard: dashboard)
-        case .birthdays:
-            CompactBirthdaysSummary(dashboard: dashboard)
-        }
-    }
-}
-
-/// The day's remaining events. The Next Up hero covers routines and chores only, so this tile
-/// is the one place calendar events appear on iPhone.
-private struct CompactScheduleSummary: View {
-    @EnvironmentObject private var appState: AppState
-    let dashboard: DashboardData
-
-    @State private var now = Date.now
-
-    private var timezone: TimeZone {
-        TimeZone(identifier: dashboard.household.timezone) ?? .current
-    }
-
-    private var events: [ScheduleEvent] {
-        guard appState.nativeCalendar.hasFullAccess else { return [] }
-        return Array(
-            DashboardHelpers.upcomingScheduleEvents(appState.nativeTodayScheduleEvents, now: now).prefix(3)
-        )
-    }
-
-    var body: some View {
-        Group {
-            if !appState.nativeCalendar.hasFullAccess {
-                CompactDetailChip(text: "Connect a calendar to see today's schedule.")
-            } else if events.isEmpty {
-                CompactDetailChip(text: "Nothing left on the calendar today.")
-            } else {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(events) { event in
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Text(event.allDay
-                                 ? "All day"
-                                 : DateHelpers.timeString(event.startsAt, timezone: timezone))
-                                .font(.caption.weight(.heavy))
-                                .foregroundStyle(HubTheme.accentText)
-                                .monospacedDigit()
-                                .lineLimit(1)
-                            Text(event.title)
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-                            Spacer(minLength: 0)
-                        }
-                    }
-                }
-            }
-        }
-        .onTick(every: 60) { now = Date() }
-    }
-}
-
-private struct CompactSnacksSummary: View {
-    @EnvironmentObject private var appState: AppState
-    let dashboard: DashboardData
-
-    private var pending: [String] {
-        let eaten = Set(dashboard.snackEaten)
-        return dashboard.snackOptions.filter { !eaten.contains($0) }
-    }
-    private var children: [Profile] { NapHelpers.childProfiles(from: dashboard.profiles) }
-    private var perChild: Bool { dashboard.snacksPerChild && !children.isEmpty }
-
-    var body: some View {
-        CompactMetric(
-            value: "\(dashboard.snackEaten.count)/\(dashboard.snackOptions.count)",
-            detail: "snacks eaten",
-            progress: dashboard.snackOptions.isEmpty
-                ? nil
-                : Double(dashboard.snackEaten.count) / Double(dashboard.snackOptions.count)
-        )
-        if let snack = pending.first {
-            if perChild {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(snack)
-                        .font(.caption.weight(.bold))
-                        .lineLimit(1)
-                    SnackChildChips(snack: snack, children: children, records: dashboard.snackCompletions) { child, eaten in
-                        do {
-                            try await appState.toggleSnack(localDate: dashboard.localDate, label: snack, profileId: child.id, completed: eaten)
-                        } catch {
-                            appState.report(error)
-                        }
-                    }
-                }
-            } else {
-                CompactCheckAction(label: snack) {
-                    await compactCompletion(report: appState.report) {
-                        // Only snacks not yet eaten are offered here.
-                        try await appState.toggleSnack(localDate: dashboard.localDate, label: snack, completed: true)
-                    }
-                }
-                // Keyed to the snack: once it is eaten the next one takes this spot, and without a key
-                // it would inherit this one's "done" look and refuse taps.
-                .id(snack)
-            }
-        }
-    }
-}
-
-private struct CompactGroceriesSummary: View {
-    @EnvironmentObject private var appState: AppState
-    let dashboard: DashboardData
-
-    private var items: [GroceryItem] {
-        let source = appState.groceriesUseNativeReminders
-            ? appState.nativeGroceryItems
-            : dashboard.groceryItems
-        return source.filter { !$0.checked }
-    }
-
-    var body: some View {
-        CompactMetric(
-            value: "\(items.count)",
-            detail: items.count == 1 ? "item to buy" : "items to buy"
-        )
-        if let item = items.first {
-            CompactCheckAction(label: item.title, enabled: appState.canManageHousehold) {
-                await compactCompletion(report: appState.report) {
-                    try await appState.setGroceryItemChecked(id: item.id, checked: true)
-                }
-            }
-            // Keyed to the item for the same reason as the snack above.
-            .id(item.id)
-        }
-    }
-}
-
-private struct CompactBirthdaysSummary: View {
-    let dashboard: DashboardData
-
-    var body: some View {
-        if let birthday = dashboard.upcomingBirthdays.first {
-            CompactMetric(
-                value: birthday.daysUntil == 0 ? "Today" : "\(birthday.daysUntil)d",
-                detail: birthday.name
-            )
-            CompactDetailChip(text: BirthdayHelpers.countdownLabel(daysUntil: birthday.daysUntil))
-        } else {
-            CompactMetric(value: "0", detail: "coming up")
-        }
-    }
-}
-
-private struct CompactCheckAction: View {
-    let label: String
-    var enabled = true
-    let action: () async -> Bool
-
-    @State private var isWorking = false
-    @State private var isComplete = false
-
-    var body: some View {
-        Button {
-            Task {
-                guard !isWorking else { return }
-                isWorking = true
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                let succeeded = await action()
-                if succeeded {
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        isComplete = true
-                    }
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                }
-                isWorking = false
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: isComplete ? "checkmark.circle.fill" : "circle")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(isComplete ? HubTheme.accentText : HubTheme.muted)
-                Text(label)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(isComplete ? HubTheme.muted : .primary)
-                    .strikethrough(isComplete)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                if isWorking {
-                    ProgressView()
-                        .controlSize(.mini)
-                }
-            }
-            .padding(.horizontal, 8)
-            .frame(minHeight: 32)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(HubTheme.tileQuiet)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .disabled(!enabled || isWorking || isComplete)
-        .opacity(enabled ? 1 : 0.55)
-        .accessibilityValue(isComplete ? "Done" : "Not done")
-        .accessibilityAddTraits(.isToggle)
-    }
-}
-
-
-/// Features one meal, moving through the day on the household's clock (see MealSlotClock):
-/// breakfast, then lunch from 10:30 AM, then dinner from 2:30 PM.
-private struct CompactMealSummary: View {
-    let meals: [Meal]
-    let timezone: TimeZone
-
-    var body: some View {
-        // Re-evaluated every minute so the meal changes on time without a refresh.
-        TimelineView(.everyMinute) { context in
-            let slot = MealSlotClock.slot(at: context.date, timezone: timezone)
-            let meal = meals.first { $0.slot == slot }
-            VStack(alignment: .leading, spacing: 6) {
-                Text(slot.label.uppercased())
-                    .font(.caption2.weight(.heavy))
-                    .foregroundStyle(HubTheme.accentText)
-                Text(meal?.title ?? "Not planned")
-                    .font(.headline.weight(.bold))
-                    .lineLimit(3)
-                    .foregroundStyle(meal == nil ? HubTheme.muted : .primary)
-            }
-        }
-    }
-}
-
-private struct CompactSleepSummary: View {
-    let dashboard: DashboardData
-
-    private var todaysLogs: [NapLog] {
-        dashboard.naps.filter { $0.localDate == dashboard.localDate }
-    }
-
-    private var activeLogs: [NapLog] {
-        dashboard.naps.filter { $0.endedAt == nil }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(activeLogs.isEmpty ? "\(todaysLogs.count)" : "\(activeLogs.count) active")
-                .font(.title2.weight(.bold))
-                .monospacedDigit()
-            Text(activeLogs.isEmpty
-                ? (todaysLogs.count == 1 ? "sleep log today" : "sleep logs today")
-                : "sleep session")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(HubTheme.muted)
-                .lineLimit(1)
-            // Everyone who is asleep, not just the first, so a big family sees who needs waking.
-            ForEach(activeLogs.prefix(3), id: \.id) { active in
-                if let profile = dashboard.profiles.first(where: { $0.id == active.profileId }) {
-                    Text("\(profile.name) · \(active.kind == "night" ? "In bed" : "Napping")")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(HubTheme.accentText)
-                        .lineLimit(1)
-                }
-            }
-            if activeLogs.count > 3 {
-                Text("+\(activeLogs.count - 3) more")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(HubTheme.muted)
-            }
-        }
-    }
-}
-
-/// Per-child routine progress for the Today grid: who still has steps left, and their streak.
-/// Checking a step off happens on the full Routines screen (one tap away via the tile header);
-/// this only needs to answer "which kid needs a nudge" at a glance.
-private struct CompactRoutinesSummary: View {
-    let dashboard: DashboardData
-    let visibleLimit: Int
-
-    private var groups: [RoutineProgressGroup] {
-        RoutineProgressGroup.groups(profiles: dashboard.profiles, steps: dashboard.routineSteps)
-    }
-
-    private func streak(for group: RoutineProgressGroup) -> Int? {
-        let profileId: String? = group.id == "household" ? nil : group.id
-        let days = dashboard.routineStreaks.first { $0.profileId == profileId }?.current
-        return (days ?? 0) >= StreakHelpers.minimumToShow ? days : nil
-    }
-
-    var body: some View {
-        CompactGroupRowList(visibleLimit: visibleLimit, rows: groups.map { group in
-            CompactGroupRow(
-                id: group.id,
-                name: group.name,
-                color: group.color,
-                completed: group.completedCount,
-                total: group.totalCount,
-                streakDays: streak(for: group)
-            )
-        })
-    }
-}
-
-/// Chores grouped the same way as routines, since a parent asks the same question of both:
-/// which kid still has something left today.
-private struct CompactGroupRow: Identifiable {
-    let id: String
-    let name: String
-    let color: String
-    let completed: Int
-    let total: Int
-    let streakDays: Int?
-
-    var isComplete: Bool { total > 0 && completed == total }
-}
-
-/// Shared by the routines and chores tiles: one line per child, capped so a large family
-/// doesn't push the tile past what fits comfortably in a 2-column grid.
-private struct CompactGroupRowList: View {
-    /// Half-width tiles truncate names past a couple of rows, so the caller decides.
-    /// Declared first so call sites can pass the trailing `rows` map last.
-    let visibleLimit: Int
-    let rows: [CompactGroupRow]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            ForEach(rows.prefix(visibleLimit)) { row in
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(HubTheme.profileColor(row.color))
-                        .frame(width: 7, height: 7)
-                    Text(row.name)
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    Spacer(minLength: 4)
-                    if row.isComplete {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(HubTheme.accentText)
-                    } else {
-                        Text("\(row.completed)/\(row.total)")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(HubTheme.muted)
-                            .monospacedDigit()
-                    }
-                    if let days = row.streakDays {
-                        StreakChip(days: days)
-                    }
-                }
-            }
-            if rows.count > visibleLimit {
-                Text("+\(rows.count - visibleLimit) more")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(HubTheme.muted)
-            }
-        }
-    }
-}
-
-/// The notes tile keeps the quick-add field from the full-size panel: it's how a guest
-/// caretaker leaves a note without needing edit access anywhere else in the app.
-private struct CompactNotesSummary: View {
-    @EnvironmentObject private var appState: AppState
-    let dashboard: DashboardData
-
-    @State private var draft = ""
-    @State private var isSaving = false
-
-    private var trimmedDraft: String {
-        draft.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                TextField("Add a note", text: $draft)
-                    .textFieldStyle(.plain)
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 7)
-                    .background(HubTheme.tileQuiet)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .submitLabel(.done)
-                    .onSubmit { Task { await addNote() } }
-
-                Button {
-                    Task { await addNote() }
-                } label: {
-                    Image(systemName: isSaving ? "hourglass" : "plus")
-                        .font(.caption.weight(.bold))
-                        .frame(width: 26, height: 26)
-                        .minimumTapTarget()
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Add Note")
-                .foregroundStyle(HubTheme.onAccent)
-                .background(HubTheme.sage)
-                .clipShape(Circle())
-                .disabled(isSaving || trimmedDraft.isEmpty)
-            }
-
-            if let note = dashboard.notes.first(where: \.pinned) ?? dashboard.notes.first {
-                Text(note.title)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 7)
-                    .background(HubTheme.tileQuiet)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            }
-
-            Text(dashboard.notes.count == 1 ? "1 shared note" : "\(dashboard.notes.count) shared notes")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(HubTheme.muted)
-        }
-    }
-
-    private func addNote() async {
-        let title = trimmedDraft
-        guard !title.isEmpty, !isSaving else { return }
-        isSaving = true
-        defer { isSaving = false }
-        do {
-            _ = try await appState.api.addHouseholdNote(HouseholdNoteInput(title: title))
-            draft = ""
-            await appState.refreshDashboard()
-        } catch {
-            appState.report(error)
-        }
     }
 }
 
@@ -1514,9 +770,8 @@ private struct DashboardCardKey: LayoutValueKey {
 private struct DashboardFlowLayout: Layout {
     struct Item {
         var isFull: Bool
-        var minHeight: CGFloat
-        /// A converted card has exactly this height (its cells), whatever it holds.
-        var fixedHeight: CGFloat?
+        /// A card has exactly this height (its cells), whatever it holds.
+        var fixedHeight: CGFloat
     }
 
     let items: [DashboardCardId: Item]
@@ -1533,9 +788,7 @@ private struct DashboardFlowLayout: Layout {
     private func rows(width: CGFloat, subviews: Subviews) -> [Row] {
         let half = max(0, (width - columnSpacing) / 2)
         func height(_ index: Int, _ width: CGFloat) -> CGFloat {
-            if let fixed = subviews[index][DashboardCardKey.self].flatMap({ items[$0]?.fixedHeight }) { return fixed }
-            let minimum = subviews[index][DashboardCardKey.self].flatMap { items[$0]?.minHeight } ?? 0
-            return max(minimum, subviews[index].sizeThatFits(ProposedViewSize(width: width, height: nil)).height)
+            subviews[index][DashboardCardKey.self].flatMap { items[$0]?.fixedHeight } ?? 0
         }
         var rows: [Row] = []
         var pending: Int?
@@ -1592,210 +845,6 @@ private struct DashboardFlowLayout: Layout {
     }
 }
 
-private struct DashboardPanel<Content: View>: View {
-    @Environment(\.openHubDestination) private var openHubDestination
-
-    let systemImage: String
-    let title: String
-    let destination: HubDestination?
-    let height: CGFloat
-    var fillsHeight = true
-    var background: Color = HubTheme.tile
-    var onNavigate: (() -> Void)? = nil
-    @ViewBuilder var content: () -> Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            CardTitleView(systemImage: systemImage, title: title, action: titleAction)
-            content()
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, minHeight: height, maxHeight: fillsHeight ? height : nil, alignment: .topLeading)
-        .background(background)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(HubTheme.line, lineWidth: 1)
-        )
-    }
-
-    private var titleAction: (() -> Void)? {
-        if let onNavigate {
-            return onNavigate
-        }
-
-        if let destination {
-            return { openHubDestination(destination) }
-        }
-
-        return nil
-    }
-}
-
-// MARK: - Routines
-
-private struct RoutinesDashboardPanel: View {
-    @Environment(\.openHubDestination) private var openHubDestination
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    let dashboard: DashboardData
-
-    @State private var celebration: String?
-
-    private var groups: [RoutineProgressGroup] {
-        RoutineProgressGroup.groups(
-            profiles: dashboard.profiles,
-            steps: dashboard.routineSteps
-        )
-    }
-
-    private func streak(for group: RoutineProgressGroup) -> RoutineStreak? {
-        let profileId: String? = group.id == "household" ? nil : group.id
-        return dashboard.routineStreaks.first { $0.profileId == profileId }
-    }
-
-    var body: some View {
-        content
-            .overlay(alignment: .top) {
-                if let celebration {
-                    StreakBanner(text: celebration)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .padding(.top, 4)
-                }
-            }
-            .onAppear { celebrateMilestones() }
-            .onChange(of: dashboard.routineStreaks) { _, _ in celebrateMilestones() }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        if dashboard.routineSteps.isEmpty {
-            EmptyStateView(
-                text: "Add a morning or bedtime routine.",
-                action: { openHubDestination(.routines) }
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if groups.allSatisfy({ $0.isComplete }) {
-            VStack(spacing: 10) {
-                EmptyStateView(
-                    text: "All routines done for today!",
-                    action: { openHubDestination(.routines) }
-                )
-                streakSummary
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            // Full tiles (avatar, three steps, "+N more") are about 120pt tall, so a short card or a
-            // big family can only show one or two. When they would not all fit, switch to a compact
-            // row per child (and use extra columns if the card is wide), so everyone's progress
-            // stays visible at once. Either way only whole rows show.
-            GeometryReader { geo in
-                let fullColumns = DashboardRowHelpers.columnCount(
-                    availableWidth: geo.size.width,
-                    minimumColumnWidth: Self.fullMinimumColumnWidth,
-                    spacing: 8,
-                    maxColumns: 4
-                )
-                let fullFits = DashboardRowHelpers.allFit(
-                    itemHeights: groups.map { RoutineProgressRow.fullHeight(for: $0) },
-                    columns: fullColumns,
-                    spacing: 8,
-                    availableHeight: geo.size.height
-                )
-                let compactColumns = DashboardRowHelpers.columnCount(
-                    availableWidth: geo.size.width,
-                    minimumColumnWidth: Self.compactMinimumColumnWidth,
-                    spacing: 8,
-                    maxColumns: 3
-                )
-                // Last resort for a big family in a short card: one progress ring per child,
-                // which wraps to fit any number of children in a small space.
-                let ringsOnly = !fullFits && !DashboardRowHelpers.allFit(
-                    itemHeights: Array(repeating: DashboardRow<EmptyView, EmptyView>.compactHeight, count: groups.count),
-                    columns: compactColumns,
-                    spacing: 8,
-                    availableHeight: geo.size.height
-                )
-                if fullFits {
-                    WholeRowsGrid(
-                        items: groups,
-                        minimumColumnWidth: Self.fullMinimumColumnWidth,
-                        maxColumns: 4,
-                        itemHeight: { group, _ in RoutineProgressRow.fullHeight(for: group) },
-                        onMore: { openHubDestination(.routines) }
-                    ) { group, _ in
-                        RoutineProgressRow(group: group, streak: streak(for: group))
-                    }
-                } else if ringsOnly {
-                    ScrollView {
-                        TagFlowLayout(spacing: 10) {
-                            ForEach(groups) { group in
-                                RoutineRingChip(group: group)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .scrollIndicators(.hidden)
-                } else {
-                    WholeRowsGrid(
-                        items: groups,
-                        minimumColumnWidth: Self.compactMinimumColumnWidth,
-                        maxColumns: 3,
-                        itemHeight: { _, _ in DashboardRow<EmptyView, EmptyView>.height },
-                        onMore: { openHubDestination(.routines) },
-                        allowsCompactRows: true
-                    ) { group, _ in
-                        RoutineCompactRow(group: group, streak: streak(for: group))
-                    }
-                }
-            }
-        }
-    }
-
-    private static let fullMinimumColumnWidth: CGFloat = 200
-    private static let compactMinimumColumnWidth: CGFloat = 175
-
-    /// Everyone's running streak, shown once the day's routines are finished.
-    @ViewBuilder
-    private var streakSummary: some View {
-        let running = groups.compactMap { group -> (String, Int)? in
-            guard let days = streak(for: group)?.current, days >= StreakHelpers.minimumToShow else { return nil }
-            return (group.name, days)
-        }
-        if !running.isEmpty {
-            HStack(spacing: 12) {
-                ForEach(running, id: \.0) { name, days in
-                    HStack(spacing: 4) {
-                        Text(name).font(.caption.weight(.bold))
-                        StreakChip(days: days)
-                    }
-                }
-            }
-        }
-    }
-
-    /// Shows a banner the first time a child reaches a milestone on a given day.
-    private func celebrateMilestones() {
-        for group in groups {
-            guard let streak = streak(for: group),
-                  streak.completedToday,
-                  StreakHelpers.isMilestone(streak.current),
-                  !StreakHelpers.hasCelebrated(profileKey: group.id, localDate: dashboard.localDate) else { continue }
-            StreakHelpers.markCelebrated(profileKey: group.id, localDate: dashboard.localDate)
-            let message = StreakHelpers.celebrationMessage(name: group.name, days: streak.current)
-            withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.7)) {
-                celebration = message
-            }
-            Task {
-                try? await Task.sleep(nanoseconds: 4_000_000_000)
-                withAnimation { if celebration == message { celebration = nil } }
-            }
-            return
-        }
-    }
-}
-
 /// A flame and a day count, shown next to a child's routine progress.
 struct StreakChip: View {
     let days: Int
@@ -1817,359 +866,10 @@ struct StreakChip: View {
     }
 }
 
-private struct StreakBanner: View {
-    let text: String
-
-    var body: some View {
-        Label(text, systemImage: "flame.fill")
-            .font(.subheadline.weight(.heavy))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(Color.orange)
-            .clipShape(Capsule())
-            .shadow(color: .black.opacity(0.15), radius: 8, y: 3)
-            .accessibilityAddTraits(.isStaticText)
-    }
-}
-
-private struct RoutineProgressGroup: Identifiable {
-    let id: String
-    let name: String
-    let color: String
-    let avatar: String?
-    let steps: [RoutineStepRow]
-
-    var completedCount: Int {
-        steps.filter { $0.completed }.count
-    }
-
-    var totalCount: Int {
-        steps.count
-    }
-
-    var remainingSteps: [RoutineStepRow] {
-        steps.filter { !$0.completed }
-    }
-
-    var progress: Double {
-        guard totalCount > 0 else { return 0 }
-        return Double(completedCount) / Double(totalCount)
-    }
-
-    var isComplete: Bool {
-        totalCount > 0 && completedCount == totalCount
-    }
-
-    static func groups(profiles: [Profile], steps: [RoutineStepRow]) -> [RoutineProgressGroup] {
-        let childProfiles = profiles
-            .filter { $0.profileType == .child }
-            .sorted { $0.sortOrder < $1.sortOrder }
-
-        var groups = childProfiles.compactMap { profile -> RoutineProgressGroup? in
-            let profileSteps = steps.filter { $0.profileId == profile.id }
-            guard !profileSteps.isEmpty else { return nil }
-
-            return RoutineProgressGroup(
-                id: profile.id,
-                name: profile.name,
-                color: profile.color,
-                avatar: profile.avatar,
-                steps: profileSteps
-            )
-        }
-
-        let householdSteps = steps.filter { $0.profileId == nil }
-        if !householdSteps.isEmpty {
-            groups.append(
-                RoutineProgressGroup(
-                    id: "household",
-                    name: "Family",
-                    color: "#4f7c6d",
-                    avatar: nil,
-                    steps: householdSteps
-                )
-            )
-        }
-
-        return groups
-    }
-}
-
-/// Progress as a ring around a child's avatar.
-private struct RoutineRing: View {
-    let group: RoutineProgressGroup
-    let diameter: CGFloat
-
-    var body: some View {
-        let tint = HubTheme.profileColor(group.color)
-        let ring: CGFloat = diameter < 44 ? 3 : 4
-        let inset: CGFloat = diameter < 44 ? 3 : 5
-        ZStack {
-            Circle()
-                .stroke(tint.opacity(0.2), lineWidth: ring)
-            Circle()
-                .trim(from: 0, to: group.progress)
-                .stroke(tint, style: StrokeStyle(lineWidth: ring, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-            ProfileAvatarView(
-                name: group.name,
-                avatar: group.avatar,
-                color: group.color,
-                size: diameter - (inset * 2) - ring
-            )
-            .padding(inset)
-        }
-        .frame(width: diameter, height: diameter)
-    }
-}
-
-/// A child's routine progress as the shared row: ring, name, the next step, and the count. Used
-/// when the full tiles would not all fit.
-private struct RoutineCompactRow: View {
-    let group: RoutineProgressGroup
-    var streak: RoutineStreak?
-
-    private var nextStep: String? {
-        guard let next = group.remainingSteps.first else { return nil }
-        let display = RoutineGlyphs.display(for: next.label)
-        let more = group.remainingSteps.count - 1
-        return more > 0 ? "\(display.glyph) \(display.label) +\(more)" : "\(display.glyph) \(display.label)"
-    }
-
-    var body: some View {
-        let tint = HubTheme.profileColor(group.color)
-        DashboardRow(title: group.name, subtitle: nextStep ?? "All set", tint: tint) {
-            RoutineRing(group: group, diameter: 28)
-        } trailing: {
-            HStack(spacing: 4) {
-                if let days = streak?.current, days >= StreakHelpers.minimumToShow {
-                    StreakChip(days: days)
-                }
-                if group.isComplete {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(HubTheme.accentText)
-                } else {
-                    Text("\(group.completedCount)/\(group.totalCount)")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(tint)
-                        .monospacedDigit()
-                }
-            }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(group.name), \(group.completedCount) of \(group.totalCount) routine steps complete")
-    }
-}
-
-/// A child's routine progress as a ring around their avatar with the count underneath. Small
-/// enough that a large family still fits in a short card.
-private struct RoutineRingChip: View {
-    let group: RoutineProgressGroup
-
-    private var tint: Color { HubTheme.profileColor(group.color) }
-
-    var body: some View {
-        VStack(spacing: 2) {
-            RoutineRing(group: group, diameter: 40)
-            if group.isComplete {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(HubTheme.accentText)
-                    .frame(height: 13)
-            } else {
-                Text("\(group.completedCount)/\(group.totalCount)")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(tint)
-                    .monospacedDigit()
-                    .frame(height: 13)
-            }
-        }
-        .frame(width: 48)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(group.name), \(group.completedCount) of \(group.totalCount) routine steps complete")
-    }
-}
-
-private struct RoutineProgressRow: View {
-    let group: RoutineProgressGroup
-    var streak: RoutineStreak?
-
-    /// Height of the full tile: name line, up to three steps, an optional "+N more" line, padding.
-    /// Never shorter than the progress ring.
-    static func fullHeight(for group: RoutineProgressGroup) -> CGFloat {
-        let remaining = group.remainingSteps.count
-        let shownSteps = min(3, remaining)
-        // Line heights follow the text size; the paddings and the 52pt ring do not.
-        let stepLine = DashboardMetrics.scaled(16, .caption1)
-        let stepsHeight: CGFloat
-        if shownSteps == 0 {
-            stepsHeight = stepLine
-        } else {
-            stepsHeight = CGFloat(shownSteps) * stepLine + CGFloat(shownSteps - 1) * 4 + (remaining > 3 ? DashboardMetrics.scaled(20, .caption1) : 0)
-        }
-        return max(72, DashboardMetrics.scaled(20) + 6 + stepsHeight + 20)
-    }
-
-    private var tint: Color {
-        HubTheme.profileColor(group.color)
-    }
-
-    private var previewSteps: [RoutineStepRow] {
-        Array(group.remainingSteps.prefix(3))
-    }
-
-    var body: some View {
-        fullBody
-    }
-
-    private var fullBody: some View {
-        HStack(alignment: .top, spacing: 12) {
-            RoutineRing(group: group, diameter: 52)
-
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(group.name)
-                        .font(.subheadline.weight(.heavy))
-                        .lineLimit(1)
-
-                    Text("\(group.completedCount)/\(group.totalCount)")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(tint)
-
-                    if let days = streak?.current, days >= StreakHelpers.minimumToShow {
-                        StreakChip(days: days)
-                    }
-
-                    Spacer(minLength: 0)
-                }
-
-                if previewSteps.isEmpty {
-                    Text("All set")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(HubTheme.muted)
-                } else {
-                    VStack(alignment: .leading, spacing: 4) {
-                        ForEach(previewSteps) { step in
-                            let display = RoutineGlyphs.display(for: step.label)
-
-                            HStack(spacing: 6) {
-                                Text(display.glyph)
-                                    .font(.caption)
-                                    .frame(width: 18, alignment: .leading)
-
-                                Text(display.label)
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(1)
-                            }
-                        }
-                        // The preview is capped at 3 steps regardless of card size; say so rather
-                        // than let the rest go unmentioned. The full list is one tap away.
-                        if group.remainingSteps.count > previewSteps.count {
-                            Text("+\(group.remainingSteps.count - previewSteps.count) more")
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(HubTheme.muted)
-                                .padding(.leading, 24)
-                        }
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(10)
-        .background(tint.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(tint.opacity(0.2), lineWidth: 1)
-        )
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(group.name), \(group.completedCount) of \(group.totalCount) routine steps complete")
-    }
-}
 
 // MARK: - Schedule
 
-private struct TodaySchedulePanel: View {
-    @Environment(\.openHubDestination) private var openHubDestination
-    let events: [ScheduleEvent]
-    let timezone: TimeZone
-    let connected: Bool
-    let onConnect: () -> Void
-
-    @State private var now = Date.now
-    @State private var endTimer: Timer?
-
-    private var allUpcomingEvents: [ScheduleEvent] {
-        DashboardHelpers.upcomingScheduleEvents(events, now: now)
-    }
-
-    /// Only worth a household seeing which calendar an event came from once more than one is
-    /// actually in play; otherwise it is the same name under every row. Based on every event
-    /// today, not just the ones currently visible, so the format doesn't flicker as the card
-    /// resizes and a different number of rows fit.
-    private var showsCalendarName: Bool {
-        DashboardRowHelpers.showsCalendarName(allUpcomingEvents.map(\.calendarName))
-    }
-
-    var body: some View {
-        Group {
-            if allUpcomingEvents.isEmpty {
-                EmptyStateView(text: emptyMessage, action: connected ? nil : onConnect)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                WholeRowsGrid(
-                    items: allUpcomingEvents,
-                    minimumColumnWidth: DashboardRow<EmptyView, EmptyView>.minimumWidthWithStatus,
-                    maxColumns: 2,
-                    itemHeight: { _, _ in DashboardRow<EmptyView, EmptyView>.height },
-                    onMore: { openHubDestination(.calendar) }
-                ) { event, _ in
-                    ScheduleEventRow(event: event, timezone: timezone, showsCalendarName: showsCalendarName)
-                }
-            }
-        }
-        .onAppear {
-            now = .now
-            scheduleEndTimer()
-        }
-        .onDisappear {
-            endTimer?.invalidate()
-        }
-        .onChange(of: events.map(\.eventId)) { _, _ in
-            scheduleEndTimer()
-        }
-        .onTick(every: 60) {
-            now = Date()
-            scheduleEndTimer()
-        }
-    }
-
-    private var emptyMessage: String {
-        if !connected {
-            return "Connect a calendar to see today's events."
-        }
-        if events.isEmpty {
-            return "Nothing on the calendar today."
-        }
-        return "Nothing left on the calendar today."
-    }
-
-    private func scheduleEndTimer() {
-        endTimer?.invalidate()
-        guard let nextEnd = DashboardHelpers.nextTimedEventEnd(after: now, in: events) else { return }
-        let interval = nextEnd.timeIntervalSince(now) + 0.05
-        guard interval > 0 else { return }
-        endTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { _ in
-            now = .now
-            scheduleEndTimer()
-        }
-    }
-}
-
-private struct ScheduleEventRow: View {
+struct ScheduleEventRow: View {
     let event: ScheduleEvent
     let timezone: TimeZone
     var showsCalendarName = true
@@ -2197,13 +897,13 @@ private struct ScheduleEventRow: View {
 
 // MARK: - Meals
 
-private struct MealTile: Identifiable {
+struct MealTile: Identifiable {
     let slot: MealSlot
     let meal: Meal?
     var id: MealSlot { slot }
 }
 
-private struct MealSlotRow: View {
+struct MealSlotRow: View {
     let slot: MealSlot
     let meal: Meal?
 
@@ -2252,70 +952,7 @@ private struct MealSlotRow: View {
 
 // MARK: - Snacks
 
-private struct NapsDashboardPanel: View {
-    @EnvironmentObject private var appState: AppState
-    @Environment(\.openHubDestination) private var openHubDestination
-    let dashboard: DashboardData
-    let height: CGFloat
-    var fillsHeight = true
-
-    @State private var now = Date.now
-
-    /// Anyone asleep right now comes first, so with a big family in a short card the children
-    /// whose nap or night can be ended are always the ones visible.
-    private var childProfiles: [Profile] {
-        let children = NapHelpers.childProfiles(from: dashboard.profiles)
-        let asleep = children.filter { NapHelpers.activeSleep(for: $0.id, in: dashboard.naps) != nil }
-        return asleep + children.filter { child in !asleep.contains { $0.id == child.id } }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            CardTitleView(systemImage: "moon.fill", title: "Sleep") {
-                openHubDestination(.sleep)
-            }
-            if childProfiles.isEmpty {
-                EmptyStateView(
-                    text: "Add a child profile to log sleep.",
-                    action: appState.canManageHousehold ? { openHubDestination(.settings) } : nil
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                // Same row as every other card; whole rows only, with a "+N more" line when a child
-                // does not fit. The hint on how to log sleep shows only when there is room.
-                let timezone = TimeZone(identifier: dashboard.household.timezone) ?? .current
-                WholeRowsGrid(
-                    items: childProfiles,
-                    minimumColumnWidth: DashboardRow<EmptyView, EmptyView>.minimumWidthWithStatus,
-                    maxColumns: 3,
-                        itemHeight: { _, _ in DashboardRow<EmptyView, EmptyView>.height },
-                    onMore: { openHubDestination(.sleep) },
-                    spareHint: "Tap Sleep to log naps, bedtime, or edit times.",
-                allowsCompactRows: true
-            ) { profile, _ in
-                    DashboardSleepRow(
-                        profile: profile,
-                        logs: dashboard.naps,
-                        localDate: dashboard.localDate,
-                        timezone: timezone,
-                        now: now
-                    )
-                }
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, minHeight: height, maxHeight: fillsHeight ? height : nil, alignment: .topLeading)
-        .background(HubTheme.tile)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(HubTheme.line, lineWidth: 1)
-        )
-        .onTick(every: 30) { now = Date() }
-    }
-}
-
-private struct DashboardSleepRow: View {
+struct DashboardSleepRow: View {
     @EnvironmentObject private var appState: AppState
     let profile: Profile
     let logs: [NapLog]
@@ -2365,230 +1002,12 @@ private struct DashboardSleepRow: View {
     }
 }
 
-private struct SnackListItem: Identifiable {
+struct SnackListItem: Identifiable {
     let label: String
     var id: String { label }
 }
 
-private struct SnacksDashboardPanel: View {
-    @EnvironmentObject private var appState: AppState
-    @Environment(\.openHubDestination) private var openHubDestination
-    let dashboard: DashboardData
-
-    private var eaten: Set<String> { Set(dashboard.snackEaten) }
-    private var sortedSnacks: [SnackListItem] {
-        SnackHelpers.sortedSnackOptions(dashboard.snackOptions, eaten: eaten).map(SnackListItem.init)
-    }
-    private var children: [Profile] { NapHelpers.childProfiles(from: dashboard.profiles) }
-    /// Each child has their own circle on each snack.
-    private var perChild: Bool { dashboard.snacksPerChild && !children.isEmpty }
-
-    private var summary: String {
-        perChild
-            ? "\(dashboard.snackEaten.count) of \(dashboard.snackOptions.count) eaten by everyone"
-            : "\(dashboard.snackEaten.count) of \(dashboard.snackOptions.count) eaten today"
-    }
-
-    private func openSnacks() {
-        if appState.hubModules.snacks { appState.pendingFoodSection = .snacks }
-        openHubDestination(.meals)
-    }
-
-    var body: some View {
-        if dashboard.snackOptions.isEmpty {
-            EmptyStateView(text: "Add snack options for the family.", action: openSnacks)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            // The summary shares the "+N more" line, or shows underneath when everything fits and
-            // there is room, so it never costs a row of its own.
-            WholeRowsGrid(
-                items: sortedSnacks,
-                minimumColumnWidth: DashboardRow<EmptyView, EmptyView>.minimumWidth,
-                maxColumns: 3,
-                itemHeight: { item, columnWidth in
-                    perChild
-                        ? DashboardCheckTile.snackChildHeight(title: item.label, childCount: children.count, columnWidth: columnWidth)
-                        : DashboardRow<EmptyView, EmptyView>.height
-                },
-                onMore: openSnacks,
-                spareHint: summary,
-                moreSuffix: summary,
-                centersHint: true,
-                allowsCompactRows: !perChild
-            ) { item, _ in
-                if perChild {
-                    SnackChildTile(
-                        snack: item.label,
-                        children: children,
-                        records: dashboard.snackCompletions,
-                        isDone: eaten.contains(item.label),
-                        localDate: dashboard.localDate
-                    )
-                } else {
-                    SnackCheckRow(
-                        label: item.label,
-                        localDate: dashboard.localDate,
-                        isEaten: eaten.contains(item.label)
-                    )
-                }
-            }
-        }
-    }
-}
-
-private struct GroceriesDashboardPanel: View {
-    @Environment(\.openHubDestination) private var openHubDestination
-    @EnvironmentObject private var appState: AppState
-    let dashboard: DashboardData
-
-    private var visibleItems: [GroceryItem] {
-        let source = appState.nativeReminders.hasFullAccess && appState.nativeReminders.selectedListId != nil
-            ? appState.nativeGroceryItems
-            : dashboard.groceryItems
-        return source.filter { !$0.checked }
-    }
-
-    var body: some View {
-        let items = visibleItems
-        if items.isEmpty {
-            EmptyStateView(
-                text: "Start a shared grocery list.",
-                action: { openHubDestination(.groceries) }
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            let summary = "\(items.count) to buy"
-            // The count shares the "+N more" line, or shows underneath when everything fits and
-            // there is room, so it never costs a row of its own.
-            WholeRowsGrid(
-                items: items,
-                minimumColumnWidth: DashboardRow<EmptyView, EmptyView>.minimumWidth,
-                maxColumns: 2,
-                itemHeight: { _, _ in DashboardRow<EmptyView, EmptyView>.height },
-                onMore: { openHubDestination(.groceries) },
-                spareHint: summary,
-                moreSuffix: summary,
-                centersHint: true,
-                allowsCompactRows: true
-            ) { item, _ in
-                DashboardGroceryItemRow(item: item)
-            }
-        }
-    }
-}
-
-private struct NotesDashboardPanel: View {
-    @EnvironmentObject private var appState: AppState
-    @Environment(\.openHubDestination) private var openHubDestination
-    let dashboard: DashboardData
-
-    @State private var draft = ""
-    @State private var isSaving = false
-    @State private var deletingId: String?
-    @State private var noteToDelete: HouseholdNote?
-
-    private var trimmedDraft: String {
-        draft.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    var body: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 8) {
-                TextField("Add a note", text: $draft)
-                    .textFieldStyle(.plain)
-                    .font(.subheadline.weight(.semibold))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(HubTheme.tileQuiet)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .submitLabel(.done)
-                    .onSubmit {
-                        Task { await addNote() }
-                    }
-
-                Button {
-                    Task { await addNote() }
-                } label: {
-                    Image(systemName: isSaving ? "hourglass" : "plus")
-                        .font(.headline.weight(.bold))
-                        .frame(width: 38, height: 38)
-                        .minimumTapTarget()
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Add Note")
-                .foregroundStyle(HubTheme.onAccent)
-                .background(HubTheme.sage)
-                .clipShape(Circle())
-                .disabled(isSaving || trimmedDraft.isEmpty)
-            }
-
-            if dashboard.notes.isEmpty {
-                EmptyStateView(text: "Leave a household note.", action: nil)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                WholeRowsGrid(
-                    items: dashboard.notes,
-                    minimumColumnWidth: DashboardRow<EmptyView, EmptyView>.minimumWidthWithStatus,
-                    maxColumns: 2,
-                    itemHeight: { _, _ in DashboardRow<EmptyView, EmptyView>.height },
-                    onMore: { openHubDestination(.notes) },
-                    allowsCompactRows: true
-                ) { note, _ in
-                    NoteRow(
-                        note: note,
-                        canDelete: appState.canManageHousehold,
-                        isDeleting: deletingId == note.id
-                    ) {
-                        // Asks first: the × is small and sits among rows people tap.
-                        noteToDelete = note
-                    }
-                }
-            }
-        }
-        .confirmationDialog(
-            "Delete \(noteToDelete?.title ?? "this note")?",
-            isPresented: Binding(
-                get: { noteToDelete != nil },
-                set: { if !$0 { noteToDelete = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button("Delete Note", role: .destructive) {
-                guard let note = noteToDelete else { return }
-                noteToDelete = nil
-                Task { await delete(note) }
-            }
-        }
-    }
-
-    private func addNote() async {
-        let title = trimmedDraft
-        guard !title.isEmpty, !isSaving else { return }
-        isSaving = true
-        defer { isSaving = false }
-        do {
-            _ = try await appState.api.addHouseholdNote(HouseholdNoteInput(title: title))
-            draft = ""
-            await appState.refreshDashboard()
-        } catch {
-            appState.report(error)
-        }
-    }
-
-    private func delete(_ note: HouseholdNote) async {
-        guard deletingId == nil else { return }
-        deletingId = note.id
-        defer { deletingId = nil }
-        do {
-            try await appState.api.deleteHouseholdNote(id: note.id)
-            await appState.refreshDashboard()
-        } catch {
-            appState.report(error)
-        }
-    }
-}
-
-private struct NoteRow: View {
+struct NoteRow: View {
     let note: HouseholdNote
     let canDelete: Bool
     let isDeleting: Bool
@@ -2596,7 +1015,7 @@ private struct NoteRow: View {
 
     var body: some View {
         DashboardRow(title: note.title, subtitle: note.body.isEmpty ? nil : note.body) {
-            Image(systemName: "note.text")
+            Image(systemName: note.pinned ? "pin.fill" : "note.text")
                 .font(.caption.weight(.bold))
                 .foregroundStyle(HubTheme.accentText)
                 .frame(width: 28, height: 28)
@@ -2619,69 +1038,6 @@ private struct NoteRow: View {
                 .accessibilityLabel("Delete Note")
             }
         }
-    }
-}
-
-private struct BirthdaysDashboardPanel: View {
-    @Environment(\.openHubDestination) private var openHubDestination
-    let dashboard: DashboardData
-
-    /// Every upcoming entry within the year, soonest first. What does not fit the card shows as
-    /// "+N more", which opens the full list.
-    private var items: [BirthdayItem] {
-        dashboard.upcomingBirthdays
-    }
-
-    /// Today's date in the household's time zone, so a dashboard loaded yesterday still shows "today".
-    private var today: String {
-        DateHelpers.localDateIn(timezone: TimeZone(identifier: dashboard.household.timezone) ?? .current)
-    }
-
-    var body: some View {
-        if items.isEmpty {
-            EmptyStateView(
-                text: "Add a birthday or anniversary to keep dates in view.",
-                action: { openHubDestination(.birthdays) }
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            // The countdown is the point of this card, so rows keep their full height.
-            WholeRowsGrid(
-                items: items,
-                minimumColumnWidth: DashboardRow<EmptyView, EmptyView>.minimumWidth,
-                maxColumns: 3,
-                itemHeight: { _, _ in DashboardRow<EmptyView, EmptyView>.height },
-                onMore: { openHubDestination(.birthdays) }
-            ) { item, _ in
-                row(item, isToday: item.nextDate == today)
-            }
-        }
-    }
-
-    private func row(_ item: BirthdayItem, isToday: Bool) -> some View {
-        DashboardRow(
-            title: item.name,
-            subtitle: isToday ? todayLabel(item) : BirthdayHelpers.countdownLabel(daysUntil: item.daysUntil),
-            tint: isToday ? .orange : nil,
-            tintStrength: 0.14,
-            outline: isToday ? Color.orange.opacity(0.5) : nil
-        ) {
-            if isToday {
-                Image(systemName: "party.popper.fill")
-                    .font(.subheadline)
-                    .foregroundStyle(.orange)
-            } else {
-                Circle()
-                    .fill(HubTheme.profileColor(item.color))
-                    .frame(width: 10, height: 10)
-            }
-        } trailing: {
-            EmptyView()
-        }
-    }
-
-    private func todayLabel(_ item: BirthdayItem) -> String {
-        BirthdayToday.ageLine(item.upcomingAge, kind: item.kind) ?? "Today"
     }
 }
 
@@ -2761,7 +1117,7 @@ struct ChoreCheckRow: View {
 }
 
 /// A snack with a circle for each child, for households that track snacks per child.
-private struct SnackChildTile: View {
+struct SnackChildTile: View {
     @EnvironmentObject private var appState: AppState
     let snack: String
     let children: [Profile]
@@ -2792,7 +1148,7 @@ private struct SnackChildTile: View {
     }
 }
 
-private struct SnackCheckRow: View {
+struct DashboardSnackCheckRow: View {
     @EnvironmentObject private var appState: AppState
     let label: String
     let localDate: String
@@ -2839,16 +1195,19 @@ private struct SnackCheckRow: View {
     }
 }
 
-private struct DashboardGroceryItemRow: View {
+struct DashboardGroceryItemRow: View {
     @EnvironmentObject private var appState: AppState
     let item: GroceryItem
+    /// False under an aisle heading, where the aisle is already said and only a quantity belongs here.
+    var showsCategory = true
     @State private var isChecked: Bool
     @State private var isHidden = false
     @State private var isWorking = false
     @Environment(\.dashboardRowIsCompact) private var isCompact
 
-    init(item: GroceryItem) {
+    init(item: GroceryItem, showsCategory: Bool = true) {
         self.item = item
+        self.showsCategory = showsCategory
         _isChecked = State(initialValue: item.checked)
     }
 
@@ -2864,7 +1223,7 @@ private struct DashboardGroceryItemRow: View {
                     subtitle: isCompact ? nil : DashboardRowHelpers.grocerySubtitle(
                         quantity: item.quantity,
                         category: item.category,
-                        isServerBacked: item.householdId != nil
+                        isServerBacked: item.householdId != nil && showsCategory
                     ),
                     isDone: isChecked
                 ) {
@@ -2901,7 +1260,7 @@ private struct DashboardGroceryItemRow: View {
 
 /// Height of a per-child snack tile, which carries a row of child circles and so is not the
 /// shared row.
-private enum DashboardCheckTile {
+enum DashboardCheckTile {
     /// A per-child snack tile: padding, up to two title lines, then the child circles (which wrap
     /// onto more lines for a large family).
     static func snackChildHeight(title: String, childCount: Int, columnWidth: CGFloat) -> CGFloat {
@@ -2922,7 +1281,7 @@ private enum DashboardCheckTile {
     }
 }
 
-private extension View {
+extension View {
     /// Runs `action` every `seconds` while the view is on screen. Unlike `onReceive(Timer.publish(...))`,
     /// nothing is created each time the view redraws, and the loop ends by itself when the view goes away.
     func onTick(every seconds: TimeInterval, perform action: @escaping @MainActor () -> Void) -> some View {

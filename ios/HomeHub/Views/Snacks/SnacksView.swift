@@ -325,7 +325,7 @@ struct SnacksView: View {
 }
 
 /// One line per child: their name, how many of today's snacks they have had, and a bar in their color.
-private struct SnackChildProgress: View {
+struct SnackChildProgress: View {
     let children: [Profile]
     let counts: [String: Int]
     let total: Int

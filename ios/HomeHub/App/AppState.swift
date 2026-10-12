@@ -28,6 +28,8 @@ final class AppState: ObservableObject {
     /// `CelebrationNaming.current`, and observing this makes them redraw when it changes.
     @Published private(set) var hasAnniversaries = CelebrationNaming.hasAnniversaries()
     @Published var nativeTodayScheduleEvents: [ScheduleEvent] = []
+    /// The next day's events, for the Large Schedule card.
+    @Published var nativeTomorrowScheduleEvents: [ScheduleEvent] = []
     @Published var nativeGroceryItems: [GroceryItem] = []
     @Published var hubModules: HubModules = .defaults
     @Published var selectedDestination: HubDestination = .dashboard
@@ -392,6 +394,7 @@ final class AppState: ObservableObject {
         nativeCalendar.refreshAccessStatus()
         guard nativeCalendar.hasFullAccess else {
             nativeTodayScheduleEvents = []
+            nativeTomorrowScheduleEvents = []
             return
         }
 
@@ -399,14 +402,18 @@ final class AppState: ObservableObject {
         let localDate = DateHelpers.localDateIn(timezone: timezone)
         guard let day = CalendarHelpers.parseLocalDate(localDate, timezone: timezone) else {
             nativeTodayScheduleEvents = []
+            nativeTomorrowScheduleEvents = []
             return
         }
 
         var calendar = CalendarHelpers.calendar(timezone: timezone, weekStartsOn: household?.weekStartsOn ?? WeekStart.defaultWeekStartsOn)
         calendar.timeZone = timezone
         let start = calendar.startOfDay(for: day)
+        let tomorrowStart = calendar.date(byAdding: .day, value: 1, to: start) ?? start
         let end = calendar.date(byAdding: DateComponents(day: 1, second: -1), to: start) ?? start
+        let tomorrowEnd = calendar.date(byAdding: DateComponents(day: 1, second: -1), to: tomorrowStart) ?? tomorrowStart
         nativeTodayScheduleEvents = nativeCalendar.scheduleEvents(start: start, end: end)
+        nativeTomorrowScheduleEvents = nativeCalendar.scheduleEvents(start: tomorrowStart, end: tomorrowEnd)
     }
 
     func refreshNativeGroceryItems() async {
@@ -591,6 +598,7 @@ final class AppState: ObservableObject {
         hubModulesSaveVersion += 1
         eventKitRefreshTask?.cancel()
         nativeTodayScheduleEvents = []
+        nativeTomorrowScheduleEvents = []
         nativeGroceryItems = []
         household = nil
         dashboard = nil

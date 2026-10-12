@@ -55,7 +55,7 @@ struct ChoresTodayCard: View {
     // MARK: Small
 
     private var small: some View {
-        Button { openHubDestination(.chores) } label: {
+        TodayCardSmallBody(card: .chores) {
             VStack(alignment: .leading, spacing: 8) {
                 TodayCardHeadline(headline: summary.headline, caption: summary.caption)
                 Spacer(minLength: 0)
@@ -65,12 +65,7 @@ struct ChoresTodayCard: View {
                         .accessibilityHidden(true)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityHint("Open Chores")
     }
 
     // MARK: Medium
@@ -144,7 +139,7 @@ struct ChoresTodayCard: View {
                     subtitle: summary.laterSubtitle(for: chore, assignee: person(chore)?.name),
                     subtitlePersonColor: person(chore)?.color
                 ) {
-                    LaterDayChip(label: summary.weekdayLabel(for: chore), isTomorrow: summary.isTomorrow(chore))
+                    TodayCardDayChip(label: summary.weekdayLabel(for: chore), highlighted: summary.isTomorrow(chore))
                 } trailing: {
                     EmptyView()
                 }
@@ -152,24 +147,5 @@ struct ChoresTodayCard: View {
                 .accessibilityLabel("\(chore.title), \(summary.dayLabel(for: chore))")
             }
         }
-    }
-}
-
-/// A coming-up chore's day, as the small marker at the start of its row ("Tue"). Tomorrow's is in the
-/// accent color, so what is nearest stands out.
-private struct LaterDayChip: View {
-    let label: String
-    let isTomorrow: Bool
-
-    var body: some View {
-        Text(label)
-            .font(.caption2.weight(.heavy))
-            .textCase(.uppercase)
-            .lineLimit(1)
-            .minimumScaleFactor(0.6)
-            .foregroundStyle(isTomorrow ? HubTheme.accentText : HubTheme.muted)
-            .frame(width: 28, height: 28)
-            .background(HubTheme.tile, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .accessibilityHidden(true)
     }
 }

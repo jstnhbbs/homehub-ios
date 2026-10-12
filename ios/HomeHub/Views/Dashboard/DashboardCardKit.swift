@@ -39,6 +39,8 @@ struct DashboardRow<Leading: View, Trailing: View>: View {
     var subtitle: String?
     /// A small dot in this color before the subtitle, when the subtitle starts with a person's name.
     var subtitlePersonColor: Color?
+    /// False for a row that has nothing worth a marker, so its text gets the room.
+    var showsLeading = true
     var isDone = false
     /// Colours the row to match a person (a child's routine) or to call attention to it (a
     /// birthday today). Nil is the standard quiet tile.
@@ -62,8 +64,10 @@ struct DashboardRow<Leading: View, Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            leading()
-                .frame(width: 28, height: 28)
+            if showsLeading {
+                leading()
+                    .frame(width: 28, height: 28)
+            }
             VStack(alignment: .leading, spacing: 0) {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
