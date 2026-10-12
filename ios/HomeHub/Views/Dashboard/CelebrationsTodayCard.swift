@@ -3,7 +3,7 @@ import SwiftUI
 /// The Celebrations card (Birthdays, until a household adds an anniversary) at all three sizes.
 ///
 /// Small is the next one and how long to wait. Medium lists the next few with their countdowns. Large lists
-/// what is coming under a heading for each month, with ages. Today's celebration is also announced by the
+/// what is coming in date order, two across, with the age after each countdown. Today's celebration is also announced by the
 /// banner at the top of Today. The wording and the months come from `CelebrationCardSummary`.
 struct CelebrationsTodayCard: View {
     @Environment(\.openHubDestination) private var openHubDestination
@@ -71,52 +71,24 @@ struct CelebrationsTodayCard: View {
 
     // MARK: Large
 
+    /// Two columns of tight rows in date order, left to right then down, so the rows line up. (It used to group
+    /// by month in columns that flowed one into the next, which left the rows staggered and a month's heading
+    /// stranded above half of its dates.) No summary line either: the countdown on each row says it.
     @ViewBuilder
     private var large: some View {
         let summary = summary
-        VStack(alignment: .leading, spacing: 8) {
-            TodayCardSummaryLine(text: summary.line)
-            if summary.items.isEmpty {
-                emptyNote
-            } else {
-                GeometryReader { geo in
-                    let layout = ColumnFit.fit(
-                        summary.entries,
-                        isItem: { $0.isItem },
-                        columnCount: geo.size.width >= 300 ? 2 : 1,
-                        itemHeight: DashboardRow<EmptyView, EmptyView>.height,
-                        headerHeight: DashboardMetrics.scaled(18, .caption1),
-                        spacing: 8,
-                        footerHeight: DashboardMoreFooter.height,
-                        availableHeight: geo.size.height
-                    )
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(alignment: .top, spacing: 12) {
-                            ForEach(Array(layout.columns.enumerated()), id: \.offset) { _, column in
-                                VStack(alignment: .leading, spacing: 8) {
-                                    ForEach(column) { entry in
-                                        switch entry {
-                                        case .header(let month):
-                                            Text(month)
-                                                .font(.caption.weight(.heavy))
-                                                .foregroundStyle(HubTheme.muted)
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                                .accessibilityAddTraits(.isHeader)
-                                        case .item(let item):
-                                            row(item, summary: summary)
-                                        }
-                                    }
-                                }
-                                .frame(maxWidth: .infinity, alignment: .topLeading)
-                            }
-                        }
-                        if layout.hiddenItems > 0 {
-                            DashboardMoreFooter(count: layout.hiddenItems) { openHubDestination(.birthdays) }
-                        }
-                        Spacer(minLength: 0)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                }
+        if summary.items.isEmpty {
+            emptyNote
+        } else {
+            WholeRowsGrid(
+                items: summary.items,
+                minimumColumnWidth: DashboardMetrics.scaled(150),
+                maxColumns: 2,
+                itemHeight: { _, _ in DashboardRow<EmptyView, EmptyView>.compactHeight },
+                onMore: { openHubDestination(.birthdays) }
+            ) { item, _ in
+                row(item, summary: summary, ageInSubtitle: true)
+                    .environment(\.dashboardRowIsCompact, true)
             }
         }
     }
@@ -130,21 +102,25 @@ struct CelebrationsTodayCard: View {
         .buttonStyle(.plain)
     }
 
-    private func row(_ item: BirthdayItem, summary: CelebrationCardSummary) -> some View {
+    /// `ageInSubtitle` puts the age after the countdown ("28 days · turns 37") instead of in a badge on the
+    /// right, so a name in a narrow column has the whole width.
+    private func row(_ item: BirthdayItem, summary: CelebrationCardSummary, ageInSubtitle: Bool = false) -> some View {
         let isToday = item.nextDate == summary.todayDate
+        let countdown = BirthdayHelpers.countdownLabel(daysUntil: item.daysUntil)
         let subtitle = isToday
             ? (BirthdayToday.ageLine(item.upcomingAge, kind: item.kind) ?? "Today")
-            : BirthdayHelpers.countdownLabel(daysUntil: item.daysUntil)
+            : (ageInSubtitle ? [countdown, CelebrationCardSummary.ageText(item)].compactMap { $0 }.joined(separator: " · ") : countdown)
         return DashboardRow(
             title: item.name,
             subtitle: subtitle,
+            leadingWidth: ageInSubtitle ? 16 : 28,
             tint: isToday ? .orange : nil,
             tintStrength: 0.14,
             outline: isToday ? Color.orange.opacity(0.5) : nil
         ) {
             if isToday {
                 Image(systemName: "party.popper.fill")
-                    .font(.subheadline)
+                    .font(ageInSubtitle ? .caption : .subheadline)
                     .foregroundStyle(.orange)
             } else {
                 Circle()
@@ -154,7 +130,7 @@ struct CelebrationsTodayCard: View {
         } trailing: {
             // The age they turn (or the years an anniversary marks) as a small badge, so it never
             // crowds out the name or the countdown.
-            if !isToday, (1...120).contains(item.upcomingAge) {
+            if !isToday, !ageInSubtitle, (1...120).contains(item.upcomingAge) {
                 Text(item.kind == .anniversary ? "\(item.upcomingAge)y" : "\(item.upcomingAge)")
                     .font(.caption.weight(.heavy))
                     .monospacedDigit()

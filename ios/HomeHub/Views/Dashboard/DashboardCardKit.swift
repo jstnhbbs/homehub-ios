@@ -41,6 +41,9 @@ struct DashboardRow<Leading: View, Trailing: View>: View {
     var subtitlePersonColor: Color?
     /// False for a row that has nothing worth a marker, so its text gets the room.
     var showsLeading = true
+    /// How wide the marker's column is. A small dot needs far less than a checkbox, and a narrow column
+    /// gives the text the difference.
+    var leadingWidth: CGFloat = 28
     var isDone = false
     /// Colours the row to match a person (a child's routine) or to call attention to it (a
     /// birthday today). Nil is the standard quiet tile.
@@ -66,7 +69,7 @@ struct DashboardRow<Leading: View, Trailing: View>: View {
         HStack(spacing: 8) {
             if showsLeading {
                 leading()
-                    .frame(width: 28, height: 28)
+                    .frame(width: leadingWidth, height: 28)
             }
             VStack(alignment: .leading, spacing: 0) {
                 Text(title)
@@ -140,8 +143,10 @@ struct DashboardMoreFooter: View {
 extension View {
     /// Fallback for a card so short that even one row leaves no room for the "+N more" line: a small
     /// chip in the corner instead, so the count is never silently clipped.
-    func dashboardMoreChip(hidden: Int, footerFits: Bool, suffix: String? = nil, action: @escaping () -> Void) -> some View {
-        overlay(alignment: .bottomTrailing) {
+    /// `liftedBy` raises the chip that far, to sit on the line above the rows instead of over the last of them
+    /// (Snacks at Medium, where it would cover a tile's circles).
+    func dashboardMoreChip(hidden: Int, footerFits: Bool, suffix: String? = nil, liftedBy: CGFloat? = nil, action: @escaping () -> Void) -> some View {
+        overlay(alignment: liftedBy == nil ? .bottomTrailing : .topTrailing) {
             if hidden > 0 && !footerFits {
                 Button(action: action) {
                     Text(suffix.map { "+\(hidden) more · \($0)" } ?? "+\(hidden) more")
@@ -154,6 +159,7 @@ extension View {
                         .overlay(Capsule().stroke(HubTheme.line, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
+                .offset(y: -(liftedBy ?? 0))
                 .accessibilityLabel("\(hidden) more. Open the full list.")
             }
         }
@@ -182,6 +188,9 @@ struct WholeRowsGrid<Item: Identifiable, Tile: View>: View {
     /// Let the rows tighten to `DashboardRow.compactHeight` when that shows more of them. Only for
     /// cards whose tiles are `DashboardRow`s.
     var allowsCompactRows = false
+    /// Put the "+N more" chip this far above the rows (on the line above them) rather than over the last row,
+    /// when there is no room for the footer.
+    var moreChipLiftedBy: CGFloat?
     @ViewBuilder let tile: (Item, CGFloat) -> Tile
 
     private var hintHeight: CGFloat { DashboardMetrics.scaled(30, .caption1) }
@@ -242,7 +251,7 @@ struct WholeRowsGrid<Item: Identifiable, Tile: View>: View {
                         .offset(y: footerOverlap)
                 }
             }
-            .dashboardMoreChip(hidden: fit.hidden, footerFits: fit.footerFits, suffix: moreSuffix, action: onMore)
+            .dashboardMoreChip(hidden: fit.hidden, footerFits: fit.footerFits, suffix: moreSuffix, liftedBy: moreChipLiftedBy, action: onMore)
         }
     }
 

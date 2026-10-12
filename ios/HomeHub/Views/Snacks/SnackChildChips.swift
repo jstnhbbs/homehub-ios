@@ -6,6 +6,10 @@ struct SnackChildChips: View {
     static let chipSize: CGFloat = 32
     static let spacing: CGFloat = 6
 
+    /// A card that is short on room (Snacks at Medium) uses smaller circles and a tighter gap.
+    var chipSize: CGFloat = SnackChildChips.chipSize
+    var spacing: CGFloat = SnackChildChips.spacing
+
     let snack: String
     let children: [Profile]
     let records: [SnackEatenRecord]
@@ -15,7 +19,7 @@ struct SnackChildChips: View {
     @State private var working: Set<String> = []
 
     var body: some View {
-        TagFlowLayout(spacing: Self.spacing) {
+        TagFlowLayout(spacing: spacing) {
             ForEach(children) { child in
                 chip(for: child)
             }
@@ -58,10 +62,10 @@ struct SnackChildChips: View {
     /// ring and a small check badge in their color.
     private func photoChip(url: URL, child: Profile, tint: Color, isEaten: Bool) -> some View {
         ZStack(alignment: .bottomTrailing) {
-            RemoteImage(url: url, maxPixelSize: Int(Self.chipSize * 3)) {
+            RemoteImage(url: url, maxPixelSize: Int(chipSize * 3)) {
                 initialChip(child: child, tint: tint, isEaten: false)
             }
-            .frame(width: Self.chipSize, height: Self.chipSize)
+            .frame(width: chipSize, height: chipSize)
             .clipShape(Circle())
             .opacity(isEaten ? 1 : 0.5)
             .saturation(isEaten ? 1 : 0.6)
@@ -99,7 +103,7 @@ struct SnackChildChips: View {
                     initialChip(child: child, tint: tint, isEaten: isEaten)
                 }
             }
-            .frame(width: Self.chipSize, height: Self.chipSize)
+            .frame(width: chipSize, height: chipSize)
             .opacity(working.contains(child.id) ? 0.6 : 1)
             .contentShape(Circle())
         }

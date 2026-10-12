@@ -73,7 +73,8 @@ struct SnacksTodayCard: View {
             if total == 0 {
                 emptyNote
             } else {
-                snackGrid(sorted, maxColumns: 3)
+                // One cell tall: smaller tiles, a line of name and a line of circles, side by side.
+                snackGrid(sorted, maxColumns: 3, compact: true)
             }
         }
     }
@@ -133,18 +134,20 @@ struct SnacksTodayCard: View {
         .buttonStyle(.plain)
     }
 
-    private func snackGrid(_ items: [SnackListItem], maxColumns: Int) -> some View {
+    private func snackGrid(_ items: [SnackListItem], maxColumns: Int, compact: Bool = false) -> some View {
         WholeRowsGrid(
             items: items,
-            minimumColumnWidth: DashboardRow<EmptyView, EmptyView>.minimumWidth,
+            minimumColumnWidth: compact && perChild ? DashboardMetrics.scaled(104) : DashboardRow<EmptyView, EmptyView>.minimumWidth,
             maxColumns: maxColumns,
             itemHeight: { item, columnWidth in
                 perChild
-                    ? DashboardCheckTile.snackChildHeight(title: item.label, childCount: children.count, columnWidth: columnWidth)
+                    ? DashboardCheckTile.snackChildHeight(title: item.label, childCount: children.count, columnWidth: columnWidth, compact: compact)
                     : DashboardRow<EmptyView, EmptyView>.height
             },
             onMore: openSnacks,
-            allowsCompactRows: !perChild
+            allowsCompactRows: !perChild,
+            // At Medium the chip sits on the summary line, not over the circles of the last tile.
+            moreChipLiftedBy: compact ? DashboardMetrics.scaled(24, .caption1) : nil
         ) { item, _ in
             if perChild {
                 SnackChildTile(
@@ -152,7 +155,8 @@ struct SnacksTodayCard: View {
                     children: children,
                     records: dashboard.snackCompletions,
                     isDone: eaten.contains(item.label),
-                    localDate: dashboard.localDate
+                    localDate: dashboard.localDate,
+                    compact: compact
                 )
             } else {
                 DashboardSnackCheckRow(

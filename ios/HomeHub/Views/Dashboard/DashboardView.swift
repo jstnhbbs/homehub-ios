@@ -143,7 +143,9 @@ struct DashboardView: View {
                         ) {
                             ForEach(tileCards) { card in
                                 let size = card.clamped(cardSizes[card, default: .small])
-                                dashboardCard(card, size: size, dashboard: dashboard)
+                                // An exact height, so a card whose content is taller than its cell is clipped to
+                                // it instead of growing into the gap below and bunching up against the next row.
+                                dashboardCard(card, size: size, dashboard: dashboard, fixedHeight: tileItems[card]?.fixedHeight)
                                 .dashboardEditable(
                                     card: card,
                                     size: size,
@@ -1154,16 +1156,22 @@ struct SnackChildTile: View {
     let records: [SnackEatenRecord]
     let isDone: Bool
     let localDate: String
+    /// The short version (Snacks at Medium, one cell tall): one line for the name and smaller circles.
+    var compact = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: compact ? 3 : 6) {
             Text(snack)
                 .font(.subheadline.weight(.heavy))
                 .foregroundStyle(isDone ? HubTheme.muted : .primary)
                 .strikethrough(isDone, color: HubTheme.muted)
-                .lineLimit(2)
+                .lineLimit(compact ? 1 : 2)
                 .multilineTextAlignment(.leading)
-            SnackChildChips(snack: snack, children: children, records: records) { child, eaten in
+            SnackChildChips(
+                chipSize: compact ? DashboardCheckTile.compactChipSize : SnackChildChips.chipSize,
+                spacing: compact ? 4 : SnackChildChips.spacing,
+                snack: snack, children: children, records: records
+            ) { child, eaten in
                 do {
                     try await appState.toggleSnack(localDate: localDate, label: snack, profileId: child.id, completed: eaten)
                 } catch {
@@ -1171,7 +1179,7 @@ struct SnackChildTile: View {
                 }
             }
         }
-        .padding(10)
+        .padding(compact ? 8 : 10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(HubTheme.tileQuiet)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -1291,23 +1299,29 @@ struct DashboardGroceryItemRow: View {
 /// Height of a per-child snack tile, which carries a row of child circles and so is not the
 /// shared row.
 enum DashboardCheckTile {
+    /// The circles on a compact snack tile.
+    static let compactChipSize: CGFloat = 26
+
     /// A per-child snack tile: padding, up to two title lines, then the child circles (which wrap
-    /// onto more lines for a large family).
-    static func snackChildHeight(title: String, childCount: Int, columnWidth: CGFloat) -> CGFloat {
-        let titleLineCount = DashboardRowHelpers.estimatedLineCount(
+    /// onto more lines for a large family). `compact` is the one-line, smaller-circle version.
+    static func snackChildHeight(title: String, childCount: Int, columnWidth: CGFloat, compact: Bool = false) -> CGFloat {
+        let padding: CGFloat = compact ? 8 : 10
+        let chipSize = compact ? compactChipSize : SnackChildChips.chipSize
+        let chipSpacing: CGFloat = compact ? 4 : SnackChildChips.spacing
+        let titleLineCount = compact ? 1 : DashboardRowHelpers.estimatedLineCount(
             characterCount: title.count,
-            availableWidth: columnWidth - 20,
+            availableWidth: columnWidth - 2 * padding,
             averageCharacterWidth: DashboardMetrics.scaled(9),
             maxLines: 2
         )
         let chipRows = DashboardRowHelpers.chipRowCount(
             count: childCount,
-            availableWidth: columnWidth - 20,
-            chipSize: SnackChildChips.chipSize,
-            spacing: SnackChildChips.spacing
+            availableWidth: columnWidth - 2 * padding,
+            chipSize: chipSize,
+            spacing: chipSpacing
         )
-        let chips = CGFloat(chipRows) * SnackChildChips.chipSize + CGFloat(max(0, chipRows - 1)) * SnackChildChips.spacing
-        return 20 + CGFloat(titleLineCount) * DashboardMetrics.scaled(20) + 6 + chips
+        let chips = CGFloat(chipRows) * chipSize + CGFloat(max(0, chipRows - 1)) * chipSpacing
+        return 2 * padding + CGFloat(titleLineCount) * DashboardMetrics.scaled(20) + (compact ? 3 : 6) + chips
     }
 }
 

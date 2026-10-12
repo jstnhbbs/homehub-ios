@@ -55,7 +55,7 @@ struct RoutinesTodayCard: View {
     private var small: some View {
         let summary = summary
         return TodayCardSmallBody(card: .routines) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
                 TodayCardHeadline(
                     headline: summary.headline,
                     caption: summary.caption { RoutineGlyphs.display(for: $0.label).label }
@@ -63,7 +63,7 @@ struct RoutinesTodayCard: View {
                 Spacer(minLength: 0)
                 HStack(spacing: 6) {
                     ForEach(summary.groups.prefix(4)) { group in
-                        RoutineRing(group: group, diameter: 34)
+                        RoutineRing(group: group, diameter: DashboardMetrics.scaled(30, .body))
                     }
                 }
             }
