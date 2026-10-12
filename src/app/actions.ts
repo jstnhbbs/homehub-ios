@@ -30,7 +30,7 @@ import {
   requireUser,
 } from "@/lib/household";
 import { ensureMemberProfiles } from "@/lib/member-profiles";
-import { isProfileColor } from "@/lib/profile-colors";
+import { isProfileColor, pickProfileColor } from "@/lib/profile-colors";
 import {
   removeHouseholdPhoto,
   saveHouseholdPhoto,
@@ -187,10 +187,14 @@ export async function updateMemberRole(formData: FormData) {
 export async function addProfile(formData: FormData) {
   const household = await requireParentHousehold();
   const name = shortText.parse(text(formData, "name"));
-  const color = z
-    .string()
-    .refine(isProfileColor)
-    .parse(text(formData, "color") || "#6689a3");
+  const chosenColor = text(formData, "color");
+  const color = chosenColor
+    ? z.string().refine(isProfileColor).parse(chosenColor)
+    : pickProfileColor(
+        (await db.select({ color: profiles.color }).from(profiles).where(eq(profiles.householdId, household.id))).map(
+          (row) => row.color,
+        ),
+      );
   const profileType = z
     .enum(["adult", "child"])
     .parse(text(formData, "profileType") || "child");

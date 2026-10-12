@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { householdMembers, profiles, users } from "@/db/schema";
+import { pickProfileColor } from "@/lib/profile-colors";
 
 export async function ensureMemberProfiles(householdId: string) {
   const members = await db
@@ -21,17 +22,25 @@ export async function ensureMemberProfiles(householdId: string) {
     )
     .where(eq(householdMembers.householdId, householdId));
 
+  // Each new profile takes the first color nobody in the household has, including the ones made just before it.
+  const used: Array<string | null> = (
+    await db.select({ color: profiles.color }).from(profiles).where(eq(profiles.householdId, householdId))
+  ).map((row) => row.color);
   const missingProfiles = members
     .filter((member) => !member.profileId)
-    .map((member, index) => ({
-      id: randomUUID(),
-      householdId,
-      userId: member.userId,
-      profileType: "adult" as const,
-      name: member.name,
-      color: "#6689a3",
-      sortOrder: -100 + index,
-    }));
+    .map((member, index) => {
+      const color = pickProfileColor(used);
+      used.push(color);
+      return {
+        id: randomUUID(),
+        householdId,
+        userId: member.userId,
+        profileType: "adult" as const,
+        name: member.name,
+        color,
+        sortOrder: -100 + index,
+      };
+    });
 
   if (missingProfiles.length > 0) {
     await db.insert(profiles).values(missingProfiles).onConflictDoNothing();
