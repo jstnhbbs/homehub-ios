@@ -98,6 +98,9 @@ struct DashboardGridProbe: UIViewRepresentable {
         fileprivate func detach() {
             attachedTo?.removeGestureRecognizer(recognizer)
             attachedTo = nil
+            // Removing a recognizer mid-hold does not report its end.
+            if didBegin { onPressEnded() }
+            didBegin = false
         }
 
         private func findScrollView() -> UIScrollView? {
@@ -203,13 +206,29 @@ final class DashboardEditState: ObservableObject {
     /// page just as editing begins. A plain property, not published, so it costs no redraw.
     private var tapsSuppressedUntil = Date.distantPast
     var tapsSuppressed: Bool { Date() < tapsSuppressedUntil }
-    func pressBegan() { tapsSuppressedUntil = .distantFuture }
+    /// A minute at most, so a press whose end is never reported (the view going away under the finger) cannot
+    /// leave every tap on Today ignored.
+    func pressBegan() { tapsSuppressedUntil = Date().addingTimeInterval(60) }
     func pressEnded() { tapsSuppressedUntil = Date().addingTimeInterval(0.5) }
 
     func enter() {
         guard !isEditing else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         withAnimation(.snappy(duration: 0.2)) { isEditing = true }
+    }
+
+    /// Scrolls the page so `card` is in view, if it is not. SwiftUI's own `scrollTo` does nothing for cards placed
+    /// by the custom grid layouts, so this uses the cell each layout reported in `frames`.
+    func reveal(_ card: DashboardCardId) {
+        guard let cell = frames.frames[card], let scroll = probe.scrollView, let grid = probe.view else { return }
+        let top = grid.convert(cell.origin, to: scroll).y
+        let bottom = top + cell.height
+        let visibleTop = scroll.contentOffset.y + scroll.adjustedContentInset.top
+        let visibleBottom = scroll.contentOffset.y + scroll.bounds.height - scroll.adjustedContentInset.bottom
+        guard top < visibleTop || bottom > visibleBottom else { return }
+        let lowest = max(-scroll.adjustedContentInset.top, scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom)
+        let target = min(max(top - 24, -scroll.adjustedContentInset.top), lowest)
+        scroll.setContentOffset(CGPoint(x: scroll.contentOffset.x, y: target), animated: true)
     }
 
     func exit() {
@@ -620,68 +639,68 @@ struct DashboardEditBar: View {
     let onDone: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
-            if !hiddenCards.isEmpty {
-                Menu {
-                    ForEach(hiddenCards) { card in
-                        Button { onAdd(card) } label: {
-                            Label(card.label, systemImage: card.systemImage)
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "plus")
-                            .font(.subheadline.weight(.bold))
-                        Text("Add Card")
-                            .font(.subheadline.weight(.semibold))
-                        Text("· \(hiddenCards.count)")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(HubTheme.muted)
-                    }
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 16)
-                    .frame(minHeight: 48)
-                    .background(HubTheme.tile, in: Capsule())
-                    .overlay(Capsule().stroke(HubTheme.line, lineWidth: 1))
-                    .contentShape(Capsule())
-                }
-                .tint(.primary)
-                .accessibilityLabel("Add Card")
-                .accessibilityValue("\(hiddenCards.count) turned off")
+        // Side by side when they fit; one above the other at the largest text sizes, where Add Card would
+        // otherwise wrap onto two lines.
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                addMenu
+                doneButton
             }
-
-            Button(action: onDone) {
-                Label("Done", systemImage: "checkmark")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(HubTheme.editChromeText)
-                    .padding(.horizontal, 18)
-                    .frame(minHeight: 48)
-                    .background(HubTheme.editChrome, in: Capsule())
+            VStack(alignment: .trailing, spacing: 10) {
+                addMenu
+                doneButton
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Done Editing Today")
         }
         .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
     }
-}
 
-extension View {
-    /// Scrolls to `card` when it is set, then clears it.
-    func scrollingTo(_ card: Binding<DashboardCardId?>) -> some View {
-        modifier(ScrollToCard(card: card))
-    }
-}
-
-private struct ScrollToCard: ViewModifier {
-    @Binding var card: DashboardCardId?
-
-    func body(content: Content) -> some View {
-        ScrollViewReader { proxy in
-            content.onChange(of: card) { _, target in
-                guard let target else { return }
-                withAnimation(.snappy(duration: 0.3)) { proxy.scrollTo(target, anchor: .center) }
-                card = nil
+    @ViewBuilder
+    private var addMenu: some View {
+        if !hiddenCards.isEmpty {
+            Menu {
+                ForEach(hiddenCards) { card in
+                    Button { onAdd(card) } label: {
+                        Label(card.label, systemImage: card.systemImage)
+                    }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "plus")
+                        .font(.subheadline.weight(.bold))
+                    Text("Add Card")
+                        .font(.subheadline.weight(.semibold))
+                    Text("· \(hiddenCards.count)")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(HubTheme.muted)
+                }
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 16)
+                .frame(minHeight: 48)
+                .background(HubTheme.tile, in: Capsule())
+                .overlay(Capsule().stroke(HubTheme.line, lineWidth: 1))
+                .contentShape(Capsule())
             }
+            .tint(.primary)
+            .accessibilityLabel("Add Card")
+            .accessibilityValue("\(hiddenCards.count) turned off")
         }
     }
+
+    private var doneButton: some View {
+        Button(action: onDone) {
+            Label("Done", systemImage: "checkmark")
+                .font(.subheadline.weight(.bold))
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .foregroundStyle(HubTheme.editChromeText)
+                .padding(.horizontal, 18)
+                .frame(minHeight: 48)
+                .background(HubTheme.editChrome, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Done Editing Today")
+    }
 }
+

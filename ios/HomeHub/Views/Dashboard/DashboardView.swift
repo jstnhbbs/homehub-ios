@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 import UIKit
 
@@ -10,8 +11,6 @@ struct DashboardView: View {
     /// Rearranging the cards on the page itself (edit mode); see DashboardEditing.swift.
     @StateObject private var edit = DashboardEditState()
     @State private var layoutSaveTask: Task<Void, Never>?
-    /// A card that was just added back, for the page to scroll to.
-    @State private var revealCard: DashboardCardId?
     /// The moment the day-dependent parts (header date, birthday banner) were last drawn for. It is
     /// only replaced when the day changes, so the banner appears and goes away at midnight on its own
     /// without redrawing the whole dashboard every minute.
@@ -176,7 +175,6 @@ struct DashboardView: View {
                 .padding(.horizontal, edit.isEditing ? 8 : 0)
             }
             .scrollIndicators(.hidden)
-            .scrollingTo($revealCard)
             .overlay(alignment: .bottomTrailing) {
                 if edit.isEditing {
                     DashboardEditBar(hiddenCards: hiddenCards, onAdd: addCard, onDone: toggleEditing)
@@ -370,7 +368,6 @@ struct DashboardView: View {
                         .padding(.top, edit.isEditing ? 14 : 0)
                     }
                     .scrollIndicators(.hidden)
-                    .scrollingTo($revealCard)
                 }
             } else if let errorMessage = appState.errorMessage {
                 DashboardErrorView(message: errorMessage) {
@@ -410,9 +407,10 @@ struct DashboardView: View {
     /// Turns a card back on and scrolls to it, since it joins the end of the page, which may be off screen.
     private func addCard(_ card: DashboardCardId) {
         setEnabled(card, true)
+        // Once the layout has placed it.
         Task {
             try? await Task.sleep(for: .milliseconds(350))
-            revealCard = card
+            edit.reveal(card)
         }
     }
 
@@ -527,10 +525,16 @@ private struct CompactNextUpPanel: View {
     let enabledCards: [DashboardCardId]
     let onNavigate: (HubDestination) -> Void
 
-    @State private var now = Date.now
+    /// The time the strip is worked out for, moved on every minute. It is an object the panel owns rather than
+    /// a `.task` on the panel: while nothing is pressing the panel draws nothing, a `.task` on nothing never
+    /// runs, and the strip would then not appear when something came within the hour (it stayed hidden until
+    /// the app was reopened).
+    @StateObject private var minute = MinuteClock()
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var items: [NextUpItem] {
-        NextUpSummary.upcoming(
+        let now = minute.now
+        return NextUpSummary.upcoming(
             chores: enabledCards.contains(.chores) ? dashboard.chores : [],
             events: enabledCards.contains(.schedule) && appState.nativeCalendar.hasFullAccess ? appState.nativeTodayScheduleEvents : [],
             profiles: dashboard.profiles,
@@ -568,7 +572,6 @@ private struct CompactNextUpPanel: View {
             }
         }
         .animation(.snappy(duration: 0.2), value: items)
-        .onTick(every: 60) { now = Date() }
     }
 
     private func row(_ item: NextUpItem) -> some View {
@@ -584,23 +587,33 @@ private struct CompactNextUpPanel: View {
                     .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
                     .accessibilityHidden(true)
 
+                // At the accessibility sizes there is no room for the status beside the name, so it goes under it
+                // and the name may take more lines; side by side they cut each other down to a few letters.
+                let stacked = dynamicTypeSize.isAccessibilitySize
                 VStack(alignment: .leading, spacing: 1) {
                     Text(item.title)
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(.primary)
-                        .lineLimit(1)
+                        .lineLimit(stacked ? 3 : 1)
                     Text(item.detail)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(HubTheme.muted)
-                        .lineLimit(1)
+                        .lineLimit(stacked ? 2 : 1)
+                    if stacked {
+                        Text(item.status)
+                            .font(.caption.weight(.heavy))
+                            .foregroundStyle(statusColor(item.urgency))
+                    }
                 }
 
-                Spacer(minLength: 8)
+                Spacer(minLength: stacked ? 0 : 8)
 
-                Text(item.status)
-                    .font(.caption.weight(.heavy))
-                    .foregroundStyle(statusColor(item.urgency))
-                    .lineLimit(1)
+                if !stacked {
+                    Text(item.status)
+                        .font(.caption.weight(.heavy))
+                        .foregroundStyle(statusColor(item.urgency))
+                        .lineLimit(1)
+                }
             }
             .padding(.vertical, 4)
             .frame(minHeight: 44)
@@ -1166,6 +1179,8 @@ struct SnackChildTile: View {
                 .foregroundStyle(isDone ? HubTheme.muted : .primary)
                 .strikethrough(isDone, color: HubTheme.muted)
                 .lineLimit(compact ? 1 : 2)
+                // The compact tile is three across, so a longer name shrinks a little before it is cut off.
+                .minimumScaleFactor(compact ? 0.75 : 1)
                 .multilineTextAlignment(.leading)
             SnackChildChips(
                 chipSize: compact ? DashboardCheckTile.compactChipSize : SnackChildChips.chipSize,
@@ -1322,6 +1337,20 @@ enum DashboardCheckTile {
         )
         let chips = CGFloat(chipRows) * chipSize + CGFloat(max(0, chipRows - 1)) * chipSpacing
         return 2 * padding + CGFloat(titleLineCount) * DashboardMetrics.scaled(20) + (compact ? 3 : 6) + chips
+    }
+}
+
+/// The current time, moved on once a minute while something is looking at it. A view that owns one redraws
+/// itself (and only itself) each minute, even when what it draws is nothing.
+@MainActor
+final class MinuteClock: ObservableObject {
+    @Published private(set) var now = Date()
+    private var ticker: AnyCancellable?
+
+    init() {
+        ticker = Timer.publish(every: 60, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] date in self?.now = date }
     }
 }
 
