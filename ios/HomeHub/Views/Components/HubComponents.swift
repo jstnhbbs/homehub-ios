@@ -651,6 +651,20 @@ struct HubButtonStyle: ButtonStyle {
 }
 
 extension HubTheme {
+    /// The buttons that edit the Today page (the pencil, Done and a card's size button): near-black in light mode
+    /// and near-white in dark mode, whatever the theme color is, so they stand out from the cards and never blend
+    /// into a theme of the same color. The text and icon on them is `editChromeText`.
+    static let editChrome = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1)
+            : UIColor(red: 0.11, green: 0.13, blue: 0.17, alpha: 1)
+    })
+    static let editChromeText = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.11, green: 0.13, blue: 0.17, alpha: 1)
+            : .white
+    })
+
     static let coral = Color(UIColor { traits in
         traits.userInterfaceStyle == .dark
             ? UIColor(red: 1.00, green: 0.48, blue: 0.40, alpha: 1)

@@ -8,6 +8,11 @@ import UIKit
 /// their own text and the "+N more" line prints over the last row. `scaled` gives a value as it should
 /// be at the current text size; at the default size it is the number it was designed at.
 enum DashboardMetrics {
+    /// The space between Today cards: tighter on the iPhone, where every point of the screen counts, than on the
+    /// iPad's grid. The iPhone's Large card is two cells and one gap tall, so the gap is shared with its layout.
+    static let phoneGap: CGFloat = 8
+    static let gridGap: CGFloat = 12
+
     static func scaled(_ designed: CGFloat, _ style: UIFont.TextStyle = .subheadline) -> CGFloat {
         UIFontMetrics(forTextStyle: style).scaledValue(for: designed)
     }

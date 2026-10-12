@@ -10,6 +10,8 @@ struct DashboardView: View {
     /// Rearranging the cards on the page itself (edit mode); see DashboardEditing.swift.
     @StateObject private var edit = DashboardEditState()
     @State private var layoutSaveTask: Task<Void, Never>?
+    /// A card that was just added back, for the page to scroll to.
+    @State private var revealCard: DashboardCardId?
     /// The moment the day-dependent parts (header date, birthday banner) were last drawn for. It is
     /// only replaced when the day changes, so the banner appears and goes away at midnight on its own
     /// without redrawing the whole dashboard every minute.
@@ -58,8 +60,8 @@ struct DashboardView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         .overlay(alignment: .bottomTrailing) {
                             // The narrow single-column fallback keeps its fixed cards; it is edited in Settings.
-                            if !isCompact, appState.dashboard != nil {
-                                DashboardEditButton(isEditing: edit.isEditing, action: toggleEditing)
+                            if !isCompact, appState.dashboard != nil, edit.isEditing {
+                                DashboardEditBar(hiddenCards: hiddenCards, onAdd: addCard, onDone: toggleEditing)
                                     .padding(.trailing, 16)
                                     .padding(.bottom, 4)
                             }
@@ -101,7 +103,7 @@ struct DashboardView: View {
             let todaysBirthdays = birthdaysToday(dashboard)
 
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12) {
+                LazyVStack(alignment: .leading, spacing: 10) {
                     compactHeader(dashboard: dashboard)
 
                     if !todaysBirthdays.items.isEmpty {
@@ -133,7 +135,7 @@ struct DashboardView: View {
                         let tileItems = Dictionary(uniqueKeysWithValues: tileCards.map { card -> (DashboardCardId, DashboardFlowLayout.Item) in
                             let size = card.clamped(cardSizes[card, default: .small])
                             let isFull = size != .small
-                            return (card, .init(isFull: isFull, fixedHeight: phoneCellHeight * CGFloat(size.rows) + 12 * CGFloat(size.rows - 1)))
+                            return (card, .init(isFull: isFull, fixedHeight: phoneCellHeight * CGFloat(size.rows) + DashboardMetrics.phoneGap * CGFloat(size.rows - 1)))
                         })
                         DashboardFlowLayout(
                             items: tileItems,
@@ -161,8 +163,9 @@ struct DashboardView: View {
                         }
                         .background(DashboardGridProbe(reference: edit.probe, isEditing: edit.isEditing, onPressAndHold: { edit.enter() }))
 
-                        if edit.isEditing {
-                            DashboardAddCardsTray(cards: TodayLayoutEditing.addableCards(in: appState.hubModules), onAdd: { setEnabled($0, true) })
+                        if !edit.isEditing {
+                            DashboardCustomizeButton(action: toggleEditing)
+                                .padding(.top, 4)
                         }
                     }
                 }
@@ -171,10 +174,13 @@ struct DashboardView: View {
                 .padding(.horizontal, edit.isEditing ? 8 : 0)
             }
             .scrollIndicators(.hidden)
+            .scrollingTo($revealCard)
             .overlay(alignment: .bottomTrailing) {
-                DashboardEditButton(isEditing: edit.isEditing, action: toggleEditing)
-                    .padding(.trailing, 2)
-                    .padding(.bottom, 4)
+                if edit.isEditing {
+                    DashboardEditBar(hiddenCards: hiddenCards, onAdd: addCard, onDone: toggleEditing)
+                        .padding(.trailing, 2)
+                        .padding(.bottom, 4)
+                }
             }
         } else if let errorMessage = appState.errorMessage {
             DashboardErrorView(message: errorMessage) {
@@ -274,7 +280,7 @@ struct DashboardView: View {
         layout: DashboardCardLayout,
         isCompact: Bool
     ) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DashboardMetrics.gridGap) {
             header
 
             if let dashboard = appState.dashboard {
@@ -300,9 +306,9 @@ struct DashboardView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 16) {
+                        VStack(alignment: .leading, spacing: DashboardMetrics.gridGap) {
                             if isCompact {
-                                VStack(spacing: 16) {
+                                VStack(spacing: DashboardMetrics.gridGap) {
                                     ForEach(cards) { card in
                                         dashboardCard(
                                             card,
@@ -319,7 +325,7 @@ struct DashboardView: View {
                                     columnCount: layout.columnCount,
                                     rowCount: packing.rowCount,
                                     rowHeight: layout.rowHeight,
-                                    spacing: 16,
+                                    spacing: layout.spacing,
                                     frames: edit.frames
                                 ) {
                                     ForEach(cards) { card in
@@ -346,11 +352,11 @@ struct DashboardView: View {
                             }
 
                             if edit.isEditing {
-                                DashboardAddCardsTray(
-                                    cards: TodayLayoutEditing.addableCards(in: appState.hubModules),
-                                    onAdd: { setEnabled($0, true) }
-                                )
-                                .padding(.bottom, 72)
+                                // Room for the floating Add Card and Done buttons under the last card.
+                                Color.clear.frame(height: 56)
+                            } else if !isCompact {
+                                // The narrow single-column fallback is edited in Settings.
+                                DashboardCustomizeButton(action: toggleEditing)
                             }
                         }
                         // The minus badges sit half outside their cards, so the grid steps in a little
@@ -360,6 +366,7 @@ struct DashboardView: View {
                         .padding(.top, edit.isEditing ? 14 : 0)
                     }
                     .scrollIndicators(.hidden)
+                    .scrollingTo($revealCard)
                 }
             } else if let errorMessage = appState.errorMessage {
                 DashboardErrorView(message: errorMessage) {
@@ -374,7 +381,7 @@ struct DashboardView: View {
     }
 
     /// One grid cell's height on the iPhone for the shared card; a Large card is two of them.
-    private var phoneCellHeight: CGFloat { DashboardMetrics.scaled(168, .body) }
+    private var phoneCellHeight: CGFloat { DashboardMetrics.scaled(156, .body) }
 
     // MARK: Editing the layout on the page
 
@@ -389,6 +396,20 @@ struct DashboardView: View {
         var result = preview.filter(known.contains)
         result.append(contentsOf: base.filter { !result.contains($0) })
         return result
+    }
+
+    /// The cards that are turned off and could be added back.
+    private var hiddenCards: [DashboardCardId] {
+        TodayLayoutEditing.addableCards(in: appState.hubModules)
+    }
+
+    /// Turns a card back on and scrolls to it, since it joins the end of the page, which may be off screen.
+    private func addCard(_ card: DashboardCardId) {
+        setEnabled(card, true)
+        Task {
+            try? await Task.sleep(for: .milliseconds(350))
+            revealCard = card
+        }
     }
 
     private func toggleEditing() {
@@ -659,7 +680,7 @@ private struct DashboardCardLayout {
     /// The very largest text sizes: one card per row, since half a screen cannot hold the text.
     var usesAccessibilityLayout = false
 
-    private var spacing: CGFloat { 16 }
+    var spacing: CGFloat { DashboardMetrics.gridGap }
     /// Room under the cards for the edit button, so it never sits over a card.
     private var bottomReserve: CGFloat { isCompact ? 0 : 56 }
     private var contentWidth: CGFloat {
@@ -784,8 +805,8 @@ private struct DashboardFlowLayout: Layout {
     let items: [DashboardCardId: Item]
     let frames: DashboardFrameStore
 
-    private let columnSpacing: CGFloat = 10
-    private let rowSpacing: CGFloat = 12
+    private let columnSpacing = DashboardMetrics.phoneGap
+    private let rowSpacing = DashboardMetrics.phoneGap
 
     private struct Row {
         var indices: [Int]
