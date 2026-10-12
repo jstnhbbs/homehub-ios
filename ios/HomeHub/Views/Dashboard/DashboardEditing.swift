@@ -16,16 +16,12 @@ final class DashboardFrameStore {
     var frames: [DashboardCardId: CGRect] = [:]
 }
 
-/// Lets the drag turn a finger position on the screen into a position in the grid, and find the
-/// scroll view so it can scroll when a card is dragged to the top or bottom edge.
+/// The grid's own view, so a finger can be measured directly in the grid's space (never through window
+/// coordinates, which are rotated differently from a view's own on a landscape iPad), and the scroll view
+/// that holds it, so the page can scroll when a card is dragged to the top or bottom edge.
 @MainActor
 final class DashboardGridProbeReference {
     fileprivate(set) weak var view: UIView?
-
-    /// The grid's top-left corner in window coordinates. Moves as the page scrolls.
-    var windowOrigin: CGPoint {
-        view?.convert(CGPoint.zero, to: nil) ?? .zero
-    }
 
     var scrollView: UIScrollView? {
         var current = view?.superview
@@ -80,7 +76,9 @@ final class DashboardEditState: ObservableObject {
     let probe = DashboardGridProbeReference()
 
     private var grabOffset = CGSize.zero
-    private var fingerInWindow: CGPoint?
+    /// Where the finger is in the grid's space, and how far the page had scrolled when it was there.
+    private var fingerInGrid: CGPoint?
+    private var offsetAtFinger: CGFloat = 0
     private var lastSwap = Date.distantPast
     private var autoscrollTimer: Timer?
     private var currentOrder: [DashboardCardId] = []
@@ -98,9 +96,7 @@ final class DashboardEditState: ObservableObject {
 
     /// Called for every movement of a finger that is dragging `card`. `order` is the order the cards
     /// are in when the drag starts.
-    func dragChanged(_ card: DashboardCardId, locationInWindow: CGPoint, order: [DashboardCardId]) {
-        let origin = probe.windowOrigin
-        let point = CGPoint(x: locationInWindow.x - origin.x, y: locationInWindow.y - origin.y)
+    func dragChanged(_ card: DashboardCardId, locationInGrid point: CGPoint, order: [DashboardCardId]) {
         if draggingCard != card {
             draggingCard = card
             let frame = frames.frames[card] ?? CGRect(origin: point, size: .zero)
@@ -108,9 +104,14 @@ final class DashboardEditState: ObservableObject {
             previewOrder = order
             currentOrder = order
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            autoscrollArmed = false
+            zoneEnteredAt = nil
+            zoneEdge = 0
+            lastSwapPoint = nil
             startAutoscroll()
         }
-        fingerInWindow = locationInWindow
+        fingerInGrid = point
+        offsetAtFinger = probe.scrollView?.contentOffset.y ?? 0
         drag.origin = CGPoint(x: point.x - grabOffset.width, y: point.y - grabOffset.height)
         swapIfOverAnotherCard(card, at: point)
     }
@@ -125,7 +126,7 @@ final class DashboardEditState: ObservableObject {
             draggingCard = nil
             drag.origin = nil
         }
-        fingerInWindow = nil
+        fingerInGrid = nil
         return final
     }
 
@@ -138,18 +139,29 @@ final class DashboardEditState: ObservableObject {
         draggingCard = nil
         drag.origin = nil
         previewOrder = nil
-        fingerInWindow = nil
+        fingerInGrid = nil
     }
+
+    /// How far the finger must travel after a swap before another is allowed.
+    private static let swapTravel: CGFloat = 30
+    private var lastSwapPoint: CGPoint?
 
     private func swapIfOverAnotherCard(_ card: DashboardCardId, at point: CGPoint) {
         // After a swap the cards are still sliding into place; wait for them so a card that has
         // just moved under the finger doesn't swap straight back.
         guard Date().timeIntervalSince(lastSwap) > 0.22 else { return }
+        // A finger inside the dragged card's own landing spot has nothing to swap with.
+        if let own = frames.frames[card], own.contains(point) { return }
+        // A swap reshuffles the layout, which can leave a finger that has not moved over a different
+        // card, and that would swap again, and again: the other cards bounced back and forth under a
+        // held card. So the next swap needs the finger to have moved on.
+        if let last = lastSwapPoint, hypot(point.x - last.x, point.y - last.y) < Self.swapTravel { return }
         for (other, frame) in frames.frames where other != card {
             guard frame.insetBy(dx: 8, dy: 8).contains(point) else { continue }
             let next = TodayLayoutEditing.moving(card, ontoPositionOf: other, in: currentOrder)
             guard next != currentOrder else { return }
             lastSwap = Date()
+            lastSwapPoint = point
             currentOrder = next
             UISelectionFeedbackGenerator().selectionChanged()
             withAnimation(.snappy(duration: 0.2)) { previewOrder = next }
@@ -171,37 +183,76 @@ final class DashboardEditState: ObservableObject {
         autoscrollTimer = nil
     }
 
+    /// How long a finger must rest in an edge zone before the page starts to scroll, and how far in from
+    /// the edge the zone reaches. Edge scrolling that starts at once, in a wide zone, ran away on an iPad in
+    /// landscape (a short page, so most cards sit inside the zone): picking a card up near the top or bottom
+    /// sent the page flying in the opposite direction to the drag.
+    private static let autoscrollDwell: TimeInterval = 0.35
+    private static let autoscrollEdge: CGFloat = 56
+    private static let autoscrollMaxStep: CGFloat = 9
+
+    private var zoneEnteredAt: Date?
+    private var zoneEdge = 0
+    /// False until the finger has been clear of both edge zones once, so a card lifted from inside a zone
+    /// does not scroll until it has been moved out and back in.
+    private var autoscrollArmed = false
+
     private func autoscrollTick() {
-        guard let card = draggingCard, let finger = fingerInWindow, let scroll = probe.scrollView else { return }
-        let visible = scroll.convert(scroll.bounds, to: nil)
-        let edge: CGFloat = 80
-        var delta: CGFloat = 0
-        if finger.y < visible.minY + edge {
-            delta = -min(14, (visible.minY + edge - finger.y) / 6 + 2)
-        } else if finger.y > visible.maxY - edge {
-            delta = min(14, (finger.y - (visible.maxY - edge)) / 6 + 2)
+        guard let card = draggingCard, let fingerAtLastMove = fingerInGrid,
+              let scroll = probe.scrollView, let gridView = probe.view else { return }
+        // The page may have scrolled since the finger last moved, so where the finger is in the grid has
+        // changed by that much (it has not moved on the glass).
+        let point = CGPoint(x: fingerAtLastMove.x, y: fingerAtLastMove.y + (scroll.contentOffset.y - offsetAtFinger))
+        // Where it is within the visible part of the page, from its top edge.
+        let viewportY = gridView.convert(point, to: scroll).y - scroll.contentOffset.y
+        let height = scroll.bounds.height
+        let edge = Self.autoscrollEdge
+        let minY = -scroll.adjustedContentInset.top
+        let maxY = max(minY, scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom)
+
+        var direction = 0
+        var depth: CGFloat = 0
+        if viewportY < edge {
+            direction = -1
+            depth = edge - viewportY
+        } else if viewportY > height - edge {
+            direction = 1
+            depth = viewportY - (height - edge)
         }
-        if delta != 0 {
-            let minY = -scroll.adjustedContentInset.top
-            let maxY = max(minY, scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom)
-            let y = min(max(scroll.contentOffset.y + delta, minY), maxY)
+
+        if direction == 0 {
+            autoscrollArmed = true
+            zoneEnteredAt = nil
+        } else if zoneEdge != direction {
+            zoneEdge = direction
+            zoneEnteredAt = Date()
+        } else if zoneEnteredAt == nil {
+            zoneEnteredAt = Date()
+        }
+
+        // Only scroll when there is somewhere to scroll to, the finger has settled in the zone, and it got
+        // there by being dragged (see `autoscrollArmed`).
+        if direction != 0, autoscrollArmed, maxY > minY,
+           let entered = zoneEnteredAt, Date().timeIntervalSince(entered) >= Self.autoscrollDwell {
+            let step = min(Self.autoscrollMaxStep, depth / 10 + 1.5)
+            let y = min(max(scroll.contentOffset.y + CGFloat(direction) * step, minY), maxY)
             if y != scroll.contentOffset.y {
                 scroll.setContentOffset(CGPoint(x: scroll.contentOffset.x, y: y), animated: false)
             }
         }
         // The page moved under a finger that did not, so the card has to follow the finger again.
-        let origin = probe.windowOrigin
-        let point = CGPoint(x: finger.x - origin.x, y: finger.y - origin.y)
-        drag.origin = CGPoint(x: point.x - grabOffset.width, y: point.y - grabOffset.height)
-        swapIfOverAnotherCard(card, at: point)
+        let moved = CGPoint(x: fingerAtLastMove.x, y: fingerAtLastMove.y + (scroll.contentOffset.y - offsetAtFinger))
+        drag.origin = CGPoint(x: moved.x - grabOffset.width, y: moved.y - grabOffset.height)
+        swapIfOverAnotherCard(card, at: moved)
     }
 }
 
 
 /// A transparent view that turns a press-and-hold into a drag: `onChanged` is called with the finger's
-/// position in window coordinates when the hold succeeds and on every movement after it, `onEnded`
+/// position in the grid's own coordinates when the hold succeeds and on every movement after it, `onEnded`
 /// when the finger lifts or the system cancels the touch.
 struct DashboardDragSurface: UIViewRepresentable {
+    let space: DashboardGridProbeReference
     let onChanged: (CGPoint) -> Void
     let onEnded: () -> Void
 
@@ -219,18 +270,22 @@ struct DashboardDragSurface: UIViewRepresentable {
     }
 
     func updateUIView(_ view: UIView, context: Context) {
+        context.coordinator.space = space
         context.coordinator.onChanged = onChanged
         context.coordinator.onEnded = onEnded
     }
 
     final class Coordinator: NSObject {
+        var space: DashboardGridProbeReference?
         var onChanged: (CGPoint) -> Void = { _ in }
         var onEnded: () -> Void = {}
 
         @objc func handle(_ recognizer: UILongPressGestureRecognizer) {
             switch recognizer.state {
             case .began, .changed:
-                onChanged(recognizer.location(in: nil))
+                // In the grid's own space; the card's own view is the fallback before the grid is on screen.
+                let gridView = MainActor.assumeIsolated { space?.view }
+                onChanged(recognizer.location(in: gridView ?? recognizer.view))
             case .ended, .cancelled, .failed:
                 onEnded()
             default:
@@ -272,6 +327,7 @@ private struct DashboardEditChrome: ViewModifier {
     let size: DashboardCardSize
     let cornerRadius: CGFloat
     let isDragging: Bool
+    let dragSpace: DashboardGridProbeReference
     let onDragChanged: (CGPoint) -> Void
     let onDragEnded: () -> Void
     let onSetSize: (DashboardCardSize) -> Void
@@ -293,7 +349,7 @@ private struct DashboardEditChrome: ViewModifier {
     /// because UIKit already knows how to share a touch with the scroll view: moving before the hold is
     /// over scrolls the page, holding still lifts the card.
     private var dragSurface: some View {
-        DashboardDragSurface(onChanged: onDragChanged, onEnded: onDragEnded)
+        DashboardDragSurface(space: dragSpace, onChanged: onDragChanged, onEnded: onDragEnded)
     }
 
     /// A menu of the sizes this card offers, the current one checked, so any size is two taps whichever
@@ -380,6 +436,7 @@ extension View {
         isDragging: Bool,
         drag: DashboardDragModel,
         onBeginEditing: @escaping () -> Void,
+        dragSpace: DashboardGridProbeReference,
         onDragChanged: @escaping (CGPoint) -> Void,
         onDragEnded: @escaping () -> Void,
         onSetSize: @escaping (DashboardCardSize) -> Void,
@@ -392,6 +449,7 @@ extension View {
                 size: size,
                 cornerRadius: cornerRadius,
                 isDragging: isDragging,
+                dragSpace: dragSpace,
                 onDragChanged: onDragChanged,
                 onDragEnded: onDragEnded,
                 onSetSize: onSetSize,
