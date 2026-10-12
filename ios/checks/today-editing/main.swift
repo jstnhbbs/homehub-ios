@@ -43,11 +43,9 @@ check("turned-off cards can be added back, weather never", names(TodayLayoutEdit
 let noSleepModule = some.updating(.sleep, enabled: false)
 check("a card whose module is off can't be added", names(TodayLayoutEditing.addableCards(in: noSleepModule)), "snacks")
 
-// Resizing.
-check("small goes to medium", TodayLayoutEditing.nextSize(for: .schedule, from: .small).rawValue, "medium")
-check("medium goes to large", TodayLayoutEditing.nextSize(for: .schedule, from: .medium).rawValue, "large")
-check("large wraps to small", TodayLayoutEditing.nextSize(for: .schedule, from: .large).rawValue, "small")
-check("a card that stops at medium wraps from there", TodayLayoutEditing.nextSize(for: .sleep, from: .medium).rawValue, "small")
-check("a saved size the card doesn't offer is brought back first", TodayLayoutEditing.nextSize(for: .sleep, from: .large).rawValue, "small")
+// Resizing: a size a card doesn't offer is brought to one it does.
+check("a size the card offers is kept", DashboardCardId.schedule.clamped(.large).rawValue, "large")
+check("a size it doesn't offer comes back to its largest", DashboardCardId.sleep.clamped(.large).rawValue, "medium")
+check("the menu lists the sizes the card offers", DashboardCardId.sleep.allowedSizes.map(\.rawValue).joined(separator: ","), "small,medium")
 
 if failures > 0 { print("\n\(failures) check(s) failed"); exit(1) } else { print("\nall checks passed") }

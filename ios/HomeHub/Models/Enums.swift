@@ -307,13 +307,6 @@ enum DashboardCardSize: String, Codable, Sendable, CaseIterable, Hashable, Ident
         }
         self = size
     }
-
-    /// The next size up, wrapping from the largest back to the smallest, among `options`.
-    func cycled(among options: [DashboardCardSize]) -> DashboardCardSize {
-        guard options.count > 1 else { return self }
-        let index = options.firstIndex(of: self) ?? 0
-        return options[(index + 1) % options.count]
-    }
 }
 
 extension DashboardCardId {

@@ -54,16 +54,29 @@ struct DashboardGridProbe: UIViewRepresentable {
     }
 }
 
+/// Where the dragged card is drawn, in the grid's coordinates. It lives in its own small object, not in
+/// `DashboardEditState`, because it changes on every movement of the finger: anything that watches
+/// `DashboardEditState` (the whole dashboard) would be rebuilt dozens of times a second, which is what made
+/// dragging feel slow. Only the cards' edit wrappers watch this one, and hand the position to the grid as a
+/// layout value, so a movement re-places the cards without rebuilding any of them.
+final class DashboardDragModel: ObservableObject {
+    @Published var origin: CGPoint?
+}
+
+/// The grid layouts read this to draw a dragged card where the finger has it instead of in its cell.
+struct DashboardDragOriginKey: LayoutValueKey {
+    static let defaultValue: CGPoint? = nil
+}
+
 @MainActor
 final class DashboardEditState: ObservableObject {
     @Published var isEditing = false
     /// The order the cards are shown in while one is being dragged. Nil when nothing is being dragged.
     @Published var previewOrder: [DashboardCardId]?
     @Published var draggingCard: DashboardCardId?
-    /// Where the dragged card's top-left corner is drawn, in the grid's coordinates.
-    @Published var draggedOrigin: CGPoint?
 
     let frames = DashboardFrameStore()
+    let drag = DashboardDragModel()
     let probe = DashboardGridProbeReference()
 
     private var grabOffset = CGSize.zero
@@ -75,12 +88,12 @@ final class DashboardEditState: ObservableObject {
     func enter() {
         guard !isEditing else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        withAnimation(.snappy(duration: 0.25)) { isEditing = true }
+        withAnimation(.snappy(duration: 0.2)) { isEditing = true }
     }
 
     func exit() {
         cancelDrag()
-        withAnimation(.snappy(duration: 0.25)) { isEditing = false }
+        withAnimation(.snappy(duration: 0.2)) { isEditing = false }
     }
 
     /// Called for every movement of a finger that is dragging `card`. `order` is the order the cards
@@ -98,7 +111,7 @@ final class DashboardEditState: ObservableObject {
             startAutoscroll()
         }
         fingerInWindow = locationInWindow
-        draggedOrigin = CGPoint(x: point.x - grabOffset.width, y: point.y - grabOffset.height)
+        drag.origin = CGPoint(x: point.x - grabOffset.width, y: point.y - grabOffset.height)
         swapIfOverAnotherCard(card, at: point)
     }
 
@@ -108,9 +121,9 @@ final class DashboardEditState: ObservableObject {
         guard draggingCard != nil else { return nil }
         stopAutoscroll()
         let final = previewOrder
-        withAnimation(.snappy(duration: 0.25)) {
+        withAnimation(.snappy(duration: 0.2)) {
             draggingCard = nil
-            draggedOrigin = nil
+            drag.origin = nil
         }
         fingerInWindow = nil
         return final
@@ -123,7 +136,7 @@ final class DashboardEditState: ObservableObject {
     private func cancelDrag() {
         stopAutoscroll()
         draggingCard = nil
-        draggedOrigin = nil
+        drag.origin = nil
         previewOrder = nil
         fingerInWindow = nil
     }
@@ -131,7 +144,7 @@ final class DashboardEditState: ObservableObject {
     private func swapIfOverAnotherCard(_ card: DashboardCardId, at point: CGPoint) {
         // After a swap the cards are still sliding into place; wait for them so a card that has
         // just moved under the finger doesn't swap straight back.
-        guard Date().timeIntervalSince(lastSwap) > 0.3 else { return }
+        guard Date().timeIntervalSince(lastSwap) > 0.22 else { return }
         for (other, frame) in frames.frames where other != card {
             guard frame.insetBy(dx: 8, dy: 8).contains(point) else { continue }
             let next = TodayLayoutEditing.moving(card, ontoPositionOf: other, in: currentOrder)
@@ -139,7 +152,7 @@ final class DashboardEditState: ObservableObject {
             lastSwap = Date()
             currentOrder = next
             UISelectionFeedbackGenerator().selectionChanged()
-            withAnimation(.snappy(duration: 0.28)) { previewOrder = next }
+            withAnimation(.snappy(duration: 0.2)) { previewOrder = next }
             return
         }
     }
@@ -179,7 +192,7 @@ final class DashboardEditState: ObservableObject {
         // The page moved under a finger that did not, so the card has to follow the finger again.
         let origin = probe.windowOrigin
         let point = CGPoint(x: finger.x - origin.x, y: finger.y - origin.y)
-        draggedOrigin = CGPoint(x: point.x - grabOffset.width, y: point.y - grabOffset.height)
+        drag.origin = CGPoint(x: point.x - grabOffset.width, y: point.y - grabOffset.height)
         swapIfOverAnotherCard(card, at: point)
     }
 }
@@ -228,6 +241,28 @@ struct DashboardDragSurface: UIViewRepresentable {
 }
 
 
+/// Passes the dragged card's position to the grid as a layout value. It is the only thing that watches
+/// `DashboardDragModel`, and its body is tiny, so a movement of the finger costs almost nothing.
+private struct DashboardDragOriginReporter: ViewModifier {
+    @ObservedObject var drag: DashboardDragModel
+    let isDragging: Bool
+
+    func body(content: Content) -> some View {
+        content.layoutValue(key: DashboardDragOriginKey.self, value: isDragging ? drag.origin : nil)
+    }
+}
+
+extension DashboardCardSize {
+    /// A small picture of the shape the size takes, for the resize menu.
+    var menuSymbol: String {
+        switch self {
+        case .small: "square"
+        case .medium: "rectangle"
+        case .large: "square.grid.2x2"
+        }
+    }
+}
+
 // MARK: - Card chrome while editing
 
 /// What a card gets while the page is being edited: a dashed outline, its own buttons stop working, a minus
@@ -239,7 +274,7 @@ private struct DashboardEditChrome: ViewModifier {
     let isDragging: Bool
     let onDragChanged: (CGPoint) -> Void
     let onDragEnded: () -> Void
-    let onResize: () -> Void
+    let onSetSize: (DashboardCardSize) -> Void
     let onRemove: () -> Void
     let onMove: (Int) -> Void
 
@@ -261,13 +296,22 @@ private struct DashboardEditChrome: ViewModifier {
         DashboardDragSurface(onChanged: onDragChanged, onEnded: onDragEnded)
     }
 
+    /// A menu of the sizes this card offers, the current one checked, so any size is two taps whichever
+    /// size the card is now.
     @ViewBuilder
     private var resizeButton: some View {
         if canResize {
-            Button(action: onResize) {
+            Menu {
+                Picker("Size", selection: Binding(get: { size }, set: { onSetSize($0) })) {
+                    ForEach(card.allowedSizes) { option in
+                        Label(option.label, systemImage: option.menuSymbol).tag(option)
+                    }
+                }
+            } label: {
                 HStack(spacing: 5) {
                     Text(size.label)
-                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .heavy))
                         .accessibilityHidden(true)
                 }
                 .font(.caption.weight(.bold))
@@ -277,7 +321,6 @@ private struct DashboardEditChrome: ViewModifier {
                 .background(HubTheme.accent, in: Capsule())
                 .minimumTapTarget()
             }
-            .buttonStyle(.plain)
             .padding(8)
             .accessibilityLabel("Resize \(card.label)")
             .accessibilityValue(size.label)
@@ -308,7 +351,7 @@ private struct DashboardEditChrome: ViewModifier {
             .overlay(alignment: .topLeading) { removeButton }
             .scaleEffect(isDragging ? 1.04 : 1)
             .shadow(color: .black.opacity(isDragging ? 0.28 : 0), radius: isDragging ? 14 : 0, y: isDragging ? 8 : 0)
-            .animation(.snappy(duration: 0.2), value: isDragging)
+            .animation(.snappy(duration: 0.15), value: isDragging)
             .zIndex(isDragging ? 10 : 0)
         .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(card.label) card")
@@ -316,7 +359,11 @@ private struct DashboardEditChrome: ViewModifier {
             .accessibilityHint("Press and hold, then drag to move it.")
             .accessibilityAction(named: Text("Move earlier")) { onMove(-1) }
             .accessibilityAction(named: Text("Move later")) { onMove(1) }
-            .accessibilityAction(named: Text("Change size")) { if canResize { onResize() } }
+            .accessibilityActions {
+                ForEach(card.allowedSizes.filter { $0 != size }) { option in
+                    Button("Make \(option.label)") { onSetSize(option) }
+                }
+            }
             .accessibilityAction(named: Text("Remove from Today"), onRemove)
     }
 }
@@ -331,10 +378,11 @@ extension View {
         cornerRadius: CGFloat,
         isEditing: Bool,
         isDragging: Bool,
+        drag: DashboardDragModel,
         onBeginEditing: @escaping () -> Void,
         onDragChanged: @escaping (CGPoint) -> Void,
         onDragEnded: @escaping () -> Void,
-        onResize: @escaping () -> Void,
+        onSetSize: @escaping (DashboardCardSize) -> Void,
         onRemove: @escaping () -> Void,
         onMove: @escaping (Int) -> Void
     ) -> some View {
@@ -346,10 +394,11 @@ extension View {
                 isDragging: isDragging,
                 onDragChanged: onDragChanged,
                 onDragEnded: onDragEnded,
-                onResize: onResize,
+                onSetSize: onSetSize,
                 onRemove: onRemove,
                 onMove: onMove
             ))
+            .modifier(DashboardDragOriginReporter(drag: drag, isDragging: isDragging))
         } else {
             simultaneousGesture(
                 LongPressGesture(minimumDuration: 0.6).onEnded { _ in onBeginEditing() }

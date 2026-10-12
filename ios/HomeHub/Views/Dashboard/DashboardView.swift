@@ -137,9 +137,7 @@ struct DashboardView: View {
                         })
                         DashboardFlowLayout(
                             items: tileItems,
-                            frames: edit.frames,
-                            dragged: edit.draggingCard,
-                            draggedOrigin: edit.draggedOrigin
+                            frames: edit.frames
                         ) {
                             ForEach(tileCards) { card in
                                 let size = card.clamped(cardSizes[card, default: .small])
@@ -156,10 +154,11 @@ struct DashboardView: View {
                                     cornerRadius: 18,
                                     isEditing: edit.isEditing,
                                     isDragging: edit.draggingCard == card,
+                                    drag: edit.drag,
                                     onBeginEditing: { edit.enter() },
                                     onDragChanged: { edit.dragChanged(card, locationInWindow: $0, order: tileCards) },
                                     onDragEnded: endDrag,
-                                    onResize: { resize(card) },
+                                    onSetSize: { setSize(card, $0) },
                                     onRemove: { setEnabled(card, false) },
                                     onMove: { move(card, by: $0, within: tileCards) }
                                 )
@@ -296,7 +295,7 @@ struct DashboardView: View {
                 }
 
                 if edit.isEditing {
-                    Text("Drag a card to move it. Tap its size button to resize it, or the minus to take it off.")
+                    Text("Drag a card to move it. Use its size button to pick a size, or the minus to take it off.")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(HubTheme.muted)
                         .transition(.opacity)
@@ -334,9 +333,7 @@ struct DashboardView: View {
                                     rowCount: packing.rowCount,
                                     rowHeight: layout.rowHeight,
                                     spacing: 16,
-                                    frames: edit.frames,
-                                    dragged: edit.draggingCard,
-                                    draggedOrigin: edit.draggedOrigin
+                                    frames: edit.frames
                                 ) {
                                     ForEach(cards) { card in
                                         let size = card.clamped(layout.cardSizes[card, default: .small])
@@ -355,10 +352,11 @@ struct DashboardView: View {
                                             cornerRadius: 24,
                                             isEditing: edit.isEditing,
                                             isDragging: edit.draggingCard == card,
+                                            drag: edit.drag,
                                             onBeginEditing: { edit.enter() },
                                             onDragChanged: { edit.dragChanged(card, locationInWindow: $0, order: cards) },
                                             onDragEnded: endDrag,
-                                            onResize: { resize(card) },
+                                            onSetSize: { setSize(card, $0) },
                                             onRemove: { setEnabled(card, false) },
                                             onMove: { move(card, by: $0, within: cards) }
                                         )
@@ -421,17 +419,18 @@ struct DashboardView: View {
         layoutSaveTask = Task { await appState.saveHubModules(next) }
     }
 
-    private func resize(_ card: DashboardCardId) {
+    private func setSize(_ card: DashboardCardId, _ requested: DashboardCardSize) {
         let modules = appState.hubModules
-        let next = TodayLayoutEditing.nextSize(for: card, from: modules.dashboardCardSize(card, for: layoutTarget))
+        let size = card.clamped(requested)
+        guard size != modules.dashboardCardSize(card, for: layoutTarget) else { return }
         UISelectionFeedbackGenerator().selectionChanged()
-        withAnimation(.snappy(duration: 0.3)) {
-            commitLayout(modules.updatingDashboardCardSize(card, size: next, for: layoutTarget))
+        withAnimation(.snappy(duration: 0.2)) {
+            commitLayout(modules.updatingDashboardCardSize(card, size: size, for: layoutTarget))
         }
     }
 
     private func setEnabled(_ card: DashboardCardId, _ enabled: Bool) {
-        withAnimation(.snappy(duration: 0.3)) {
+        withAnimation(.snappy(duration: 0.2)) {
             commitLayout(appState.hubModules.updatingDashboardCard(card, enabled: enabled))
         }
     }
@@ -440,14 +439,14 @@ struct DashboardView: View {
     private func move(_ card: DashboardCardId, by offset: Int, within visible: [DashboardCardId]) {
         let next = TodayLayoutEditing.moving(card, by: offset, in: visible)
         guard next != visible else { return }
-        withAnimation(.snappy(duration: 0.3)) {
+        withAnimation(.snappy(duration: 0.2)) {
             commitLayout(appState.hubModules.arrangingDashboardCards(next, for: layoutTarget))
         }
     }
 
     private func endDrag() {
         if let final = edit.dragEnded() {
-            withAnimation(.snappy(duration: 0.3)) {
+            withAnimation(.snappy(duration: 0.2)) {
                 commitLayout(appState.hubModules.arrangingDashboardCards(final, for: layoutTarget))
             }
         }
@@ -1521,9 +1520,6 @@ private struct DashboardGridLayout: Layout {
     let spacing: CGFloat
     /// Told where each card's cell is, so a drag can find the card under the finger.
     let frames: DashboardFrameStore
-    /// The card being dragged is drawn where the finger has it instead of in its cell.
-    let dragged: DashboardCardId?
-    let draggedOrigin: CGPoint?
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let rows = CGFloat(max(1, rowCount))
@@ -1548,7 +1544,8 @@ private struct DashboardGridLayout: Layout {
                 height: height
             )
             cells[card] = cell
-            let origin = card == dragged ? (draggedOrigin ?? cell.origin) : cell.origin
+            // A card being dragged says where the finger has it (see DashboardDragOriginKey).
+            let origin = subview[DashboardDragOriginKey.self] ?? cell.origin
             subview.place(
                 at: CGPoint(x: bounds.minX + origin.x, y: bounds.minY + origin.y),
                 anchor: .topLeading,
@@ -1574,8 +1571,6 @@ private struct DashboardFlowLayout: Layout {
 
     let items: [DashboardCardId: Item]
     let frames: DashboardFrameStore
-    let dragged: DashboardCardId?
-    let draggedOrigin: CGPoint?
 
     private let columnSpacing: CGFloat = 10
     private let rowSpacing: CGFloat = 12
@@ -1633,7 +1628,7 @@ private struct DashboardFlowLayout: Layout {
                 let cell = CGRect(x: position == 0 ? 0 : half + columnSpacing, y: y, width: width, height: row.height)
                 let card = subview[DashboardCardKey.self]
                 if let card { cells[card] = cell }
-                let origin = (card != nil && card == dragged) ? (draggedOrigin ?? cell.origin) : cell.origin
+                let origin = subview[DashboardDragOriginKey.self] ?? cell.origin
                 subview.place(
                     at: CGPoint(x: bounds.minX + origin.x, y: bounds.minY + origin.y),
                     anchor: .topLeading,

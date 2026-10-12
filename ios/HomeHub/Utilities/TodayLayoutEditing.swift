@@ -57,12 +57,6 @@ enum TodayLayoutEditing {
             return !modules.dashboardCards[card, default: true]
         }
     }
-
-    /// The next size when someone taps a card's size button: one step up among the sizes it offers,
-    /// wrapping from the largest back to the smallest.
-    static func nextSize(for card: DashboardCardId, from size: DashboardCardSize) -> DashboardCardSize {
-        card.clamped(size).cycled(among: card.allowedSizes)
-    }
 }
 
 extension HubModules {

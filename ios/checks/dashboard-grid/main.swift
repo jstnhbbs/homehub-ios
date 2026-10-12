@@ -25,8 +25,6 @@ check("new names read as themselves", ["small", "medium", "large"].compactMap { 
 check("an unknown size is nil", String(DashboardCardSize(stored: "huge") == nil), "true")
 check("sleep stops at medium", DashboardCardId.sleep.clamped(.large).rawValue, "medium")
 check("schedule can be large", DashboardCardId.schedule.clamped(.large).rawValue, "large")
-check("cycling wraps to the smallest", DashboardCardSize.large.cycled(among: DashboardCardId.schedule.allowedSizes).rawValue, "small")
-check("cycling steps up", DashboardCardSize.small.cycled(among: DashboardCardId.sleep.allowedSizes).rawValue, "medium")
 
 // MARK: packing
 
