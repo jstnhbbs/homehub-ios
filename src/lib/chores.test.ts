@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  choresComingUp,
   choreState,
   chorePeriodKey,
   isChoreOccurrence,
@@ -252,5 +253,47 @@ describe("timed chores on the coming days", () => {
     const early = { ...item({ dueTime: "06:30" }), id: "early" };
     const entries = upcoming([late, early], 1);
     expect(entries.map((entry) => entry.id)).toEqual(["early", "late"]);
+  });
+});
+
+describe("chores coming up", () => {
+  const state = (over: Partial<ReturnType<typeof choreState>>) => ({
+    periodKey: "k",
+    completed: false,
+    dueToday: false,
+    overdue: false,
+    nextDueDate: null as string | null,
+    ...over,
+  });
+  const entry = (id: string, over: Partial<ReturnType<typeof choreState>>) => ({ id, state: state(over) });
+  const coming = (items: ReturnType<typeof entry>[], days?: number) =>
+    choresComingUp(items, { localDate: "2026-10-07", days }).map((item) => item.id);
+
+  it("lists chores not due today by the day they next fall, soonest first", () => {
+    const items = [
+      entry("sat", { nextDueDate: "2026-10-10" }),
+      entry("thu", { nextDueDate: "2026-10-08" }),
+    ];
+    expect(coming(items)).toEqual(["thu", "sat"]);
+  });
+
+  it("keeps the given order for the same day", () => {
+    const items = [entry("b", { nextDueDate: "2026-10-09" }), entry("a", { nextDueDate: "2026-10-09" })];
+    expect(coming(items)).toEqual(["b", "a"]);
+  });
+
+  it("leaves out what is due today and what has no next day", () => {
+    const items = [
+      entry("today", { dueToday: true }),
+      entry("done one-off", { nextDueDate: null }),
+      entry("later", { nextDueDate: "2026-10-08" }),
+    ];
+    expect(coming(items)).toEqual(["later"]);
+  });
+
+  it("stops at the number of days asked for", () => {
+    const items = [entry("week", { nextDueDate: "2026-10-14" }), entry("far", { nextDueDate: "2026-10-15" })];
+    expect(coming(items)).toEqual(["week"]);
+    expect(coming(items, 3)).toEqual([]);
   });
 });

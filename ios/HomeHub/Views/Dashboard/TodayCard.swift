@@ -1,0 +1,150 @@
+import SwiftUI
+
+/// The frame every converted Today card is drawn in, on iPhone and iPad alike: the same corner radius,
+/// padding, header (icon, title, and a chevron when the card opens a page) and background. What goes
+/// inside depends on the card's size; see `ChoresTodayCard` for the pattern.
+///
+/// The card fills whatever space its grid gives it. `fixedHeight` is for the one place that has no grid
+/// (the narrow single-column iPad layout).
+struct TodayCardFrame<Content: View>: View {
+    static var cornerRadius: CGFloat { 22 }
+
+    @Environment(\.openHubDestination) private var openHubDestination
+
+    let card: DashboardCardId
+    var fixedHeight: CGFloat?
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            header
+            content()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(height: fixedHeight)
+        .frame(maxHeight: fixedHeight == nil ? .infinity : nil, alignment: .topLeading)
+        .background(HubTheme.tile)
+        .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
+                .stroke(HubTheme.line, lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private var header: some View {
+        if let destination = card.destination {
+            Button { openHubDestination(destination) } label: {
+                headerLabel(showsChevron: true)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(card.label)
+            .accessibilityHint("Open \(card.label)")
+        } else {
+            headerLabel(showsChevron: false)
+        }
+    }
+
+    private func headerLabel(showsChevron: Bool) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: card.systemImage)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(HubTheme.accentText)
+                .accessibilityHidden(true)
+            Text(card.compactTitle)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(HubTheme.muted)
+                .lineLimit(1)
+            Spacer(minLength: 0)
+            if showsChevron {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(HubTheme.muted)
+                    .accessibilityHidden(true)
+            }
+        }
+        .frame(minHeight: 28)
+        .contentShape(Rectangle())
+    }
+}
+
+/// The big number or phrase on a Small card, with the line that explains it under it. Every Small card
+/// uses this, so they read the same.
+struct TodayCardHeadline: View {
+    let headline: String
+    let caption: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(headline)
+                .font(.title2.weight(.bold))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(caption)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(HubTheme.muted)
+                .lineLimit(3)
+        }
+    }
+}
+
+/// The one line a Medium or Large card puts above its rows ("2 left · 1 done").
+struct TodayCardSummaryLine: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.caption.weight(.bold))
+            .foregroundStyle(HubTheme.muted)
+            .lineLimit(1)
+    }
+}
+
+/// A named group of rows inside a Large card (Today, Coming up).
+struct TodayCardSection<Content: View>: View {
+    let title: String
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption.weight(.heavy))
+                .foregroundStyle(HubTheme.muted)
+                .accessibilityAddTraits(.isHeader)
+            content()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+/// A short sentence where a list would be, for a section with nothing in it.
+struct TodayCardEmptyNote: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(HubTheme.muted)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+extension DashboardCardId {
+    /// The card's name as its header shows it, shortened where the full name would not fit a Small card.
+    var compactTitle: String {
+        switch self {
+        case .schedule: "Schedule"
+        case .routines: "Routines"
+        case .meals: "Food"
+        default: label
+        }
+    }
+
+    /// Cards already drawn with `TodayCardFrame` and a layout for every size. The rest still use their
+    /// older panels and compact tiles until they are converted.
+    var usesTodayCard: Bool { self == .chores }
+}

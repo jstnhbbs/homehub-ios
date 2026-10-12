@@ -389,3 +389,29 @@ export function upcomingTimedChores(
     `${a.date} ${a.dueTime}`.localeCompare(`${b.date} ${b.dueTime}`),
   );
 }
+
+/**
+ * The chores that are not due today but come round again within the next `days` days, soonest first
+ * (one entry per chore, with the day it next falls on in its state). It is for the Large Chores card,
+ * which shows what is coming up beside what is due now. A chore already due today is not repeated
+ * here, and a one-off that is done has no next day.
+ */
+export function choresComingUp<T extends { state: ChoreState }>(
+  items: T[],
+  options: { localDate: string; days?: number },
+): T[] {
+  const today = dayNumber(options.localDate);
+  const last = today + (options.days ?? 7);
+  return items
+    .filter(({ state }) => {
+      if (state.dueToday || !state.nextDueDate) return false;
+      const day = dayNumber(state.nextDueDate);
+      return day > today && day <= last;
+    })
+    .map((item, index) => ({ item, index }))
+    .sort(
+      (a, b) =>
+        a.item.state.nextDueDate!.localeCompare(b.item.state.nextDueDate!) || a.index - b.index,
+    )
+    .map(({ item }) => item);
+}

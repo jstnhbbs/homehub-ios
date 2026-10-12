@@ -133,6 +133,9 @@ struct DashboardView: View {
                         let tileItems = Dictionary(uniqueKeysWithValues: tileCards.map { card -> (DashboardCardId, DashboardFlowLayout.Item) in
                             let size = card.clamped(cardSizes[card, default: .small])
                             let isFull = card.compactSpan(size: size) == .full
+                            if card.usesTodayCard {
+                                return (card, .init(isFull: isFull, minHeight: 0, fixedHeight: phoneCellHeight * CGFloat(size.rows) + 12 * CGFloat(size.rows - 1)))
+                            }
                             return (card, .init(isFull: isFull, minHeight: size == .large ? 154 * 2 + 10 : (isFull ? 88 : 154)))
                         })
                         DashboardFlowLayout(
@@ -141,17 +144,11 @@ struct DashboardView: View {
                         ) {
                             ForEach(tileCards) { card in
                                 let size = card.clamped(cardSizes[card, default: .small])
-                                CompactDashboardTile(
-                                    card: card,
-                                    dashboard: dashboard,
-                                    span: card.compactSpan(size: size),
-                                    size: size,
-                                    onNavigate: openDestination
-                                )
+                                phoneTile(card, size: size, dashboard: dashboard)
                                 .dashboardEditable(
                                     card: card,
                                     size: size,
-                                    cornerRadius: 18,
+                                    cornerRadius: card.usesTodayCard ? TodayCardFrame<EmptyView>.cornerRadius : 18,
                                     isEditing: edit.isEditing,
                                     isDragging: edit.draggingCard == card,
                                     drag: edit.drag,
@@ -316,6 +313,7 @@ struct DashboardView: View {
                                     ForEach(cards) { card in
                                         dashboardCard(
                                             card,
+                                            size: card.clamped(layout.cardSizes[card, default: .small]),
                                             dashboard: dashboard,
                                             rowHeight: layout.height(for: card),
                                             fillsHeight: false,
@@ -339,6 +337,7 @@ struct DashboardView: View {
                                         let size = card.clamped(layout.cardSizes[card, default: .small])
                                         dashboardCard(
                                             card,
+                                            size: size,
                                             dashboard: dashboard,
                                             rowHeight: layout.height(for: card),
                                             fillsHeight: true,
@@ -349,7 +348,7 @@ struct DashboardView: View {
                                         .dashboardEditable(
                                             card: card,
                                             size: size,
-                                            cornerRadius: 24,
+                                            cornerRadius: card.usesTodayCard ? TodayCardFrame<EmptyView>.cornerRadius : 24,
                                             isEditing: edit.isEditing,
                                             isDragging: edit.draggingCard == card,
                                             drag: edit.drag,
@@ -391,6 +390,27 @@ struct DashboardView: View {
             }
         }
     }
+
+    /// A card on the iPhone: converted cards use the shared card (the same one the iPad draws); the rest
+    /// still use their compact tile.
+    @ViewBuilder
+    private func phoneTile(_ card: DashboardCardId, size: DashboardCardSize, dashboard: DashboardData) -> some View {
+        switch card {
+        case .chores:
+            ChoresTodayCard(dashboard: dashboard, size: size)
+        default:
+            CompactDashboardTile(
+                card: card,
+                dashboard: dashboard,
+                span: card.compactSpan(size: size),
+                size: size,
+                onNavigate: openDestination
+            )
+        }
+    }
+
+    /// One grid cell's height on the iPhone for the shared card; a Large card is two of them.
+    private var phoneCellHeight: CGFloat { DashboardMetrics.scaled(168, .body) }
 
     // MARK: Editing the layout on the page
 
@@ -464,6 +484,7 @@ struct DashboardView: View {
     @ViewBuilder
     private func dashboardCard(
         _ card: DashboardCardId,
+        size: DashboardCardSize,
         dashboard: DashboardData,
         rowHeight: CGFloat,
         fillsHeight: Bool,
@@ -503,15 +524,7 @@ struct DashboardView: View {
                 RoutinesDashboardPanel(dashboard: dashboard)
             }
         case .chores:
-            DashboardPanel(
-                systemImage: card.systemImage,
-                title: card.label,
-                destination: card.destination,
-                height: rowHeight,
-                fillsHeight: fillsHeight
-            ) {
-                ChoresDashboardPanel(dashboard: dashboard)
-            }
+            ChoresTodayCard(dashboard: dashboard, size: size, fixedHeight: fillsHeight ? nil : rowHeight)
         case .meals:
             DashboardPanel(
                 systemImage: card.systemImage,
@@ -724,15 +737,6 @@ private extension DashboardCardId {
         return size == .small ? .half : .full
     }
 
-    /// Shortened so a half-width tile header doesn't truncate.
-    var compactTitle: String {
-        switch self {
-        case .schedule: "Schedule"
-        case .routines: "Routines"
-        case .meals: "Food"
-        default: label
-        }
-    }
 
 }
 
@@ -901,11 +905,8 @@ private struct CompactDashboardTile: View {
                 CompactRoutinesSummary(dashboard: dashboard, visibleLimit: groupRowLimit)
             }
         case .chores:
-            if dashboard.chores.isEmpty {
-                CompactDetailChip(text: "No chores due today")
-            } else {
-                CompactChoresSummary(dashboard: dashboard, visibleLimit: groupRowLimit)
-            }
+            // Drawn by ChoresTodayCard, never by a compact tile.
+            EmptyView()
         case .meals:
             CompactMealSummary(
                 meals: dashboard.meals,
@@ -1218,59 +1219,6 @@ private struct CompactRoutinesSummary: View {
 
 /// Chores grouped the same way as routines, since a parent asks the same question of both:
 /// which kid still has something left today.
-private struct ChoreProgressGroup: Identifiable {
-    let id: String
-    let name: String
-    let color: String
-    let chores: [ChoreRow]
-
-    var completedCount: Int { chores.filter(\.completed).count }
-    var totalCount: Int { chores.count }
-
-    static func groups(profiles: [Profile], chores: [ChoreRow]) -> [ChoreProgressGroup] {
-        let childProfiles = profiles
-            .filter { $0.profileType == .child }
-            .sorted { $0.sortOrder < $1.sortOrder }
-
-        var groups = childProfiles.compactMap { profile -> ChoreProgressGroup? in
-            let profileChores = chores.filter { $0.profileId == profile.id }
-            guard !profileChores.isEmpty else { return nil }
-            return ChoreProgressGroup(id: profile.id, name: profile.name, color: profile.color, chores: profileChores)
-        }
-
-        let householdChores = chores.filter { $0.profileId == nil }
-        if !householdChores.isEmpty {
-            groups.append(
-                ChoreProgressGroup(id: "household", name: "Family", color: "#4f7c6d", chores: householdChores)
-            )
-        }
-
-        return groups
-    }
-}
-
-private struct CompactChoresSummary: View {
-    let dashboard: DashboardData
-    let visibleLimit: Int
-
-    private var groups: [ChoreProgressGroup] {
-        ChoreProgressGroup.groups(profiles: dashboard.profiles, chores: dashboard.chores)
-    }
-
-    var body: some View {
-        CompactGroupRowList(visibleLimit: visibleLimit, rows: groups.map { group in
-            CompactGroupRow(
-                id: group.id,
-                name: group.name,
-                color: group.color,
-                completed: group.completedCount,
-                total: group.totalCount,
-                streakDays: nil
-            )
-        })
-    }
-}
-
 private struct CompactGroupRow: Identifiable {
     let id: String
     let name: String
@@ -1567,6 +1515,8 @@ private struct DashboardFlowLayout: Layout {
     struct Item {
         var isFull: Bool
         var minHeight: CGFloat
+        /// A converted card has exactly this height (its cells), whatever it holds.
+        var fixedHeight: CGFloat?
     }
 
     let items: [DashboardCardId: Item]
@@ -1583,6 +1533,7 @@ private struct DashboardFlowLayout: Layout {
     private func rows(width: CGFloat, subviews: Subviews) -> [Row] {
         let half = max(0, (width - columnSpacing) / 2)
         func height(_ index: Int, _ width: CGFloat) -> CGFloat {
+            if let fixed = subviews[index][DashboardCardKey.self].flatMap({ items[$0]?.fixedHeight }) { return fixed }
             let minimum = subviews[index][DashboardCardKey.self].flatMap { items[$0]?.minHeight } ?? 0
             return max(minimum, subviews[index].sizeThatFits(ProposedViewSize(width: width, height: nil)).height)
         }
@@ -1679,46 +1630,6 @@ private struct DashboardPanel<Content: View>: View {
         }
 
         return nil
-    }
-}
-
-/// Today's due, unfinished chores. Shows as many as the card's measured height allows — a
-/// household with more room (a wider window, or fewer other cards) sees more without needing to
-/// scroll, matching every other list-style dashboard card.
-private struct ChoresDashboardPanel: View {
-    @Environment(\.openHubDestination) private var openHubDestination
-    let dashboard: DashboardData
-
-    private var pending: [ChoreRow] {
-        dashboard.chores.filter { !$0.completed }
-    }
-
-    /// Who a chore is for, as the row would say it.
-    private func assigneeName(_ chore: ChoreRow) -> String {
-        dashboard.profiles.first { $0.id == chore.profileId }?.name ?? "Anyone"
-    }
-
-    var body: some View {
-        if pending.isEmpty {
-            EmptyStateView(
-                text: dashboard.chores.isEmpty ? "Add the first family chore." : "All chores done!",
-                action: { openHubDestination(.chores) }
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            // The "who" line is only worth showing when chores are for different people.
-            let showsAssignee = DashboardRowHelpers.showsAssignee(pending.map(assigneeName))
-            WholeRowsGrid(
-                items: pending,
-                minimumColumnWidth: DashboardRow<EmptyView, EmptyView>.minimumWidth,
-                maxColumns: 3,
-                itemHeight: { _, _ in DashboardRow<EmptyView, EmptyView>.height },
-                onMore: { openHubDestination(.chores) },
-                allowsCompactRows: true
-            ) { chore, _ in
-                ChoreCheckRow(chore: chore, showsAssignee: showsAssignee)
-            }
-        }
     }
 }
 
@@ -2776,33 +2687,37 @@ private struct BirthdaysDashboardPanel: View {
 
 // MARK: - Check rows
 
-private struct ChoreCheckRow: View {
+/// Who a chore is for, as a row shows them: a short name and their color.
+struct ChorePersonMark {
+    let name: String
+    let color: Color?
+}
+
+struct ChoreCheckRow: View {
     @EnvironmentObject private var appState: AppState
     let chore: ChoreRow
-    let showsAssignee: Bool
+    /// Nil when every chore on the card is for the same person, so the name isn't repeated on each row.
+    let person: ChorePersonMark?
     @State private var isChecked: Bool
     @State private var isWorking = false
     @State private var isHidden = false
 
-    init(chore: ChoreRow, showsAssignee: Bool = true) {
+    init(chore: ChoreRow, person: ChorePersonMark?) {
         self.chore = chore
-        self.showsAssignee = showsAssignee
+        self.person = person
         _isChecked = State(initialValue: chore.completed)
-    }
-
-    private var assignee: Profile? {
-        appState.dashboard?.profiles.first { $0.id == chore.profileId }
     }
 
     /// Who it is for and, when it has one, the time it is due ("Overdue" once that has passed).
     private var subtitle: String? {
         var parts: [String] = []
-        if showsAssignee { parts.append(assignee?.name ?? "Anyone") }
-        if let time = chore.dueTime {
-            let label = ChoreHelpers.timeLabel(time)
-            parts.append(chore.overdue == true && !isChecked ? "Overdue · \(label)" : label)
-        } else if chore.overdue == true, !isChecked {
+        if let person { parts.append(person.name) }
+        // A late chore says so; its time has gone, so it adds only length (and in a narrow row, the cut-off
+        // that hides the word that matters).
+        if chore.overdue == true, !isChecked {
             parts.append("Overdue")
+        } else if let time = chore.dueTime {
+            parts.append(ChoreHelpers.timeLabel(time))
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
@@ -2815,6 +2730,7 @@ private struct ChoreCheckRow: View {
                 DashboardRow(
                     title: chore.title,
                     subtitle: subtitle,
+                    subtitlePersonColor: person?.color,
                     isDone: isChecked
                 ) {
                     DashboardCheckMarker(isChecked: isChecked)

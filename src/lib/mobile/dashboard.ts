@@ -16,7 +16,7 @@ import {
 } from "@/db/schema";
 import { birthdayEventsInRange } from "@/lib/birthdays";
 import { listHouseholdBirthdays } from "@/lib/family-birthdays";
-import { chorePeriodKey, choreState, upcomingTimedChores } from "@/lib/chores";
+import { chorePeriodKey, choresComingUp, choreState, upcomingTimedChores } from "@/lib/chores";
 import { routineRunsOn } from "@/lib/routines";
 import { localDateIn } from "@/lib/dates";
 import { parseSnackOptions, snackEatenLabels } from "@/lib/meals/snacks";
@@ -247,6 +247,25 @@ export async function buildDashboardPayload(
       completedAt: done?.completedAt ?? null,
       completedByName: done?.completedByName ?? null,
       overdue: state.overdue,
+    })),
+    // What is not due today but comes round within the week, for the Large Chores card. Read-only:
+    // each is shown with the day it next falls on and is ticked off on that day.
+    laterChores: choresComingUp(choreItems, { localDate }).map(({ chore, state }) => ({
+      id: chore.id,
+      title: chore.title,
+      profileId: chore.profileId,
+      cadence: chore.cadence,
+      days: chore.days,
+      dueDate: chore.dueDate,
+      dueTime: chore.dueTime,
+      repeatUnit: chore.repeatUnit,
+      repeatInterval: chore.repeatInterval,
+      periodKey: chorePeriodKey(chore, state.nextDueDate!),
+      completed: false,
+      completedAt: null,
+      completedByName: null,
+      overdue: false,
+      nextDueDate: state.nextDueDate,
     })),
     upcomingChores: upcomingTimedChores(choreRows, {
       localDate,

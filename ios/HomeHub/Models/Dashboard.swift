@@ -7,6 +7,9 @@ struct DashboardData: Codable, Sendable {
     var profiles: [Profile]
     var routineSteps: [RoutineStepRow]
     var chores: [ChoreRow]
+    /// Chores not due today that come round within the week, with the day each next falls on in
+    /// `nextDueDate` (the Large Chores card shows them). Empty from a server that predates it.
+    var laterChores: [ChoreRow]
     /// Chores with a time on the next few days, for scheduling their reminders ahead.
     var upcomingChores: [UpcomingChore]
     var meals: [Meal]
@@ -31,6 +34,7 @@ struct DashboardData: Codable, Sendable {
         case profiles
         case routineSteps
         case chores
+        case laterChores
         case upcomingChores
         case meals
         case scheduleEvents
@@ -54,6 +58,7 @@ struct DashboardData: Codable, Sendable {
         profiles = try container.decodeIfPresent([Profile].self, forKey: .profiles) ?? []
         routineSteps = try container.decodeIfPresent([RoutineStepRow].self, forKey: .routineSteps) ?? []
         chores = try container.decodeIfPresent([ChoreRow].self, forKey: .chores) ?? []
+        laterChores = try container.decodeIfPresent([ChoreRow].self, forKey: .laterChores) ?? []
         upcomingChores = try container.decodeIfPresent([UpcomingChore].self, forKey: .upcomingChores) ?? []
         meals = try container.decodeIfPresent([Meal].self, forKey: .meals) ?? []
         scheduleEvents = try container.decodeIfPresent([ScheduleEvent].self, forKey: .scheduleEvents) ?? []
@@ -77,6 +82,7 @@ struct DashboardData: Codable, Sendable {
         try container.encode(profiles, forKey: .profiles)
         try container.encode(routineSteps, forKey: .routineSteps)
         try container.encode(chores, forKey: .chores)
+        try container.encode(laterChores, forKey: .laterChores)
         try container.encode(upcomingChores, forKey: .upcomingChores)
         try container.encode(meals, forKey: .meals)
         try container.encode(scheduleEvents, forKey: .scheduleEvents)

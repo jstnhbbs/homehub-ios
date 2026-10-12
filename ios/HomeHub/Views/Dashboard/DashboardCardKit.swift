@@ -37,6 +37,8 @@ struct DashboardRow<Leading: View, Trailing: View>: View {
 
     let title: String
     var subtitle: String?
+    /// A small dot in this color before the subtitle, when the subtitle starts with a person's name.
+    var subtitlePersonColor: Color?
     var isDone = false
     /// Colours the row to match a person (a child's routine) or to call attention to it (a
     /// birthday today). Nil is the standard quiet tile.
@@ -50,6 +52,14 @@ struct DashboardRow<Leading: View, Trailing: View>: View {
 
     private var rowHeight: CGFloat { isCompact ? Self.compactHeight : Self.height }
 
+    /// The subtitle, with a person's colored dot in front when there is one. It is one `Text`, so it
+    /// truncates like any other line.
+    private func subtitleText(_ subtitle: String) -> Text {
+        guard let personColor = subtitlePersonColor else { return Text(subtitle) }
+        return Text(Image(systemName: "circle.fill")).font(.system(size: 7)).foregroundStyle(personColor).baselineOffset(1)
+            + Text(" \(subtitle)")
+    }
+
     var body: some View {
         HStack(spacing: 8) {
             leading()
@@ -62,7 +72,7 @@ struct DashboardRow<Leading: View, Trailing: View>: View {
                     .lineLimit(isCompact && subtitle != nil ? 1 : 2)
                     .multilineTextAlignment(.leading)
                 if let subtitle {
-                    Text(subtitle)
+                    subtitleText(subtitle)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(HubTheme.muted)
                         .lineLimit(1)
