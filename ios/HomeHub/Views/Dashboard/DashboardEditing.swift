@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 // Rearranging the Today cards on the page itself, the way icons are rearranged on a Home Screen:
-// press and hold a card (or tap the pencil), the cards wiggle, drag one to move it, tap its size
+// press and hold a card (or tap the pencil), the cards get a dashed outline, drag one to move it, tap its size
 // button to make it Small, Medium or Large, tap the minus to take it off, and tap Done.
 //
 // The grid layouts in DashboardView report where each card sits to `DashboardFrameStore`, so a drag
@@ -35,41 +35,6 @@ final class DashboardGridProbeReference {
         }
         return nil
     }
-
-    /// Calls `change` with true when the page starts moving under a finger or a flick, and false a
-    /// moment after it stops. It only calls when the answer changes, so scrolling doesn't redraw the
-    /// screen on every frame.
-    private var scrollObservation: NSKeyValueObservation?
-    private var scrollSettleTask: Task<Void, Never>?
-    private var reportedScrolling = false
-
-    func observeScrolling(_ change: @escaping @MainActor (Bool) -> Void) {
-        stopObservingScrolling()
-        guard let scroll = scrollView else { return }
-        scrollObservation = scroll.observe(\.contentOffset, options: [.new]) { [weak self] _, _ in
-            Task { @MainActor in
-                guard let self else { return }
-                if !self.reportedScrolling {
-                    self.reportedScrolling = true
-                    change(true)
-                }
-                self.scrollSettleTask?.cancel()
-                self.scrollSettleTask = Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 300_000_000)
-                    guard !Task.isCancelled else { return }
-                    self.reportedScrolling = false
-                    change(false)
-                }
-            }
-        }
-    }
-
-    func stopObservingScrolling() {
-        scrollObservation = nil
-        scrollSettleTask?.cancel()
-        scrollSettleTask = nil
-        reportedScrolling = false
-    }
 }
 
 /// A view with no size placed behind the grid, so `DashboardGridProbeReference` has something in the
@@ -97,8 +62,6 @@ final class DashboardEditState: ObservableObject {
     @Published var draggingCard: DashboardCardId?
     /// Where the dragged card's top-left corner is drawn, in the grid's coordinates.
     @Published var draggedOrigin: CGPoint?
-    /// The page is scrolling (not a card being dragged): the wiggle pauses so it stays smooth.
-    @Published var isScrolling = false
 
     let frames = DashboardFrameStore()
     let probe = DashboardGridProbeReference()
@@ -113,21 +76,10 @@ final class DashboardEditState: ObservableObject {
         guard !isEditing else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         withAnimation(.snappy(duration: 0.25)) { isEditing = true }
-        // The grid is on screen by the next pass, so the scroll view can be found then.
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.probe.observeScrolling { [weak self] scrolling in
-                // While a card is being dragged the page is moved by the drag; leave the wiggle alone.
-                guard let self, self.draggingCard == nil else { return }
-                self.isScrolling = scrolling
-            }
-        }
     }
 
     func exit() {
         cancelDrag()
-        probe.stopObservingScrolling()
-        isScrolling = false
         withAnimation(.snappy(duration: 0.25)) { isEditing = false }
     }
 
@@ -276,149 +228,89 @@ struct DashboardDragSurface: UIViewRepresentable {
 }
 
 
-private struct DashboardIsEditingKey: EnvironmentKey {
-    static let defaultValue = false
-}
-
-extension EnvironmentValues {
-    /// True inside a Today card while the page is being edited. A card is drawn as a flat picture then
-    /// (so it wiggles smoothly), and a flat picture can't hold a text field.
-    var dashboardIsEditing: Bool {
-        get { self[DashboardIsEditingKey.self] }
-        set { self[DashboardIsEditingKey.self] = newValue }
-    }
-}
-
-/// The "Add a note" field on the Notes card: a real text field normally, and the same look as plain
-/// text while the page is being edited.
-struct DashboardNoteField: View {
-    @Binding var text: String
-    let font: Font
-    let onSubmit: () -> Void
-
-    @Environment(\.dashboardIsEditing) private var isEditing
-
-    var body: some View {
-        if isEditing {
-            Text(text.isEmpty ? "Add a note" : text)
-                .font(font)
-                .foregroundStyle(text.isEmpty ? HubTheme.muted : .primary)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        } else {
-            TextField("Add a note", text: $text)
-                .textFieldStyle(.plain)
-                .font(font)
-                .submitLabel(.done)
-                .onSubmit(onSubmit)
-        }
-    }
-}
-
 // MARK: - Card chrome while editing
 
-/// What a card gets while the page is being edited: it wiggles, its own buttons stop working, a minus
+/// What a card gets while the page is being edited: a dashed outline, its own buttons stop working, a minus
 /// takes it off, a size button changes its size, and a press-and-drag moves it.
 private struct DashboardEditChrome: ViewModifier {
     let card: DashboardCardId
     let size: DashboardCardSize
     let cornerRadius: CGFloat
-    let wiggleSeed: Int
     let isDragging: Bool
-    /// The page is being scrolled: the cards hold still so the scrolling stays smooth.
-    let isScrolling: Bool
     let onDragChanged: (CGPoint) -> Void
     let onDragEnded: () -> Void
     let onResize: () -> Void
     let onRemove: () -> Void
     let onMove: (Int) -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var wiggle = false
-
     private var canResize: Bool { card.allowedSizes.count > 1 }
 
-    /// Alternate cards lean the opposite way, so neighbours never move in step.
-    private var wiggleSign: Double { wiggleSeed.isMultiple(of: 2) ? 1 : -1 }
+    private var outline: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .stroke(
+                HubTheme.accentText.opacity(isDragging ? 0.9 : 0.35),
+                style: StrokeStyle(lineWidth: isDragging ? 2 : 1.5, dash: isDragging ? [] : [6, 5])
+            )
+            .allowsHitTesting(false)
+    }
 
-    /// Every card starts its wiggle the same way: put it at one end with no animation, then make one
-    /// change that the repeating animation picks up. (Starting some cards by setting the value to true
-    /// and others to false, in the same update as the animation was attached, started two animations on
-    /// every other card, and those ones stuttered.)
-    private func restartWiggle() {
-        var transaction = Transaction()
-        transaction.disablesAnimations = true
-        withTransaction(transaction) { wiggle = false }
-        DispatchQueue.main.async { wiggle = true }
+    /// The surface that takes the touch. It is a UIKit long-press recognizer, not a SwiftUI gesture,
+    /// because UIKit already knows how to share a touch with the scroll view: moving before the hold is
+    /// over scrolls the page, holding still lifts the card.
+    private var dragSurface: some View {
+        DashboardDragSurface(onChanged: onDragChanged, onEnded: onDragEnded)
+    }
+
+    @ViewBuilder
+    private var resizeButton: some View {
+        if canResize {
+            Button(action: onResize) {
+                HStack(spacing: 5) {
+                    Text(size.label)
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .accessibilityHidden(true)
+                }
+                .font(.caption.weight(.bold))
+                .foregroundStyle(HubTheme.onAccent)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(HubTheme.accent, in: Capsule())
+                .minimumTapTarget()
+            }
+            .buttonStyle(.plain)
+            .padding(8)
+            .accessibilityLabel("Resize \(card.label)")
+            .accessibilityValue(size.label)
+        }
+    }
+
+    private var removeButton: some View {
+        Button(action: onRemove) {
+            Image(systemName: "minus")
+                .font(.caption.weight(.heavy))
+                .foregroundStyle(HubTheme.onFill)
+                .frame(width: 26, height: 26)
+                .background(HubTheme.coral, in: Circle())
+                .overlay(Circle().stroke(HubTheme.canvas, lineWidth: 2))
+                .minimumTapTarget()
+        }
+        .buttonStyle(.plain)
+        .offset(x: -8, y: -8)
+        .accessibilityLabel("Remove \(card.label)")
     }
 
     func body(content: Content) -> some View {
         content
-            .environment(\.dashboardIsEditing, true)
-            // Flattened to one picture, so wiggling turns a picture instead of redrawing every row, ring
-            // and photo of the card on every frame.
-            .drawingGroup()
             .allowsHitTesting(false)
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(HubTheme.accentText.opacity(isDragging ? 0.9 : 0.35), style: StrokeStyle(lineWidth: isDragging ? 2 : 1.5, dash: isDragging ? [] : [6, 5]))
-                    .allowsHitTesting(false)
-            }
-            .overlay {
-                // The surface that takes the touch. It is a UIKit long-press recognizer, not a SwiftUI
-                // gesture, because UIKit already knows how to share a touch with the scroll view: moving
-                // before the hold is over scrolls the page, holding still lifts the card.
-                DashboardDragSurface(
-                    onChanged: onDragChanged,
-                    onEnded: onDragEnded
-                )
-            }
-            .overlay(alignment: .bottomTrailing) {
-                if canResize {
-                    Button(action: onResize) {
-                        HStack(spacing: 5) {
-                            Text(size.label)
-                            Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                .accessibilityHidden(true)
-                        }
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(HubTheme.onAccent)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(HubTheme.accent, in: Capsule())
-                        .minimumTapTarget()
-                    }
-                    .buttonStyle(.plain)
-                    .padding(8)
-                    .accessibilityLabel("Resize \(card.label)")
-                    .accessibilityValue(size.label)
-                }
-            }
-            .overlay(alignment: .topLeading) {
-                Button(action: onRemove) {
-                    Image(systemName: "minus")
-                        .font(.caption.weight(.heavy))
-                        .foregroundStyle(HubTheme.onFill)
-                        .frame(width: 26, height: 26)
-                        .background(HubTheme.coral, in: Circle())
-                        .overlay(Circle().stroke(HubTheme.canvas, lineWidth: 2))
-                        .minimumTapTarget()
-                }
-                .buttonStyle(.plain)
-                .offset(x: -8, y: -8)
-                .accessibilityLabel("Remove \(card.label)")
-            }
-            .rotationEffect(.degrees(isDragging || isScrolling || reduceMotion ? 0 : (wiggle ? 1.2 : -1.2) * wiggleSign))
+            .overlay { outline }
+            .overlay { dragSurface }
+            .overlay(alignment: .bottomTrailing) { resizeButton }
+            .overlay(alignment: .topLeading) { removeButton }
             .scaleEffect(isDragging ? 1.04 : 1)
             .shadow(color: .black.opacity(isDragging ? 0.28 : 0), radius: isDragging ? 14 : 0, y: isDragging ? 8 : 0)
-            .zIndex(isDragging ? 10 : 0)
             .animation(.snappy(duration: 0.2), value: isDragging)
-            .animation(reduceMotion || isScrolling ? nil : .easeInOut(duration: 0.17 + Double(wiggleSeed % 4) * 0.02).repeatForever(autoreverses: true), value: wiggle)
-            .onAppear(perform: restartWiggle)
-            // The wiggle holds still while a card is lifted or the page scrolls; it starts again after.
-            .onChange(of: isDragging) { _, dragging in if !dragging { restartWiggle() } }
-            .onChange(of: isScrolling) { _, scrolling in if !scrolling { restartWiggle() } }
-            .accessibilityElement(children: .ignore)
+            .zIndex(isDragging ? 10 : 0)
+        .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(card.label) card")
             .accessibilityValue(size.label)
             .accessibilityHint("Press and hold, then drag to move it.")
@@ -430,17 +322,15 @@ private struct DashboardEditChrome: ViewModifier {
 }
 
 extension View {
-    /// Wraps a Today card in the wiggle-mode controls when `isEditing`, and otherwise lets a long press
+    /// Wraps a Today card in the edit-mode controls when `isEditing`, and otherwise lets a long press
     /// start editing. See `DashboardEditChrome`.
     @ViewBuilder
     func dashboardEditable(
         card: DashboardCardId,
         size: DashboardCardSize,
         cornerRadius: CGFloat,
-        wiggleSeed: Int,
         isEditing: Bool,
         isDragging: Bool,
-        isScrolling: Bool,
         onBeginEditing: @escaping () -> Void,
         onDragChanged: @escaping (CGPoint) -> Void,
         onDragEnded: @escaping () -> Void,
@@ -453,9 +343,7 @@ extension View {
                 card: card,
                 size: size,
                 cornerRadius: cornerRadius,
-                wiggleSeed: wiggleSeed,
                 isDragging: isDragging,
-                isScrolling: isScrolling,
                 onDragChanged: onDragChanged,
                 onDragEnded: onDragEnded,
                 onResize: onResize,

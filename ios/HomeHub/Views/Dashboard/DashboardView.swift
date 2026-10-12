@@ -7,7 +7,7 @@ struct DashboardView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     private static let gridMinimumWidth: CGFloat = 520
     @State private var compactNavigationPath = NavigationPath()
-    /// Rearranging the cards on the page itself (the wiggle mode); see DashboardEditing.swift.
+    /// Rearranging the cards on the page itself (edit mode); see DashboardEditing.swift.
     @StateObject private var edit = DashboardEditState()
     @State private var layoutSaveTask: Task<Void, Never>?
     /// The moment the day-dependent parts (header date, birthday banner) were last drawn for. It is
@@ -141,7 +141,7 @@ struct DashboardView: View {
                             dragged: edit.draggingCard,
                             draggedOrigin: edit.draggedOrigin
                         ) {
-                            ForEach(Array(tileCards.enumerated()), id: \.element) { index, card in
+                            ForEach(tileCards) { card in
                                 let size = card.clamped(cardSizes[card, default: .small])
                                 CompactDashboardTile(
                                     card: card,
@@ -154,10 +154,8 @@ struct DashboardView: View {
                                     card: card,
                                     size: size,
                                     cornerRadius: 18,
-                                    wiggleSeed: index,
                                     isEditing: edit.isEditing,
                                     isDragging: edit.draggingCard == card,
-                                    isScrolling: edit.isScrolling,
                                     onBeginEditing: { edit.enter() },
                                     onDragChanged: { edit.dragChanged(card, locationInWindow: $0, order: tileCards) },
                                     onDragEnded: endDrag,
@@ -340,7 +338,7 @@ struct DashboardView: View {
                                     dragged: edit.draggingCard,
                                     draggedOrigin: edit.draggedOrigin
                                 ) {
-                                    ForEach(Array(cards.enumerated()), id: \.element) { index, card in
+                                    ForEach(cards) { card in
                                         let size = card.clamped(layout.cardSizes[card, default: .small])
                                         dashboardCard(
                                             card,
@@ -355,10 +353,8 @@ struct DashboardView: View {
                                             card: card,
                                             size: size,
                                             cornerRadius: 24,
-                                            wiggleSeed: index,
                                             isEditing: edit.isEditing,
                                             isDragging: edit.draggingCard == card,
-                                    isScrolling: edit.isScrolling,
                                             onBeginEditing: { edit.enter() },
                                             onDragChanged: { edit.dragChanged(card, locationInWindow: $0, order: cards) },
                                             onDragEnded: endDrag,
@@ -760,31 +756,10 @@ private struct CompactMetric: View {
                 .foregroundStyle(HubTheme.muted)
                 .lineLimit(1)
             if let progress {
-                // Drawn here rather than with ProgressView, whose bar is a UIKit control that goes missing
-                // when the tile is flattened to a picture for the wiggle.
-                CompactProgressBar(value: min(max(progress, 0), 1))
+                ProgressView(value: min(max(progress, 0), 1))
+                    .tint(HubTheme.accentText)
             }
         }
-    }
-}
-
-/// A thin progress bar like the system's, drawn with plain shapes.
-private struct CompactProgressBar: View {
-    let value: Double
-
-    var body: some View {
-        Capsule()
-            .fill(Color(.systemFill))
-            .frame(height: 4)
-            .overlay(alignment: .leading) {
-                GeometryReader { proxy in
-                    Capsule()
-                        .fill(HubTheme.accentText)
-                        .frame(width: max(4, proxy.size.width * value))
-                }
-            }
-            .accessibilityElement()
-            .accessibilityValue("\(Int((value * 100).rounded())) percent")
     }
 }
 
@@ -1368,11 +1343,15 @@ private struct CompactNotesSummary: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                DashboardNoteField(text: $draft, font: .caption.weight(.semibold)) { Task { await addNote() } }
+                TextField("Add a note", text: $draft)
+                    .textFieldStyle(.plain)
+                    .font(.caption.weight(.semibold))
                     .padding(.horizontal, 9)
                     .padding(.vertical, 7)
                     .background(HubTheme.tileQuiet)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .submitLabel(.done)
+                    .onSubmit { Task { await addNote() } }
 
                 Button {
                     Task { await addNote() }
@@ -2609,11 +2588,17 @@ private struct NotesDashboardPanel: View {
     var body: some View {
         VStack(spacing: 10) {
             HStack(spacing: 8) {
-                DashboardNoteField(text: $draft, font: .subheadline.weight(.semibold)) { Task { await addNote() } }
+                TextField("Add a note", text: $draft)
+                    .textFieldStyle(.plain)
+                    .font(.subheadline.weight(.semibold))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                     .background(HubTheme.tileQuiet)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .submitLabel(.done)
+                    .onSubmit {
+                        Task { await addNote() }
+                    }
 
                 Button {
                     Task { await addNote() }
