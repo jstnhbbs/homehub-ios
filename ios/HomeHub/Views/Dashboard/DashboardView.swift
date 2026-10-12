@@ -492,9 +492,10 @@ struct DashboardView: View {
     }
 }
 
-/// The next thing with a time on it, across calendar events and chores (see `NextUpSummary`), at the top of
-/// Today on iPhone. When nothing has a time the banner doesn't appear at all rather than spend space saying
-/// so. Routines have no times, so they are not here; the Routines card says what is next for them.
+/// "Coming Up", at the top of Today on iPhone: the few timed things that are pressing across calendar events
+/// and chores (see `NextUpSummary`). It is the one place that looks across everything, so it stays out of the
+/// way (no space at all) until something is on now, missed, or about to start, and then lists that and what
+/// follows it. Routines have no times, so they are not here; the Routines card says what is next for them.
 private struct CompactNextUpPanel: View {
     @EnvironmentObject private var appState: AppState
     let dashboard: DashboardData
@@ -503,8 +504,8 @@ private struct CompactNextUpPanel: View {
 
     @State private var now = Date.now
 
-    private var item: NextUpItem? {
-        NextUpSummary.next(
+    private var items: [NextUpItem] {
+        NextUpSummary.upcoming(
             chores: enabledCards.contains(.chores) ? dashboard.chores : [],
             events: enabledCards.contains(.schedule) && appState.nativeCalendar.hasFullAccess ? appState.nativeTodayScheduleEvents : [],
             profiles: dashboard.profiles,
@@ -515,39 +516,22 @@ private struct CompactNextUpPanel: View {
     }
 
     var body: some View {
-        if let item {
-            Button {
-                onNavigate(item.kind == .event ? .calendar : .chores)
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: item.kind == .event ? "calendar" : "checkmark.square.fill")
-                        .font(.title3.weight(.bold))
+        let items = items
+        Group {
+            if !items.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Coming Up")
+                        .font(.caption.weight(.heavy))
                         .foregroundStyle(HubTheme.accentText)
-                        .frame(width: 38, height: 38)
-                        .background(HubTheme.sage.opacity(0.14))
-                        .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(item.eyebrow)
-                            .font(.caption2.weight(.heavy))
-                            .foregroundStyle(HubTheme.accentText)
-                        Text(item.title)
-                            .font(.headline.weight(.bold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(2)
-                        Text(item.detail)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(HubTheme.muted)
-                            .lineLimit(1)
+                        .padding(.horizontal, 4)
+                        .accessibilityAddTraits(.isHeader)
+                    ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                        if index > 0 { Divider().overlay(HubTheme.line) }
+                        row(item)
                     }
-
-                    Spacer(minLength: 0)
-
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(HubTheme.muted)
                 }
-                .padding(14)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(HubTheme.tile)
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -555,9 +539,59 @@ private struct CompactNextUpPanel: View {
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
                         .stroke(HubTheme.sage.opacity(0.3), lineWidth: 1)
                 )
+                .transition(.opacity)
             }
-            .buttonStyle(.plain)
-            .onTick(every: 60) { now = Date() }
+        }
+        .animation(.snappy(duration: 0.2), value: items)
+        .onTick(every: 60) { now = Date() }
+    }
+
+    private func row(_ item: NextUpItem) -> some View {
+        Button {
+            onNavigate(item.kind == .event ? .calendar : .chores)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: item.kind == .event ? "calendar" : "checkmark.square.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(HubTheme.accentText)
+                    .frame(width: 30, height: 30)
+                    .background(HubTheme.sage.opacity(0.14))
+                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(item.title)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Text(item.detail)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(HubTheme.muted)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 8)
+
+                Text(item.status)
+                    .font(.caption.weight(.heavy))
+                    .foregroundStyle(statusColor(item.urgency))
+                    .lineLimit(1)
+            }
+            .padding(.vertical, 4)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(item.title), \(item.detail), \(item.status)")
+        .accessibilityHint(item.kind == .event ? "Open Calendar" : "Open Chores")
+    }
+
+    private func statusColor(_ urgency: NextUpItem.Urgency) -> Color {
+        switch urgency {
+        case .now: HubTheme.accentText
+        case .soon: HubTheme.muted
+        case .overdue: HubTheme.coral
         }
     }
 }
