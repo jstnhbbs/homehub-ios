@@ -41,6 +41,7 @@ struct DashboardGridProbe: UIViewRepresentable {
     /// do when the hold succeeds.
     var isEditing = false
     var onPressAndHold: () -> Void = {}
+    var onPressEnded: () -> Void = {}
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -57,6 +58,7 @@ struct DashboardGridProbe: UIViewRepresentable {
         reference.view = view
         context.coordinator.isEditing = isEditing
         context.coordinator.onPressAndHold = onPressAndHold
+        context.coordinator.onPressEnded = onPressEnded
         // The scroll view may not have been above the probe yet when it joined the window.
         context.coordinator.attach()
     }
@@ -71,6 +73,8 @@ struct DashboardGridProbe: UIViewRepresentable {
         fileprivate weak var probe: UIView?
         var isEditing = false
         var onPressAndHold: () -> Void = {}
+        var onPressEnded: () -> Void = {}
+        private var didBegin = false
         private weak var attachedTo: UIScrollView?
         private let recognizer = UILongPressGestureRecognizer()
 
@@ -106,7 +110,35 @@ struct DashboardGridProbe: UIViewRepresentable {
         }
 
         @objc private func handle(_ recognizer: UILongPressGestureRecognizer) {
-            if recognizer.state == .began { onPressAndHold() }
+            switch recognizer.state {
+            case .began:
+                didBegin = true
+                cancelTouchesOnCards(under: recognizer)
+                onPressAndHold()
+            case .ended, .cancelled, .failed:
+                if didBegin { onPressEnded() }
+                didBegin = false
+            default:
+                break
+            }
+        }
+
+        /// The hold has won, so whatever the card under the finger was about to do with this touch (a button
+        /// tap, a check-off) must not happen. UIKit does not do that for SwiftUI's own gesture recognizers, so
+        /// every one on the views from the touched one up is switched off and on again, which cancels what it
+        /// was tracking and nothing after. The scroll view's own recognizers (its pan, this hold) are left alone.
+        private func cancelTouchesOnCards(under recognizer: UIGestureRecognizer) {
+            guard let scroll = attachedTo else { return }
+            var view = scroll.hitTest(recognizer.location(in: scroll), with: nil)
+            while let current = view {
+                if current !== scroll {
+                    for other in current.gestureRecognizers ?? [] where other !== recognizer && other.isEnabled {
+                        other.isEnabled = false
+                        other.isEnabled = true
+                    }
+                }
+                view = current.superview
+            }
         }
 
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
@@ -165,6 +197,14 @@ final class DashboardEditState: ObservableObject {
     private var lastSwap = Date.distantPast
     private var autoscrollTimer: Timer?
     private var currentOrder: [DashboardCardId] = []
+
+    /// While a press-and-hold is down, and for a moment after it lifts, taps on cards are ignored: lifting the
+    /// finger after the hold starts editing can still be delivered to the card's own button, and would open its
+    /// page just as editing begins. A plain property, not published, so it costs no redraw.
+    private var tapsSuppressedUntil = Date.distantPast
+    var tapsSuppressed: Bool { Date() < tapsSuppressedUntil }
+    func pressBegan() { tapsSuppressedUntil = .distantFuture }
+    func pressEnded() { tapsSuppressedUntil = Date().addingTimeInterval(0.5) }
 
     func enter() {
         guard !isEditing else { return }

@@ -161,7 +161,7 @@ struct DashboardView: View {
                                 .layoutValue(key: DashboardCardKey.self, value: card)
                             }
                         }
-                        .background(DashboardGridProbe(reference: edit.probe, isEditing: edit.isEditing, onPressAndHold: { edit.enter() }))
+                        .background(DashboardGridProbe(reference: edit.probe, isEditing: edit.isEditing, onPressAndHold: { edit.pressBegan(); edit.enter() }, onPressEnded: { edit.pressEnded() }))
 
                         if !edit.isEditing {
                             DashboardCustomizeButton(action: toggleEditing)
@@ -248,6 +248,8 @@ struct DashboardView: View {
     }
 
     private func openDestination(_ destination: HubDestination) {
+        // The finger lifting after a press-and-hold has just started editing is not a tap on the card.
+        guard !edit.tapsSuppressed else { return }
         if horizontalSizeClass == .compact {
             if destination == .dashboard {
                 compactNavigationPath = NavigationPath()
@@ -348,7 +350,7 @@ struct DashboardView: View {
                                         .layoutValue(key: DashboardCardKey.self, value: card)
                                     }
                                 }
-                                .background(DashboardGridProbe(reference: edit.probe, isEditing: edit.isEditing, onPressAndHold: { edit.enter() }))
+                                .background(DashboardGridProbe(reference: edit.probe, isEditing: edit.isEditing, onPressAndHold: { edit.pressBegan(); edit.enter() }, onPressEnded: { edit.pressEnded() }))
                             }
 
                             if edit.isEditing {
