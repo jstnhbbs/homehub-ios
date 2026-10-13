@@ -428,7 +428,7 @@ final class AppState: ObservableObject {
         let session = auth.sessionVersion
         let userId = currentUser?.id
         nativeReminders.refreshAccessStatus()
-        guard nativeReminders.hasFullAccess, nativeReminders.selectedListId != nil else {
+        guard groceriesUseNativeReminders else {
             nativeGroceryItems = []
             return
         }
@@ -478,9 +478,12 @@ final class AppState: ObservableObject {
         await refreshDashboard()
     }
 
-    /// True when grocery writes should go to the device Reminders list instead of the API.
+    /// True when grocery writes should go to the device Reminders list instead of the API. Allowing Reminders access
+    /// on the Groceries page is what opts in, and with no list chosen the device's default list is used, so this
+    /// is the permission alone; it used to also need a stored list, which the Groceries page did not, and after a
+    /// reinstall (iOS keeps the permission, the app forgets the list) Today and Groceries showed different lists.
     var groceriesUseNativeReminders: Bool {
-        nativeReminders.hasFullAccess && nativeReminders.selectedListId != nil
+        nativeReminders.hasFullAccess
     }
 
     /// Routes to Reminders or the API depending on the household's grocery source. This

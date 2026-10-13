@@ -14,7 +14,7 @@ struct GroceriesTodayCard: View {
     var fixedHeight: CGFloat?
 
     private var usesReminders: Bool {
-        appState.nativeReminders.hasFullAccess && appState.nativeReminders.selectedListId != nil
+        appState.groceriesUseNativeReminders
     }
 
     private var summary: GroceryCardSummary {
