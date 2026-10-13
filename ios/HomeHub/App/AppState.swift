@@ -101,6 +101,10 @@ final class AppState: ObservableObject {
     private var lastDeviceRefreshAt: Date?
     private var hubModulesSaveVersion = 0
     private var pendingHubModulesSave: HubModules?
+    /// The last layout request in line. Saves are sent one at a time, in the order they were made: each carries the
+    /// whole layout, so two in flight at once could reach the server the other way round and the older one
+    /// would win, undoing the newer choice there while this device kept showing it until the next launch.
+    private var hubModulesRequestTail: Task<Void, Never>?
     private var locallySavedHubModules: HubModules?
     private var dashboardRequestVersion = 0
     private var householdRequestVersion = 0
@@ -532,7 +536,7 @@ final class AppState: ObservableObject {
         }
         do {
             guard isCurrentSession(session, userId: userId) else { return }
-            let savedModules = try await api.saveHubModules(modules)
+            let savedModules = try await sendHubModules(modules, version: saveVersion)
             if isCurrentSession(session, userId: userId), saveVersion == hubModulesSaveVersion {
                 pendingHubModulesSave = nil
                 applyHubModules(savedModules == modules ? savedModules : modules)
@@ -546,6 +550,24 @@ final class AppState: ObservableObject {
                 }
             }
         }
+    }
+
+    /// Sends `modules` after every earlier layout request has finished. A request that a newer save has already
+    /// replaced is not sent at all (the newer one carries the whole layout). The request is its own task, so
+    /// cancelling whoever asked does not cut it off half way and leave the server's copy unknown.
+    private func sendHubModules(_ modules: HubModules, version: Int) async throws -> HubModules {
+        let previous = hubModulesRequestTail
+        let request = Task<Result<HubModules, Error>, Never> { @MainActor in
+            await previous?.value
+            guard version == self.hubModulesSaveVersion else { return .success(modules) }
+            do {
+                return .success(try await self.api.saveHubModules(modules))
+            } catch {
+                return .failure(error)
+            }
+        }
+        hubModulesRequestTail = Task { _ = await request.value }
+        return try await request.value.get()
     }
 
     private func normalizeNavigation() {

@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 @MainActor
@@ -19,9 +20,16 @@ final class SnacksViewModel: ObservableObject {
     @Published var successMessage: String?
 
     private var appState: AppState?
+    private var dashboardSubscription: AnyCancellable?
 
     func bind(to appState: AppState) {
         self.appState = appState
+        // Follow every later dashboard (the one that arrives after midnight, or after another device changed
+        // something) so the page's day and what it shows do not stay as they were when it opened; a tap on a
+        // snack is recorded for `localDate`.
+        dashboardSubscription = appState.$dashboard
+            .compactMap { $0 }
+            .sink { [weak self] dashboard in self?.apply(dashboard) }
     }
 
     var canManage: Bool {
@@ -52,10 +60,15 @@ final class SnacksViewModel: ObservableObject {
         await appState.refreshDashboard()
         guard let dashboard = appState.dashboard else { return }
 
+        apply(dashboard)
+    }
+
+    /// Shows `dashboard`: the snacks, who has had them, and which day it is.
+    private func apply(_ dashboard: DashboardData) {
         syncFromDashboard(dashboard)
         localDate = dashboard.localDate
 
-        if let timezone = appState.household.flatMap({ TimeZone(identifier: $0.timezone) }) {
+        if let timezone = appState?.household.flatMap({ TimeZone(identifier: $0.timezone) }) {
             dateLabel = DateHelpers.formatLocalDate(dashboard.localDate, timezone: timezone, style: .full)
         } else {
             dateLabel = dashboard.localDate

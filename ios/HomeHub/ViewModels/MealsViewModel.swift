@@ -16,6 +16,10 @@ final class MealsViewModel: ObservableObject {
     private var recipeDetails: [String: Recipe] = [:]
     private var saveVersions: [MealSlotRef: Int] = [:]
     private var inFlightSaves = 0
+    /// A week's meals arrived while a save was still in flight (or changed under it), so they were thrown away
+    /// rather than overwrite the unconfirmed edit. They are fetched again when the last save finishes; without
+    /// this, switching weeks right after an edit left the new week blank until the next pull to refresh.
+    private var needsReloadAfterSaves = false
     private var mealRevision = 0
     private var dashboardRefreshTask: Task<Void, Never>?
 
@@ -119,8 +123,15 @@ final class MealsViewModel: ObservableObject {
             }
             // Ignore a response for a week the user has already navigated away from, and
             // never overwrite edits that have not been confirmed yet.
-            guard requestedOffset == weekOffset, inFlightSaves == 0,
-                  requestedRevision == mealRevision else { return }
+            guard requestedOffset == weekOffset else { return }
+            guard inFlightSaves == 0, requestedRevision == mealRevision else {
+                if inFlightSaves == 0 {
+                    Task { await load() }
+                } else {
+                    needsReloadAfterSaves = true
+                }
+                return
+            }
             meals = fetchedMeals
         } catch {
             if let message = error.userFacingMessage {
@@ -173,10 +184,7 @@ final class MealsViewModel: ObservableObject {
         )
 
         inFlightSaves += 1
-        defer {
-            inFlightSaves -= 1
-            mealRevision += 1
-        }
+        defer { finishSave() }
         do {
             try await appState.api.saveMeal(
                 SaveMealRequest(
@@ -198,6 +206,16 @@ final class MealsViewModel: ObservableObject {
         }
     }
 
+    /// Called when a save ends, however it ended.
+    private func finishSave() {
+        inFlightSaves -= 1
+        mealRevision += 1
+        if inFlightSaves == 0, needsReloadAfterSaves {
+            needsReloadAfterSaves = false
+            Task { await load() }
+        }
+    }
+
     func clearMeal(_ ref: MealSlotRef) async {
         await setMeal(localDate: ref.localDate, slot: ref.slot, title: "")
     }
@@ -214,11 +232,8 @@ final class MealsViewModel: ObservableObject {
         errorMessage = nil
         defer {
             isWorking = false
-            inFlightSaves -= 1
-            mealRevision += 1
-            if weekStart != requestedWeek {
-                Task { await load() }
-            }
+            if weekStart != requestedWeek { needsReloadAfterSaves = true }
+            finishSave()
         }
         do {
             let response = try await appState.api.moveMeal(
