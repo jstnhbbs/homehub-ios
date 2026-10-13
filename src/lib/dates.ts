@@ -32,6 +32,25 @@ export function weekDates(
   return Array.from({ length: 7 }, (_, index) => addDays(start, index));
 }
 
+/**
+ * The seven calendar dates ("yyyy-MM-dd") of the week that contains `localDate`, starting on `weekStartsOn`
+ * (0 is Sunday). It only does arithmetic on the date itself, so it gives the same answer whatever time zone
+ * the server runs in; going through an instant (noon in the household's zone) and then asking the server's
+ * zone which week that falls in was wrong for zones far from UTC (Auckland, Fiji, Kiritimati).
+ */
+export function weekOfLocalDate(
+  localDate: string,
+  weekStartsOn: Day = DEFAULT_WEEK_STARTS_ON,
+): string[] {
+  const [year, month, day] = localDate.split("-").map(Number);
+  const anchor = Date.UTC(year, month - 1, day);
+  const weekday = new Date(anchor).getUTCDay();
+  const back = (weekday - weekStartsOn + 7) % 7;
+  return Array.from({ length: 7 }, (_, index) =>
+    new Date(anchor + (index - back) * 86_400_000).toISOString().slice(0, 10),
+  );
+}
+
 export function weekKey(date = new Date()) {
   return `${format(date, "RRRR")}-W${String(getISOWeek(date)).padStart(2, "0")}`;
 }

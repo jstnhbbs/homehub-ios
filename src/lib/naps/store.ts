@@ -1,11 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, gte, isNull, lte, ne, or } from "drizzle-orm";
-import { format } from "date-fns";
-import { fromZonedTime } from "date-fns-tz";
 import { db } from "@/db/client";
 import { napLogs, profiles, type SleepKind } from "@/db/schema";
 import { parseWeekStartsOn } from "@/lib/calendar/week-start";
-import { localDateIn, weekDates } from "@/lib/dates";
+import { localDateIn, weekOfLocalDate } from "@/lib/dates";
 import { addLocalDays } from "@/lib/naps/datetime";
 import { sleepOverlapsLocalDate } from "@/lib/naps/overlap";
 import type { getCurrentHousehold } from "@/lib/household";
@@ -199,11 +197,7 @@ export async function fetchSleepForDate(household: Household, localDate: string)
 export async function fetchNapPageData(household: Household) {
   const localDate = localDateIn(household.timezone);
   const weekStartsOn = parseWeekStartsOn(household.weekStartsOn);
-  const weekDays = weekDates(
-    fromZonedTime(`${localDate}T12:00:00`, household.timezone),
-    weekStartsOn,
-  );
-  const weekDatesList = weekDays.map((day) => format(day, "yyyy-MM-dd"));
+  const weekDatesList = weekOfLocalDate(localDate, weekStartsOn);
   const weekStart = weekDatesList[0];
   const weekEnd = weekDatesList[6];
 

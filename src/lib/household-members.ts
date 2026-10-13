@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { householdMembers } from "@/db/schema";
 import {
@@ -41,15 +41,26 @@ export async function updateHouseholdMemberRole(input: {
     return target.role;
   }
 
-  await db
+  // Demoting an owner re-checks, inside the update itself, that another owner is left. The check above runs on
+  // a list read a moment earlier, so two owners demoting each other at the same time both passed it and left the
+  // household with none; a single statement is run on its own, so the second one sees the first one's result.
+  const demotingOwner = target.role === "owner" && input.nextRole !== "owner";
+  const updated = await db
     .update(householdMembers)
     .set({ role: input.nextRole })
     .where(
       and(
         eq(householdMembers.householdId, input.householdId),
         eq(householdMembers.userId, input.targetUserId),
+        demotingOwner
+          ? sql`(select count(*) from household_members as owners where owners.household_id = ${input.householdId} and owners.role = 'owner') > 1`
+          : undefined,
       ),
-    );
+    )
+    .returning({ userId: householdMembers.userId });
+  if (demotingOwner && updated.length === 0) {
+    throw new Error("The household needs at least one owner.");
+  }
 
   return input.nextRole;
 }
