@@ -35,6 +35,10 @@ check("a finished event is gone", strip(events: [event("Breakfast", at(8))]), []
 check("all-day events have no next", strip(events: [event("Holiday", at(0), minutes: 1440, allDay: true)]), [])
 check("a chore with no time has no next", strip(chores: [chore("Sweep", time: nil)]), [])
 
+check("a long event already underway stays out", strip(events: [event("Work", at(9), minutes: 480)]), [])
+check("a long event about to start still shows", strip(events: [event("Work", at(12, 30), minutes: 480)]), ["in 30 min | Work | 12:30 PM – 8:30 PM"])
+check("a long event underway does not hide what is coming", strip(events: [event("Work", at(9), minutes: 480), event("Soccer", at(12, 30))]), ["in 30 min | Soccer | 12:30 PM – 1:30 PM"])
+
 // Once it shows, what comes later is listed too, in time order.
 check("what comes after rides along", strip(events: [event("Reading", at(11, 45), minutes: 60), event("Lunch", at(13, 30)), event("Soccer", at(16))]),
       ["Now | Reading | 11:45 AM – 12:45 PM", "in 1 hr 30 min | Lunch | 1:30 PM – 2:30 PM", "at 4:00 PM | Soccer | 4:00 PM – 5:00 PM"])

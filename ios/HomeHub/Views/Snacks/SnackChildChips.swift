@@ -106,6 +106,8 @@ struct SnackChildChips: View {
             .frame(width: chipSize, height: chipSize)
             .opacity(working.contains(child.id) ? 0.6 : 1)
             .contentShape(Circle())
+            // The circles are smaller than a finger, so the touch area grows to 44 pt without moving anything.
+            .minimumTapTarget()
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(child.name), \(snack)")

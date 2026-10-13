@@ -380,6 +380,8 @@ struct WeatherHeaderReadout: View {
                     Label("Weather", systemImage: "location.circle")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(HubTheme.muted)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Show local weather")

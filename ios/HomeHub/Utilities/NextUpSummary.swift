@@ -24,6 +24,8 @@ struct NextUpItem: Equatable {
 enum NextUpSummary {
     /// How close something has to be for the strip to appear at all.
     static let leadMinutes = 60
+    /// An event longer than this that has already started stays out of the strip.
+    static let backgroundEventLength: TimeInterval = 4 * 3600
     /// How many lines the strip shows.
     static let maxItems = 3
 
@@ -62,6 +64,9 @@ enum NextUpSummary {
         var all: [Candidate] = []
         for event in events where !event.allDay && event.endsAt > now {
             let isOn = event.startsAt <= now
+            // Something long that is already underway (a work block, a day at a fair) is the backdrop to the day,
+            // not something to be reminded of; it would hold the strip open from morning to night.
+            if isOn, event.endsAt.timeIntervalSince(event.startsAt) > backgroundEventLength { continue }
             all.append(Candidate(
                 start: event.startsAt,
                 isEvent: true,

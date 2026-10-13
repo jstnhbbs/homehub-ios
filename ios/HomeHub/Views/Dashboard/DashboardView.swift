@@ -217,30 +217,42 @@ struct DashboardView: View {
     }
 
     private func compactHeader(dashboard: DashboardData) -> some View {
-        HStack(spacing: 12) {
-            HouseholdMarkView(
-                name: dashboard.household.name,
-                photo: dashboard.household.photo,
-                ownerName: dashboard.household.ownerName,
-                size: 42
-            )
+        let mark = HouseholdMarkView(
+            name: dashboard.household.name,
+            photo: dashboard.household.photo,
+            ownerName: dashboard.household.ownerName,
+            size: 42
+        )
+        let title = VStack(alignment: .leading, spacing: 1) {
+            Text(clock.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                .font(.caption.weight(.bold))
+                .foregroundStyle(HubTheme.muted)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                .minimumScaleFactor(0.6)
+            Text("Today")
+                .font(.title2.weight(.bold))
+        }
+        // Combine scoped to the title block: the weather readout is separately
+        // focusable, and can be a button when location hasn't been granted.
+        .accessibilityElement(children: .combine)
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text(clock.formatted(.dateTime.weekday(.wide).month(.wide).day()))
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(HubTheme.muted)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                Text("Today")
-                    .font(.title2.weight(.bold))
+        // Side by side while they fit; at the largest text sizes the weather drops under the title instead of
+        // squeezing it ("Weath-er", a date cut to "Monday, Octobe…").
+        return ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                mark
+                title
+                Spacer(minLength: 8)
+                WeatherHeaderReadout()
             }
-            // Combine scoped to the title block: the weather readout is separately
-            // focusable, and can be a button when location hasn't been granted.
-            .accessibilityElement(children: .combine)
-
-            Spacer(minLength: 8)
-
-            WeatherHeaderReadout()
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    mark
+                    title
+                    Spacer(minLength: 0)
+                }
+                WeatherHeaderReadout()
+            }
         }
     }
 

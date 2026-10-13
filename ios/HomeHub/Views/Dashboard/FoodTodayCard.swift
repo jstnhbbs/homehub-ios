@@ -6,6 +6,7 @@ import SwiftUI
 /// for the rest of the week. The wording and the days come from `FoodCardSummary`.
 struct FoodTodayCard: View {
     @Environment(\.openHubDestination) private var openHubDestination
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let dashboard: DashboardData
     let size: DashboardCardSize
@@ -102,8 +103,9 @@ struct FoodTodayCard: View {
     private func meals(maxColumns: Int, byRelevance: Bool) -> some View {
         WholeRowsGrid(
             items: todayTiles(byRelevance: byRelevance),
-            minimumColumnWidth: 125,
-            maxColumns: maxColumns,
+            minimumColumnWidth: DashboardMetrics.scaled(125),
+            // One column at the largest text sizes, where a slot's label and dish no longer fit side by side.
+            maxColumns: dynamicTypeSize.isAccessibilitySize ? 1 : maxColumns,
             itemHeight: { tile, columnWidth in MealSlotRow.height(for: tile.meal, columnWidth: columnWidth) },
             onMore: { openHubDestination(.meals) }
         ) { tile, _ in
