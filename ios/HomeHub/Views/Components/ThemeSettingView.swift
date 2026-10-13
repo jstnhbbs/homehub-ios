@@ -28,7 +28,21 @@ private struct MiniPage: View {
     /// switched (the colors it uses do not announce that themselves).
     var usesTrueBlack: Bool
 
+    /// The size the tile is drawn at; it is scaled to whatever room it is given.
+    private static let designWidth: CGFloat = 64
+
     var body: some View {
+        GeometryReader { geo in
+            let scale = max(0.1, geo.size.width / Self.designWidth)
+            page
+                .frame(width: Self.designWidth, height: geo.size.height / scale)
+                .scaleEffect(scale, anchor: .topLeading)
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var page: some View {
         ZStack(alignment: .topLeading) {
             HubTheme.canvas
             VStack(alignment: .leading, spacing: 6) {
@@ -103,7 +117,7 @@ private struct ChoiceTile<Preview: View>: View {
                     .font(.caption.weight(isSelected ? .bold : .regular))
                     .foregroundStyle(isSelected ? Color.primary : HubTheme.muted)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+                    .minimumScaleFactor(0.6)
             }
             .contentShape(Rectangle())
         }
@@ -167,8 +181,10 @@ private struct ThemeColorGrid: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Theme Color")
+            // Always five across, so the ten colors are two even rows on every device; the previews grow or
+            // shrink to fit the width (see `MiniPage`) instead of the grid changing its column count.
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: DashboardMetrics.scaled(56)), spacing: 10, alignment: .top)],
+                columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: 5),
                 alignment: .leading,
                 spacing: 12
             ) {
@@ -185,6 +201,8 @@ private struct ThemeColorGrid: View {
                     }
                 }
             }
+            // A very wide page (an iPad) would otherwise make each preview huge.
+            .frame(maxWidth: 5 * 130 + 4 * 10, alignment: .leading)
         }
         .padding(.vertical, 4)
     }
