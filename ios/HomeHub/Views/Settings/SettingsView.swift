@@ -1526,9 +1526,7 @@ private struct HubModulesSettingView: View {
             }
             .onChange(of: editingTarget) { _, _ in loadSavedDefault() }
             .onChange(of: appState.hubModules) { _, newValue in
-                if !isSaving {
-                    modules = newValue
-                }
+                modules = newValue
             }
     }
 
@@ -1885,9 +1883,8 @@ private struct HubModulesSettingView: View {
         let next = modules.movingSidebarModule(module, by: offset)
         guard next != modules else { return }
         withAnimation(.snappy(duration: 0.22)) {
-            modules = next
+            updateModules(next)
         }
-        updateModules(next)
     }
 
     /// Accessibility move. Operates on the visible list so a step never lands on the
@@ -1901,20 +1898,21 @@ private struct HubModulesSettingView: View {
         let next = applyingLayoutOrder(visible)
         guard next != modules else { return }
         withAnimation(.snappy(duration: 0.22)) {
-            modules = next
+            updateModules(next)
         }
-        updateModules(next)
     }
 
     @MainActor
     private func updateModules(_ next: HubModules) {
+        let edited = HubModulesPatch(from: modules, to: next).applying(to: appState.hubModules)
         saveTask?.cancel()
         isSaving = true
-        modules = next
-        appState.applyHubModules(next)
+        modules = edited
+        let request = appState.saveHubModules(edited)
         saveTask = Task { @MainActor in
-            await appState.saveHubModules(next)
+            await request.value
             guard !Task.isCancelled else { return }
+            modules = appState.hubModules
             isSaving = false
         }
     }

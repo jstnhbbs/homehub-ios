@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, or, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { householdMembers } from "@/db/schema";
 import {
@@ -25,9 +25,11 @@ export async function updateHouseholdMemberRole(input: {
   if (!target) {
     throw new Error("Member not found.");
   }
+  const actor = members.find((member) => member.userId === input.actorUserId);
+  if (!actor) throw new Error("You do not have permission to do that.");
 
   const decision = evaluateMemberRoleChange({
-    actorRole: input.actorRole,
+    actorRole: actor.role,
     actorUserId: input.actorUserId,
     targetUserId: input.targetUserId,
     targetRole: target.role,
@@ -41,10 +43,8 @@ export async function updateHouseholdMemberRole(input: {
     return target.role;
   }
 
-  // Demoting an owner re-checks, inside the update itself, that another owner is left. The check above runs on
-  // a list read a moment earlier, so two owners demoting each other at the same time both passed it and left the
-  // household with none; a single statement is run on its own, so the second one sees the first one's result.
-  const demotingOwner = target.role === "owner" && input.nextRole !== "owner";
+  // Both roles may change after the read. Enforce permission and the last-owner invariant on the rows
+  // as they are when this statement runs, including a target promoted since the read.
   const updated = await db
     .update(householdMembers)
     .set({ role: input.nextRole })
@@ -52,14 +52,21 @@ export async function updateHouseholdMemberRole(input: {
       and(
         eq(householdMembers.householdId, input.householdId),
         eq(householdMembers.userId, input.targetUserId),
-        demotingOwner
-          ? sql`(select count(*) from household_members as owners where owners.household_id = ${input.householdId} and owners.role = 'owner') > 1`
+        sql`exists (select 1 from household_members as actor
+          where actor.household_id = ${input.householdId} and actor.user_id = ${input.actorUserId}
+          and (actor.role = 'owner' or
+            (actor.role = 'parent' and ${householdMembers.role} != 'owner' and ${input.nextRole} != 'owner')))`,
+        input.nextRole !== "owner"
+          ? or(
+              ne(householdMembers.role, "owner"),
+              sql`(select count(*) from household_members as owners where owners.household_id = ${input.householdId} and owners.role = 'owner') > 1`,
+            )
           : undefined,
       ),
     )
     .returning({ userId: householdMembers.userId });
-  if (demotingOwner && updated.length === 0) {
-    throw new Error("The household needs at least one owner.");
+  if (updated.length === 0) {
+    throw new Error("Member roles changed or the household needs at least one owner. Refresh and try again.");
   }
 
   return input.nextRole;

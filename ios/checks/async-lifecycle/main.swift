@@ -115,6 +115,23 @@ func run() async {
     await cleared.value
     check("a queued old plan is discarded on logout", !obsoleteRan)
 
+    let updateGate = AsyncCallbackWaiters<Void>()
+    var updating = false
+    var activityStarted = false
+    let staleSync = Task {
+        await queue.schedule { isCurrent in
+            updating = true
+            try? await updateGate.wait(timeout: .seconds(2), timeoutError: TestError.timeout)
+            if isCurrent() { activityStarted = true }
+        }
+    }
+    await until { updating }
+    let activityCleanup = queue.reset { activityStarted = false }
+    updateGate.resolve(.success(()))
+    await staleSync.value
+    await activityCleanup.value
+    check("a Live Activity update cannot restart sleep after session cleanup", !activityStarted)
+
     weak var releasedQueue: NotificationWorkQueue?
     do {
         let temporaryQueue = NotificationWorkQueue()

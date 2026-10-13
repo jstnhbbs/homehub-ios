@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const dir = mkdtempSync(path.join(tmpdir(), "beacon-members-"));
 process.env.TURSO_DATABASE_URL = `file:${path.join(dir, "test.db")}`;
@@ -88,5 +88,39 @@ describe("changing a member's role", () => {
     expect(
       await updateHouseholdMemberRole({ householdId: "h-guest", actorUserId: a, actorRole: "owner", targetUserId: c, nextRole: "guest" }),
     ).toBe("guest");
+  });
+
+  it("refuses a delayed demotion after the target becomes the sole owner", async () => {
+    const { db } = await import("@/db/client");
+    const { householdMembers } = await import("@/db/schema");
+    const { eq } = await import("drizzle-orm");
+    const { updateHouseholdMemberRole: change } = await import("./household-members");
+    const [a, b] = await setup("h-promoted", ["owner", "parent"]);
+    const snapshot = await db.select({ userId: householdMembers.userId, role: householdMembers.role })
+      .from(householdMembers).where(eq(householdMembers.householdId, "h-promoted"));
+    let release!: () => void;
+    let started!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const read = new Promise<void>((resolve) => { started = resolve; });
+    const spy = vi.spyOn(db, "select").mockReturnValueOnce({
+      from: () => ({ where: async () => { started(); await gate; return snapshot; } }),
+    } as never);
+    const delayed = change({ householdId: "h-promoted", actorUserId: a, actorRole: "owner", targetUserId: b, nextRole: "guest" });
+    const result = delayed.then(() => null, (error: Error) => error);
+    await read;
+    await change({ householdId: "h-promoted", actorUserId: a, actorRole: "owner", targetUserId: b, nextRole: "owner" });
+    await change({ householdId: "h-promoted", actorUserId: b, actorRole: "owner", targetUserId: a, nextRole: "parent" });
+    release();
+    expect(await result).toBeInstanceOf(Error);
+    expect(await ownersOf("h-promoted")).toBe(1);
+    spy.mockRestore();
+  });
+
+  it("does not trust an actor role captured before their access was removed", async () => {
+    const { updateHouseholdMemberRole } = await import("./household-members");
+    const [a, b] = await setup("h-stale-actor", ["guest", "owner"]);
+    await expect(updateHouseholdMemberRole({ householdId: "h-stale-actor", actorUserId: a,
+      actorRole: "owner", targetUserId: b, nextRole: "guest" })).rejects.toThrow("permission");
+    expect(await ownersOf("h-stale-actor")).toBe(1);
   });
 });

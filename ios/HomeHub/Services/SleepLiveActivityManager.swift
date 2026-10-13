@@ -10,7 +10,15 @@ import Foundation
 /// another device appears here the next time the app refreshes.
 @MainActor
 enum SleepLiveActivityManager {
+    private static let workQueue = NotificationWorkQueue()
+
     static func sync(logs: [NapLog], children: [Profile]) async {
+        await workQueue.schedule { isCurrent in
+            await apply(logs: logs, children: children, isCurrent: isCurrent)
+        }
+    }
+
+    private static func apply(logs: [NapLog], children: [Profile], isCurrent: @MainActor () -> Bool) async {
         var wanted: [String: (log: NapLog, child: Profile)] = [:]
         for child in children {
             if let log = NapHelpers.activeSleep(for: child.id, in: logs) {
@@ -18,10 +26,9 @@ enum SleepLiveActivityManager {
             }
         }
 
-        // Update or end what already exists. Awaits happen here, before the start step below, so no
-        // other sync can slip in between reading the running activities and requesting new ones.
         var seen = Set<String>()
         for activity in Activity<SleepActivityAttributes>.activities {
+            guard isCurrent() else { return }
             let id = activity.attributes.sleepId
             guard let entry = wanted[id], seen.insert(id).inserted else {
                 await activity.end(nil, dismissalPolicy: .immediate)
@@ -32,9 +39,10 @@ enum SleepLiveActivityManager {
             }
         }
 
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        guard isCurrent(), ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         let running = Set(Activity<SleepActivityAttributes>.activities.map(\.attributes.sleepId))
         for (id, entry) in wanted where !running.contains(id) {
+            guard isCurrent() else { return }
             let attributes = SleepActivityAttributes(
                 sleepId: id,
                 profileId: entry.child.id,
@@ -51,8 +59,15 @@ enum SleepLiveActivityManager {
     }
 
     static func endAll() async {
-        for activity in Activity<SleepActivityAttributes>.activities {
-            await activity.end(nil, dismissalPolicy: .immediate)
+        await clearSessionActivities().value
+    }
+
+    /// Invalidate in-flight syncs immediately, then end activities after their OS writes finish.
+    static func clearSessionActivities() -> Task<Void, Never> {
+        workQueue.reset {
+            for activity in Activity<SleepActivityAttributes>.activities {
+                await activity.end(nil, dismissalPolicy: .immediate)
+            }
         }
     }
 }

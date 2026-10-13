@@ -43,6 +43,7 @@ struct SnacksView: View {
         .onAppear { viewModel.bind(to: appState) }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
+        .onTick(every: 30) { viewModel.updateDay() }
         .onChange(of: viewModel.editingSnack) { _, snack in
             focusedField = snack == nil ? nil : .edit
         }

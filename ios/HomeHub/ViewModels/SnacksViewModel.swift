@@ -21,6 +21,11 @@ final class SnacksViewModel: ObservableObject {
 
     private var appState: AppState?
     private var dashboardSubscription: AnyCancellable?
+    private let now: () -> Date
+
+    init(now: @escaping () -> Date = { .now }) {
+        self.now = now
+    }
 
     func bind(to appState: AppState) {
         self.appState = appState
@@ -66,19 +71,25 @@ final class SnacksViewModel: ObservableObject {
     /// Shows `dashboard`: the snacks, who has had them, and which day it is.
     private func apply(_ dashboard: DashboardData) {
         syncFromDashboard(dashboard)
-        localDate = dashboard.localDate
+    }
 
-        if let timezone = appState?.household.flatMap({ TimeZone(identifier: $0.timezone) }) {
-            dateLabel = DateHelpers.formatLocalDate(dashboard.localDate, timezone: timezone, style: .full)
-        } else {
-            dateLabel = dashboard.localDate
+    /// The clock, not the last successful network refresh, decides which day a tap belongs to.
+    func updateDay() {
+        let timezone = appState?.household.flatMap { TimeZone(identifier: $0.timezone) } ?? .current
+        let today = DateHelpers.localDateIn(timezone: timezone, date: now())
+        if localDate != today {
+            localDate = today
+            eaten = []
+            records = []
         }
+        dateLabel = DateHelpers.formatLocalDate(today, timezone: timezone, style: .full)
     }
 
     private func syncFromDashboard(_ dashboard: DashboardData) {
+        updateDay()
         snackOptions = dashboard.snackOptions
-        eaten = Set(dashboard.snackEaten)
-        records = dashboard.snackCompletions
+        eaten = dashboard.localDate == localDate ? Set(dashboard.snackEaten) : []
+        records = dashboard.localDate == localDate ? dashboard.snackCompletions : []
         tracksPerChild = dashboard.snacksPerChild
         children = NapHelpers.childProfiles(from: dashboard.profiles)
     }
@@ -109,8 +120,11 @@ final class SnacksViewModel: ObservableObject {
     /// state to leave it in (eaten or not); nil flips it.
     func toggleSnack(_ label: String, profileId: String? = nil, completed: Bool? = nil) async {
         guard let appState else { return }
+        let displayedDate = localDate
+        updateDay()
+        let wanted = displayedDate == localDate ? completed : true
         do {
-            try await appState.toggleSnack(localDate: localDate, label: label, profileId: profileId, completed: completed)
+            try await appState.toggleSnack(localDate: localDate, label: label, profileId: profileId, completed: wanted)
             // Prefer the refreshed server state; fall back to a local flip if the
             // dashboard isn't loaded for some reason.
             if let dashboard = appState.dashboard {
@@ -129,6 +143,7 @@ final class SnacksViewModel: ObservableObject {
 
     func resetChecklist() async {
         guard let appState else { return }
+        updateDay()
         isWorking = true
         errorMessage = nil
         successMessage = nil

@@ -117,6 +117,8 @@ ios/checks/dashboard-row-helpers/run.sh
 sh ios/checks/async-lifecycle/run.sh
 sh ios/checks/routines-refresh/run.sh
 sh ios/checks/remote-image-state/run.sh
+sh ios/checks/hub-modules-patch/run.sh
+sh ios/checks/view-model-races/run.sh
 sh ios/checks/local-store/run.sh
 ios/checks/notification-diff/run.sh
 ```
@@ -125,5 +127,11 @@ The local-store checks use a temporary SwiftData disk store. Add `--benchmark` t
 compare equal dashboard refreshes with the previous fetch-and-write-every-time
 path. The cache keeps its snapshot in memory and writes only changed data; saves
 remain synchronous so sign-out cannot race with a delayed write.
+
+The layout-patch checks verify that edits leave another device's preferences alone.
+The view-model race checks run the actual Snacks and Meals view models against
+stand-in services, covering midnight without a network refresh, bulk actions
+waiting for saves, and sign-out while waiting. Backend layout races and current-role
+ownership guards are covered by `hub-modules-store.test.ts` and `household-members.test.ts`.
 
 iOS (after opening in Xcode): **Product → Build** (⌘B), then run on iPhone and iPad simulators. Landscape remains recommended for a dedicated shared iPad display.

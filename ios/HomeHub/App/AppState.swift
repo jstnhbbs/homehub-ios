@@ -100,17 +100,15 @@ final class AppState: ObservableObject {
     private var eventKitRefreshTask: Task<Void, Never>?
     private var lastDeviceRefreshAt: Date?
     private var hubModulesSaveVersion = 0
-    private var pendingHubModulesSave: HubModules?
-    /// The last layout request in line. Saves are sent one at a time, in the order they were made: each carries the
-    /// whole layout, so two in flight at once could reach the server the other way round and the older one
-    /// would win, undoing the newer choice there while this device kept showing it until the next launch.
+    private var acknowledgedHubModulesVersion = 0
+    private var pendingHubModulesPatches: [Int: HubModulesPatch] = [:]
+    /// Serialized writes carry only pending edits, so superseded tasks cannot overwrite another device's layout.
     private var hubModulesRequestTail: Task<Void, Never>?
-    private var locallySavedHubModules: HubModules?
     private var dashboardRequestVersion = 0
     private var householdRequestVersion = 0
 
-    private func isCurrentSession(_ version: Int, userId: String?) -> Bool {
-        !Task.isCancelled && auth.isSignedIn
+    private func isCurrentSession(_ version: Int, userId: String?, includingCancelledWork: Bool = false) -> Bool {
+        (includingCancelledWork || !Task.isCancelled) && auth.isSignedIn
             && auth.sessionVersion == version && currentUser?.id == userId
     }
 
@@ -249,7 +247,6 @@ final class AppState: ObservableObject {
             isBootstrapping = false
             await notificationCleanup.value
             guard endedSession == auth.sessionVersion else { return }
-            await SleepLiveActivityManager.endAll()
             return
         }
 
@@ -306,7 +303,6 @@ final class AppState: ObservableObject {
         let notificationCleanup = clearSignedInState()
         await notificationCleanup.value
         guard endedSession == auth.sessionVersion else { return }
-        await SleepLiveActivityManager.endAll()
         showNotice("You were signed out. Please sign in again.")
     }
 
@@ -523,30 +519,40 @@ final class AppState: ObservableObject {
         normalizeNavigation()
     }
 
-    func saveHubModules(_ modules: HubModules) async {
-        guard auth.isSignedIn else { return }
+    @discardableResult
+    func saveHubModules(_ modules: HubModules) -> Task<Void, Never> {
+        guard auth.isSignedIn else { return Task {} }
+        let patch = HubModulesPatch(from: hubModules, to: modules)
+        guard !patch.isEmpty else { return Task {} }
         let session = auth.sessionVersion
         let userId = currentUser?.id
         hubModulesSaveVersion += 1
         let saveVersion = hubModulesSaveVersion
-        pendingHubModulesSave = modules
-        locallySavedHubModules = modules
+        pendingHubModulesPatches[saveVersion] = patch
         let birthdaysWereEnabled = hubModules.isEnabled(.birthdays)
         applyHubModules(modules)
+        return Task {
+            await persistHubModules(version: saveVersion, session: session, userId: userId,
+                                    rescheduleBirthdays: birthdaysWereEnabled != modules.isEnabled(.birthdays))
+        }
+    }
+
+    private func persistHubModules(version: Int, session: Int, userId: String?, rescheduleBirthdays: Bool) async {
         // The Birthdays module also gates birthday reminders, so re-plan them when it flips.
-        if birthdaysWereEnabled != modules.isEnabled(.birthdays) {
+        if rescheduleBirthdays, isCurrentSession(session, userId: userId, includingCancelledWork: true) {
             await rescheduleNativeNotifications()
         }
         do {
-            guard isCurrentSession(session, userId: userId) else { return }
-            let savedModules = try await sendHubModules(modules, version: saveVersion)
-            if isCurrentSession(session, userId: userId), saveVersion == hubModulesSaveVersion {
-                pendingHubModulesSave = nil
-                applyHubModules(savedModules == modules ? savedModules : modules)
-            }
+            guard isCurrentSession(session, userId: userId, includingCancelledWork: true),
+                  let savedModules = try await sendHubModules(version: version, session: session, userId: userId) else { return }
+            guard isCurrentSession(session, userId: userId, includingCancelledWork: true) else { return }
+            guard version > acknowledgedHubModulesVersion else { return }
+            acknowledgedHubModulesVersion = version
+            pendingHubModulesPatches = pendingHubModulesPatches.filter { $0.key > version }
+            dashboardRequestVersion += 1
+            applyHubModules(preferredHubModules(for: savedModules))
         } catch {
-            if isCurrentSession(session, userId: userId), saveVersion == hubModulesSaveVersion {
-                pendingHubModulesSave = nil
+            if isCurrentSession(session, userId: userId, includingCancelledWork: true), version == hubModulesSaveVersion {
                 errorMessage = error.localizedDescription
                 if let message = error.userFacingMessage {
                     showNotice("Your layout change is on this device only; it couldn't be saved. \(message)")
@@ -555,16 +561,17 @@ final class AppState: ObservableObject {
         }
     }
 
-    /// Sends `modules` after every earlier layout request has finished. A request that a newer save has already
-    /// replaced is not sent at all (the newer one carries the whole layout). The request is its own task, so
-    /// cancelling whoever asked does not cut it off half way and leave the server's copy unknown.
-    private func sendHubModules(_ modules: HubModules, version: Int) async throws -> HubModules {
+    /// Newer saves include all unacknowledged edits, including ones skipped or failed earlier.
+    private func sendHubModules(version: Int, session: Int, userId: String?) async throws -> HubModules? {
         let previous = hubModulesRequestTail
-        let request = Task<Result<HubModules, Error>, Never> { @MainActor in
+        let request = Task<Result<HubModules?, Error>, Never> { @MainActor in
             await previous?.value
-            guard version == self.hubModulesSaveVersion else { return .success(modules) }
+            guard version == self.hubModulesSaveVersion,
+                  self.isCurrentSession(session, userId: userId) else { return .success(nil) }
+            let patch = self.pendingHubModulesPatches.keys.sorted().filter { $0 <= version }
+                .reduce(HubModulesPatch()) { $0.merging(self.pendingHubModulesPatches[$1] ?? HubModulesPatch()) }
             do {
-                return .success(try await self.api.saveHubModules(modules))
+                return .success(try await self.api.saveHubModules(patch))
             } catch {
                 return .failure(error)
             }
@@ -612,14 +619,13 @@ final class AppState: ObservableObject {
         let notificationCleanup = clearSignedInState()
         await auth.signOut()
         await notificationCleanup.value
-        guard !auth.isSignedIn else { return }
-        await SleepLiveActivityManager.endAll()
     }
 
     /// Everything that belongs to the signed-in person, for sign-out and for an ended session.
     @discardableResult
     private func clearSignedInState() -> Task<Void, Never> {
         let notificationCleanup = nativeNotifications.clearSessionReminders()
+        let activityCleanup = SleepLiveActivityManager.clearSessionActivities()
         _ = NotificationResponder.takePendingDestination()
         dashboardRequestVersion += 1
         householdRequestVersion += 1
@@ -631,15 +637,18 @@ final class AppState: ObservableObject {
         household = nil
         dashboard = nil
         hubModules = .defaults
-        pendingHubModulesSave = nil
-        locallySavedHubModules = nil
+        pendingHubModulesPatches = [:]
+        acknowledgedHubModulesVersion = 0
         setHasAnniversaries(false)
         localStore.clear()
         lastDeviceRefreshAt = nil
         pendingProfileEditId = nil
         pendingFoodSection = nil
         selectedDestination = .dashboard
-        return notificationCleanup
+        return Task {
+            await notificationCleanup.value
+            await activityCleanup.value
+        }
     }
 
     private func hydrateFromLocalStore() {
@@ -655,20 +664,9 @@ final class AppState: ObservableObject {
     }
 
     private func preferredHubModules(for incoming: HubModules) -> HubModules {
-        if let pendingHubModulesSave {
-            return pendingHubModulesSave
+        pendingHubModulesPatches.keys.sorted().reduce(incoming) {
+            pendingHubModulesPatches[$1]?.applying(to: $0) ?? $0
         }
-
-        guard let locallySavedHubModules else {
-            return incoming
-        }
-
-        if incoming == locallySavedHubModules {
-            self.locallySavedHubModules = nil
-            return incoming
-        }
-
-        return locallySavedHubModules
     }
 
     private func observeEventKitChanges() {

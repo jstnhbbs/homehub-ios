@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 @MainActor
 final class MealsViewModel: ObservableObject {
@@ -16,6 +17,7 @@ final class MealsViewModel: ObservableObject {
     private var recipeDetails: [String: Recipe] = [:]
     private var saveVersions: [MealSlotRef: Int] = [:]
     private var inFlightSaves = 0
+    private var saveWaiters: [CheckedContinuation<Void, Never>] = []
     /// A week's meals arrived while a save was still in flight (or changed under it), so they were thrown away
     /// rather than overwrite the unconfirmed edit. They are fetched again when the last save finishes; without
     /// this, switching weeks right after an edit left the new week blank until the next pull to refresh.
@@ -210,6 +212,11 @@ final class MealsViewModel: ObservableObject {
     private func finishSave() {
         inFlightSaves -= 1
         mealRevision += 1
+        if inFlightSaves == 0 {
+            let waiters = saveWaiters
+            saveWaiters = []
+            for waiter in waiters { waiter.resume() }
+        }
         if inFlightSaves == 0, needsReloadAfterSaves {
             needsReloadAfterSaves = false
             Task { await load() }
@@ -272,11 +279,16 @@ final class MealsViewModel: ObservableObject {
     }
 
     func copyPreviousWeek() async {
-        guard let appState else { return }
+        guard let appState, canManage, !isWorking else { return }
+        let session = appState.auth.sessionVersion
+        let requestedWeek = weekStart
         isWorking = true
         defer { isWorking = false }
+        await waitForPendingSaves()
+        guard !Task.isCancelled, session == appState.auth.sessionVersion, canManage else { return }
+        mealRevision += 1
         do {
-            try await appState.api.copyPreviousMealWeek(weekStart: weekStart)
+            try await appState.api.copyPreviousMealWeek(weekStart: requestedWeek)
             await load()
             await appState.refreshDashboard()
         } catch {
@@ -287,17 +299,28 @@ final class MealsViewModel: ObservableObject {
     }
 
     func clearWeek() async {
-        guard let appState else { return }
+        guard let appState, canManage, !isWorking else { return }
+        let session = appState.auth.sessionVersion
+        let requestedWeek = weekStart
         isWorking = true
         defer { isWorking = false }
+        await waitForPendingSaves()
+        guard !Task.isCancelled, session == appState.auth.sessionVersion, canManage else { return }
+        mealRevision += 1
         do {
-            try await appState.api.clearMealWeek(weekStart: weekStart)
+            try await appState.api.clearMealWeek(weekStart: requestedWeek)
             await load()
             await appState.refreshDashboard()
         } catch {
             if let message = error.userFacingMessage {
                 errorMessage = message
             }
+        }
+    }
+
+    private func waitForPendingSaves() async {
+        while inFlightSaves > 0 {
+            await withCheckedContinuation { saveWaiters.append($0) }
         }
     }
 

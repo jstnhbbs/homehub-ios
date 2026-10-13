@@ -442,9 +442,8 @@ struct DashboardView: View {
     /// Applies and saves a layout change right away, like every other switch in Settings.
     private func commitLayout(_ next: HubModules) {
         guard next != appState.hubModules else { return }
-        appState.applyHubModules(next)
         layoutSaveTask?.cancel()
-        layoutSaveTask = Task { await appState.saveHubModules(next) }
+        layoutSaveTask = appState.saveHubModules(next)
     }
 
     private func setSize(_ card: DashboardCardId, _ requested: DashboardCardSize) {

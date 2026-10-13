@@ -141,8 +141,8 @@ final class HomeHubAPI: ObservableObject {
 
     // MARK: - Hub modules
 
-    func saveHubModules(_ modules: HubModules) async throws -> HubModules {
-        try await client.request("/api/mobile/v1/hub-modules", method: "PATCH", body: modules)
+    func saveHubModules(_ patch: HubModulesPatch) async throws -> HubModules {
+        try await client.request("/api/mobile/v1/hub-modules", method: "PATCH", body: patch)
     }
 
     // MARK: - Routines
