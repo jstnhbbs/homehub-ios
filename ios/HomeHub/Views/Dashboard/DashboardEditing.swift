@@ -542,6 +542,7 @@ private struct DashboardEditChrome: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .environment(\.dashboardCardIsEditing, true)
             .allowsHitTesting(false)
             .overlay { outline }
             .overlay { dragSurface }

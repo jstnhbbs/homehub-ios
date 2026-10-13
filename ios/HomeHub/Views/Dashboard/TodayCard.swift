@@ -157,8 +157,22 @@ extension DashboardCardId {
 
 /// A Small card's body: one button that opens the card's page, so a glance is also a way in. Small never
 /// does anything else; actions start at Medium.
+/// Set by a card's edit chrome while the Today page is being edited, so a card can leave room for the size button
+/// that sits over its bottom-right corner.
+private struct DashboardCardIsEditingKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var dashboardCardIsEditing: Bool {
+        get { self[DashboardCardIsEditingKey.self] }
+        set { self[DashboardCardIsEditingKey.self] = newValue }
+    }
+}
+
 struct TodayCardSmallBody<Content: View>: View {
     @Environment(\.openHubDestination) private var openHubDestination
+    @Environment(\.dashboardCardIsEditing) private var isEditing
 
     let card: DashboardCardId
     /// What tapping does when it should be more than opening the card's page.
@@ -175,6 +189,9 @@ struct TodayCardSmallBody<Content: View>: View {
         } label: {
             content()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                // While editing, the size button covers the bottom-right corner, where a progress bar or a row
+                // of avatars sits; this lifts the content clear of it.
+                .padding(.bottom, isEditing && card.allowedSizes.count > 1 ? DashboardMetrics.scaled(26, .subheadline) : 0)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

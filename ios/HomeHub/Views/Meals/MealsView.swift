@@ -495,6 +495,8 @@ struct MealsView: View {
 
     // MARK: - iPad: week grid
 
+    private static let gridDayColumnWidth: CGFloat = 96 + 10
+
     private var weeklyGrid: some View {
         HubCard {
             ScrollView {
@@ -553,7 +555,9 @@ struct MealsView: View {
 
     private var mealHeaderRow: some View {
         HStack(spacing: 0) {
-            Color.clear.frame(width: 96, height: 1)
+            // The day header is 96 wide plus 10 of leading padding; the same here so the headings sit over
+            // their columns.
+            Color.clear.frame(width: Self.gridDayColumnWidth, height: 1)
 
             ForEach(MealSlot.planningSlots, id: \.self) { slot in
                 Text(slot.label.uppercased())

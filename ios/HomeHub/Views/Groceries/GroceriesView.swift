@@ -254,10 +254,15 @@ private struct GroceryItemRow: View {
                         .foregroundStyle(item.checked ? HubTheme.muted : .primary)
                         .strikethrough(item.checked, color: HubTheme.muted)
                         .lineLimit(2)
-                    Text(item.quantity ?? item.category)
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(HubTheme.muted)
-                        .lineLimit(1)
+                    // No second line when there is nothing to say: an empty one still takes its height and
+                    // left the title sitting above the circle's center.
+                    let detail = (item.quantity ?? item.category).trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !detail.isEmpty {
+                        Text(detail)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(HubTheme.muted)
+                            .lineLimit(1)
+                    }
                 }
                 Spacer(minLength: 0)
             }
