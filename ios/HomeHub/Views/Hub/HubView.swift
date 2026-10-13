@@ -91,6 +91,14 @@ struct HubView: View {
                             )
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                             .padding(24)
+                            // Settings is a grouped list, which sits on the grouped-list page color. Painted only
+                            // behind the list it showed as a grey rectangle inset in the white page (with hard
+                            // edges, and a 900 pt strip on a wide iPad), so the whole area takes the color.
+                            .background {
+                                if appState.selectedDestination == .settings {
+                                    HubTheme.canvas.ignoresSafeArea(edges: [.bottom, .trailing])
+                                }
+                            }
                     }
                 }
                 .background(HubTheme.surface)

@@ -239,10 +239,13 @@ final class AppState: ObservableObject {
             auth.endSessionLocally()
             let endedSession = auth.sessionVersion
             let notificationCleanup = clearSignedInState()
+            // Show the sign-in screen now. The cleanup below talks to the notification center and Live Activities,
+            // and if either is slow to answer (a fresh simulator, a busy phone) the app sat on a spinner until it
+            // did.
+            isBootstrapping = false
             await notificationCleanup.value
             guard endedSession == auth.sessionVersion else { return }
             await SleepLiveActivityManager.endAll()
-            isBootstrapping = false
             return
         }
 
