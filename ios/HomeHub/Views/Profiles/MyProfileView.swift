@@ -32,6 +32,7 @@ struct MyProfileView: View {
                             Spacer()
                         }
                     }
+                    .listRowBackground(HubTheme.tile)
                 } else if let account = viewModel.account {
                     accountSection(account)
                     if account.profile != nil {
@@ -47,6 +48,7 @@ struct MyProfileView: View {
                             Task { await appState.signOut() }
                         }
                     }
+                    .listRowBackground(HubTheme.tile)
                 }
 
                 if viewModel.account != nil {
@@ -57,6 +59,7 @@ struct MyProfileView: View {
                     } footer: {
                         Text("Permanently removes your account. You'll be asked to confirm with your password.")
                     }
+                    .listRowBackground(HubTheme.tile)
                 }
             }
             .formStyle(.grouped)
@@ -94,12 +97,14 @@ struct MyProfileView: View {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
             }
+            .listRowBackground(HubTheme.tile)
         }
         if let success = viewModel.successMessage {
             Section {
                 Label(success, systemImage: "checkmark.circle.fill")
                     .foregroundStyle(HubTheme.accentText)
             }
+            .listRowBackground(HubTheme.tile)
         }
     }
 
@@ -130,6 +135,7 @@ struct MyProfileView: View {
                 }
                 .disabled(viewModel.isWorking || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
+            .listRowBackground(HubTheme.tile)
 
             Section("Email") {
                 LabeledContent("Current Email", value: account.user.email)
@@ -143,6 +149,7 @@ struct MyProfileView: View {
                 }
                 .disabled(viewModel.isWorking || newEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
+            .listRowBackground(HubTheme.tile)
 
             Section("Password") {
                 SecureField("Current Password", text: $currentPassword)
@@ -175,6 +182,7 @@ struct MyProfileView: View {
                 }
                 .disabled(viewModel.isWorking || currentPassword.isEmpty || newPassword.isEmpty)
             }
+            .listRowBackground(HubTheme.tile)
         }
     }
 
@@ -204,6 +212,7 @@ struct MyProfileView: View {
         } footer: {
             Text("This is how you appear on the family dashboard and calendar.")
         }
+        .listRowBackground(HubTheme.tile)
     }
 
     private func populateFields() {

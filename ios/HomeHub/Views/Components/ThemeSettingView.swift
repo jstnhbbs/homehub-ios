@@ -268,6 +268,7 @@ private struct AppIconPickerView: View {
             } header: {
                 Text("Choose an Icon")
             }
+            .listRowBackground(HubTheme.tile)
         }
         .navigationTitle("App Icon")
         .navigationBarTitleDisplayMode(.inline)

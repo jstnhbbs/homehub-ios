@@ -30,6 +30,7 @@ struct InviteCodesSection: View {
         } footer: {
             Text("Share the parent code with another parent after they create an account. The guest code is for grandparents, nannies, and other helpers. If a code goes to the wrong person, replace it: the old one stops working at once, and people already in the household stay.")
         }
+        .listRowBackground(HubTheme.tile)
         .confirmationDialog(
             confirming.map { "Replace the \($0.title.lowercased()) code?" } ?? "",
             isPresented: Binding(get: { confirming != nil }, set: { if !$0 { confirming = nil } }),

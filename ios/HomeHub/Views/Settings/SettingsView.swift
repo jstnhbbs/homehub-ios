@@ -93,12 +93,14 @@ struct SettingsView: View {
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                 }
+                .listRowBackground(HubTheme.tile)
             }
             statusMessagesSection
 
             Section {
                 settingsRow(.account)
             }
+            .listRowBackground(HubTheme.tile)
 
             Section {
                 settingsRow(.general)
@@ -106,6 +108,7 @@ struct SettingsView: View {
             } header: {
                 Text("Household")
             }
+            .listRowBackground(HubTheme.tile)
 
             Section {
                 settingsRow(.notifications)
@@ -116,6 +119,7 @@ struct SettingsView: View {
             } header: {
                 Text("Tugboat")
             }
+            .listRowBackground(HubTheme.tile)
 
             Section {
                 settingsRow(.faq)
@@ -124,6 +128,7 @@ struct SettingsView: View {
             } header: {
                 Text("Support")
             }
+            .listRowBackground(HubTheme.tile)
         }
         .scrollContentBackground(.hidden)
         .hubPageBackground()
@@ -165,7 +170,9 @@ struct SettingsView: View {
                 }
             }
             .padding(.vertical, 6)
+            .listRowBackground(HubTheme.tile)
         }
+        .listRowBackground(HubTheme.tile)
     }
 
     private var permissionsSummarySection: some View {
@@ -176,6 +183,7 @@ struct SettingsView: View {
         } footer: {
             Text("Owners and parents manage shared household setup. Guests can use the household views without changing global settings.")
         }
+        .listRowBackground(HubTheme.tile)
     }
 
     private func settingsRow(_ tab: SettingsTab) -> some View {
@@ -203,6 +211,9 @@ struct SettingsView: View {
             }
             .padding(.vertical, 5)
         }
+        // The system's default row color in dark mode is the same charcoal as this page, so the rows lost their
+        // card edges; every other list here uses the card color too.
+        .listRowBackground(HubTheme.tile)
     }
 
     private func trailingValue(for tab: SettingsTab) -> String? {
@@ -254,6 +265,7 @@ struct SettingsView: View {
             Section {
                 statusMessages
             }
+            .listRowBackground(HubTheme.tile)
         }
     }
 
@@ -327,6 +339,7 @@ struct SettingsView: View {
                     confirmingSignOut = true
                 }
             }
+            .listRowBackground(HubTheme.tile)
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
@@ -391,6 +404,7 @@ struct SettingsView: View {
         } footer: {
             Text("Used by the calendar and meal plan.")
         }
+        .listRowBackground(HubTheme.tile)
     }
 
     private func saveWeekStart(_ value: Int) async {
@@ -422,6 +436,7 @@ struct SettingsView: View {
                 } footer: {
                     Text("Shown in the top-left sidebar instead of the family-name letter.")
                 }
+                .listRowBackground(HubTheme.tile)
 
                 // The server sends empty codes to guests, who can't invite anyone.
                 if !household.inviteCode.isEmpty {
@@ -463,6 +478,7 @@ struct SettingsView: View {
             } footer: {
                 Text("Tugboat keeps your household's information on its server and uses this device for calendars, reminders, weather, and notifications.")
             }
+            .listRowBackground(HubTheme.tile)
 
             Section {
                 Button {
@@ -475,6 +491,7 @@ struct SettingsView: View {
                     Label("Refresh Now", systemImage: "arrow.clockwise")
                 }
             }
+            .listRowBackground(HubTheme.tile)
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
@@ -488,6 +505,7 @@ struct SettingsView: View {
             } header: {
                 Text("About Tugboat")
             }
+            .listRowBackground(HubTheme.tile)
 
             Section {
                 Link(destination: AppConfig.baseURL.appending(path: "privacy")) {
@@ -497,6 +515,7 @@ struct SettingsView: View {
                     Label("Terms of Service", systemImage: "doc.text.fill")
                 }
             }
+            .listRowBackground(HubTheme.tile)
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
@@ -529,6 +548,7 @@ struct SettingsView: View {
         } footer: {
             Text("Saves a JSON file with your profiles, routines, chores, meals, recipes, groceries, notes, birthdays, and sleep logs. Invite codes and email addresses are not included.")
         }
+        .listRowBackground(HubTheme.tile)
     }
 
     private func prepareExport() async {
@@ -547,6 +567,7 @@ struct SettingsView: View {
             LabeledContent("Name", value: household.name)
             LabeledContent("Time Zone", value: household.timezone)
         }
+        .listRowBackground(HubTheme.tile)
     }
 
     private var membersSection: some View {
@@ -602,6 +623,7 @@ struct SettingsView: View {
         } footer: {
             Text("Owners and parents can change another member's role. Guests can be removed with a swipe.")
         }
+        .listRowBackground(HubTheme.tile)
     }
 
     @ViewBuilder
@@ -670,6 +692,7 @@ struct SettingsView: View {
                         Spacer()
                     }
                 }
+                .listRowBackground(HubTheme.tile)
             } else if viewModel.profiles.isEmpty {
                 Section {
                     ContentUnavailableView(
@@ -678,6 +701,7 @@ struct SettingsView: View {
                         description: Text("Family profiles will appear here.")
                     )
                 }
+                .listRowBackground(HubTheme.tile)
             } else {
                 // Adults, then children, then guests; a section with nobody in it is left out.
                 if !viewModel.adultProfiles.isEmpty { profileGroup(title: "Adults", profiles: viewModel.adultProfiles) }
@@ -695,6 +719,7 @@ struct SettingsView: View {
                         Label("Add Family Member", systemImage: "plus")
                     }
                 }
+                .listRowBackground(HubTheme.tile)
             }
         }
     }
@@ -735,6 +760,7 @@ struct SettingsView: View {
                 .accessibilityLabel("Edit \(profile.name)")
             }
         }
+        .listRowBackground(HubTheme.tile)
     }
 }
 
@@ -781,6 +807,7 @@ private struct SettingsFAQView: View {
                         }
                     }
                 }
+                .listRowBackground(HubTheme.tile)
             }
         }
         .scrollContentBackground(.hidden)
@@ -918,6 +945,7 @@ private struct PrivacyAccessSettingsView: View {
             } footer: {
                 Text("These permissions apply only to this device. Tugboat does not upload calendar or reminder contents to its server.")
             }
+            .listRowBackground(HubTheme.tile)
 
             Section {
                 Button {
@@ -928,6 +956,7 @@ private struct PrivacyAccessSettingsView: View {
             } footer: {
                 Text("Use iOS Settings to restore access after a permission has been denied or to change an existing choice.")
             }
+            .listRowBackground(HubTheme.tile)
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
@@ -1295,6 +1324,7 @@ private struct NativeNotificationsSettingView: View {
             } footer: {
                 Text("Tugboat can remind this device about routines, chores, bedtime, active naps, and birthdays and anniversaries without relying on server jobs.")
             }
+            .listRowBackground(HubTheme.tile)
 
             Section("Routines") {
                 Toggle("Routine Reminders", isOn: boolBinding(\.routinesEnabled))
@@ -1302,6 +1332,7 @@ private struct NativeNotificationsSettingView: View {
                 timeRow("Afternoon", systemImage: "sun.haze.fill", minute: \.afternoonRoutineMinute)
                 timeRow("Bedtime", systemImage: "moon.fill", minute: \.eveningRoutineMinute)
             }
+            .listRowBackground(HubTheme.tile)
 
             Section {
                 Toggle("Chore Check-In", isOn: boolBinding(\.choresEnabled))
@@ -1319,6 +1350,7 @@ private struct NativeNotificationsSettingView: View {
             } footer: {
                 Text("A chore with a time reminds you by name, ahead of time if you choose. The check-in covers chores with no time. Reminders for the next few days are planned in advance, so they still arrive if you don't open the app.")
             }
+            .listRowBackground(HubTheme.tile)
 
             Section("Sleep") {
                 Toggle("Sleep Reminders", isOn: boolBinding(\.sleepEnabled))
@@ -1327,6 +1359,7 @@ private struct NativeNotificationsSettingView: View {
                     Label("Nap Check After \(service.settings.napCheckMinutes) Minutes", systemImage: "timer")
                 }
             }
+            .listRowBackground(HubTheme.tile)
 
             if appState.hubModules.isEnabled(.birthdays) {
                 Section {
@@ -1343,6 +1376,7 @@ private struct NativeNotificationsSettingView: View {
                 } footer: {
                     Text("Pick as many reminders as you like. Tugboat plans them up to 45 days ahead, so they still arrive if you don't open the app, using the household's time zone.")
                 }
+                .listRowBackground(HubTheme.tile)
             }
         }
         .formStyle(.grouped)
@@ -1653,6 +1687,7 @@ private struct HubModulesSettingView: View {
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
         }
+        .listRowBackground(HubTheme.tile)
 
         Section {
             // Weather is header chrome now, like the clock, so it isn't a card to
@@ -1691,6 +1726,7 @@ private struct HubModulesSettingView: View {
                 .foregroundStyle(HubTheme.muted)
                 .textCase(nil)
         }
+        .listRowBackground(HubTheme.tile)
 
         defaultLayoutSection
     }
@@ -1805,6 +1841,7 @@ private struct HubModulesSettingView: View {
                 .foregroundStyle(HubTheme.muted)
                 .textCase(nil)
         }
+        .listRowBackground(HubTheme.tile)
     }
 
     // The List calls these once, after the drop. It owns the interactive animation,

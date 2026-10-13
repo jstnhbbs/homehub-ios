@@ -39,18 +39,21 @@ struct CalendarSettingsView: View {
                     Spacer()
                 }
             }
+            .listRowBackground(HubTheme.tile)
         }
         if let error = viewModel.errorMessage {
             Section {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
             }
+            .listRowBackground(HubTheme.tile)
         }
         if let success = viewModel.successMessage {
             Section {
                 Label(success, systemImage: "checkmark.circle.fill")
                     .foregroundStyle(HubTheme.accentText)
             }
+            .listRowBackground(HubTheme.tile)
         }
     }
 
@@ -80,6 +83,7 @@ struct CalendarSettingsView: View {
         } footer: {
             Text("Tugboat reads Apple Calendar on this device and can write grocery items to Reminders.")
         }
+        .listRowBackground(HubTheme.tile)
     }
 
     private func accessRow(
@@ -162,6 +166,7 @@ struct CalendarSettingsView: View {
                 ? "Automatic uses this device’s default Calendar and Reminders destinations. Alerts apply to new items created in Tugboat."
                 : "Owners and parents can choose the Reminders list used for groceries. Alerts apply to new items created in Tugboat.")
         }
+        .listRowBackground(HubTheme.tile)
     }
 
     private var agendaFontSection: some View {
@@ -199,6 +204,7 @@ struct CalendarSettingsView: View {
         } footer: {
             Text("Controls event text in Day view. System size follows Dynamic Type.")
         }
+        .listRowBackground(HubTheme.tile)
     }
 
     @ViewBuilder
@@ -213,6 +219,7 @@ struct CalendarSettingsView: View {
             } header: {
                 Text("Calendars Shown in Tugboat")
             }
+            .listRowBackground(HubTheme.tile)
         } else {
             ForEach(CalendarPickerOption.groupedByAccount(viewModel.calendars), id: \.account) { group in
                 Section {
@@ -222,6 +229,7 @@ struct CalendarSettingsView: View {
                 } header: {
                     Text(group.account)
                 }
+                .listRowBackground(HubTheme.tile)
             }
 
             Section {
@@ -238,6 +246,7 @@ struct CalendarSettingsView: View {
                     Text("Changes apply as soon as you make them. Calendars that are off stay hidden in Tugboat.")
                 }
             }
+            .listRowBackground(HubTheme.tile)
         }
     }
 
