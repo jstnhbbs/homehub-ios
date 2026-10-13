@@ -18,8 +18,12 @@ groceries, notes, sleep logs, birthdays and anniversaries, with the day's schedu
 the bottom open the main pages; More has the rest and Settings.
 
 **What to look at.**
-- Today: cards for the schedule, routines (with a streak), chores, meals, snacks, sleep and groceries.
-  Tap a routine step or a chore to check it off. Tap the weather for its details.
+- Today: cards for the schedule, routines (with a streak), chores, meals, snacks, sleep, groceries, notes and
+  celebrations. Each card has a size (Small, Medium or Large): Small is a glance and opens its page when tapped;
+  Medium and Large list what is coming, so tap a routine step, a chore or a snack there to check it off. Tap
+  Customize at the end of Today (or press and hold a card) to rearrange, resize, remove or add cards, then Done.
+  A "Coming Up" strip appears at the top when an event or chore is due within the hour. Tap the weather for its
+  details.
 - Food: the weekly plan, a recipe library with tags, and snacks. Open a recipe to see sections and nutrition.
 - Sleep: start a nap or log past sleep for a child. Starting a nap shows a Live Activity on the Lock Screen
   and in the Dynamic Island.
