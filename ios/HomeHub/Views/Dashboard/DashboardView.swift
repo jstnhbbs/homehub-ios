@@ -35,9 +35,6 @@ struct DashboardView: View {
                             .hubPageBackground()
                     }
                 }
-                .environment(\.openHubDestination) { destination in
-                    openDestination(destination)
-                }
             } else {
                 GeometryReader { proxy in
                     // Under this width the page is a single column of fixed-height cards; above it, the real
@@ -67,6 +64,12 @@ struct DashboardView: View {
                         }
                 }
             }
+        }
+        // Both layouts open a card's page through `openDestination`, which ignores the tap that ends a
+        // press-and-hold. On the iPad the hub supplied its own action, which went round that, so lifting the
+        // finger after the hold opened the page there.
+        .environment(\.openHubDestination) { destination in
+            openDestination(destination)
         }
         .frame(minHeight: 480)
         .refreshable {
