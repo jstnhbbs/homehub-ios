@@ -156,11 +156,17 @@ struct DashboardView: View {
                                     isDragging: edit.draggingCard == card,
                                     drag: edit.drag,
                                     dragSpace: edit.probe,
-                                    onDragChanged: { edit.dragChanged(card, locationInGrid: $0, order: tileCards) },
+                                    onDragChanged: {
+                                        edit.dragChanged(card, locationInGrid: $0, order: tileCards) { dragged, current, proposed in
+                                            TodayLayoutEditing.allowsPhoneMove(of: dragged, from: current, to: proposed) {
+                                                $0.clamped(cardSizes[$0, default: .small]) == .small
+                                            }
+                                        }
+                                    },
                                     onDragEnded: endDrag,
                                     onSetSize: { setSize(card, $0) },
                                     onRemove: { setEnabled(card, false) },
-                                    onMove: { move(card, by: $0, within: tileCards) }
+                                    onMove: { move(card, by: $0, within: tileCards, isHalfWidth: { $0.clamped(cardSizes[$0, default: .small]) == .small }) }
                                 )
                                 .layoutValue(key: DashboardCardKey.self, value: card)
                             }
@@ -446,8 +452,13 @@ struct DashboardView: View {
     }
 
     /// The Move earlier and Move later actions, for VoiceOver and Switch Control.
-    private func move(_ card: DashboardCardId, by offset: Int, within visible: [DashboardCardId]) {
-        let next = TodayLayoutEditing.moving(card, by: offset, in: visible)
+    private func move(_ card: DashboardCardId, by offset: Int, within visible: [DashboardCardId], isHalfWidth: ((DashboardCardId) -> Bool)? = nil) {
+        var next = TodayLayoutEditing.moving(card, by: offset, in: visible)
+        // On the iPhone a full-width card steps over a pair of half-width cards rather than land between them.
+        if let isHalfWidth, !TodayLayoutEditing.allowsPhoneMove(of: card, from: visible, to: next, isHalfWidth: isHalfWidth) {
+            next = TodayLayoutEditing.moving(card, by: offset * 2, in: visible)
+            guard TodayLayoutEditing.allowsPhoneMove(of: card, from: visible, to: next, isHalfWidth: isHalfWidth) else { return }
+        }
         guard next != visible else { return }
         withAnimation(.snappy(duration: 0.2)) {
             commitLayout(appState.hubModules.arrangingDashboardCards(next, for: layoutTarget))

@@ -16,6 +16,37 @@ enum TodayLayoutEditing {
         return next
     }
 
+    /// How many half-width cards sit alone in their row, with an empty half beside them, when `order` is laid
+    /// out on the iPhone: half-width cards pair up in order, and a full-width card ends the row it arrives in,
+    /// so a half-width card waiting for a partner is left alone by it. Counts the one at the very end too.
+    static func lonelyHalfWidthCount(in order: [DashboardCardId], isHalfWidth: (DashboardCardId) -> Bool) -> Int {
+        var lonely = 0
+        var waiting = false
+        for card in order {
+            if isHalfWidth(card) {
+                waiting.toggle()
+            } else if waiting {
+                lonely += 1
+                waiting = false
+            }
+        }
+        return waiting ? lonely + 1 : lonely
+    }
+
+    /// Whether dragging `card` so the order becomes `proposed` is allowed on the iPhone. A full-width card may not
+    /// be dropped between two half-width cards that share a row, which would leave both of them alone with an empty
+    /// half beside each; it can go before the pair or after it. Half-width cards can go anywhere.
+    static func allowsPhoneMove(
+        of card: DashboardCardId,
+        from current: [DashboardCardId],
+        to proposed: [DashboardCardId],
+        isHalfWidth: (DashboardCardId) -> Bool
+    ) -> Bool {
+        guard !isHalfWidth(card) else { return true }
+        return lonelyHalfWidthCount(in: proposed, isHalfWidth: isHalfWidth)
+            <= lonelyHalfWidthCount(in: current, isHalfWidth: isHalfWidth)
+    }
+
     /// `card` moved `offset` places (negative is earlier), staying inside the list.
     static func moving(_ card: DashboardCardId, by offset: Int, in order: [DashboardCardId]) -> [DashboardCardId] {
         guard let from = order.firstIndex(of: card) else { return order }

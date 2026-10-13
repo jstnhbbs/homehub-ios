@@ -238,7 +238,14 @@ final class DashboardEditState: ObservableObject {
 
     /// Called for every movement of a finger that is dragging `card`. `order` is the order the cards
     /// are in when the drag starts.
-    func dragChanged(_ card: DashboardCardId, locationInGrid point: CGPoint, order: [DashboardCardId]) {
+    /// Says whether the dragged card may take the order a swap would give it (dragged card, the order now, the
+    /// order proposed). The iPhone uses it to keep a full-width card from being dropped between two paired
+    /// half-width cards; nil allows everything.
+    typealias MoveGuard = (DashboardCardId, [DashboardCardId], [DashboardCardId]) -> Bool
+    private var moveGuard: MoveGuard?
+
+    func dragChanged(_ card: DashboardCardId, locationInGrid point: CGPoint, order: [DashboardCardId], allowing moveGuard: MoveGuard? = nil) {
+        self.moveGuard = moveGuard
         if draggingCard != card {
             draggingCard = card
             let frame = frames.frames[card] ?? CGRect(origin: point, size: .zero)
@@ -302,6 +309,7 @@ final class DashboardEditState: ObservableObject {
             guard frame.insetBy(dx: 8, dy: 8).contains(point) else { continue }
             let next = TodayLayoutEditing.moving(card, ontoPositionOf: other, in: currentOrder)
             guard next != currentOrder else { return }
+            if let moveGuard, !moveGuard(card, currentOrder, next) { return }
             lastSwap = Date()
             lastSwapPoint = point
             currentOrder = next

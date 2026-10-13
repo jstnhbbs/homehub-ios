@@ -20,6 +20,25 @@ check("one later", names(TodayLayoutEditing.moving(.chores, by: 1, in: order)), 
 check("not past the start", names(TodayLayoutEditing.moving(.schedule, by: -1, in: order)), names(order))
 check("not past the end", names(TodayLayoutEditing.moving(.snacks, by: 1, in: order)), names(order))
 
+// The iPhone pairs half-width cards in order; a full-width card may not split a pair.
+func half(_ card: DashboardCardId) -> Bool { [.schedule, .routines, .chores, .meals, .groceries, .notes, .sleep].contains(card) }
+func lonely(_ cards: [DashboardCardId]) -> String { String(TodayLayoutEditing.lonelyHalfWidthCount(in: cards, isHalfWidth: half)) }
+func allowed(_ card: DashboardCardId, _ from: [DashboardCardId], _ to: [DashboardCardId]) -> String {
+    String(TodayLayoutEditing.allowsPhoneMove(of: card, from: from, to: to, isHalfWidth: half))
+}
+check("two pairs, none alone", lonely([.schedule, .routines, .chores, .meals]), "0")
+check("an odd one at the end is alone", lonely([.schedule, .routines, .chores]), "1")
+check("a full card leaves the waiting half alone", lonely([.schedule, .snacks, .routines, .chores]), "1")
+check("two halves split by a full card are both alone", lonely([.schedule, .snacks, .routines, .birthdays]), "2")
+check("full cards alone are fine", lonely([.snacks, .birthdays]), "0")
+let paired: [DashboardCardId] = [.schedule, .routines, .snacks, .chores, .meals]
+check("a full card may not drop between a pair", allowed(.snacks, paired, [.schedule, .snacks, .routines, .chores, .meals]), "false")
+check("it may go before the pair", allowed(.snacks, paired, [.snacks, .schedule, .routines, .chores, .meals]), "true")
+check("it may go after the pair", allowed(.snacks, [.snacks, .schedule, .routines, .chores, .meals], [.schedule, .routines, .snacks, .chores, .meals]), "true")
+check("it may not split the second pair either", allowed(.snacks, paired, [.schedule, .routines, .chores, .snacks, .meals]), "false")
+check("a half card can go between a pair", allowed(.chores, paired, [.schedule, .chores, .routines, .snacks, .meals]), "true")
+check("moving a full card never makes it worse than it was", allowed(.snacks, [.schedule, .snacks, .routines], [.schedule, .routines, .snacks]), "true")
+
 // Saving: cards that are off keep their places.
 let stored: [DashboardCardId] = [.weather, .schedule, .routines, .chores, .meals, .snacks, .sleep]
 // Routines and meals are off, so the visible cards are these four.
