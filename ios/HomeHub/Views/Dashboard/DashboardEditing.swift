@@ -257,6 +257,8 @@ final class DashboardEditState: ObservableObject {
             zoneEnteredAt = nil
             zoneEdge = 0
             lastSwapPoint = nil
+            staleCards = []
+            staleCapturePending = false
             startAutoscroll()
         }
         fingerInGrid = point
@@ -294,10 +296,23 @@ final class DashboardEditState: ObservableObject {
     /// How far the finger must travel after a swap before another is allowed.
     private static let swapTravel: CGFloat = 30
     private var lastSwapPoint: CGPoint?
+    /// Cards the reflow after a swap slid under a finger that had not moved: a swap rearranges the grid, so a
+    /// different (often much bigger) card can end up under a still finger, and swapping with it undid the move
+    /// the person had just made. Such a card is off limits until the finger has left it. `staleCapturePending`
+    /// waits for the grid to have been laid out again before taking the list.
+    private var staleCards: Set<DashboardCardId> = []
+    private var staleCapturePending = false
+    private var ownFrameAtSwap: CGRect?
 
     private func swapIfOverAnotherCard(_ card: DashboardCardId, at point: CGPoint) {
         // After a swap the cards are still sliding into place; wait for them so a card that has
         // just moved under the finger doesn't swap straight back.
+        let under = frames.frames.filter { $0.key != card && $0.value.insetBy(dx: 8, dy: 8).contains(point) }.keys
+        if staleCapturePending, frames.frames[card] != ownFrameAtSwap || Date().timeIntervalSince(lastSwap) > 0.3 {
+            staleCards = Set(under)
+            staleCapturePending = false
+        }
+        staleCards.formIntersection(under)
         guard Date().timeIntervalSince(lastSwap) > 0.22 else { return }
         // A finger inside the dragged card's own landing spot has nothing to swap with.
         if let own = frames.frames[card], own.contains(point) { return }
@@ -306,12 +321,15 @@ final class DashboardEditState: ObservableObject {
         // held card. So the next swap needs the finger to have moved on.
         if let last = lastSwapPoint, hypot(point.x - last.x, point.y - last.y) < Self.swapTravel { return }
         for (other, frame) in frames.frames where other != card {
-            guard frame.insetBy(dx: 8, dy: 8).contains(point) else { continue }
+            guard frame.insetBy(dx: 8, dy: 8).contains(point), !staleCards.contains(other) else { continue }
             let next = TodayLayoutEditing.moving(card, ontoPositionOf: other, in: currentOrder)
             guard next != currentOrder else { return }
             if let moveGuard, !moveGuard(card, currentOrder, next) { return }
             lastSwap = Date()
             lastSwapPoint = point
+            ownFrameAtSwap = frames.frames[card]
+            staleCapturePending = true
+            staleCards = []
             currentOrder = next
             UISelectionFeedbackGenerator().selectionChanged()
             withAnimation(.snappy(duration: 0.2)) { previewOrder = next }
