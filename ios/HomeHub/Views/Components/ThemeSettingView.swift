@@ -39,8 +39,18 @@ private struct MiniPage: View {
                 .scaleEffect(scale, anchor: .topLeading)
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
         }
+        // The corners and the outline are drawn after the scaling, at a fixed size, because the selection ring
+        // around a tile (`ChoiceTile`) has a fixed radius to match: scaled corners left it cutting across them.
+        .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.14), lineWidth: 1)
+        }
         .accessibilityHidden(true)
     }
+
+    /// The tile's corner radius; the selection ring is this plus the 3 pt it sits outside the tile.
+    static let cornerRadius: CGFloat = 12
 
     private var page: some View {
         ZStack(alignment: .topLeading) {
@@ -64,12 +74,6 @@ private struct MiniPage: View {
                 .padding(7)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.14), lineWidth: 1)
-        }
-        .accessibilityHidden(true)
     }
 
     private func line(ticked: Bool, width: CGFloat) -> some View {
@@ -110,7 +114,7 @@ private struct ChoiceTile<Preview: View>: View {
                     .aspectRatio(aspect, contentMode: .fit)
                     .padding(3)
                     .overlay {
-                        RoundedRectangle(cornerRadius: 15, style: .continuous)
+                        RoundedRectangle(cornerRadius: MiniPage.cornerRadius + 3, style: .continuous)
                             .strokeBorder(isSelected ? ringColor : Color.clear, lineWidth: 2.5)
                     }
                 Text(title)
