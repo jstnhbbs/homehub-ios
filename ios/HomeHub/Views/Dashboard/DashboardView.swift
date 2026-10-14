@@ -587,11 +587,13 @@ private struct CompactNextUpPanel: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(HubTheme.tile)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                // The fill and the border are the same shape and the border is drawn inside it, so the
+                // line is one width all the way round (a centered stroke over a clipped fill read
+                // thicker at the corners).
+                .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(HubTheme.tile))
                 .overlay(
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(HubTheme.sage.opacity(0.3), lineWidth: 2)
+                        .strokeBorder(HubTheme.sage.opacity(DashboardOutline.resting), lineWidth: 2)
                 )
                 .transition(.opacity)
             }

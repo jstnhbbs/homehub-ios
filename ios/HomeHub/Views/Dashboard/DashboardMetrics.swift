@@ -7,6 +7,12 @@ import UIKit
 /// height has to grow when the person's text size does, or the rows are drawn at a size that clips
 /// their own text and the "+N more" line prints over the last row. `scaled` gives a value as it should
 /// be at the current text size; at the default size it is the number it was designed at.
+/// How strong a quiet outline is on Today: the Coming Up border and the rings around people's photos
+/// and avatars until they are done. A finished state is drawn at full strength.
+enum DashboardOutline {
+    static let resting = 0.5
+}
+
 enum DashboardMetrics {
     /// The space between Today cards: tighter on the iPhone, where every point of the screen counts, than on the
     /// iPad's grid. The iPhone's Large card is two cells and one gap tall, so the gap is shared with its layout.

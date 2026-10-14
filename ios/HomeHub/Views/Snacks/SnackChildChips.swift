@@ -45,7 +45,7 @@ struct SnackChildChips: View {
             Circle()
                 .fill(isEaten ? tint : tint.opacity(0.14))
             Circle()
-                .stroke(tint, lineWidth: isEaten ? 0 : 1.5)
+                .stroke(tint.opacity(DashboardOutline.resting), lineWidth: isEaten ? 0 : 1.5)
             if isEaten {
                 Image(systemName: "checkmark")
                     .font(.caption.weight(.heavy))
@@ -70,7 +70,7 @@ struct SnackChildChips: View {
             .opacity(isEaten ? 1 : 0.5)
             .saturation(isEaten ? 1 : 0.6)
             .overlay {
-                Circle().strokeBorder(tint, lineWidth: isEaten ? 2.5 : 1.5)
+                Circle().strokeBorder(isEaten ? tint : tint.opacity(DashboardOutline.resting), lineWidth: isEaten ? 2.5 : 1.5)
             }
             if isEaten {
                 Image(systemName: "checkmark")

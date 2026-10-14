@@ -170,7 +170,7 @@ struct RoutineRing: View {
         let ring: CGFloat = diameter < 44 ? 3 : 4
         let inset: CGFloat = diameter < 44 ? 3 : 5
         ZStack {
-            Circle().stroke(tint.opacity(0.2), lineWidth: ring)
+            Circle().stroke(tint.opacity(DashboardOutline.resting), lineWidth: ring)
             Circle()
                 .trim(from: 0, to: group.progress)
                 .stroke(tint, style: StrokeStyle(lineWidth: ring, lineCap: .round))
