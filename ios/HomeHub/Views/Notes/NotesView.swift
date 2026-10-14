@@ -3,9 +3,9 @@ import SwiftUI
 struct NotesView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    @State private var draft = ""
-    @State private var isSaving = false
+    @StateObject private var composer = NoteComposer()
     @State private var deletingId: String?
     @State private var editingNote: HouseholdNote?
 
@@ -15,10 +15,6 @@ struct NotesView: View {
 
     private var canManage: Bool {
         appState.canManageHousehold
-    }
-
-    private var trimmedDraft: String {
-        draft.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     var body: some View {
@@ -36,7 +32,7 @@ struct NotesView: View {
             }
         }
         .refreshable {
-            await appState.refreshDashboard()
+            await appState.refreshDashboard(forcingDeviceRefresh: true)
         }
         .sheet(item: $editingNote) { note in
             NoteEditorSheet(note: note) { input in
@@ -65,7 +61,7 @@ struct NotesView: View {
 
     private var addNoteCard: some View {
         HStack(spacing: 10) {
-            TextField("Add a note", text: $draft, axis: .vertical)
+            TextField("Add a note", text: $composer.draft, axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(.body.weight(.semibold))
                 .lineLimit(1...4)
@@ -77,7 +73,7 @@ struct NotesView: View {
             Button {
                 Task { await addNote() }
             } label: {
-                Image(systemName: isSaving ? "hourglass" : "plus")
+                Image(systemName: composer.isSaving ? "hourglass" : "plus")
                     .font(.headline.weight(.bold))
                     .frame(width: 42, height: 42)
                     .minimumTapTarget()
@@ -87,7 +83,7 @@ struct NotesView: View {
             .foregroundStyle(HubTheme.onAccent)
             .background(HubTheme.sage)
             .clipShape(Circle())
-            .disabled(isSaving || trimmedDraft.isEmpty)
+            .disabled(!composer.canSubmit)
         }
         .padding(16)
         .background(HubTheme.tile)
@@ -114,41 +110,47 @@ struct NotesView: View {
                     .stroke(HubTheme.line, lineWidth: 1)
             )
         } else {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: 10, alignment: .top)], spacing: 10) {
+            LazyVGrid(columns: noteColumns, spacing: 10) {
                 ForEach(notes) { note in
                     NotesPageRow(note: note, canEdit: canManage, isDeleting: deletingId == note.id) {
                         editingNote = note
                     } onDelete: {
-                        await delete(note)
+                        _ = await delete(note)
                     }
                 }
             }
         }
     }
 
+    private var noteColumns: [GridItem] {
+        if horizontalSizeClass == .compact || dynamicTypeSize.isAccessibilitySize {
+            return [GridItem(.flexible(), alignment: .top)]
+        }
+        return [GridItem(.adaptive(minimum: 340), spacing: 10, alignment: .top)]
+    }
+
     private func addNote() async {
-        let title = trimmedDraft
-        guard !title.isEmpty, !isSaving else { return }
-        isSaving = true
-        defer { isSaving = false }
         do {
-            _ = try await appState.api.addHouseholdNote(HouseholdNoteInput(title: title))
-            draft = ""
-            await appState.refreshDashboard()
+            let saved = try await composer.submit { title in
+                _ = try await appState.api.addHouseholdNote(HouseholdNoteInput(title: title))
+            }
+            if saved { await appState.refreshDashboard() }
         } catch {
             appState.report(error)
         }
     }
 
-    private func delete(_ note: HouseholdNote) async {
-        guard deletingId == nil else { return }
+    private func delete(_ note: HouseholdNote) async -> Bool {
+        guard deletingId == nil else { return false }
         deletingId = note.id
         defer { deletingId = nil }
         do {
             try await appState.api.deleteHouseholdNote(id: note.id)
             await appState.refreshDashboard()
+            return true
         } catch {
             appState.report(error)
+            return false
         }
     }
 }
@@ -159,55 +161,64 @@ private struct NotesPageRow: View {
     let isDeleting: Bool
     let onOpen: () -> Void
     let onDelete: () async -> Void
+    @State private var confirmDelete = false
 
     var body: some View {
-        Button(action: onOpen) {
-            HStack(alignment: .center, spacing: 12) {
-                Image(systemName: note.pinned ? "pin.fill" : "note.text")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(HubTheme.accentText)
-                    .frame(width: 30, height: 30)
-                    .background(HubTheme.sage.opacity(0.12))
-                    .clipShape(Circle())
+        HStack(alignment: .center, spacing: 12) {
+            Button(action: onOpen) {
+                HStack(alignment: .center, spacing: 12) {
+                    Image(systemName: note.pinned ? "pin.fill" : "note.text")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(HubTheme.accentText)
+                        .frame(width: 30, height: 30)
+                        .background(HubTheme.sage.opacity(0.12))
+                        .clipShape(Circle())
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(note.title)
-                        .font(.body.weight(.bold))
-                        .foregroundStyle(.primary)
-                    if !note.body.isEmpty {
-                        Text(note.body)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(HubTheme.muted)
-                            .lineLimit(3)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(note.title)
+                            .font(.body.weight(.bold))
+                            .foregroundStyle(.primary)
+                        if !note.body.isEmpty {
+                            Text(note.body)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(HubTheme.muted)
+                                .lineLimit(3)
+                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                if canEdit {
-                    Button {
-                        Task { await onDelete() }
-                    } label: {
-                        Image(systemName: isDeleting ? "hourglass" : "trash")
-                            .font(.subheadline.weight(.bold))
-                            .frame(width: 36, height: 36)
-                            .minimumTapTarget()
-                    }
-                    .accessibilityLabel("Delete Note")
-                    .buttonStyle(.plain)
-                    .foregroundStyle(HubTheme.muted)
-                    .disabled(isDeleting)
-                }
+                .contentShape(Rectangle())
             }
-            .padding(14)
-            .background(HubTheme.tile)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(HubTheme.line, lineWidth: 1)
-            )
+            .buttonStyle(.plain)
+            .disabled(!canEdit || isDeleting)
+
+            if canEdit {
+                Button {
+                    confirmDelete = true
+                } label: {
+                    Image(systemName: isDeleting ? "hourglass" : "trash")
+                        .font(.subheadline.weight(.bold))
+                        .frame(width: 36, height: 36)
+                        .minimumTapTarget()
+                }
+                .accessibilityLabel("Delete Note")
+                .buttonStyle(.plain)
+                .foregroundStyle(HubTheme.muted)
+                .disabled(isDeleting)
+            }
         }
-        .buttonStyle(.plain)
-        .allowsHitTesting(canEdit)
+        .padding(14)
+        .background(HubTheme.tile)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(HubTheme.line, lineWidth: 1)
+        )
+        .confirmationDialog("Delete this note?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Delete Note", role: .destructive) {
+                Task { await onDelete() }
+            }
+        }
     }
 }
 
@@ -215,7 +226,7 @@ private struct NoteEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     let note: HouseholdNote
     let onSave: (HouseholdNoteUpdateInput) async throws -> Void
-    let onDelete: () async -> Void
+    let onDelete: () async -> Bool
 
     @State private var title: String
     @State private var noteBody: String
@@ -223,11 +234,12 @@ private struct NoteEditorSheet: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var confirmDelete = false
+    @State private var confirmDiscard = false
 
     init(
         note: HouseholdNote,
         onSave: @escaping (HouseholdNoteUpdateInput) async throws -> Void,
-        onDelete: @escaping () async -> Void
+        onDelete: @escaping () async -> Bool
     ) {
         self.note = note
         self.onSave = onSave
@@ -241,6 +253,10 @@ private struct NoteEditorSheet: View {
         title.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private var hasUnsavedChanges: Bool {
+        title != note.title || noteBody != note.body || pinned != note.pinned
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -250,12 +266,15 @@ private struct NoteEditorSheet: View {
                         .lineLimit(4...10)
                     Toggle("Pin Note", isOn: $pinned)
                 }
+                .disabled(isSaving)
+                .listRowBackground(HubTheme.tile)
 
                 if let errorMessage {
                     Section {
                         Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
                             .foregroundStyle(.red)
                     }
+                    .listRowBackground(HubTheme.tile)
                 }
 
                 Section {
@@ -264,12 +283,22 @@ private struct NoteEditorSheet: View {
                     }
                     .disabled(isSaving)
                 }
+                .listRowBackground(HubTheme.tile)
             }
+            .scrollContentBackground(.hidden)
+            .hubPageBackground()
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Edit Note")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        if hasUnsavedChanges {
+                            confirmDiscard = true
+                        } else {
+                            dismiss()
+                        }
+                    }
                         .disabled(isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
@@ -284,16 +313,27 @@ private struct NoteEditorSheet: View {
                 Button("Delete", role: .destructive) {
                     Task {
                         isSaving = true
-                        await onDelete()
+                        errorMessage = nil
+                        let deleted = await onDelete()
                         isSaving = false
-                        dismiss()
+                        if deleted {
+                            dismiss()
+                        } else {
+                            errorMessage = "Couldn't delete this note. Please try again."
+                        }
                     }
                 }
             }
         }
+        .interactiveDismissDisabled(isSaving || hasUnsavedChanges)
+        .confirmationDialog("Discard Changes?", isPresented: $confirmDiscard, titleVisibility: .visible) {
+            Button("Discard Changes", role: .destructive) { dismiss() }
+        }
+        .hubPageBackground()
     }
 
     private func save() async {
+        guard !isSaving else { return }
         isSaving = true
         errorMessage = nil
         defer { isSaving = false }

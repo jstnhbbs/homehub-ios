@@ -45,5 +45,19 @@ check("no children, no counts", counts(SnackHelpers.eatenCounts(options: ["Yogur
 // existing ordering behaviour
 check("unchecked first, checked last", SnackHelpers.sortedSnackOptions(["A", "B", "C"], eaten: ["A"]).joined(separator: ","), "B,C,A")
 
+func moved(_ options: [String], _ eaten: Set<String>, _ from: Int, _ to: Int) -> String {
+    SnackHelpers.movingSnack(in: options, eaten: eaten, from: from, to: to).joined(separator: ",")
+}
+check("move down one", moved(["A", "B", "C", "D"], [], 0, 2), "B,A,C,D")
+check("move to the end", moved(["A", "B", "C", "D"], [], 0, 4), "B,C,D,A")
+check("move up to the top", moved(["A", "B", "C", "D"], [], 3, 0), "D,A,B,C")
+check("dropped where it was", moved(["A", "B", "C"], [], 1, 1), "A,B,C")
+check("dropped just below itself", moved(["A", "B", "C"], [], 1, 2), "A,B,C")
+check("out of range changes nothing", moved(["A", "B"], [], 5, 0), "A,B")
+check("eaten snacks are shown last: drag a pending one to the end", moved(["A", "B", "C", "D"], ["A"], 0, 3), "A,C,D,B")
+check("dragging above an eaten snack puts it before that one", moved(["A", "B", "C", "D"], ["B"], 2, 2), "A,B,C,D")
+check("an eaten snack stays below the pending ones", moved(["A", "B", "C", "D"], ["D"], 3, 0), "A,B,C,D")
+check("eaten snacks reorder among themselves", moved(["A", "B", "C", "D"], ["C", "D"], 3, 2), "A,B,D,C")
+
 print(failures == 0 ? "\nALL PASSED" : "\n\(failures) FAILED")
 exit(failures == 0 ? 0 : 1)

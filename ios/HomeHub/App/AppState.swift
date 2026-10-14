@@ -312,6 +312,19 @@ final class AppState: ObservableObject {
     /// most this often unless the person asks (pull to refresh).
     private static let minimumDeviceRefreshInterval: TimeInterval = 5 * 60
 
+    /// A reorder changes no check-offs or reminders, so the save response is enough to update Today.
+    func applySavedSnackOrder(household: Household, options: [String]) {
+        // An earlier fetch must not put the pre-save order back after this acknowledged write.
+        dashboardRequestVersion += 1
+        householdRequestVersion += 1
+        self.household = household
+        guard var updated = dashboard else { return }
+        updated.household = household
+        updated.snackOptions = options
+        dashboard = updated
+        localStore.saveDashboard(updated)
+    }
+
     /// `forcingDeviceRefresh` re-reads the device's calendars, reminders and weather even if that was
     /// done recently.
     func refreshDashboard(forcingDeviceRefresh: Bool = false) async {

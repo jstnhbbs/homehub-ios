@@ -13,14 +13,11 @@ struct NotesTodayCard: View {
     let size: DashboardCardSize
     var fixedHeight: CGFloat?
 
-    @State private var draft = ""
-    @State private var isSaving = false
+    @StateObject private var composer = NoteComposer()
     @State private var deletingId: String?
     @State private var noteToDelete: HouseholdNote?
 
     private var notes: [HouseholdNote] { dashboard.notes }
-
-    private var trimmedDraft: String { draft.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
         TodayCardFrame(card: .notes, fixedHeight: fixedHeight) {
@@ -67,7 +64,7 @@ struct NotesTodayCard: View {
 
     private var medium: some View {
         VStack(alignment: .leading, spacing: 8) {
-            composer
+            composerField
             if notes.isEmpty {
                 TodayCardEmptyNote(text: "Leave a household note.")
             } else {
@@ -91,7 +88,7 @@ struct NotesTodayCard: View {
 
     private var large: some View {
         VStack(alignment: .leading, spacing: 8) {
-            composer
+            composerField
             if notes.isEmpty {
                 TodayCardEmptyNote(text: "Leave a household note.")
             } else {
@@ -112,9 +109,9 @@ struct NotesTodayCard: View {
 
     // MARK: Pieces
 
-    private var composer: some View {
+    private var composerField: some View {
         HStack(spacing: 8) {
-            TextField("Add a note", text: $draft)
+            TextField("Add a note", text: $composer.draft)
                 .textFieldStyle(.plain)
                 .font(.subheadline.weight(.semibold))
                 .padding(.horizontal, 12)
@@ -125,7 +122,7 @@ struct NotesTodayCard: View {
                 .onSubmit { Task { await addNote() } }
 
             Button { Task { await addNote() } } label: {
-                Image(systemName: isSaving ? "hourglass" : "plus")
+                Image(systemName: composer.isSaving ? "hourglass" : "plus")
                     .font(.headline.weight(.bold))
                     .frame(width: 38, height: 38)
                     .minimumTapTarget()
@@ -135,19 +132,16 @@ struct NotesTodayCard: View {
             .foregroundStyle(HubTheme.onAccent)
             .background(HubTheme.sage)
             .clipShape(Circle())
-            .disabled(isSaving || trimmedDraft.isEmpty)
+            .disabled(!composer.canSubmit)
         }
     }
 
     private func addNote() async {
-        let title = trimmedDraft
-        guard !title.isEmpty, !isSaving else { return }
-        isSaving = true
-        defer { isSaving = false }
         do {
-            _ = try await appState.api.addHouseholdNote(HouseholdNoteInput(title: title))
-            draft = ""
-            await appState.refreshDashboard()
+            let saved = try await composer.submit { title in
+                _ = try await appState.api.addHouseholdNote(HouseholdNoteInput(title: title))
+            }
+            if saved { await appState.refreshDashboard() }
         } catch {
             appState.report(error)
         }

@@ -3,6 +3,10 @@ import SwiftUI
 struct HubView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .body) private var moreMenuWidth = 188.0
+    @ScaledMetric(relativeTo: .body) private var moreMenuLineHeight = 22.0
+    @ScaledMetric(relativeTo: .body) private var moreMenuIconWidth = 20.0
     @State private var showMoreMenu = false
     @State private var lastPrimaryDestination: HubDestination = .dashboard
     @State private var compactMealsPath = NavigationPath()
@@ -37,21 +41,25 @@ struct HubView: View {
                 .id(compactTabLayoutID)
                 .tint(HubTheme.accentText)
                 .background(HubTheme.surface)
+                .accessibilityHidden(showMoreMenu)
                 .overlay {
                     if showMoreMenu {
                         GeometryReader { proxy in
                             let layout = moreMenuLayout(in: proxy)
 
                             ZStack(alignment: .bottomTrailing) {
-                                Color.black.opacity(0.08)
-                                    .ignoresSafeArea(edges: .top)
-                                    .padding(.bottom, layout.tabBarHeight)
-                                    .onTapGesture {
-                                        showMoreMenu = false
-                                    }
-                                    .accessibilityLabel("Dismiss more menu")
+                                Button {
+                                    showMoreMenu = false
+                                } label: {
+                                    Color.black.opacity(0.08)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .ignoresSafeArea(edges: .top)
+                                .padding(.bottom, layout.tabBarHeight)
+                                .accessibilityLabel("Dismiss more menu")
 
-                                moreMenuCard
+                                moreMenuCard(maxHeight: max(44, proxy.size.height - layout.bottomInset - proxy.safeAreaInsets.top - 12))
                                     .frame(width: layout.menuWidth)
                                     .padding(.trailing, layout.trailingInset)
                                     .padding(.bottom, layout.bottomInset)
@@ -61,7 +69,7 @@ struct HubView: View {
                         .transition(.scale(scale: 0.92, anchor: UnitPoint(x: 0.86, y: 1)).combined(with: .opacity))
                     }
                 }
-                .animation(.snappy(duration: 0.2), value: showMoreMenu)
+                .animation(reduceMotion ? nil : .snappy(duration: 0.2), value: showMoreMenu)
                 .onAppear {
                     if compactPrimaryDestinations.contains(appState.selectedDestination) {
                         lastPrimaryDestination = appState.selectedDestination
@@ -176,7 +184,21 @@ struct HubView: View {
         compactTabBarDestinations.map(\.rawValue).joined(separator: "|")
     }
 
-    private var moreMenuCard: some View {
+    private var moreMenuRowHeight: CGFloat { moreMenuLineHeight + 24 }
+
+    private func moreMenuCard(maxHeight: CGFloat) -> some View {
+        ScrollView {
+            moreMenuRows
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(height: min(maxHeight, CGFloat(compactOverflowDestinations.count) * moreMenuRowHeight + CGFloat(max(0, compactOverflowDestinations.count - 1))))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
+        .accessibilityIdentifier("hub.moreMenu")
+    }
+
+    private var moreMenuRows: some View {
         VStack(spacing: 0) {
             ForEach(Array(compactOverflowDestinations.reversed().enumerated()), id: \.element.id) { index, destination in
                 Button {
@@ -186,18 +208,17 @@ struct HubView: View {
                     HStack(spacing: 10) {
                         Image(systemName: destination.systemImage)
                             .font(.body.weight(.semibold))
-                            .frame(width: 20)
+                            .frame(width: moreMenuIconWidth)
                         Text(destination.label)
                             .font(.body.weight(.semibold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                            .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 4)
                     }
                     .foregroundStyle(
                         appState.selectedDestination == destination ? HubTheme.accentText : .primary
                     )
                     .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
+                    .frame(minHeight: moreMenuRowHeight)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -211,10 +232,6 @@ struct HubView: View {
                 }
             }
         }
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("More")
     }
 
     private func moreMenuLayout(in proxy: GeometryProxy) -> (
@@ -229,7 +246,7 @@ struct HubView: View {
         let tabBarHeight = safeBottom + 49
         // Wide enough for the longest name ("Celebrations") at the reader's text size, which a fixed
         // width broke mid-word; it still never goes past the screen's edge.
-        let menuWidth = min(proxy.size.width - 16, max(DashboardMetrics.scaled(188, .body), min(188, max(156, tabWidth + 86))))
+        let menuWidth = min(proxy.size.width - 16, max(moreMenuWidth, min(188, max(156, tabWidth + 86))))
         let trailingInset = max(8, (tabWidth - menuWidth) / 2)
         return (menuWidth, trailingInset, max(10, tabBarHeight - 4), tabBarHeight)
     }
@@ -285,6 +302,7 @@ struct HubView: View {
 
 struct HubNavView: View {
     @EnvironmentObject private var appState: AppState
+    @ScaledMetric(relativeTo: .caption2) private var sidebarWidth = 104.0
     private let sidebarVerticalPadding: CGFloat = 40
     private let sidebarItemHeight: CGFloat = 68
     private let sidebarItemSpacing: CGFloat = 8
@@ -351,7 +369,7 @@ struct HubNavView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 20)
         }
-        .frame(width: 104)
+        .frame(width: sidebarWidth)
         .background(HubTheme.tile)
         .overlay(alignment: .trailing) {
             Rectangle()
@@ -369,6 +387,8 @@ struct HubNavView: View {
                     .font(.title3)
                 Text(destination.label)
                     .font(.caption2.weight(.bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
             .frame(maxWidth: .infinity, minHeight: 68)
             .foregroundStyle(
@@ -405,9 +425,36 @@ struct HubNavView: View {
 
 struct HubHeaderView: View {
     @EnvironmentObject private var appState: AppState
+    @State private var confirmSignOut = false
 
     var body: some View {
-        HStack(alignment: .center) {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: 16) {
+                householdHeading
+                Spacer(minLength: 12)
+                readouts
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                householdHeading
+                readouts
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 12)
+        .frame(minHeight: 78)
+        .background(HubTheme.surface)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(HubTheme.line).frame(height: 1)
+        }
+        .confirmationDialog("Sign Out?", isPresented: $confirmSignOut, titleVisibility: .visible) {
+            Button("Sign Out", role: .destructive) {
+                Task { await appState.signOut() }
+            }
+        }
+    }
+
+    private var householdHeading: some View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
                     Text(appState.household?.name ?? "Tugboat")
@@ -426,9 +473,13 @@ struct HubHeaderView: View {
                 if let timezone = appState.household.flatMap({ TimeZone(identifier: $0.timezone) }) {
                     Text(DateHelpers.headerDateLabel(timezone: timezone))
                         .font(.title2.weight(.semibold))
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            Spacer()
+    }
+
+    private var readouts: some View {
+        HStack(spacing: 12) {
             // Ambient readouts sit together on the trailing edge: temperature, then time.
             WeatherHeaderReadout()
             if let timezone = appState.household.flatMap({ TimeZone(identifier: $0.timezone) }) {
@@ -437,17 +488,12 @@ struct HubHeaderView: View {
             }
             if let role = appState.household?.role, HouseholdRoles.isGuest(role: role) {
                 Button("Sign Out") {
-                    Task { await appState.signOut() }
+                    confirmSignOut = true
                 }
                 .buttonStyle(HubButtonStyle(emphasis: .secondary))
             }
         }
-        .padding(.horizontal, 28)
-        .frame(height: 78)
-        .background(HubTheme.surface)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(HubTheme.line).frame(height: 1)
-        }
+        .fixedSize(horizontal: true, vertical: false)
     }
 }
 

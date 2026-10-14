@@ -215,6 +215,10 @@ struct SnacksView: View {
             } else {
                 ForEach(viewModel.displayedSnacks, id: \.self) { snack in
                     snackRow(snack)
+                        .moveDisabled(!viewModel.canManage || viewModel.editingSnack != nil)
+                }
+                .onMove { source, destination in
+                    viewModel.reorderSnacks(from: source, to: destination)
                 }
             }
 
@@ -293,17 +297,42 @@ struct SnacksView: View {
                     .foregroundStyle(HubTheme.muted)
                 }
             } else {
-                if viewModel.usesPerChild {
-                    perChildRow(snack)
-                } else {
-                    SnackCheckRow(
-                        label: snack,
-                        isEaten: viewModel.eaten.contains(snack)
-                    ) {
-                        await viewModel.toggleSnack(snack, completed: !viewModel.eaten.contains(snack))
+                HStack(spacing: 8) {
+                    if viewModel.usesPerChild {
+                        perChildRow(snack)
+                    } else {
+                        SnackCheckRow(
+                            label: snack,
+                            isEaten: viewModel.eaten.contains(snack)
+                        ) {
+                            await viewModel.toggleSnack(snack, completed: !viewModel.eaten.contains(snack))
+                        }
+                    }
+                    if viewModel.canManage && viewModel.editingSnack == nil {
+                        Image(systemName: "line.3.horizontal")
+                            .font(.title2.weight(.semibold))
+                            .foregroundStyle(HubTheme.muted)
+                            .frame(width: 44, height: 44)
+                            // Let List's long-press recognizer own the row's reordering gesture.
+                            .allowsHitTesting(false)
+                            .help("Reorder Snack")
+                            .accessibilityHidden(true)
                     }
                 }
             }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(HubTheme.tile)
+        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+        .listRowBackground(Color.clear)
+        .contentShape(.dragPreview, Rectangle())
+        .accessibilityAction(named: "Move Up") {
+            Task { await viewModel.shiftSnack(snack, by: -1) }
+        }
+        .accessibilityAction(named: "Move Down") {
+            Task { await viewModel.shiftSnack(snack, by: 1) }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             if viewModel.canManage {

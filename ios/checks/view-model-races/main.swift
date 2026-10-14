@@ -23,6 +23,10 @@ final class StubAPI {
     var saveGate: CheckedContinuation<Void, Never>?
     var events: [String] = []
     var resetDate: String?
+    var savedSnackOptions: String?
+    var failSnackSave = false
+    var blockSnackSaves = false
+    var snackSaveGate: CheckedContinuation<Void, Never>?
     func fetchMeals(weekStart: String) async throws -> [Meal] {
         let end = MealPlanHelpers.date(weekStart, adding: 6, timezone: TimeZone(identifier: "America/Chicago")!)
         return meals.filter { $0.localDate >= weekStart && $0.localDate <= end }
@@ -43,7 +47,12 @@ final class StubAPI {
         .init(id: "g", householdId: nil, title: input.title, quantity: nil, category: "", checked: false,
               checkedAt: nil, sortOrder: 0, createdAt: nil, updatedAt: nil)
     }
-    func saveSnackOptions(_ input: SaveSnackOptionsRequest) async throws -> Household { Household() }
+    func saveSnackOptions(_ input: SaveSnackOptionsRequest) async throws -> Household {
+        if blockSnackSaves { await withCheckedContinuation { snackSaveGate = $0 } }
+        if failSnackSave { throw NSError(domain: "SnackSave", code: 1) }
+        savedSnackOptions = input.snackOptions
+        return Household()
+    }
     func resetSnackChecklist(localDate: String) async throws { resetDate = localDate }
 }
 @MainActor
@@ -63,7 +72,12 @@ final class AppState: ObservableObject {
     var canManageHousehold = true
     var snackDate: String?
     var snackCompleted: Bool?
-    func refreshDashboard() async {}
+    var dashboardRefreshes = 0
+    func refreshDashboard() async { dashboardRefreshes += 1 }
+    func applySavedSnackOrder(household: Household, options: [String]) {
+        self.household = household
+        dashboard?.snackOptions = options
+    }
     func refreshNativeGroceryItems() async {}
     func toggleSnack(localDate: String, label: String, profileId: String?, completed: Bool?) async throws {
         snackDate = localDate
@@ -88,7 +102,11 @@ func until(_ condition: () -> Bool) async {
 func run() async {
     let app = AppState()
     var clock = ISO8601DateFormatter().date(from: "2026-10-13T04:59:00Z")!
-    let snacks = SnacksViewModel(now: { clock })
+    var waitForDrop = false
+    var dropGate: CheckedContinuation<Void, Never>?
+    let snacks = SnacksViewModel(now: { clock }, waitForDropAnimation: {
+        if waitForDrop { await withCheckedContinuation { dropGate = $0 } }
+    })
     snacks.bind(to: app)
     app.dashboard = DashboardData(localDate: "2026-10-12", snackEaten: ["Apple"])
     check("the old day's completion is visible before midnight", snacks.eaten == ["Apple"])
@@ -101,6 +119,57 @@ func run() async {
     check("reset also targets the current day", app.api.resetDate == "2026-10-13")
     app.dashboard = DashboardData(localDate: "2026-10-13", snackEaten: ["Apple"])
     check("remote updates on the current day are still observed", snacks.eaten == ["Apple"])
+
+    app.dashboard = DashboardData(localDate: "2026-10-13", snackOptions: ["Apple", "Banana", "Crackers"], snackEaten: ["Apple"])
+    check("the editable list keeps saved order even for eaten snacks", snacks.displayedSnacks == ["Apple", "Banana", "Crackers"])
+    app.api.blockSnackSaves = true
+    waitForDrop = true
+    let refreshesBeforeDrop = app.dashboardRefreshes
+    let reorder = snacks.reorderSnacks(from: IndexSet(integer: 0), to: 3)
+    check("native move callback changes the order synchronously", snacks.snackOptions == ["Banana", "Crackers", "Apple"])
+    check("saving is reserved before another move can start", snacks.isWorking)
+    await until { dropGate != nil }
+    check("network save waits for the drop animation", app.api.snackSaveGate == nil && app.api.savedSnackOptions == nil)
+    waitForDrop = false
+    dropGate?.resume()
+    await until { app.api.snackSaveGate != nil }
+    check("a drag updates order immediately", snacks.snackOptions == ["Banana", "Crackers", "Apple"])
+    app.dashboard = DashboardData(localDate: "2026-10-13", snackOptions: ["Apple", "Banana", "Crackers"], snackEaten: ["Banana"])
+    check("refresh during save preserves order but updates check-offs", snacks.snackOptions == ["Banana", "Crackers", "Apple"] && snacks.eaten == ["Banana"])
+    await snacks.moveSnack("Crackers", onto: "Banana")
+    check("another drag is blocked while saving", snacks.snackOptions == ["Banana", "Crackers", "Apple"])
+    app.api.snackSaveGate?.resume()
+    app.api.snackSaveGate = nil
+    await reorder?.value
+    check("chosen order is persisted", app.api.savedSnackOptions == "Banana\nCrackers\nApple")
+    check("a reorder does not perform a full dashboard refresh", app.dashboardRefreshes == refreshesBeforeDrop)
+    check("Today receives the saved order", app.dashboard?.snackOptions == ["Banana", "Crackers", "Apple"])
+    check("a cached dashboard cannot undo a successful save", snacks.snackOptions == ["Banana", "Crackers", "Apple"])
+    app.api.blockSnackSaves = false
+    app.api.failSnackSave = true
+    await snacks.shiftSnack("Apple", by: -1)
+    check("failed reorder restores the previous order and shows an error", snacks.snackOptions == ["Banana", "Crackers", "Apple"] && snacks.errorMessage != nil)
+    app.api.failSnackSave = false
+    app.canManageHousehold = false
+    await snacks.moveSnack("Apple", onto: "Banana")
+    check("guests cannot reorder snacks", snacks.snackOptions == ["Banana", "Crackers", "Apple"])
+    app.canManageHousehold = true
+    await snacks.moveSnack("Missing", onto: "Banana")
+    check("a stale drag cannot remove or duplicate a snack", snacks.snackOptions == ["Banana", "Crackers", "Apple"])
+
+    let departing = AppState()
+    var departingDropGate: CheckedContinuation<Void, Never>?
+    let departingSnacks = SnacksViewModel(now: { clock }, waitForDropAnimation: {
+        await withCheckedContinuation { departingDropGate = $0 }
+    })
+    departingSnacks.bind(to: departing)
+    departing.dashboard = DashboardData(localDate: "2026-10-13", snackOptions: ["Apple", "Banana"])
+    let departingSave = departingSnacks.reorderSnacks(from: IndexSet(integer: 0), to: 2)
+    await until { departingDropGate != nil }
+    departing.auth.sessionVersion += 1
+    departingDropGate?.resume()
+    await departingSave?.value
+    check("a delayed reorder cannot save across sign-out", departing.api.savedSnackOptions == nil && !departingSnacks.isWorking)
 
     for bulk in ["clear", "copy"] {
         let state = AppState()

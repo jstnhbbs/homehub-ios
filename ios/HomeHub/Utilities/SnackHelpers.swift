@@ -49,4 +49,35 @@ enum SnackHelpers {
         let done = options.filter { eaten.contains($0) }
         return pending + done
     }
+
+    /// The saved order after the snack at `source` of the list as shown is dragged to `destination`
+    /// (SwiftUI's `onMove` numbering: the slot before that row of the original list). The list
+    /// shows eaten snacks last, so the drop is placed by its neighbour in the same group (eaten or
+    /// not): the dragged snack goes just before the snack now below it, or just after the one above it
+    /// at the end. Nothing
+    /// else changes places, and a drop that leaves the snack where it was returns `options` as is.
+    static func movingSnack(in options: [String], eaten: Set<String>, from source: Int, to destination: Int) -> [String] {
+        let shown = sortedSnackOptions(options, eaten: eaten)
+        guard shown.indices.contains(source), destination >= 0, destination <= shown.count else { return options }
+        let moved = shown[source]
+        var after = shown
+        after.remove(at: source)
+        let slot = destination > source ? destination - 1 : destination
+        guard slot != source else { return options }
+        after.insert(moved, at: slot)
+
+        // Eaten snacks always show below pending ones, so only neighbours in the dragged snack's
+        // own group say where it belongs.
+        let group = eaten.contains(moved)
+        let sameGroup = { (name: String) in eaten.contains(name) == group }
+        var next = options.filter { $0 != moved }
+        if let below = after[(slot + 1)...].first(where: sameGroup), let anchor = next.firstIndex(of: below) {
+            next.insert(moved, at: anchor)
+        } else if let above = after[..<slot].last(where: sameGroup), let anchor = next.firstIndex(of: above) {
+            next.insert(moved, at: anchor + 1)
+        } else {
+            next.append(moved)
+        }
+        return next
+    }
 }

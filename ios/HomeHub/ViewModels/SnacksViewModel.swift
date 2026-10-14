@@ -21,10 +21,18 @@ final class SnacksViewModel: ObservableObject {
 
     private var appState: AppState?
     private var dashboardSubscription: AnyCancellable?
+    private var isSavingOptions = false
     private let now: () -> Date
+    private let waitForDropAnimation: () async throws -> Void
 
-    init(now: @escaping () -> Date = { .now }) {
+    init(
+        now: @escaping () -> Date = { .now },
+        waitForDropAnimation: @escaping () async throws -> Void = {
+            try await Task.sleep(for: .milliseconds(450))
+        }
+    ) {
         self.now = now
+        self.waitForDropAnimation = waitForDropAnimation
     }
 
     func bind(to appState: AppState) {
@@ -53,7 +61,7 @@ final class SnacksViewModel: ObservableObject {
     }
 
     var displayedSnacks: [String] {
-        SnackHelpers.sortedSnackOptions(snackOptions, eaten: eaten)
+        snackOptions
     }
 
     func load() async {
@@ -87,7 +95,9 @@ final class SnacksViewModel: ObservableObject {
 
     private func syncFromDashboard(_ dashboard: DashboardData) {
         updateDay()
-        snackOptions = dashboard.snackOptions
+        if !isSavingOptions {
+            snackOptions = dashboard.snackOptions
+        }
         eaten = dashboard.localDate == localDate ? Set(dashboard.snackEaten) : []
         records = dashboard.localDate == localDate ? dashboard.snackCompletions : []
         tracksPerChild = dashboard.snacksPerChild
@@ -187,6 +197,40 @@ final class SnacksViewModel: ObservableObject {
         await persistSnackOptions(next)
     }
 
+    /// Saves the order after a drag in the list as shown. The new order is on screen at once and
+    /// goes back to the old one if the save fails.
+    @discardableResult
+    func reorderSnacks(from source: IndexSet, to destination: Int) -> Task<Void, Never>? {
+        guard canManage, !isWorking, editingSnack == nil,
+              let index = source.first, source.count == 1 else { return nil }
+        let previous = snackOptions
+        let next = SnackHelpers.movingSnack(in: previous, eaten: [], from: index, to: destination)
+        guard next != previous, let appState = beginSavingOptions() else { return nil }
+        // List must see its final order before its native move callback returns.
+        snackOptions = next
+        return Task {
+            if await !finishSavingOptions(next, using: appState, isReordering: true) {
+                snackOptions = previous
+            }
+        }
+    }
+
+    func moveSnacks(from source: IndexSet, to destination: Int) async {
+        await reorderSnacks(from: source, to: destination)?.value
+    }
+
+    func moveSnack(_ snack: String, onto target: String) async {
+        guard snack != target, let source = snackOptions.firstIndex(of: snack),
+              let destination = snackOptions.firstIndex(of: target) else { return }
+        await moveSnacks(from: IndexSet(integer: source), to: destination > source ? destination + 1 : destination)
+    }
+
+    func shiftSnack(_ snack: String, by offset: Int) async {
+        guard let source = snackOptions.firstIndex(of: snack),
+              snackOptions.indices.contains(source + offset) else { return }
+        await moveSnack(snack, onto: snackOptions[source + offset])
+    }
+
     func beginEditing(_ label: String) {
         editingSnack = label
         editDraft = label
@@ -239,23 +283,48 @@ final class SnacksViewModel: ObservableObject {
 
     @discardableResult
     private func persistSnackOptions(_ lines: [String]) async -> Bool {
-        guard let appState else { return false }
+        guard let appState = beginSavingOptions() else { return false }
+        return await finishSavingOptions(lines, using: appState)
+    }
+
+    private func beginSavingOptions() -> AppState? {
+        guard let appState, canManage, !isWorking else { return nil }
         isWorking = true
+        isSavingOptions = true
         errorMessage = nil
         successMessage = nil
-        defer { isWorking = false }
+        return appState
+    }
+
+    private func finishSavingOptions(_ lines: [String], using appState: AppState, isReordering: Bool = false) async -> Bool {
+        defer {
+            isWorking = false
+            isSavingOptions = false
+        }
 
         let serialized = SnackHelpers.serializeSnackOptions(lines)
+        let session = appState.auth.sessionVersion
 
         do {
+            if isReordering {
+                try await waitForDropAnimation()
+            }
+            guard session == appState.auth.sessionVersion else { return false }
             let household = try await appState.api.saveSnackOptions(
                 SaveSnackOptionsRequest(snackOptions: serialized, snacksPerChild: nil)
             )
-            appState.household = household
-            snackOptions = lines
-            await appState.refreshDashboard()
-            if let dashboard = appState.dashboard {
-                syncFromDashboard(dashboard)
+            guard session == appState.auth.sessionVersion else { return false }
+            if snackOptions != lines {
+                snackOptions = lines
+            }
+            if isReordering {
+                appState.applySavedSnackOrder(household: household, options: lines)
+            } else {
+                appState.household = household
+                await appState.refreshDashboard()
+                if let dashboard = appState.dashboard {
+                    syncFromDashboard(dashboard)
+                }
             }
             return true
         } catch {
