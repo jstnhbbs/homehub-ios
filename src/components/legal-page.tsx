@@ -24,6 +24,7 @@ export function LegalPage({
       <footer className="mt-12 flex flex-wrap gap-4 border-t border-[var(--line)] pt-6 text-sm font-bold text-[var(--sage)]">
         <Link href="/privacy">Privacy Policy</Link>
         <Link href="/terms">Terms of Service</Link>
+        <Link href="/support">Support</Link>
       </footer>
     </main>
   );
