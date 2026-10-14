@@ -591,7 +591,7 @@ private struct CompactNextUpPanel: View {
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(HubTheme.sage.opacity(0.3), lineWidth: 1)
+                        .stroke(HubTheme.sage.opacity(0.3), lineWidth: 2)
                 )
                 .transition(.opacity)
             }
