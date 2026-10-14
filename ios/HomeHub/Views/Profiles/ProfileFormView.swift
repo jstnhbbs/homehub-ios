@@ -16,6 +16,7 @@ struct ProfileFormView: View {
     /// The other people in the family, so the color picker can mark the colors they have and a new profile
     /// starts on one nobody has.
     var otherProfiles: [Profile] = []
+    var editorSession: EditorSession? = nil
     var onSubmit: (ProfileInput) async -> Bool
 
     @State private var name = ""
@@ -24,6 +25,19 @@ struct ProfileFormView: View {
     @State private var hasBirthday = false
     @State private var birthdayDate = Date.now
     @State private var isSaving = false
+    @State private var initialDraft: Draft?
+
+    private struct Draft: Equatable {
+        var name: String
+        var type: ProfileType
+        var color: String
+        var hasBirthday: Bool
+        var birthday: Date
+    }
+
+    private var draft: Draft {
+        Draft(name: name, type: profileType, color: color, hasBirthday: hasBirthday, birthday: birthdayDate)
+    }
 
     private var isLinkedAccount: Bool {
         profile?.userId != nil
@@ -43,6 +57,7 @@ struct ProfileFormView: View {
             if includeName {
                 FormField(label: "Name") {
                     TextField("Name", text: $name)
+                        .accessibilityLabel("Name")
                         .textFieldStyle(HubFieldStyle())
                 }
             }
@@ -81,8 +96,10 @@ struct ProfileFormView: View {
 
             Button(submitLabel) {
                 Task {
+                    guard !isSaving else { return }
+                    if let editorSession, !editorSession.beginOperation() { return }
                     isSaving = true
-                    defer { isSaving = false }
+                    defer { isSaving = false; editorSession?.endOperation() }
                     let trimmedName = (includeName ? name : (accountName ?? profile?.name ?? ""))
                         .trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !trimmedName.isEmpty else { return }
@@ -101,8 +118,20 @@ struct ProfileFormView: View {
             .buttonStyle(HubButtonStyle(emphasis: .primary))
             .disabled(isSaving || (includeName && name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
         }
-        .onAppear(perform: populate)
-        .onChange(of: profile?.id) { _, _ in populate() }
+        .disabled(isSaving)
+        .onAppear {
+            guard initialDraft == nil else { return }
+            populate()
+            initialDraft = draft
+        }
+        .onChange(of: profile?.id) { _, _ in
+            populate()
+            initialDraft = draft
+            editorSession?.updateChanges(false)
+        }
+        .onChange(of: draft) { _, newValue in
+            if let initialDraft { editorSession?.updateChanges(newValue != initialDraft) }
+        }
     }
 
     private func populate() {

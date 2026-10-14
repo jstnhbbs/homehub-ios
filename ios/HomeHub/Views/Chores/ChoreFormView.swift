@@ -5,6 +5,7 @@ struct ChoreFormView: View {
     var chore: ChoreRow?
     let timezone: TimeZone
     let submitLabel: String
+    var editorSession: EditorSession? = nil
     var onSubmit: (ChoreInput) async -> Bool
 
     @State private var title = ""
@@ -17,6 +18,24 @@ struct ChoreFormView: View {
     @State private var hasDueTime = false
     @State private var dueTime = ChoreFormView.defaultTime
     @State private var isSaving = false
+    @State private var initialDraft: Draft?
+
+    private struct Draft: Equatable {
+        var title: String
+        var profileId: String?
+        var preset: ChoreRepeatPreset
+        var interval: Int
+        var unit: ChoreRepeatUnit
+        var hasDate: Bool
+        var date: Date
+        var hasTime: Bool
+        var time: Date
+    }
+
+    private var draft: Draft {
+        Draft(title: title, profileId: profileId, preset: preset, interval: customInterval,
+              unit: customUnit, hasDate: hasDueDate, date: dueDate, hasTime: hasDueTime, time: dueTime)
+    }
 
     private static var defaultTime: Date {
         Calendar.current.date(bySettingHour: 17, minute: 0, second: 0, of: .now) ?? .now
@@ -65,6 +84,7 @@ struct ChoreFormView: View {
         VStack(alignment: .leading, spacing: 10) {
             FormField(label: "Chore") {
                 TextField("Feed the dog", text: $title)
+                    .accessibilityLabel("Chore")
                     .textFieldStyle(HubFieldStyle())
             }
 
@@ -80,8 +100,10 @@ struct ChoreFormView: View {
 
             Button(submitLabel) {
                 Task {
+                    guard !isSaving else { return }
+                    if let editorSession, !editorSession.beginOperation() { return }
                     isSaving = true
-                    defer { isSaving = false }
+                    defer { isSaving = false; editorSession?.endOperation() }
                     _ = await onSubmit(ChoreHelpers.input(
                         title: title.trimmingCharacters(in: .whitespacesAndNewlines),
                         profileId: profileId,
@@ -96,7 +118,15 @@ struct ChoreFormView: View {
             .disabled(isSaving || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
         }
-        .onAppear(perform: populate)
+        .disabled(isSaving)
+        .onAppear {
+            guard initialDraft == nil else { return }
+            populate()
+            initialDraft = draft
+        }
+        .onChange(of: draft) { _, newValue in
+            if let initialDraft { editorSession?.updateChanges(newValue != initialDraft) }
+        }
     }
 
     private var repeatField: some View {

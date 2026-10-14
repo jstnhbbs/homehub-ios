@@ -20,8 +20,20 @@ struct AddSleepSheet: View {
     @State private var startedAt = Date.now
     @State private var endedAt = Date.now
     @State private var includeEndTime = false
-    @State private var isSaving = false
+    @StateObject private var editorSession = EditorSession()
+    @State private var initialDraft: Draft?
     @State private var errorMessage: String?
+
+    private struct Draft: Equatable {
+        let kind: Kind
+        let profileId: String
+        let start: Date
+        let end: Date?
+    }
+    private var draft: Draft {
+        Draft(kind: kind, profileId: selectedProfileId, start: startedAt, end: resolvedEnd)
+    }
+    private var isSaving: Bool { editorSession.isBusy }
 
     init(
         childProfiles: [Profile],
@@ -91,14 +103,14 @@ struct AddSleepSheet: View {
 
                         Button {
                             Task {
-                                isSaving = true
+                                guard isValid, editorSession.beginOperation() else { return }
+                                defer { editorSession.endOperation() }
                                 errorMessage = nil
                                 let failure = kind == .night
                                     ? await addNight(selectedProfileId, startedAt, resolvedEnd)
                                     : await addNap(selectedProfileId, startedAt, resolvedEnd)
                                 if let failure {
                                     errorMessage = failure
-                                    isSaving = false
                                 } else {
                                     dismiss()
                                 }
@@ -115,13 +127,14 @@ struct AddSleepSheet: View {
                     }
                 }
                 .padding()
+                .disabled(isSaving)
             }
             .background(HubTheme.canvas)
             .navigationTitle("Add Past Sleep")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    EditorCancelButton(session: editorSession)
                 }
             }
             // A refusal stays on screen only until the person changes something to address it.
@@ -138,9 +151,15 @@ struct AddSleepSheet: View {
                 endedAt = startedAt.addingTimeInterval(kind == .night ? 8 * 3600 : 3600)
             }
             .onAppear {
+                guard initialDraft == nil else { return }
                 endedAt = startedAt.addingTimeInterval(3600)
+                initialDraft = draft
+            }
+            .onChange(of: draft) { _, value in
+                if let initialDraft { editorSession.updateChanges(value != initialDraft) }
             }
         }
+        .editorProtection(editorSession)
     }
 
     private var saveTitle: String {
@@ -167,8 +186,15 @@ struct SleepEntrySheet: View {
     @State private var startedAt: Date
     @State private var endedAt: Date
     @State private var includeEndTime: Bool
-    @State private var isSaving = false
+    @StateObject private var editorSession = EditorSession()
     @State private var errorMessage: String?
+
+    private struct Draft: Equatable {
+        let start: Date
+        let end: Date?
+    }
+    private var draft: Draft { Draft(start: startedAt, end: resolvedEnd) }
+    private var isSaving: Bool { editorSession.isBusy }
 
     init(
         nap: NapLog,
@@ -231,11 +257,11 @@ struct SleepEntrySheet: View {
 
                     Button {
                         Task {
-                            isSaving = true
+                            guard isValid, editorSession.beginOperation() else { return }
+                            defer { editorSession.endOperation() }
                             errorMessage = nil
                             if let failure = await saveAction(startedAt, resolvedEnd) {
                                 errorMessage = failure
-                                isSaving = false
                             } else {
                                 dismiss()
                             }
@@ -254,6 +280,7 @@ struct SleepEntrySheet: View {
                 .padding()
                 // Room to scroll past the delete button pinned over the corner.
                 .padding(.bottom, 72)
+                .disabled(isSaving)
             }
             .background(HubTheme.canvas)
             .cornerDeleteButton(
@@ -262,11 +289,11 @@ struct SleepEntrySheet: View {
                 confirmButton: "Delete",
                 isDisabled: isSaving
             ) {
-                isSaving = true
+                guard editorSession.beginOperation() else { return }
+                defer { editorSession.endOperation() }
                 errorMessage = nil
                 if let failure = await deleteAction() {
                     errorMessage = failure
-                    isSaving = false
                 } else {
                     dismiss()
                 }
@@ -275,9 +302,13 @@ struct SleepEntrySheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    EditorCancelButton(session: editorSession)
                 }
             }
+            .onChange(of: draft) { _, value in
+                editorSession.updateChanges(value != Draft(start: nap.startedAt, end: nap.endedAt))
+            }
         }
+        .editorProtection(editorSession)
     }
 }

@@ -60,7 +60,7 @@ final class NotificationResponder: NSObject, UNUserNotificationCenterDelegate, @
     private static let pendingLock = NSLock()
     private nonisolated(unsafe) static var pendingDestination: String?
 
-    private static func requestOpen(_ destination: String) {
+    static func requestOpen(_ destination: String) {
         pendingLock.lock()
         pendingDestination = destination
         pendingLock.unlock()

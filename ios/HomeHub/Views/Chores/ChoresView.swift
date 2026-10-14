@@ -232,6 +232,7 @@ private enum ChoreEditorPresentation: Identifiable {
 
 private struct ChoreEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var editorSession = EditorSession()
     let editor: ChoreEditorPresentation
     let chores: [ChoreRow]
     let profiles: [Profile]
@@ -260,7 +261,8 @@ private struct ChoreEditorSheet: View {
                         ChoreFormView(
                             profiles: profiles,
                             timezone: viewModel.timezone,
-                            submitLabel: "Add Chore"
+                            submitLabel: "Add Chore",
+                            editorSession: editorSession
                         ) { input in
                             let saved = await viewModel.createChore(input)
                             if saved {
@@ -275,6 +277,7 @@ private struct ChoreEditorSheet: View {
                                 chore: chore,
                                 timezone: viewModel.timezone,
                                 submitLabel: "Save Chore",
+                                editorSession: editorSession,
                                 onSubmit: { input in
                                     let saved = await viewModel.updateChore(id: chore.id, input: input)
                                     if saved {
@@ -295,6 +298,10 @@ private struct ChoreEditorSheet: View {
                 .padding()
                 // Room to scroll past the delete button pinned over the corner.
                 .padding(.bottom, chore == nil ? 0 : 72)
+                .disabled(editorSession.isBusy)
+                if let error = viewModel.errorMessage {
+                    Text(error).font(.footnote).foregroundStyle(.red).padding(.horizontal)
+                }
             }
             .background(HubTheme.canvas)
             .cornerDeleteButton(
@@ -302,9 +309,12 @@ private struct ChoreEditorSheet: View {
                 accessibilityLabel: "Delete chore",
                 confirmTitle: "Delete \(chore?.title ?? "this chore")?",
                 confirmButton: "Delete Chore",
-                message: "This removes the chore and its history for everyone."
+                message: "This removes the chore and its history for everyone.",
+                isDisabled: editorSession.isBusy
             ) {
                 guard let chore else { return }
+                guard editorSession.beginOperation() else { return }
+                defer { editorSession.endOperation() }
                 if await viewModel.deleteChore(id: chore.id) {
                     dismiss()
                 }
@@ -313,11 +323,11 @@ private struct ChoreEditorSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+                    EditorCancelButton(session: editorSession)
                 }
             }
         }
+        .editorProtection(editorSession)
+        .onAppear { viewModel.errorMessage = nil }
     }
 }

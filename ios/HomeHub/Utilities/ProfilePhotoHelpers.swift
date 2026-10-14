@@ -19,7 +19,9 @@ enum ProfilePhotoHelpers {
     /// the crop rectangle and what is on screen agree) and no larger than `maxDimension` on a side,
     /// which keeps a 48-megapixel photo from filling memory while it is being moved around.
     static func cropSource(from data: Data, maxDimension: CGFloat = 3000) -> UIImage? {
-        guard let image = UIImage(data: data) else { return nil }
+        guard maxDimension.isFinite, maxDimension >= 1,
+              let thumbnail = ImageDownsampling.thumbnail(from: data, maxPixelSize: Int(maxDimension)) else { return nil }
+        let image = UIImage(cgImage: thumbnail, scale: 1, orientation: .up)
         let size = image.size
         let largest = max(size.width, size.height)
         guard largest > 0 else { return nil }
@@ -75,7 +77,10 @@ enum ProfilePhotoHelpers {
         guard largestSide > maxDimension else { return image }
         let scale = maxDimension / largestSide
         let newSize = CGSize(width: size.width * scale, height: size.height * scale)
-        let renderer = UIGraphicsImageRenderer(size: newSize)
+        // Upload dimensions are pixels, not display points on a 2x or 3x screen.
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
         return renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: newSize))
         }

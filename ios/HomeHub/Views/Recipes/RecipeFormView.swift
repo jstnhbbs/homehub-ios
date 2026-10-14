@@ -3,6 +3,7 @@ import SwiftUI
 struct RecipeFormView: View {
     var recipe: Recipe?
     let submitLabel: String
+    var editorSession: EditorSession? = nil
     var onSubmit: (RecipeInput) async -> Bool
     var onSuggestTags: ((String, [String]) async -> [String])?
 
@@ -22,16 +23,29 @@ struct RecipeFormView: View {
     @State private var newTag = ""
     @State private var isSuggestingTags = false
     @State private var isSaving = false
+    @State private var initialDraft: Draft?
+
+    private struct Draft: Equatable {
+        var text: [String]
+        var tags: [String]
+    }
+
+    private var draft: Draft {
+        Draft(text: [title, description, servings, prepTime, cookTime, totalTime, ingredientsText,
+                     directionsText, nutritionText, sourceUrl, imageUrl, notes, newTag], tags: tags)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             FormField(label: "Title") {
                 TextField("Recipe title", text: $title)
+                    .accessibilityLabel("Title")
                     .textFieldStyle(HubFieldStyle())
             }
 
             FormField(label: "Description") {
                 TextField("Short description (optional)", text: $description, axis: .vertical)
+                    .accessibilityLabel("Description")
                     .lineLimit(2...4)
                     .textFieldStyle(HubFieldStyle())
             }
@@ -39,23 +53,28 @@ struct RecipeFormView: View {
             HStack(spacing: 8) {
                 FormField(label: "Servings") {
                     TextField("4", text: $servings).textFieldStyle(HubFieldStyle())
+                        .accessibilityLabel("Servings")
                 }
                 FormField(label: "Total Time") {
                     TextField("45 min", text: $totalTime).textFieldStyle(HubFieldStyle())
+                        .accessibilityLabel("Total Time")
                 }
             }
 
             HStack(spacing: 8) {
                 FormField(label: "Prep Time") {
                     TextField("15 min", text: $prepTime).textFieldStyle(HubFieldStyle())
+                        .accessibilityLabel("Prep Time")
                 }
                 FormField(label: "Cook Time") {
                     TextField("30 min", text: $cookTime).textFieldStyle(HubFieldStyle())
+                        .accessibilityLabel("Cook Time")
                 }
             }
 
             FormField(label: "Ingredients") {
                 TextField("One ingredient per line", text: $ingredientsText, axis: .vertical)
+                    .accessibilityLabel("Ingredients")
                     .lineLimit(4...8)
                     .textFieldStyle(HubFieldStyle())
                     .font(.system(.body, design: .monospaced))
@@ -63,12 +82,14 @@ struct RecipeFormView: View {
 
             FormField(label: "Directions") {
                 TextField("One step per line", text: $directionsText, axis: .vertical)
+                    .accessibilityLabel("Directions")
                     .lineLimit(4...10)
                     .textFieldStyle(HubFieldStyle())
             }
 
             FormField(label: "Nutrition") {
                 TextField("Calories: 420", text: $nutritionText, axis: .vertical)
+                    .accessibilityLabel("Nutrition")
                     .lineLimit(2...6)
                     .textFieldStyle(HubFieldStyle())
                     .font(.system(.body, design: .monospaced))
@@ -76,6 +97,7 @@ struct RecipeFormView: View {
 
             FormField(label: "Source URL") {
                 TextField("Optional", text: $sourceUrl)
+                    .accessibilityLabel("Source URL")
                     .textFieldStyle(HubFieldStyle())
                     .textInputAutocapitalization(.never)
                     .keyboardType(.URL)
@@ -83,6 +105,7 @@ struct RecipeFormView: View {
 
             FormField(label: "Image URL") {
                 TextField("Optional", text: $imageUrl)
+                    .accessibilityLabel("Image URL")
                     .textFieldStyle(HubFieldStyle())
                     .textInputAutocapitalization(.never)
                     .keyboardType(.URL)
@@ -100,6 +123,7 @@ struct RecipeFormView: View {
 
                     HStack(spacing: 8) {
                         TextField("Add your own tag", text: $newTag)
+                            .accessibilityLabel("New Tag")
                             .textFieldStyle(HubFieldStyle())
                             .submitLabel(.done)
                             .onSubmit(addNewTag)
@@ -122,12 +146,14 @@ struct RecipeFormView: View {
 
             FormField(label: "Family Notes") {
                 TextField("Optional", text: $notes, axis: .vertical)
+                    .accessibilityLabel("Family Notes")
                     .lineLimit(2...4)
                     .textFieldStyle(HubFieldStyle())
             }
 
             Button(submitLabel) {
                 Task {
+                    guard !isSaving, !isSuggestingTags else { return }
                     guard let input = RecipeFormHelpers.buildInput(
                         title: title,
                         description: description,
@@ -143,16 +169,29 @@ struct RecipeFormView: View {
                         notes: notes,
                         tags: tags
                     ) else { return }
+                    if let editorSession, !editorSession.beginOperation() { return }
                     isSaving = true
-                    defer { isSaving = false }
+                    defer { isSaving = false; editorSession?.endOperation() }
                     _ = await onSubmit(input)
                 }
             }
             .buttonStyle(HubButtonStyle(emphasis: .primary))
-            .disabled(isSaving || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .disabled(isSaving || isSuggestingTags || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
-        .onAppear(perform: populate)
-        .onChange(of: recipe?.id) { _, _ in populate() }
+        .disabled(isSaving)
+        .onAppear {
+            guard initialDraft == nil else { return }
+            populate()
+            initialDraft = draft
+        }
+        .onChange(of: recipe?.id) { _, _ in
+            populate()
+            initialDraft = draft
+            editorSession?.updateChanges(false)
+        }
+        .onChange(of: draft) { _, newValue in
+            if let initialDraft { editorSession?.updateChanges(newValue != initialDraft) }
+        }
     }
 
     private func populate() {

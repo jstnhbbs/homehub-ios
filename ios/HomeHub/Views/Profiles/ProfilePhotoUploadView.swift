@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ProfilePhotoUploadView: View {
     let profile: Profile
+    var editorSession: EditorSession? = nil
     var onUpdated: () async -> Void
 
     @EnvironmentObject private var appState: AppState
@@ -93,9 +94,11 @@ struct ProfilePhotoUploadView: View {
     }
 
     private func uploadPhoto(_ image: UIImage) async {
+        guard !isWorking else { return }
+        if let editorSession, !editorSession.beginOperation() { return }
         isWorking = true
         errorMessage = nil
-        defer { isWorking = false }
+        defer { isWorking = false; editorSession?.endOperation() }
 
         do {
             guard let prepared = ProfilePhotoHelpers.prepareUploadData(from: image) else {
@@ -116,9 +119,11 @@ struct ProfilePhotoUploadView: View {
     }
 
     private func removePhoto() async {
+        guard !isWorking else { return }
+        if let editorSession, !editorSession.beginOperation() { return }
         isWorking = true
         errorMessage = nil
-        defer { isWorking = false }
+        defer { isWorking = false; editorSession?.endOperation() }
 
         do {
             _ = try await appState.api.removeProfilePhoto(id: profile.id)

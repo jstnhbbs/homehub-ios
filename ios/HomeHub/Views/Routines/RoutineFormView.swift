@@ -6,6 +6,7 @@ struct RoutineFormView: View {
     /// The household's first day of the week, for the order of the day chips.
     var weekStartsOn = WeekStart.defaultWeekStartsOn
     let submitLabel: String
+    var editorSession: EditorSession? = nil
     var onSubmit: (RoutineInput) async -> Bool
 
     @State private var name = ""
@@ -14,6 +15,19 @@ struct RoutineFormView: View {
     @State private var days: Set<Int> = RoutineDays.everyDay
     @State private var stepDrafts = [RoutineStepDraft()]
     @State private var isSaving = false
+    @State private var initialDraft: Draft?
+
+    private struct Draft: Equatable {
+        var name: String
+        var profileId: String?
+        var period: RoutinePeriod
+        var days: Set<Int>
+        var steps: [RoutineStepDraft]
+    }
+
+    private var draft: Draft {
+        Draft(name: name, profileId: profileId, period: period, days: days, steps: stepDrafts)
+    }
     @State private var dropTarget: UUID?
     @FocusState private var focusedStep: UUID?
 
@@ -21,6 +35,7 @@ struct RoutineFormView: View {
         VStack(alignment: .leading, spacing: 10) {
             FormField(label: "Routine Name") {
                 TextField("Bedtime routine", text: $name)
+                    .accessibilityLabel("Routine Name")
                     .textFieldStyle(HubFieldStyle())
             }
 
@@ -93,8 +108,10 @@ struct RoutineFormView: View {
 
             Button(submitLabel) {
                 Task {
+                    guard !isSaving else { return }
+                    if let editorSession, !editorSession.beginOperation() { return }
                     isSaving = true
-                    defer { isSaving = false }
+                    defer { isSaving = false; editorSession?.endOperation() }
                     let steps = stepDrafts
                         .map { RoutineGlyphs.storageValue(glyph: $0.glyph, label: $0.label) }
                         .filter { !$0.isEmpty }
@@ -112,7 +129,15 @@ struct RoutineFormView: View {
             .buttonStyle(HubButtonStyle(emphasis: .primary))
             .disabled(isSaving || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || validStepDrafts.isEmpty || days.isEmpty)
         }
-        .onAppear(perform: populate)
+        .disabled(isSaving)
+        .onAppear {
+            guard initialDraft == nil else { return }
+            populate()
+            initialDraft = draft
+        }
+        .onChange(of: draft) { _, newValue in
+            if let initialDraft { editorSession?.updateChanges(newValue != initialDraft) }
+        }
     }
 
     // MARK: Days
@@ -273,8 +298,12 @@ private struct RoutineStepDraftRow: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Step Picture")
+            .accessibilityValue(draft.glyph)
+            .accessibilityHint("Choose a picture for this step.")
 
             TextField("Brush teeth", text: $draft.label)
+                .accessibilityLabel("Step Name")
                 .textFieldStyle(HubFieldStyle())
                 .focused(focus, equals: draft.id)
                 .submitLabel(.next)

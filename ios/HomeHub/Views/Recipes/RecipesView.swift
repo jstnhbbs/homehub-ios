@@ -32,8 +32,23 @@ struct RecipesView: View {
             }
         }
         .onAppear { viewModel.bind(to: appState) }
-        .task { await viewModel.load() }
-        .refreshable { await viewModel.load() }
+        .task { await viewModel.load(); openPendingWidgetRecipe(afterLoad: true) }
+        .refreshable { await viewModel.load(); openPendingWidgetRecipe(afterLoad: true) }
+        .onChange(of: appState.pendingWidgetRecipeId) { _, _ in openPendingWidgetRecipe() }
+    }
+
+    private func openPendingWidgetRecipe(afterLoad: Bool = false) {
+        guard let id = appState.pendingWidgetRecipeId, !viewModel.isLoading, viewModel.errorMessage == nil else { return }
+        guard viewModel.recipes.contains(where: { $0.id == id }) else {
+            // Before the initial load there is no recipe list to check yet.
+            guard afterLoad || !viewModel.recipes.isEmpty else { return }
+            appState.pendingWidgetRecipeId = nil
+            appState.showNotice("This recipe is no longer available.")
+            return
+        }
+        viewModel.selectedRecipeId = id
+        narrowDetailId = id
+        appState.pendingWidgetRecipeId = nil
     }
 
     @ViewBuilder
@@ -499,6 +514,7 @@ private enum RecipeSheetPresentation: Identifiable {
 
 private struct RecipeManagementSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var editorSession = EditorSession()
     let sheet: RecipeSheetPresentation
     let recipes: [Recipe]
     @ObservedObject var viewModel: RecipesViewModel
@@ -521,6 +537,11 @@ private struct RecipeManagementSheet: View {
         }
     }
 
+    private var isCroutonImport: Bool {
+        if case .importCrouton = sheet { return true }
+        return false
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -529,6 +550,7 @@ private struct RecipeManagementSheet: View {
                     case .add:
                         RecipeFormView(
                             submitLabel: "Save Recipe",
+                            editorSession: editorSession,
                             onSubmit: { input in
                                 let saved = await viewModel.addRecipe(input)
                                 if saved {
@@ -545,6 +567,7 @@ private struct RecipeManagementSheet: View {
                             RecipeFormView(
                                 recipe: recipe,
                                 submitLabel: "Save Changes",
+                                editorSession: editorSession,
                                 onSubmit: { input in
                                     let saved = await viewModel.updateRecipe(id: recipe.id, input: input)
                                     if saved {
@@ -564,11 +587,11 @@ private struct RecipeManagementSheet: View {
                             )
                         }
                     case .importRecipe:
-                        RecipeImportForm(viewModel: viewModel) {
+                        RecipeImportForm(viewModel: viewModel, editorSession: editorSession) {
                             dismiss()
                         }
                     case .importCrouton:
-                        CroutonImportView {
+                        CroutonImportView(editorSession: editorSession) {
                             await viewModel.load()
                         }
                     }
@@ -576,6 +599,10 @@ private struct RecipeManagementSheet: View {
                 .padding()
                 // Room to scroll past the delete button pinned over the corner.
                 .padding(.bottom, recipe == nil ? 0 : 72)
+                .disabled(editorSession.isBusy && !isCroutonImport)
+                if let error = viewModel.errorMessage {
+                    Text(error).font(.footnote).foregroundStyle(.red).padding(.horizontal)
+                }
             }
             .background(HubTheme.canvas)
             .cornerDeleteButton(
@@ -583,9 +610,12 @@ private struct RecipeManagementSheet: View {
                 accessibilityLabel: "Delete recipe",
                 confirmTitle: "Delete \(recipe?.title ?? "this recipe")?",
                 confirmButton: "Delete Recipe",
-                message: "This removes the recipe for everyone."
+                message: "This removes the recipe for everyone.",
+                isDisabled: editorSession.isBusy
             ) {
                 guard let recipe else { return }
+                guard editorSession.beginOperation() else { return }
+                defer { editorSession.endOperation() }
                 if await viewModel.deleteRecipe(id: recipe.id) {
                     dismiss()
                 }
@@ -594,17 +624,19 @@ private struct RecipeManagementSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+                    EditorCancelButton(session: editorSession)
                 }
             }
         }
+        .editorProtection(editorSession)
+        .onAppear { viewModel.errorMessage = nil }
     }
 }
 
 private struct RecipeImportForm: View {
     @ObservedObject var viewModel: RecipesViewModel
+    @ObservedObject var editorSession: EditorSession
+    @State private var initialURL: String?
     let onImported: () -> Void
 
     var body: some View {
@@ -631,9 +663,15 @@ private struct RecipeImportForm: View {
             .buttonStyle(HubButtonStyle(emphasis: .primary))
             .disabled(viewModel.isWorking || viewModel.importURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
+        .onAppear { if initialURL == nil { initialURL = viewModel.importURL } }
+        .onChange(of: viewModel.importURL) { _, value in
+            if let initialURL { editorSession.updateChanges(value != initialURL) }
+        }
     }
 
     private func importRecipe() async {
+        guard editorSession.beginOperation() else { return }
+        defer { editorSession.endOperation() }
         let imported = await viewModel.importRecipe()
         if imported {
             onImported()

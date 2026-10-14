@@ -6,6 +6,7 @@ import SwiftUI
 struct WeatherDetailsPanel: View {
     let weather: NativeWeatherSnapshot
     let attribution: WeatherAttributionInfo?
+    var refreshError: String? = nil
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -78,6 +79,12 @@ struct WeatherDetailsPanel: View {
             Text("Updated \(weather.updatedAt.formatted(date: .omitted, time: .shortened))")
                 .font(.caption)
                 .foregroundStyle(HubTheme.muted)
+
+            if let refreshError {
+                Text("Showing the last reading. \(refreshError)")
+                    .font(.caption)
+                    .foregroundStyle(HubTheme.muted)
+            }
 
             if weather.isSample {
                 Text("Sample reading. Weather appears here once WeatherKit is enabled.")

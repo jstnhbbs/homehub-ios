@@ -70,12 +70,7 @@ final class NativeWeatherService: NSObject, ObservableObject {
     private var didReceiveAuthorizationUpdate = false
     private lazy var isWeatherKitEnabled = Self.currentBuildAllowsWeatherKitRequests()
     private var lastRefreshAttemptAt: Date?
-
-    /// A reading is reused for this long. The temperature on a dashboard doesn't change meaningfully
-    /// faster, and every fetch is a WeatherKit call. Pull to refresh asks regardless.
-    private let automaticRefreshBackoff: TimeInterval = 60 * 60
-    /// After a failed attempt with nothing to show, try again sooner than a good reading would be.
-    private let retryBackoff: TimeInterval = 15 * 60
+    private var authorizationGeneration = 0
 
     private lazy var locationManager: CLLocationManager = {
         let manager = CLLocationManager()
@@ -114,13 +109,18 @@ final class NativeWeatherService: NSObject, ObservableObject {
 
         isLoading = true
         errorMessage = nil
+        let generation = authorizationGeneration
+        let previousAttemptAt = lastRefreshAttemptAt
         lastRefreshAttemptAt = .now
         defer { isLoading = false }
 
         do {
             let location = try await requestCurrentLocation()
+            try Task.checkCancellation()
+            guard generation == authorizationGeneration, accessStatus.canRequestWeather else { return }
             let weather = try await WeatherService.shared.weather(for: location)
             try Task.checkCancellation()
+            guard generation == authorizationGeneration, accessStatus.canRequestWeather else { return }
             snapshot = NativeWeatherSnapshot(weather: weather)
             // Fetched once; it only changes with the service itself.
             if attribution == nil, let info = try? await WeatherService.shared.attribution {
@@ -132,6 +132,11 @@ final class NativeWeatherService: NSObject, ObservableObject {
                 )
             }
         } catch {
+            guard generation == authorizationGeneration else { return }
+            if error.isCancellation {
+                // A disappearing header isn't a failed network attempt; don't delay the next one.
+                lastRefreshAttemptAt = previousAttemptAt
+            }
             if !error.isCancellation {
                 // The reason (never the location), so a WeatherKit setup problem can be told apart
                 // from a location or network one.
@@ -143,13 +148,9 @@ final class NativeWeatherService: NSObject, ObservableObject {
 
     private var shouldRefreshAutomatically: Bool {
         guard !isLoading else { return false }
-        // Every dashboard refresh asks, and each check-off triggers one, so a reading that is
-        // still recent must be reused rather than fetched again.
-        if let snapshot {
-            return Date().timeIntervalSince(snapshot.updatedAt) >= automaticRefreshBackoff
-        }
-        guard let lastRefreshAttemptAt else { return true }
-        return Date().timeIntervalSince(lastRefreshAttemptAt) >= retryBackoff
+        return WeatherRefreshPolicy.shouldRefresh(
+            now: .now, readingAt: snapshot?.updatedAt, lastAttemptAt: lastRefreshAttemptAt
+        )
     }
 
     private func waitForInitialAuthorizationStatus() async throws {
@@ -191,10 +192,16 @@ extension NativeWeatherService: CLLocationManagerDelegate {
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = NativeWeatherAccessStatus(manager.authorizationStatus)
         Task { @MainActor in
+            if accessStatus != status {
+                authorizationGeneration += 1
+                lastRefreshAttemptAt = nil
+            }
             accessStatus = status
             didReceiveAuthorizationUpdate = true
             initialStatusWaiters.resolve(.success(()))
-            if !status.canRequestWeather, status != .notDetermined {
+            if !status.canRequestWeather {
+                snapshot = nil
+                errorMessage = nil
                 locationWaiters.resolve(.failure(NativeWeatherError.locationUnavailable))
             }
             guard status != .notDetermined else { return }
@@ -278,13 +285,7 @@ private enum NativeWeatherError: LocalizedError {
     }
 
     static func userFacingMessage(for error: Error) -> String {
-        let description = error.localizedDescription
-        if description.localizedCaseInsensitiveContains("weatherkit")
-            || description.localizedCaseInsensitiveContains("weather")
-            || description.localizedCaseInsensitiveContains("authservice")
-            || description.localizedCaseInsensitiveContains("not entitled") {
-            return "Weather is unavailable until WeatherKit is enabled for this app."
-        }
-        return description
+        if let error = error as? NativeWeatherError { return error.localizedDescription }
+        return WeatherRefreshPolicy.failureMessage(for: error)
     }
 }

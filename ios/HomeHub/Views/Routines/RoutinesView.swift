@@ -266,6 +266,7 @@ private enum RoutineEditorPresentation: Identifiable {
 
 private struct RoutineEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var editorSession = EditorSession()
     let editor: RoutineEditorPresentation
     let routines: [Routine]
     let profiles: [Profile]
@@ -294,7 +295,8 @@ private struct RoutineEditorSheet: View {
                         RoutineFormView(
                             profiles: profiles,
                             weekStartsOn: viewModel.weekStartsOn,
-                            submitLabel: "Add Routine"
+                            submitLabel: "Add Routine",
+                            editorSession: editorSession
                         ) { input in
                             let saved = await viewModel.createRoutine(input)
                             if saved {
@@ -309,6 +311,7 @@ private struct RoutineEditorSheet: View {
                                 routine: routine,
                                 weekStartsOn: viewModel.weekStartsOn,
                                 submitLabel: "Save Routine",
+                                editorSession: editorSession,
                                 onSubmit: { input in
                                     let saved = await viewModel.updateRoutine(id: routine.id, input: input)
                                     if saved {
@@ -329,6 +332,10 @@ private struct RoutineEditorSheet: View {
                 .padding()
                 // Room to scroll past the delete button pinned over the corner.
                 .padding(.bottom, routine == nil ? 0 : 72)
+                .disabled(editorSession.isBusy)
+                if let error = viewModel.errorMessage {
+                    Text(error).font(.footnote).foregroundStyle(.red).padding(.horizontal)
+                }
             }
             .background(HubTheme.canvas)
             .cornerDeleteButton(
@@ -336,9 +343,12 @@ private struct RoutineEditorSheet: View {
                 accessibilityLabel: "Delete routine",
                 confirmTitle: "Delete \(routine?.name ?? "this routine")?",
                 confirmButton: "Delete Routine",
-                message: "This removes the routine, its steps and their history."
+                message: "This removes the routine, its steps and their history.",
+                isDisabled: editorSession.isBusy
             ) {
                 guard let routine else { return }
+                guard editorSession.beginOperation() else { return }
+                defer { editorSession.endOperation() }
                 if await viewModel.deleteRoutine(id: routine.id) {
                     dismiss()
                 }
@@ -347,12 +357,12 @@ private struct RoutineEditorSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+                    EditorCancelButton(session: editorSession)
                 }
             }
         }
+        .editorProtection(editorSession)
+        .onAppear { viewModel.errorMessage = nil }
     }
 }
 

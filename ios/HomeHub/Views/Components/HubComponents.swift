@@ -345,9 +345,15 @@ struct CheckItemView: View {
 /// as a tile. Renders nothing at all when there's nothing useful to say.
 struct WeatherHeaderReadout: View {
     @EnvironmentObject private var appState: AppState
-    @State private var showsDetails = false
 
-    private var service: NativeWeatherService { appState.nativeWeather }
+    var body: some View {
+        ObservedWeatherReadout(service: appState.nativeWeather)
+    }
+}
+
+private struct ObservedWeatherReadout: View {
+    @ObservedObject var service: NativeWeatherService
+    @State private var showsDetails = false
 
     var body: some View {
         Group {
@@ -367,7 +373,7 @@ struct WeatherHeaderReadout: View {
                 .buttonStyle(.plain)
                 .accessibilityHint("Shows today's weather details.")
                 .popover(isPresented: $showsDetails) {
-                    WeatherDetailsPanel(weather: weather, attribution: service.attribution)
+                    WeatherDetailsPanel(weather: weather, attribution: service.attribution, refreshError: service.errorMessage)
                         .presentationCompactAdaptation(.popover)
                 }
             } else if service.accessStatus == .notDetermined {
@@ -375,7 +381,7 @@ struct WeatherHeaderReadout: View {
                 // readout doubles as the prompt. Denied/unavailable render nothing and
                 // recovery lives in Settings, where a denied permission belongs.
                 Button {
-                    Task { await appState.requestNativeWeatherAccessAndRefresh() }
+                    Task { await service.requestAccessAndRefresh() }
                 } label: {
                     Label("Weather", systemImage: "location.circle")
                         .font(.caption.weight(.bold))

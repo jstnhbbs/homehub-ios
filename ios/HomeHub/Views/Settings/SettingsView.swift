@@ -851,6 +851,12 @@ private struct SettingsFAQView: View {
             FAQItem("Do my layout choices follow me between iPhone and iPad?", "Yes. Layout preferences are saved to your account, so the same user can use them on iPhone and iPad. Another parent has their own layout preferences. Each device adapts the arrangement to its available space."),
             FAQItem("Where are the sections I cannot see in navigation?", "Tap More to see overflow sections. Larger screens show more sections directly when space allows. Open Settings > Layout > Navigation to choose and reorder optional sections; Today stays available.")
         ]),
+        FAQSection(title: "Home Screen Widgets", questions: [
+            FAQItem("How do I add a Tugboat widget?", "Open Tugboat and sign in once, then press and hold your Home Screen, choose Edit > Add Widget, and search for Tugboat. Choose a widget and size. Household Snapshot comes in medium and large; the other widgets also have a small size."),
+            FAQItem("Can I choose a child or a note?", "Press and hold a Routines or Household Note widget and choose Edit Widget. Select a child or a note. With no child selected, routines show everyone. With no note selected, a pinned note takes priority."),
+            FAQItem("What can I do without opening the app?", "Tap a routine step or chore's circle to mark it done, or End on active sleep to stop it. These actions need a connection and your current sign-in. Tap the rest of the widget to open its page. Undo check-offs in the app."),
+            FAQItem("When do widgets update?", "Widgets show the last information Tugboat saved on this device. Opening or refreshing the app updates that information; tap the widget's refresh arrow to fetch it without opening the app. iOS controls when widgets redraw, so they are not a continuous live feed. The time at the bottom is the last update. After midnight, today's task widgets ask for a refresh rather than showing yesterday's tasks.")
+        ]),
         FAQSection(title: "Calendar & Reminders", questions: [
             FAQItem("How do I connect my calendar?", "Open Settings > Calendar & Reminders and allow native calendar access. Tugboat reads the calendars available in Apple Calendar on that device. Add iCloud, Google, or other accounts to the device's Calendar settings first; you do not sign in to those providers inside Tugboat."),
             FAQItem("How do I choose which calendars appear?", "In Settings > Calendar & Reminders, open the calendar selection and choose from the accessible device calendars. Save your selection, or select all calendars. Configure calendar access and selection separately on each device."),
@@ -1229,6 +1235,7 @@ private enum ProfileEditorPresentation: Identifiable {
 
 private struct ProfileEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var editorSession = EditorSession()
     @EnvironmentObject private var appState: AppState
     let editor: ProfileEditorPresentation
     let profiles: [Profile]
@@ -1259,7 +1266,8 @@ private struct ProfileEditorSheet: View {
                             mode: .manage,
                             timezone: timezone,
                             submitLabel: "Add Member",
-                            otherProfiles: profiles
+                            otherProfiles: profiles,
+                            editorSession: editorSession
                         ) { input in
                             let saved = await viewModel.addProfile(input)
                             if saved {
@@ -1269,7 +1277,7 @@ private struct ProfileEditorSheet: View {
                         }
                     case .edit:
                         if let profile {
-                            ProfilePhotoUploadView(profile: profile) {
+                            ProfilePhotoUploadView(profile: profile, editorSession: editorSession) {
                                 await viewModel.load()
                                 await appState.refreshDashboard()
                             }
@@ -1278,7 +1286,8 @@ private struct ProfileEditorSheet: View {
                                 mode: .manage,
                                 timezone: timezone,
                                 submitLabel: "Save Changes",
-                                otherProfiles: profiles.filter { $0.id != profile.id }
+                                otherProfiles: profiles.filter { $0.id != profile.id },
+                                editorSession: editorSession
                             ) { input in
                                 let saved = await viewModel.updateProfile(id: profile.id, input: input)
                                 if saved {
@@ -1296,18 +1305,22 @@ private struct ProfileEditorSheet: View {
                     }
                 }
                 .padding()
+                .disabled(editorSession.isBusy)
+                if let error = viewModel.errorMessage {
+                    Text(error).font(.footnote).foregroundStyle(.red).padding(.horizontal)
+                }
             }
             .background(HubTheme.canvas)
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+                    EditorCancelButton(session: editorSession)
                 }
             }
         }
+        .editorProtection(editorSession)
+        .onAppear { viewModel.errorMessage = nil }
     }
 }
 

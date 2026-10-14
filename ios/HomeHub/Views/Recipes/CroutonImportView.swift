@@ -10,6 +10,7 @@ struct CroutonImportView: View {
     @State private var showingPicker = false
     @State private var pickerError: String?
     @State private var showingProblems = false
+    var editorSession: EditorSession? = nil
 
     /// Called when an import finishes, so the recipe list can reload.
     let onFinished: () async -> Void
@@ -29,6 +30,13 @@ struct CroutonImportView: View {
         .onAppear { model.bind(to: appState) }
         .onDisappear { model.cancel() }
         .interactiveDismissDisabled(model.isRunning)
+        .onChange(of: model.isRunning) { _, running in
+            if running {
+                _ = editorSession?.beginOperation()
+            } else {
+                editorSession?.endOperation()
+            }
+        }
         .onChange(of: model.phase) { _, phase in
             if phase == .finished {
                 Task { await onFinished() }
