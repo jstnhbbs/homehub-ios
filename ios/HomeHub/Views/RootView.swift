@@ -33,6 +33,16 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: appState.notice)
+        .onOpenURL { url in
+            guard let destination = WidgetRoute.destination(from: url) else { return }
+            appState.pendingWidgetRecipeId = nil
+            if let recipeId = WidgetRoute.recipeId(from: url), FoodHubSection.recipes.isVisible(in: appState.hubModules) {
+                appState.pendingFoodSection = .recipes
+                appState.pendingWidgetRecipeId = recipeId
+            }
+            NotificationResponder.requestOpen(destination)
+            appState.openPendingNotificationDestination()
+        }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active, appState.auth.isSignedIn else { return }
             Task {

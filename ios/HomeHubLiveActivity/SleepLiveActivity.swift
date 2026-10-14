@@ -6,6 +6,15 @@ import WidgetKit
 struct HomeHubLiveActivities: WidgetBundle {
     var body: some Widget {
         SleepLiveActivityWidget()
+        HouseholdSummaryWidget(kind: .next)
+        HouseholdRoutineWidget()
+        HouseholdSummaryWidget(kind: .chores)
+        HouseholdSummaryWidget(kind: .dinner)
+        HouseholdSummaryWidget(kind: .sleep)
+        HouseholdNoteWidget()
+        HouseholdSummaryWidget(kind: .groceries)
+        HouseholdSummaryWidget(kind: .celebrations)
+        HouseholdSummaryWidget(kind: .overview)
     }
 }
 

@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import SwiftUI
+import WidgetKit
 
 enum AppConfig {
     static var baseURL: URL {
@@ -23,17 +24,18 @@ final class AppState: ObservableObject {
     let localStore: HomeHubLocalStore
 
     @Published var household: Household?
-    @Published var dashboard: DashboardData?
+    @Published var dashboard: DashboardData? { didSet { scheduleWidgetUpdate() } }
     /// Whether the household has any anniversary. Views that show the module's name read
     /// `CelebrationNaming.current`, and observing this makes them redraw when it changes.
     @Published private(set) var hasAnniversaries = CelebrationNaming.hasAnniversaries()
-    @Published var nativeTodayScheduleEvents: [ScheduleEvent] = []
+    @Published var nativeTodayScheduleEvents: [ScheduleEvent] = [] { didSet { scheduleWidgetUpdate() } }
     /// The next day's events, for the Large Schedule card.
     @Published var nativeTomorrowScheduleEvents: [ScheduleEvent] = []
-    @Published var nativeGroceryItems: [GroceryItem] = []
-    @Published var hubModules: HubModules = .defaults
+    @Published var nativeGroceryItems: [GroceryItem] = [] { didSet { scheduleWidgetUpdate() } }
+    @Published var hubModules: HubModules = .defaults { didSet { scheduleWidgetUpdate() } }
     @Published var selectedDestination: HubDestination = .dashboard
     @Published var pendingFoodSection: FoodHubSection?
+    @Published var pendingWidgetRecipeId: String?
     @Published var pendingProfileEditId: String?
     @Published var isBootstrapping = true
     /// Set when the whole screen has nothing to show (no dashboard yet); the Today screen draws it.
@@ -51,6 +53,7 @@ final class AppState: ObservableObject {
         didSet {
             HubTheme.currentAccent = accentPalette
             UserDefaults.standard.set(accentPalette.rawValue, forKey: Self.accentStorageKey)
+            scheduleWidgetUpdate()
         }
     }
 
@@ -98,6 +101,10 @@ final class AppState: ObservableObject {
     private var dataChangedObserver: NSObjectProtocol?
     private var openDestinationObserver: NSObjectProtocol?
     private var eventKitRefreshTask: Task<Void, Never>?
+    private var widgetUpdateTask: Task<Void, Never>?
+    private var widgetRecipeTask: Task<Void, Never>?
+    private var widgetRecipeId: String?
+    private var widgetRecipeFetchedAt: Date?
     private var lastDeviceRefreshAt: Date?
     private var hubModulesSaveVersion = 0
     private var acknowledgedHubModulesVersion = 0
@@ -148,6 +155,8 @@ final class AppState: ObservableObject {
     }
 
     deinit {
+        widgetUpdateTask?.cancel()
+        widgetRecipeTask?.cancel()
         eventKitRefreshTask?.cancel()
         if let eventKitObserver {
             NotificationCenter.default.removeObserver(eventKitObserver)
@@ -637,6 +646,12 @@ final class AppState: ObservableObject {
     /// Everything that belongs to the signed-in person, for sign-out and for an ended session.
     @discardableResult
     private func clearSignedInState() -> Task<Void, Never> {
+        widgetUpdateTask?.cancel()
+        widgetRecipeTask?.cancel()
+        widgetRecipeId = nil
+        widgetRecipeFetchedAt = nil
+        WidgetStore().clear()
+        WidgetCenter.shared.reloadAllTimelines()
         let notificationCleanup = nativeNotifications.clearSessionReminders()
         let activityCleanup = SleepLiveActivityManager.clearSessionActivities()
         _ = NotificationResponder.takePendingDestination()
@@ -657,6 +672,7 @@ final class AppState: ObservableObject {
         lastDeviceRefreshAt = nil
         pendingProfileEditId = nil
         pendingFoodSection = nil
+        pendingWidgetRecipeId = nil
         selectedDestination = .dashboard
         return Task {
             await notificationCleanup.value
@@ -673,6 +689,36 @@ final class AppState: ObservableObject {
             }
         } else if household == nil, let cachedHousehold = localStore.loadHousehold() {
             household = cachedHousehold
+        }
+    }
+
+    private func scheduleWidgetUpdate() {
+        widgetUpdateTask?.cancel()
+        widgetUpdateTask = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
+            guard let self, self.auth.isSignedIn, SessionCredentials.shared(for: AppConfig.baseURL).hasSession, let dashboard = self.dashboard,
+                  let userId = self.currentUser?.id else { return }
+            let snapshot = WidgetSnapshotBuilder.make(
+                dashboard: dashboard, userId: userId, palette: self.accentPalette.rawValue,
+                events: self.nativeTodayScheduleEvents,
+                groceries: self.groceriesUseNativeReminders ? self.nativeGroceryItems : dashboard.groceryItems,
+                modules: self.hubModules
+            )
+            if WidgetStore().save(snapshot) { WidgetCenter.shared.reloadAllTimelines() }
+            guard let recipeId = snapshot.dinner?.recipeId,
+                  recipeId != self.widgetRecipeId || Date().timeIntervalSince(self.widgetRecipeFetchedAt ?? .distantPast) >= 3600 else { return }
+            self.widgetRecipeId = recipeId
+            self.widgetRecipeFetchedAt = .now
+            self.widgetRecipeTask?.cancel()
+            let session = self.auth.sessionVersion
+            self.widgetRecipeTask = Task { @MainActor [weak self] in
+                guard let self, let recipe = try? await self.api.fetchRecipe(id: recipeId), !Task.isCancelled,
+                      self.isCurrentSession(session, userId: userId),
+                      var latest = WidgetStore().load(), latest.userId == userId,
+                      latest.dinner?.recipeId == recipeId else { return }
+                latest.dinner?.imageURL = recipe.imageUrl
+                if WidgetStore().save(latest) { WidgetCenter.shared.reloadAllTimelines() }
+            }
         }
     }
 

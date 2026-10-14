@@ -1,0 +1,83 @@
+import Foundation
+
+var failures = 0
+func check(_ label: String, _ condition: Bool) {
+    if condition { print("ok   \(label)") } else { failures += 1; print("FAIL \(label)") }
+}
+let now = ISO8601DateFormatter().date(from: "2026-10-14T04:30:00Z")!
+var snapshot = WidgetSnapshot(userId: "user", householdId: "home", householdName: "Family",
+    timezone: "America/Chicago", localDate: "2026-10-13", updatedAt: now,
+    accentLight: "#57764C", accentDark: "#5F8153", enabledDestinations: Array(WidgetRoute.destinations),
+    people: [.init(id: "child1", name: "Alex", color: "#5F8153", isChild: true), .init(id: "child2", name: "Sam", color: "#56A2DC", isChild: true)],
+    steps: [.init(id: "s1", label: "Brush teeth", personId: "child1", period: "morning", completed: false),
+            .init(id: "s2", label: "Read", personId: "child2", period: "evening", completed: true),
+            .init(id: "shared", label: "Tidy up", period: "evening", completed: false)],
+    chores: [.init(id: "c1", title: "Plants", periodKey: "once", dueAt: now.addingTimeInterval(600), completed: false)],
+    events: [.init(id: "past", title: "Past", start: now.addingTimeInterval(-7200), end: now.addingTimeInterval(-3600), allDay: false),
+             .init(id: "active", title: "Now", start: now.addingTimeInterval(-600), end: now.addingTimeInterval(600), allDay: false),
+             .init(id: "allDay", title: "All day", start: now, end: now.addingTimeInterval(3600), allDay: true)],
+    dinner: .init(title: "Pasta"), sleeps: [], notes: [.init(id: "n1", title: "Newest", body: "", pinned: false), .init(id: "n2", title: "Pinned", body: "Reminder", pinned: true)],
+    groceries: ["Milk"], groceryCount: 1, celebrations: [])
+check("household timezone determines the day", snapshot.isCurrentDay(at: now))
+let tomorrow = now.addingTimeInterval(3600)
+check("cached checklist expires at household midnight", !snapshot.isCurrentDay(at: tomorrow))
+check("stale Up Next never shows yesterday's tasks", snapshot.upcoming(at: tomorrow).isEmpty)
+check("past and all-day events do not occupy Up Next", snapshot.upcoming(at: now).map(\.id) == ["event:active", "chore:c1"])
+check("child selection includes only that child and shared routines", snapshot.routineSteps(personId: "child1").map(\.id) == ["s1", "shared"])
+check("bedtime steps come first at night in the household timezone", snapshot.routineSteps(personId: "child1", at: now).first?.id == "shared")
+check("default note chooses pinned before newest", snapshot.selectedNote(id: nil)?.id == "n2")
+check("explicit note selection is respected", snapshot.selectedNote(id: "n1")?.id == "n1")
+check("deleted selected note doesn't silently become another note", snapshot.selectedNote(id: "missing") == nil)
+for destination in WidgetRoute.destinations {
+    check("\(destination) deep link round trips", WidgetRoute.destination(from: WidgetRoute.url(destination: destination)) == destination)
+}
+for value in ["https://widget/chores", "tugboat://other/chores", "tugboat://widget/settings", "tugboat://widget/chores?delete=1"] {
+    check("unexpected deep links are rejected", WidgetRoute.destination(from: URL(string: value)!) == nil)
+}
+let recipeId = "12345678-1234-4234-8234-123456789012"
+let dinnerURL = WidgetRoute.url(destination: "meals", recipeId: recipeId)
+check("dinner deep link carries only a valid recipe ID", WidgetRoute.destination(from: dinnerURL) == "meals" && WidgetRoute.recipeId(from: dinnerURL) == recipeId)
+check("malformed recipe query is rejected", WidgetRoute.destination(from: URL(string: "tugboat://widget/meals?recipe=invalid")!) == nil)
+check("extra recipe query parameters are rejected", WidgetRoute.destination(from: URL(string: "tugboat://widget/meals?recipe=\(recipeId)&delete=1")!) == nil)
+let directory = FileManager.default.temporaryDirectory.appendingPathComponent("tugboat-widgets-\(UUID().uuidString)")
+defer { try? FileManager.default.removeItem(at: directory) }
+let store = WidgetStore(directory: directory)
+check("empty cache shows signed-out state", store.load() == nil)
+check("first snapshot saves", store.save(snapshot))
+check("stored snapshot round trips", store.load() == snapshot)
+snapshot.updatedAt = now.addingTimeInterval(60)
+check("equal refresh doesn't churn file or widget timelines", !store.save(snapshot))
+check("explicit refresh updates the freshness timestamp", store.save(snapshot, force: true) && store.load()?.updatedAt == snapshot.updatedAt)
+snapshot.updatedAt = now.addingTimeInterval(961)
+check("freshness timestamp advances at fifteen minutes", store.save(snapshot))
+snapshot.steps[0].completed = true
+check("completion is persisted immediately", store.save(snapshot) && store.load()?.steps[0].completed == true)
+snapshot.actionError = "Offline"
+check("failed action feedback persists without losing data", store.save(snapshot) && store.load()?.notes.count == 2)
+store.clear()
+check("sign-out removes household information", store.load() == nil)
+check("missing App Group has no private-storage fallback", WidgetStore(directory: nil).load() == nil)
+check("all nine widget types exist", HouseholdWidgetKind.allCases.count == 9)
+func allowed(_ action: String, _ id: String, user: String = "user", home: String = "home", day: String = "2026-10-13") -> Bool {
+    WidgetActionPolicy.allows(action: action, itemId: id, userId: user, householdId: home, localDate: day, current: snapshot, now: now)
+}
+check("current routine can be completed", allowed("step", "s1"))
+check("unknown routine cannot be completed", !allowed("step", "missing"))
+check("old day's routine cannot be completed", !allowed("step", "s1", day: "2026-10-12"))
+check("old day's chore cannot be completed", !allowed("chore", "c1", day: "2026-10-12"))
+check("crossing midnight during a request also blocks yesterday's tasks", !WidgetActionPolicy.allows(action: "step", itemId: "s1", userId: "user", householdId: "home", localDate: snapshot.localDate, current: snapshot, now: tomorrow))
+check("another account's widget cannot write", !allowed("step", "s1", user: "other"))
+check("another household's widget cannot write", !allowed("step", "s1", home: "other"))
+check("unknown actions are refused", !allowed("delete", "s1"))
+snapshot.sleeps = [.init(id: "sleep", personId: "child1", start: now.addingTimeInterval(-3600), kind: "night")]
+check("sleep can end across midnight", allowed("endSleep", "sleep", day: "2026-10-12"))
+snapshot.sleeps[0].end = now
+check("ended sleep cannot be ended again", !allowed("endSleep", "sleep"))
+check("refresh is allowed for an old day", allowed("refresh", "", day: "2026-10-12"))
+check("a follow-up read across midnight doesn't check off tomorrow's routine", !WidgetActionPolicy.appliesCompletion(action: "step", writtenDay: "2026-10-13", currentDay: "2026-10-14"))
+check("a follow-up read across midnight doesn't check off tomorrow's daily chore", !WidgetActionPolicy.appliesCompletion(action: "chore", writtenDay: "2026-10-13", currentDay: "2026-10-14", writtenPeriod: "2026-10-13", currentPeriod: "2026-10-14"))
+check("a confirmed weekly completion still applies within the same week", WidgetActionPolicy.appliesCompletion(action: "chore", writtenDay: "2026-10-13", currentDay: "2026-10-14", writtenPeriod: "2026-W42", currentPeriod: "2026-W42"))
+snapshot.sleeps = [.init(id: "overnight", personId: "child1", start: tomorrow.addingTimeInterval(-3600), end: tomorrow, kind: "night")]
+check("overnight sleep totals include only the current day's portion", snapshot.sleepMinutes(on: tomorrow) == 30)
+if failures > 0 { exit(1) }
+print("all passed")

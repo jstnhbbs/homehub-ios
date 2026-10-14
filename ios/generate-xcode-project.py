@@ -16,7 +16,14 @@ BUILD_NUMBER = "1"
 EXTENSION = "HomeHubLiveActivity"
 EXTENSION_BUNDLE_ID = f"{BUNDLE_ID}.liveactivity"
 # Compiled into both the app and the extension.
-SHARED_WITH_EXTENSION = ("HomeHub/Utilities/SleepActivityAttributes.swift",)
+SHARED_WITH_EXTENSION = (
+    "HomeHub/Utilities/SleepActivityAttributes.swift",
+    "HomeHub/Utilities/ImageDownsampling.swift",
+    "HomeHub/Utilities/AccentColors.swift",
+    "HomeHub/Widgets/WidgetSnapshot.swift",
+    "HomeHub/Widgets/WidgetStore.swift",
+    "HomeHub/Widgets/WidgetIntents.swift",
+)
 APP_ICON_NAME = "Beacon"
 ALTERNATE_APP_ICON_NAMES = (
     "BeaconOcean",
@@ -55,6 +62,7 @@ ext_resources_phase = uid("ext_resources_phase")
 ext_product_ref = uid("ext_product_ref")
 ext_group = uid("ext_group")
 ext_info_ref = uid("ext_info_ref")
+ext_entitlements_ref = uid("ext_entitlements_ref")
 ext_config_list = uid("ext_config_list")
 ext_debug = uid("ext_debug")
 ext_release = uid("ext_release")
@@ -108,6 +116,7 @@ for path, ref in extension_refs.items():
 lines.extend(
     [
         f'\t\t{ext_info_ref} /* Info.plist */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = {EXTENSION}/Info.plist; sourceTree = SOURCE_ROOT; }};',
+        f'\t\t{ext_entitlements_ref} /* {EXTENSION}.entitlements */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = {EXTENSION}/{EXTENSION}.entitlements; sourceTree = SOURCE_ROOT; }};',
         f'\t\t{ext_product_ref} /* {EXTENSION}.appex */ = {{isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = {EXTENSION}.appex; sourceTree = BUILT_PRODUCTS_DIR; }};',
         f'\t\t{info_ref} /* Info.plist */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = {PROJECT}/Info.plist; sourceTree = SOURCE_ROOT; }};',
         f'\t\t{entitlements_ref} /* {PROJECT}.entitlements */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = {PROJECT}/{PROJECT}.entitlements; sourceTree = SOURCE_ROOT; }};',
@@ -166,7 +175,7 @@ lines.extend(
     [
         f'\t\t{products_group} /* Products */ = {{isa = PBXGroup; children = ({product_ref} /* {PROJECT}.app */, {ext_product_ref} /* {EXTENSION}.appex */); name = Products; sourceTree = "<group>"; }};',
         f'\t\t{app_group} /* {PROJECT} */ = {{isa = PBXGroup; children = ({swift_ref_list}, {info_ref} /* Info.plist */, {entitlements_ref} /* {PROJECT}.entitlements */, {assets_ref} /* Assets.xcassets */, {privacy_manifest_ref} /* PrivacyInfo.xcprivacy */); name = {PROJECT}; sourceTree = "<group>"; }};',
-        f'\t\t{ext_group} /* {EXTENSION} */ = {{isa = PBXGroup; children = ({ext_swift_ref_list}, {ext_info_ref} /* Info.plist */); name = {EXTENSION}; sourceTree = "<group>"; }};',
+        f'\t\t{ext_group} /* {EXTENSION} */ = {{isa = PBXGroup; children = ({ext_swift_ref_list}, {ext_info_ref} /* Info.plist */, {ext_entitlements_ref} /* {EXTENSION}.entitlements */); name = {EXTENSION}; sourceTree = "<group>"; }};',
         f'\t\t{main_group} = {{isa = PBXGroup; children = ({app_group} /* {PROJECT} */, {ext_group} /* {EXTENSION} */, {icon_ref_list}, {products_group} /* Products */); sourceTree = "<group>"; }};',
         f'\t\t{frameworks_phase} /* Frameworks */ = {{isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; }};',
         f'\t\t{sources_phase} /* Sources */ = {{isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = ({build_ref_list}); runOnlyForDeploymentPostprocessing = 0; }};',
@@ -184,8 +193,8 @@ lines.extend(
         f'\t\t{release_config} /* Release */ = {{isa = XCBuildConfiguration; buildSettings = {{COPY_PHASE_STRIP = NO; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }}; name = Release; }};',
         f'\t\t{target_debug} /* Debug */ = {{isa = XCBuildConfiguration; buildSettings = {{ALWAYS_SEARCH_USER_PATHS = NO; ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = ({alternate_icon_names}); ASSETCATALOG_COMPILER_APPICON_NAME = {APP_ICON_NAME}; CODE_SIGN_ENTITLEMENTS = {PROJECT}/{PROJECT}.entitlements; CODE_SIGN_IDENTITY = "Apple Development"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = {BUILD_NUMBER}; DEVELOPMENT_TEAM = {DEVELOPMENT_TEAM}; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = {PROJECT}/Info.plist; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks"); MARKETING_VERSION = {MARKETING_VERSION}; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE_ID}; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; }}; name = Debug; }};',
         f'\t\t{target_release} /* Release */ = {{isa = XCBuildConfiguration; buildSettings = {{ALWAYS_SEARCH_USER_PATHS = NO; ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = ({alternate_icon_names}); ASSETCATALOG_COMPILER_APPICON_NAME = {APP_ICON_NAME}; CODE_SIGN_ENTITLEMENTS = {PROJECT}/{PROJECT}.entitlements; CODE_SIGN_IDENTITY = "Apple Development"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = {BUILD_NUMBER}; DEVELOPMENT_TEAM = {DEVELOPMENT_TEAM}; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = {PROJECT}/Info.plist; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks"); MARKETING_VERSION = {MARKETING_VERSION}; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE_ID}; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; }}; name = Release; }};',
-        f'\t\t{ext_debug} /* Debug */ = {{isa = XCBuildConfiguration; buildSettings = {{ALWAYS_SEARCH_USER_PATHS = NO; APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_IDENTITY = "Apple Development"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = {BUILD_NUMBER}; DEVELOPMENT_TEAM = {DEVELOPMENT_TEAM}; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = {EXTENSION}/Info.plist; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks"); MARKETING_VERSION = {MARKETING_VERSION}; PRODUCT_BUNDLE_IDENTIFIER = {EXTENSION_BUNDLE_ID}; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; }}; name = Debug; }};',
-        f'\t\t{ext_release} /* Release */ = {{isa = XCBuildConfiguration; buildSettings = {{ALWAYS_SEARCH_USER_PATHS = NO; APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_IDENTITY = "Apple Development"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = {BUILD_NUMBER}; DEVELOPMENT_TEAM = {DEVELOPMENT_TEAM}; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = {EXTENSION}/Info.plist; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks"); MARKETING_VERSION = {MARKETING_VERSION}; PRODUCT_BUNDLE_IDENTIFIER = {EXTENSION_BUNDLE_ID}; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; }}; name = Release; }};',
+        f'\t\t{ext_debug} /* Debug */ = {{isa = XCBuildConfiguration; buildSettings = {{ALWAYS_SEARCH_USER_PATHS = NO; APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = {EXTENSION}/{EXTENSION}.entitlements; CODE_SIGN_IDENTITY = "Apple Development"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = {BUILD_NUMBER}; DEVELOPMENT_TEAM = {DEVELOPMENT_TEAM}; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = {EXTENSION}/Info.plist; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks"); MARKETING_VERSION = {MARKETING_VERSION}; PRODUCT_BUNDLE_IDENTIFIER = {EXTENSION_BUNDLE_ID}; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG HOMEHUB_WIDGET_EXTENSION"; }}; name = Debug; }};',
+        f'\t\t{ext_release} /* Release */ = {{isa = XCBuildConfiguration; buildSettings = {{ALWAYS_SEARCH_USER_PATHS = NO; APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = {EXTENSION}/{EXTENSION}.entitlements; CODE_SIGN_IDENTITY = "Apple Development"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = {BUILD_NUMBER}; DEVELOPMENT_TEAM = {DEVELOPMENT_TEAM}; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = {EXTENSION}/Info.plist; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks"); MARKETING_VERSION = {MARKETING_VERSION}; PRODUCT_BUNDLE_IDENTIFIER = {EXTENSION_BUNDLE_ID}; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_ACTIVE_COMPILATION_CONDITIONS = HOMEHUB_WIDGET_EXTENSION; }}; name = Release; }};',
         f'\t\t{ext_config_list} = {{isa = XCConfigurationList; buildConfigurations = ({ext_debug} /* Debug */, {ext_release} /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; }};',
         f'\t\t{project_config_list} = {{isa = XCConfigurationList; buildConfigurations = ({debug_config} /* Debug */, {release_config} /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; }};',
         f'\t\t{target_config_list} = {{isa = XCConfigurationList; buildConfigurations = ({target_debug} /* Debug */, {target_release} /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; }};',

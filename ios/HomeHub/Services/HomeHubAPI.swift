@@ -293,6 +293,10 @@ final class HomeHubAPI: ObservableObject {
         try await client.request("/api/mobile/v1/recipes")
     }
 
+    func fetchRecipe(id: String) async throws -> Recipe {
+        try await client.request("/api/mobile/v1/recipes/\(id)")
+    }
+
     func addRecipe(_ input: RecipeInput) async throws -> Recipe {
         try await client.request("/api/mobile/v1/recipes", method: "POST", body: input)
     }
