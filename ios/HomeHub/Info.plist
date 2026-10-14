@@ -7,7 +7,7 @@
         <key>CFBundleURLName</key><string>com.porchlighthome.app.widgets</string>
         <key>CFBundleURLSchemes</key><array><string>tugboat</string></array>
     </dict></array>
-	<key>BEACON_WEATHERKIT_ENABLED</key>
+	<key>TUGBOAT_WEATHERKIT_ENABLED</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
@@ -27,7 +27,7 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>HOMEHUB_API_URL</key>
+	<key>TUGBOAT_API_URL</key>
 	<string>https://hobbshomehub.vercel.app</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>

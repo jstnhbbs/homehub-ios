@@ -2,7 +2,7 @@ import SwiftUI
 import UserNotifications
 
 @main
-struct HomeHubApp: App {
+struct TugboatApp: App {
     @StateObject private var appState = AppState()
 
     init() {

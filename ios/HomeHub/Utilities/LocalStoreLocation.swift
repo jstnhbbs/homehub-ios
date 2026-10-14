@@ -6,7 +6,7 @@ import Foundation
 /// readable only while the device is unlocked and is left out of backups, rather than in the shared
 /// Application Support folder where SwiftData would put it by default.
 enum LocalStoreLocation {
-    static let folderName = "BeaconCache"
+    static let folderName = "TugboatCache"
     static let fileName = "Cache.store"
 
     /// The store file's URL, with its folder created and protected.

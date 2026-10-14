@@ -151,7 +151,7 @@ final class SessionCredentials: @unchecked Sendable {
 
     // MARK: Moving over from the cookie storage
 
-    private static let initializedKey = "homehub.sessionStoreInitialized"
+    private static let initializedKey = "tugboat.sessionStoreInitialized"
 
     /// The first time a version that uses the Keychain runs:
     /// - someone who was already signed in has their session in the old cookie storage; it moves to the

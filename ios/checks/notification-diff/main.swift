@@ -6,7 +6,7 @@ func check(_ label: String, _ actual: String, _ expected: String) {
 }
 
 func note(_ id: String, body: String = "body", trigger: String = "2026-10-4 18:0 America/Chicago") -> PlannedNotification {
-    PlannedNotification(id: id, title: "Title", body: body, thread: "homehub", trigger: trigger)
+    PlannedNotification(id: id, title: "Title", body: body, thread: "tugboat", trigger: trigger)
 }
 func describe(_ c: NotificationDiff.Changes) -> String {
     "remove=\(c.remove.joined(separator: ",")) add=\(c.add.joined(separator: ","))"
@@ -26,17 +26,17 @@ check("a changed message is replaced, not removed first",
 check("a changed time is replaced",
       describe(NotificationDiff.changes(existing: [note("a")], desired: [note("a", trigger: "2026-10-4 19:0 America/Chicago")])), "remove= add=a")
 check("a reminder that gains its buttons is replaced",
-      describe(NotificationDiff.changes(existing: [note("a")], desired: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "homehub", category: "beacon.chore", trigger: "2026-10-4 18:0 America/Chicago")])), "remove= add=a")
+      describe(NotificationDiff.changes(existing: [note("a")], desired: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "tugboat", category: "tugboat.chore", trigger: "2026-10-4 18:0 America/Chicago")])), "remove= add=a")
 check("the same buttons are left alone",
       describe(NotificationDiff.changes(
-        existing: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "homehub", category: "beacon.chore", trigger: "t")],
-        desired: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "homehub", category: "beacon.chore", trigger: "t")])), "remove= add=")
+        existing: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "tugboat", category: "tugboat.chore", trigger: "t")],
+        desired: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "tugboat", category: "tugboat.chore", trigger: "t")])), "remove= add=")
 check("a reminder that gains a page to open is replaced",
-      describe(NotificationDiff.changes(existing: [note("a")], desired: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "homehub", destination: "chores", trigger: "2026-10-4 18:0 America/Chicago")])), "remove= add=a")
+      describe(NotificationDiff.changes(existing: [note("a")], desired: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "tugboat", destination: "chores", trigger: "2026-10-4 18:0 America/Chicago")])), "remove= add=a")
 check("the same page is left alone",
       describe(NotificationDiff.changes(
-        existing: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "homehub", destination: "chores", trigger: "t")],
-        desired: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "homehub", destination: "chores", trigger: "t")])), "remove= add=")
+        existing: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "tugboat", destination: "chores", trigger: "t")],
+        desired: [PlannedNotification(id: "a", title: "Title", body: "body", thread: "tugboat", destination: "chores", trigger: "t")])), "remove= add=")
 check("a mix",
       describe(NotificationDiff.changes(
         existing: [note("keep"), note("gone"), note("edit", body: "old")],

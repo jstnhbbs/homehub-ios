@@ -1434,7 +1434,7 @@ private struct NativeNotificationsSettingView: View {
     private func timeRow(
         _ title: String,
         systemImage: String,
-        minute keyPath: WritableKeyPath<HomeHubNotificationSettings, Int>
+        minute keyPath: WritableKeyPath<TugboatNotificationSettings, Int>
     ) -> some View {
         HStack {
             Label(title, systemImage: systemImage)
@@ -1449,7 +1449,7 @@ private struct NativeNotificationsSettingView: View {
         }
     }
 
-    private func boolBinding(_ keyPath: WritableKeyPath<HomeHubNotificationSettings, Bool>) -> Binding<Bool> {
+    private func boolBinding(_ keyPath: WritableKeyPath<TugboatNotificationSettings, Bool>) -> Binding<Bool> {
         Binding(
             get: { service.settings[keyPath: keyPath] },
             set: { value in
@@ -1479,7 +1479,7 @@ private struct NativeNotificationsSettingView: View {
         )
     }
 
-    private func intBinding(_ keyPath: WritableKeyPath<HomeHubNotificationSettings, Int>) -> Binding<Int> {
+    private func intBinding(_ keyPath: WritableKeyPath<TugboatNotificationSettings, Int>) -> Binding<Int> {
         Binding(
             get: { service.settings[keyPath: keyPath] },
             set: { value in
@@ -1491,7 +1491,7 @@ private struct NativeNotificationsSettingView: View {
         )
     }
 
-    private func dateBinding(_ keyPath: WritableKeyPath<HomeHubNotificationSettings, Int>) -> Binding<Date> {
+    private func dateBinding(_ keyPath: WritableKeyPath<TugboatNotificationSettings, Int>) -> Binding<Date> {
         Binding(
             get: { date(fromMinute: service.settings[keyPath: keyPath]) },
             set: { value in

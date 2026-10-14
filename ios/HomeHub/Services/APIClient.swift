@@ -269,7 +269,7 @@ struct APIClient: Sendable {
             case 404:
                 return """
                 Tugboat's server doesn't support this yet (404). \
-                If you run your own server, deploy the latest version, or check the server address (HOMEHUB_API_URL).
+                If you run your own server, deploy the latest version, or check the server address (TUGBOAT_API_URL).
                 """
             default:
                 return "Unexpected server response (\(statusCode))."

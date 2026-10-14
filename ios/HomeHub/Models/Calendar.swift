@@ -117,12 +117,12 @@ enum NativeAlertOffset: Int, CaseIterable, Identifiable {
 }
 
 enum NativeCalendarPreferenceKeys {
-    static let defaultCalendarId = "beacon.nativeCalendar.defaultCalendarId"
-    static let defaultNewItem = "beacon.nativeCalendar.defaultNewItem"
-    static let eventAlert = "beacon.nativeCalendar.eventAlertMinutes"
-    static let reminderAlert = "beacon.nativeCalendar.reminderAlertMinutes"
-    static let agendaFontSize = "beacon.nativeCalendar.agendaFontSize"
-    static let useSystemAgendaFont = "beacon.nativeCalendar.useSystemAgendaFont"
+    static let defaultCalendarId = "tugboat.nativeCalendar.defaultCalendarId"
+    static let defaultNewItem = "tugboat.nativeCalendar.defaultNewItem"
+    static let eventAlert = "tugboat.nativeCalendar.eventAlertMinutes"
+    static let reminderAlert = "tugboat.nativeCalendar.reminderAlertMinutes"
+    static let agendaFontSize = "tugboat.nativeCalendar.agendaFontSize"
+    static let useSystemAgendaFont = "tugboat.nativeCalendar.useSystemAgendaFont"
     static let automaticId = "automatic"
 }
 

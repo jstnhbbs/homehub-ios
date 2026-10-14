@@ -8,7 +8,7 @@ struct RootView: View {
     var body: some View {
         Group {
             if appState.isBootstrapping || appState.auth.isLoading {
-                BeaconLoadingIndicator()
+                TugboatLoadingIndicator()
                     .accessibilityLabel("Tugboat is loading")
             } else if !appState.auth.isSignedIn {
                 SignInView()
@@ -62,7 +62,7 @@ struct RootView: View {
     }
 }
 
-private struct BeaconLoadingIndicator: View {
+private struct TugboatLoadingIndicator: View {
     var body: some View {
         ProgressView()
             .controlSize(.regular)

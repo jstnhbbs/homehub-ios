@@ -11,7 +11,7 @@ final class NativeRemindersService: ObservableObject {
         }
     }
 
-    private static let selectedListKey = "homehub.reminders.selectedListId"
+    private static let selectedListKey = "tugboat.reminders.selectedListId"
     private let eventStore = EKEventStore()
 
     init() {

@@ -11,7 +11,7 @@ try fm.createDirectory(at: base, withIntermediateDirectories: true)
 defer { try? fm.removeItem(at: base) }
 
 let url = try LocalStoreLocation.prepare(in: base)
-check("the store sits in its own folder", url.deletingLastPathComponent().lastPathComponent, "BeaconCache")
+check("the store sits in its own folder", url.deletingLastPathComponent().lastPathComponent, "TugboatCache")
 check("with the expected file name", url.lastPathComponent, "Cache.store")
 var isDirectory: ObjCBool = false
 check("the folder exists", String(fm.fileExists(atPath: url.deletingLastPathComponent().path, isDirectory: &isDirectory) && isDirectory.boolValue), "true")

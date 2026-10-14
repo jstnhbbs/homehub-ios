@@ -3,7 +3,7 @@ import SwiftUI
 import WidgetKit
 
 @main
-struct HomeHubLiveActivities: WidgetBundle {
+struct TugboatLiveActivities: WidgetBundle {
     var body: some Widget {
         SleepLiveActivityWidget()
         HouseholdSummaryWidget(kind: .next)

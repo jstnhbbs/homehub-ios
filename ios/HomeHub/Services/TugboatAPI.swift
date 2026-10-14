@@ -1,7 +1,7 @@
 import Foundation
 
 @MainActor
-final class HomeHubAPI: ObservableObject {
+final class TugboatAPI: ObservableObject {
     private let client: APIClient
 
     init(baseURL: URL) {

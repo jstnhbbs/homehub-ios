@@ -15,7 +15,7 @@ final class NativeCalendarService: ObservableObject {
 
     private let eventStore = EKEventStore()
     private let defaults = UserDefaults.standard
-    private static let selectedCalendarIdsKey = "beacon.nativeCalendar.selectedCalendarIds"
+    private static let selectedCalendarIdsKey = "tugboat.nativeCalendar.selectedCalendarIds"
 
     init() {
         self.accessStatus = Self.currentAccessStatus()

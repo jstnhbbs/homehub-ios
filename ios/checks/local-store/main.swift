@@ -8,14 +8,14 @@ func check(_ label: String, _ condition: Bool) {
 
 @MainActor
 func run() throws {
-    let schema = Schema([HomeHubLocalSnapshot.self])
+    let schema = Schema([TugboatLocalSnapshot.self])
     let url = URL(fileURLWithPath: CommandLine.arguments[1]).appendingPathComponent("checks.store")
     let configuration = ModelConfiguration(schema: schema, url: url)
     let container = try ModelContainer(for: schema, configurations: [configuration])
-    let store = HomeHubLocalStore(container: container)
-    func snapshot() throws -> HomeHubLocalSnapshot {
+    let store = TugboatLocalStore(container: container)
+    func snapshot() throws -> TugboatLocalSnapshot {
         let reader = ModelContext(container)
-        return try reader.fetch(FetchDescriptor<HomeHubLocalSnapshot>()).first!
+        return try reader.fetch(FetchDescriptor<TugboatLocalSnapshot>()).first!
     }
 
     check("empty cache loads no data", store.loadUser() == nil && store.loadHousehold() == nil && store.loadDashboard() == nil)
@@ -64,10 +64,10 @@ func run() throws {
         // Reproduce the previous refresh path: fetch, encode, update timestamp, save every time.
         let start = Date()
         for _ in 0..<100 {
-            var fetch = FetchDescriptor<HomeHubLocalSnapshot>(predicate: #Predicate { $0.id == "current" })
+            var fetch = FetchDescriptor<TugboatLocalSnapshot>(predicate: #Predicate { $0.id == "current" })
             fetch.fetchLimit = 1
             let existing = try context.fetch(fetch).first
-            let snapshot = existing ?? HomeHubLocalSnapshot(id: "current")
+            let snapshot = existing ?? TugboatLocalSnapshot(id: "current")
             if existing == nil { context.insert(snapshot) }
             snapshot.householdData = try encoder.encode(redacted.household)
             snapshot.dashboardData = try encoder.encode(redacted)
@@ -80,7 +80,7 @@ func run() throws {
     dashboard.notes[0].title = "Changed remotely"
     dashboard.household.name = "Renamed family"
     store.saveDashboard(dashboard)
-    let reopened = HomeHubLocalStore(container: try ModelContainer(for: schema, configurations: [configuration]))
+    let reopened = TugboatLocalStore(container: try ModelContainer(for: schema, configurations: [configuration]))
     check("changed data is on disk immediately", reopened.loadDashboard()?.notes.first?.title == "Changed remotely" && reopened.loadHousehold()?.name == "Renamed family")
     check("user persists alongside dashboard after reopening", reopened.loadUser()?.id == user.id)
 
@@ -91,13 +91,13 @@ func run() throws {
 
     store.clear()
     check("sign-out clears all cached data", store.loadUser() == nil && store.loadHousehold() == nil && store.loadDashboard() == nil)
-    let cleared = HomeHubLocalStore(container: try ModelContainer(for: schema, configurations: [configuration]))
+    let cleared = TugboatLocalStore(container: try ModelContainer(for: schema, configurations: [configuration]))
     check("sign-out also clears the disk copy", cleared.loadUser() == nil && cleared.loadDashboard() == nil)
     let nextUser = User(id: "u2", name: "Next parent", email: "next@example.com", emailVerified: false)
     store.saveUser(nextUser)
     store.saveDashboard(dashboard)
     check("new sign-in can create a snapshot after clearing", store.loadUser()?.id == "u2" && store.loadDashboard()?.notes.count == 500)
-    let count = try ModelContext(container).fetchCount(FetchDescriptor<HomeHubLocalSnapshot>())
+    let count = try ModelContext(container).fetchCount(FetchDescriptor<TugboatLocalSnapshot>())
     check("clear then save leaves exactly one snapshot", count == 1)
 }
 

@@ -37,7 +37,7 @@ enum CelebrationNaming {
     static let birthdaysTitle = "Birthdays"
     static let celebrationsTitle = "Celebrations"
 
-    private static let storageKey = "beacon.celebrations.hasAnniversaries"
+    private static let storageKey = "tugboat.celebrations.hasAnniversaries"
 
     static func title(hasAnniversaries: Bool) -> String {
         hasAnniversaries ? celebrationsTitle : birthdaysTitle

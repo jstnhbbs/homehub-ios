@@ -4,9 +4,9 @@ import UserNotifications
 extension Notification.Name {
     /// Posted after a button on a notification changed something on the server, so a running app
     /// refreshes what it shows.
-    static let homeHubDataChanged = Notification.Name("homehub.dataChanged")
+    static let tugboatDataChanged = Notification.Name("tugboat.dataChanged")
     /// Posted when a notification was tapped; the object is the raw value of the page to open.
-    static let homeHubOpenDestination = Notification.Name("homehub.openDestination")
+    static let tugboatOpenDestination = Notification.Name("tugboat.openDestination")
 }
 
 /// Handles the buttons on Tugboat's notifications ("Done" on a chore reminder, "End Nap" on a nap
@@ -15,7 +15,7 @@ extension Notification.Name {
 ///
 /// It talks to the server with its own client: that reads the saved session from the Keychain, so
 /// it does not depend on the app having been opened first. It is set as the notification center's
-/// delegate in `HomeHubApp.init`, early enough for a launch the button itself caused.
+/// delegate in `TugboatApp.init`, early enough for a launch the button itself caused.
 final class NotificationResponder: NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable {
     static let shared = NotificationResponder()
 
@@ -64,7 +64,7 @@ final class NotificationResponder: NSObject, UNUserNotificationCenterDelegate, @
         pendingLock.lock()
         pendingDestination = destination
         pendingLock.unlock()
-        NotificationCenter.default.post(name: .homeHubOpenDestination, object: destination)
+        NotificationCenter.default.post(name: .tugboatOpenDestination, object: destination)
     }
 
     /// The page a tapped notification asked for that nobody has opened yet, which is then cleared.
@@ -78,7 +78,7 @@ final class NotificationResponder: NSObject, UNUserNotificationCenterDelegate, @
 
     @MainActor
     private static func perform(_ command: NotificationCommand) async {
-        let api = HomeHubAPI(baseURL: AppConfig.baseURL)
+        let api = TugboatAPI(baseURL: AppConfig.baseURL)
         do {
             switch command {
             case .completeChore(let choreId, let periodKey, _):
@@ -86,7 +86,7 @@ final class NotificationResponder: NSObject, UNUserNotificationCenterDelegate, @
             case .endNap(let napId, _):
                 try await api.endNap(napId: napId)
             }
-            NotificationCenter.default.post(name: .homeHubDataChanged, object: nil)
+            NotificationCenter.default.post(name: .tugboatDataChanged, object: nil)
         } catch {
             guard !error.isCancellation else { return }
             await reportFailure(of: command)
@@ -102,7 +102,7 @@ final class NotificationResponder: NSObject, UNUserNotificationCenterDelegate, @
         content.body = message.body
         content.sound = .default
         let request = UNNotificationRequest(
-            identifier: "homehub.action.failed.\(UUID().uuidString)",
+            identifier: "tugboat.action.failed.\(UUID().uuidString)",
             content: content,
             trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
         )

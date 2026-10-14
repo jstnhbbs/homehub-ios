@@ -78,7 +78,7 @@ struct TodayLayoutDefaultStore {
     var defaults: UserDefaults = .standard
 
     private func key(userId: String, target: DashboardLayoutTarget) -> String {
-        "homehub.todayLayoutDefault.\(userId).\(target.rawValue)"
+        "tugboat.todayLayoutDefault.\(userId).\(target.rawValue)"
     }
 
     func load(userId: String, target: DashboardLayoutTarget) -> TodayLayoutDefault? {

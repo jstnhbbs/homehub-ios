@@ -9,7 +9,7 @@ enum WidgetActionRunner {
         let generation = credentials.sessionGeneration
         guard credentials.hasSession, let saved = store.load(), saved.userId == userId,
               saved.householdId == householdId else { throw WidgetActionFailure.openApp }
-        let api = HomeHubAPI(baseURL: AppConfig.baseURL)
+        let api = TugboatAPI(baseURL: AppConfig.baseURL)
         do {
             let account = try await api.fetchAccount()
             let dashboard = try await api.fetchDashboard()
@@ -61,18 +61,18 @@ enum WidgetActionRunner {
             reminders.refreshAccessStatus()
             let groceries = reminders.accessStatus == .authorized ? ((try? await reminders.loadItems()) ?? []) : fresh.groceryItems
             guard credentials.sessionGeneration == generation, store.load()?.userId == userId else { return }
-            let palette = UserDefaults.standard.string(forKey: "homehub.accentPalette") ?? "sage"
+            let palette = UserDefaults.standard.string(forKey: "tugboat.accentPalette") ?? "sage"
             let snapshot = WidgetSnapshotBuilder.make(dashboard: fresh, userId: userId, palette: palette,
                 events: events, groceries: groceries, modules: fresh.hubModules ?? .defaults)
             _ = store.save(snapshot, force: true)
             WidgetCenter.shared.reloadAllTimelines()
-            NotificationCenter.default.post(name: .homeHubDataChanged, object: nil)
+            NotificationCenter.default.post(name: .tugboatDataChanged, object: nil)
         } catch {
             if case APIError.unauthorized = error, credentials.sessionGeneration == generation {
                 credentials.clear()
                 store.clear()
                 WidgetCenter.shared.reloadAllTimelines()
-                NotificationCenter.default.post(name: .homeHubDataChanged, object: nil)
+                NotificationCenter.default.post(name: .tugboatDataChanged, object: nil)
                 throw WidgetActionFailure.openApp
             }
             if credentials.sessionGeneration == generation, var snapshot = store.load(), snapshot.userId == userId {

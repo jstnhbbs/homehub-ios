@@ -8,7 +8,7 @@ struct MealSlotRef: Hashable, Identifiable, Sendable {
 
     var id: String { token }
 
-    static let tokenPrefix = "beacon.meal:"
+    static let tokenPrefix = "tugboat.meal:"
 
     var token: String { "\(Self.tokenPrefix)\(localDate):\(slot.rawValue)" }
 

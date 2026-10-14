@@ -22,7 +22,7 @@ check("no anniversaries", CelebrationNaming.title(hasAnniversaries: false), "Bir
 check("with anniversaries", CelebrationNaming.title(hasAnniversaries: true), "Celebrations")
 check("reminders, birthdays only", CelebrationNaming.remindersTitle(hasAnniversaries: false), "Birthday Reminders")
 check("reminders, with anniversaries", CelebrationNaming.remindersTitle(hasAnniversaries: true), "Celebration Reminders")
-let defaults = UserDefaults(suiteName: "beacon.celebration.checks.\(UUID().uuidString)")!
+let defaults = UserDefaults(suiteName: "tugboat.celebration.checks.\(UUID().uuidString)")!
 check("starts as birthdays", String(CelebrationNaming.hasAnniversaries(defaults: defaults)), "false")
 CelebrationNaming.setHasAnniversaries(true, defaults: defaults)
 check("remembered", String(CelebrationNaming.hasAnniversaries(defaults: defaults)), "true")

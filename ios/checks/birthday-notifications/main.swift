@@ -93,15 +93,15 @@ check("explicit smaller limit", String(plan(crowd, limit: 5).count), "5")
 
 // Saved settings from an older app version must keep the person's choices.
 let old = #"{"routinesEnabled":false,"choresEnabled":true,"sleepEnabled":true,"morningRoutineMinute":390,"afternoonRoutineMinute":900,"eveningRoutineMinute":1170,"choreMinute":1020,"bedtimeMinute":1200,"napCheckMinutes":60}"#
-let migrated = try! JSONDecoder().decode(HomeHubNotificationSettings.self, from: Data(old.utf8))
+let migrated = try! JSONDecoder().decode(TugboatNotificationSettings.self, from: Data(old.utf8))
 check("old choice survives: routines off", String(migrated.routinesEnabled), "false")
 check("old choice survives: morning time", String(migrated.morningRoutineMinute), "390")
 check("old choice survives: nap check", String(migrated.napCheckMinutes), "60")
 check("new birthday fields get defaults", "\(migrated.birthdaysEnabled) \(migrated.birthdayOnTheDay) \(migrated.birthdayLeadDays) \(migrated.birthdayMinute)", "true true [7] 480")
-let roundTrip = try! JSONDecoder().decode(HomeHubNotificationSettings.self, from: JSONEncoder().encode(HomeHubNotificationSettings.defaults))
-check("current settings round-trip", String(roundTrip == HomeHubNotificationSettings.defaults), "true")
-let empty = try! JSONDecoder().decode(HomeHubNotificationSettings.self, from: Data("{}".utf8))
-check("empty saved data becomes defaults", String(empty == HomeHubNotificationSettings.defaults), "true")
+let roundTrip = try! JSONDecoder().decode(TugboatNotificationSettings.self, from: JSONEncoder().encode(TugboatNotificationSettings.defaults))
+check("current settings round-trip", String(roundTrip == TugboatNotificationSettings.defaults), "true")
+let empty = try! JSONDecoder().decode(TugboatNotificationSettings.self, from: Data("{}".utf8))
+check("empty saved data becomes defaults", String(empty == TugboatNotificationSettings.defaults), "true")
 
 check("lead labels", [1, 3, 7, 14].map(BirthdayNotificationPlanner.leadLabel).joined(separator: ", "), "1 Day Before, 3 Days Before, 1 Week Before, 2 Weeks Before")
 

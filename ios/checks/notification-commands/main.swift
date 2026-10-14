@@ -47,7 +47,7 @@ check("a timed chore reminder opens Chores", NotificationCommands.destination(fo
 check("the evening chore check-in opens Chores", NotificationCommands.destination(forNotificationId: "chores.today") == "chores")
 check("bedtime and nap checks open Sleep", NotificationCommands.destination(forNotificationId: "sleep.bedtime") == "sleep" && NotificationCommands.destination(forNotificationId: "sleep.nap.n1") == "sleep")
 check("a birthday reminder opens Celebrations", NotificationCommands.destination(forNotificationId: "birthday.b1.0") == "birthdays")
-check("an unknown id opens nothing", NotificationCommands.destination(forNotificationId: "homehub.action.failed.x") == nil)
+check("an unknown id opens nothing", NotificationCommands.destination(forNotificationId: "tugboat.action.failed.x") == nil)
 check("a name that merely starts with a page word opens nothing", NotificationCommands.destination(forNotificationId: "choresx.1") == nil)
 check("a tap reads the destination", NotificationCommands.destination(userInfo: ["destination": "chores"]) == "chores")
 check("an unknown destination is ignored", NotificationCommands.destination(userInfo: ["destination": "settings"]) == nil)

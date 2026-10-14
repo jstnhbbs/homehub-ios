@@ -93,7 +93,7 @@ final class CroutonImportViewModel: ObservableObject {
 
     // MARK: The import
 
-    private func run(urls: [URL], api: HomeHubAPI) async {
+    private func run(urls: [URL], api: TugboatAPI) async {
         let scoped = urls.filter { $0.startAccessingSecurityScopedResource() }
         defer { scoped.forEach { $0.stopAccessingSecurityScopedResource() } }
 
@@ -172,7 +172,7 @@ final class CroutonImportViewModel: ObservableObject {
     }
 
     /// Sends photos a few at a time. Resizing happens off the main thread.
-    private func upload(_ jobs: [(id: String, photo: String)], api: HomeHubAPI) async {
+    private func upload(_ jobs: [(id: String, photo: String)], api: TugboatAPI) async {
         guard photosEnabled, !jobs.isEmpty else { return }
         photosQueued += jobs.count
         var pending = jobs[...]

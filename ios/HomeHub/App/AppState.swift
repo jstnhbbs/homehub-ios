@@ -5,7 +5,7 @@ import WidgetKit
 
 enum AppConfig {
     static var baseURL: URL {
-        if let value = Bundle.main.object(forInfoDictionaryKey: "HOMEHUB_API_URL") as? String,
+        if let value = Bundle.main.object(forInfoDictionaryKey: "TUGBOAT_API_URL") as? String,
            let url = URL(string: value) {
             return url
         }
@@ -16,12 +16,12 @@ enum AppConfig {
 @MainActor
 final class AppState: ObservableObject {
     let auth: AuthService
-    let api: HomeHubAPI
+    let api: TugboatAPI
     let nativeCalendar: NativeCalendarService
     let nativeReminders: NativeRemindersService
     let nativeNotifications: NativeNotificationService
     let nativeWeather: NativeWeatherService
-    let localStore: HomeHubLocalStore
+    let localStore: TugboatLocalStore
 
     @Published var household: Household?
     @Published var dashboard: DashboardData? { didSet { scheduleWidgetUpdate() } }
@@ -93,9 +93,9 @@ final class AppState: ObservableObject {
     /// The open Settings pages; see `SettingsNavigationModel`.
     let settingsNavigation = SettingsNavigationModel()
 
-    private static let accentStorageKey = "homehub.accentPalette"
-    private static let appearanceModeKey = "homehub.appearanceMode"
-    private static let trueBlackKey = "homehub.trueBlack"
+    private static let accentStorageKey = "tugboat.accentPalette"
+    private static let appearanceModeKey = "tugboat.appearanceMode"
+    private static let trueBlackKey = "tugboat.trueBlack"
 
     private var eventKitObserver: NSObjectProtocol?
     private var dataChangedObserver: NSObjectProtocol?
@@ -121,12 +121,12 @@ final class AppState: ObservableObject {
 
     init(baseURL: URL = AppConfig.baseURL) {
         self.auth = AuthService(baseURL: baseURL)
-        self.api = HomeHubAPI(baseURL: baseURL)
+        self.api = TugboatAPI(baseURL: baseURL)
         self.nativeCalendar = NativeCalendarService()
         self.nativeReminders = NativeRemindersService()
         self.nativeNotifications = NativeNotificationService()
         self.nativeWeather = NativeWeatherService()
-        self.localStore = HomeHubLocalStore()
+        self.localStore = TugboatLocalStore()
         let stored = UserDefaults.standard.string(forKey: Self.accentStorageKey) ?? ""
         let palette = AccentPalette(rawValue: stored) ?? .sage
         self.accentPalette = palette
@@ -139,13 +139,13 @@ final class AppState: ObservableObject {
         observeEventKitChanges()
         // A button on a notification (Done on a chore, End Nap) changed something: show it.
         dataChangedObserver = NotificationCenter.default.addObserver(
-            forName: .homeHubDataChanged, object: nil, queue: .main
+            forName: .tugboatDataChanged, object: nil, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in await self?.refreshDashboard() }
         }
         // A tap on a notification opens the page it is about (Routines, Chores, Sleep, Celebrations).
         openDestinationObserver = NotificationCenter.default.addObserver(
-            forName: .homeHubOpenDestination, object: nil, queue: .main
+            forName: .tugboatOpenDestination, object: nil, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in self?.openPendingNotificationDestination() }
         }

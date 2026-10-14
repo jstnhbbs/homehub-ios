@@ -37,6 +37,6 @@ enum BirthdayToday {
     }
 
     private static func storageKey(_ id: String) -> String {
-        "beacon.birthday.celebrated.\(id)"
+        "tugboat.birthday.celebrated.\(id)"
     }
 }

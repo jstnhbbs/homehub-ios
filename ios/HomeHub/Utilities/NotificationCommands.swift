@@ -11,10 +11,10 @@ enum NotificationCommand: Equatable, Sendable {
 
 enum NotificationCommands {
     // Categories say which buttons a notification gets; actions say which button was pressed.
-    static let choreCategory = "beacon.chore"
-    static let napCategory = "beacon.nap"
-    static let doneAction = "beacon.done"
-    static let endNapAction = "beacon.endNap"
+    static let choreCategory = "tugboat.chore"
+    static let napCategory = "tugboat.nap"
+    static let doneAction = "tugboat.done"
+    static let endNapAction = "tugboat.endNap"
 
     /// What a chore reminder carries so its Done button knows which chore and which period.
     static func choreInfo(choreId: String, periodKey: String, title: String) -> [String: String] {

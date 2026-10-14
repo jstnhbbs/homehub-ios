@@ -34,7 +34,7 @@ check("no age when zero", String(describing: BirthdayToday.ageLine(0)), "nil")
 check("no age when negative", String(describing: BirthdayToday.ageLine(-3)), "nil")
 check("no age when absurd", String(describing: BirthdayToday.ageLine(2026)), "nil")
 
-let defaults = UserDefaults(suiteName: "beacon.birthday.checks.\(UUID().uuidString)")!
+let defaults = UserDefaults(suiteName: "tugboat.birthday.checks.\(UUID().uuidString)")!
 check("not celebrated at first", String(BirthdayToday.hasCelebrated(id: "a", localDate: "2026-09-18", defaults: defaults)), "false")
 BirthdayToday.markCelebrated(id: "a", localDate: "2026-09-18", defaults: defaults)
 check("celebrated once today", String(BirthdayToday.hasCelebrated(id: "a", localDate: "2026-09-18", defaults: defaults)), "true")

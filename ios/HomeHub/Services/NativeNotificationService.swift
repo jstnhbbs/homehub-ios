@@ -16,13 +16,15 @@ enum NativeNotificationAccessStatus: String, Sendable {
 @MainActor
 final class NativeNotificationService: ObservableObject {
     @Published private(set) var accessStatus: NativeNotificationAccessStatus = .notDetermined
-    @Published var settings: HomeHubNotificationSettings {
+    @Published var settings: TugboatNotificationSettings {
         didSet { saveSettings() }
     }
 
     private let center = UNUserNotificationCenter.current()
-    private let settingsKey = "homehub.notificationSettings.v1"
-    private let identifierPrefix = "homehub.local."
+    private let settingsKey = "tugboat.notificationSettings.v1"
+    private let identifierPrefix = "tugboat.local."
+    /// Reminders scheduled before the app was renamed. They are recognised so they get cleaned up.
+    private static let legacyIdentifierPrefix = "homehub.local."
     private let workQueue = NotificationWorkQueue()
 
     init() {
@@ -68,7 +70,8 @@ final class NativeNotificationService: ObservableObject {
     }
 
     private static func isSessionReminder(_ identifier: String) -> Bool {
-        identifier.hasPrefix("homehub.local.") || identifier.hasPrefix("homehub.action.failed.")
+        identifier.hasPrefix("tugboat.local.") || identifier.hasPrefix("tugboat.action.failed.")
+            || identifier.hasPrefix(legacyIdentifierPrefix) || identifier.hasPrefix("homehub.action.failed.")
     }
 
     private func applyDashboardReminders(
@@ -79,7 +82,7 @@ final class NativeNotificationService: ObservableObject {
         await refreshAccessStatus()
         guard isCurrent() else { return }
         guard canSchedule else {
-            await removeHomeHubPendingRequests()
+            await removeTugboatPendingRequests()
             return
         }
 
@@ -129,7 +132,7 @@ final class NativeNotificationService: ObservableObject {
         // Only what differs from what is already scheduled is touched. A refresh follows every
         // check-off and runs each minute, and almost always the plan has not changed.
         let scheduled = await center.pendingNotificationRequests()
-            .filter { $0.identifier.hasPrefix(identifierPrefix) }
+            .filter { $0.identifier.hasPrefix(identifierPrefix) || $0.identifier.hasPrefix(Self.legacyIdentifierPrefix) }
         guard isCurrent() else { return }
         let changes = NotificationDiff.changes(
             existing: scheduled.map(PlannedNotification.init(request:)),
@@ -163,7 +166,7 @@ final class NativeNotificationService: ObservableObject {
                 body: reminder.body,
                 fireDate: reminder.fireDate,
                 calendar: calendar,
-                thread: "homehub.birthdays"
+                thread: "tugboat.birthdays"
             )
         }
     }
@@ -316,7 +319,7 @@ final class NativeNotificationService: ObservableObject {
         body: String,
         fireDate: Date,
         calendar: Calendar,
-        thread: String = "homehub",
+        thread: String = "tugboat",
         category: String? = nil,
         userInfo: [String: String] = [:]
     ) -> UNNotificationRequest {
@@ -354,11 +357,11 @@ final class NativeNotificationService: ObservableObject {
             }
     }
 
-    private func removeHomeHubPendingRequests() async {
+    private func removeTugboatPendingRequests() async {
         let requests = await center.pendingNotificationRequests()
         let identifiers = requests
             .map(\.identifier)
-            .filter { $0.hasPrefix(identifierPrefix) }
+            .filter { $0.hasPrefix(identifierPrefix) || $0.hasPrefix(Self.legacyIdentifierPrefix) }
         center.removePendingNotificationRequests(withIdentifiers: identifiers)
     }
 
@@ -367,9 +370,9 @@ final class NativeNotificationService: ObservableObject {
         UserDefaults.standard.set(data, forKey: settingsKey)
     }
 
-    private static func loadSettings() -> HomeHubNotificationSettings {
-        guard let data = UserDefaults.standard.data(forKey: "homehub.notificationSettings.v1"),
-              let settings = try? JSONDecoder().decode(HomeHubNotificationSettings.self, from: data) else {
+    private static func loadSettings() -> TugboatNotificationSettings {
+        guard let data = UserDefaults.standard.data(forKey: "tugboat.notificationSettings.v1"),
+              let settings = try? JSONDecoder().decode(TugboatNotificationSettings.self, from: data) else {
             return .defaults
         }
         return settings

@@ -1,7 +1,7 @@
 import Foundation
 
 /// What this device reminds the household about, saved locally (never on the server).
-struct HomeHubNotificationSettings: Codable, Equatable, Sendable {
+struct TugboatNotificationSettings: Codable, Equatable, Sendable {
     var routinesEnabled: Bool
     var choresEnabled: Bool
     var sleepEnabled: Bool
@@ -19,7 +19,7 @@ struct HomeHubNotificationSettings: Codable, Equatable, Sendable {
     var birthdayLeadDays: [Int]
     var birthdayMinute: Int
 
-    static let defaults = HomeHubNotificationSettings(
+    static let defaults = TugboatNotificationSettings(
         routinesEnabled: true,
         choresEnabled: true,
         sleepEnabled: true,
@@ -41,7 +41,7 @@ struct HomeHubNotificationSettings: Codable, Equatable, Sendable {
     }
 }
 
-extension HomeHubNotificationSettings {
+extension TugboatNotificationSettings {
     /// Settings saved by an older version are missing the newer fields. Decoding each field
     /// with a fallback keeps the person's existing choices instead of resetting them all.
     init(from decoder: Decoder) throws {

@@ -29,6 +29,6 @@ enum StreakHelpers {
     }
 
     private static func storageKey(_ profileKey: String) -> String {
-        "beacon.streak.celebrated.\(profileKey)"
+        "tugboat.streak.celebrated.\(profileKey)"
     }
 }

@@ -13,7 +13,7 @@ check("365 is a milestone", String(StreakHelpers.isMilestone(365)), "true")
 check("label", StreakHelpers.label(7), "7-day streak")
 check("message", StreakHelpers.celebrationMessage(name: "Sam", days: 14), "Sam hit a 14-day streak!")
 
-let defaults = UserDefaults(suiteName: "beacon.streak.checks.\(UUID().uuidString)")!
+let defaults = UserDefaults(suiteName: "tugboat.streak.checks.\(UUID().uuidString)")!
 check("not celebrated at first", String(StreakHelpers.hasCelebrated(profileKey: "kid1", localDate: "2026-09-18", defaults: defaults)), "false")
 StreakHelpers.markCelebrated(profileKey: "kid1", localDate: "2026-09-18", defaults: defaults)
 check("celebrated once today", String(StreakHelpers.hasCelebrated(profileKey: "kid1", localDate: "2026-09-18", defaults: defaults)), "true")

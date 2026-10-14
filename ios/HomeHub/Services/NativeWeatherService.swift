@@ -184,7 +184,7 @@ final class NativeWeatherService: NSObject, ObservableObject {
     }
 
     nonisolated private static func currentBuildAllowsWeatherKitRequests() -> Bool {
-        Bundle.main.object(forInfoDictionaryKey: "BEACON_WEATHERKIT_ENABLED") as? Bool == true
+        Bundle.main.object(forInfoDictionaryKey: "TUGBOAT_WEATHERKIT_ENABLED") as? Bool == true
     }
 }
 

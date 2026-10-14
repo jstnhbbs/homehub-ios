@@ -11,13 +11,13 @@ let now = DateHelpers.dateFromLocalDate("2026-09-18", timezone: chicago)!
 
 // Drag tokens
 let ref = MealSlotRef(localDate: "2026-09-18", slot: .dinner)
-check("token", ref.token, "beacon.meal:2026-09-18:dinner")
+check("token", ref.token, "tugboat.meal:2026-09-18:dinner")
 check("token round trip", String(describing: MealSlotRef(token: ref.token) == ref), "true")
 check("wrong prefix rejected", String(describing: MealSlotRef(token: "hello:2026-09-18:dinner")), "nil")
 check("plain text rejected", String(describing: MealSlotRef(token: "some dragged text")), "nil")
-check("bad slot rejected", String(describing: MealSlotRef(token: "beacon.meal:2026-09-18:brunch")), "nil")
-check("extra part rejected", String(describing: MealSlotRef(token: "beacon.meal:2026-09-18:dinner:x")), "nil")
-check("short date rejected", String(describing: MealSlotRef(token: "beacon.meal:9-18:dinner")), "nil")
+check("bad slot rejected", String(describing: MealSlotRef(token: "tugboat.meal:2026-09-18:brunch")), "nil")
+check("extra part rejected", String(describing: MealSlotRef(token: "tugboat.meal:2026-09-18:dinner:x")), "nil")
+check("short date rejected", String(describing: MealSlotRef(token: "tugboat.meal:9-18:dinner")), "nil")
 
 // Title cleanup matches the server
 check("normalize trims and drops blanks", MealPlanHelpers.normalizedTitle("  Tacos \n\n  Rice  \n"), "Tacos\nRice")

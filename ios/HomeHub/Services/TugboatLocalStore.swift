@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 @Model
-final class HomeHubLocalSnapshot {
+final class TugboatLocalSnapshot {
     @Attribute(.unique) var id: String
     var updatedAt: Date
     var householdData: Data?
@@ -27,17 +27,17 @@ final class HomeHubLocalSnapshot {
 }
 
 @MainActor
-final class HomeHubLocalStore {
+final class TugboatLocalStore {
     private let container: ModelContainer
     private let context: ModelContext
     private let snapshotId = "current"
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private var snapshotLoaded = false
-    private var snapshot: HomeHubLocalSnapshot?
+    private var snapshot: TugboatLocalSnapshot?
 
     init(container suppliedContainer: ModelContainer? = nil) {
-        let schema = Schema([HomeHubLocalSnapshot.self])
+        let schema = Schema([TugboatLocalSnapshot.self])
         if let suppliedContainer {
             container = suppliedContainer
         } else {
@@ -144,21 +144,21 @@ final class HomeHubLocalStore {
         save()
     }
 
-    private func editableSnapshot() -> HomeHubLocalSnapshot {
+    private func editableSnapshot() -> TugboatLocalSnapshot {
         if let snapshot = currentSnapshot() {
             return snapshot
         }
 
-        let snapshot = HomeHubLocalSnapshot(id: snapshotId)
+        let snapshot = TugboatLocalSnapshot(id: snapshotId)
         context.insert(snapshot)
         self.snapshot = snapshot
         snapshotLoaded = true
         return snapshot
     }
 
-    private func currentSnapshot() -> HomeHubLocalSnapshot? {
+    private func currentSnapshot() -> TugboatLocalSnapshot? {
         if snapshotLoaded { return snapshot }
-        var descriptor = FetchDescriptor<HomeHubLocalSnapshot>(
+        var descriptor = FetchDescriptor<TugboatLocalSnapshot>(
             predicate: #Predicate { snapshot in
                 snapshot.id == snapshotId
             }
