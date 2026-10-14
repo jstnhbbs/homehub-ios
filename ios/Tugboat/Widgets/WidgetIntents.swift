@@ -104,7 +104,7 @@ struct HouseholdWidgetActionIntent: LiveActivityIntent {
         self.localDate = snapshot.localDate
     }
     func perform() async throws -> some IntentResult {
-        #if HOMEHUB_WIDGET_EXTENSION
+        #if TUGBOAT_WIDGET_EXTENSION
         try requireAppExecution()
         #else
         try await WidgetActionRunner.perform(action: action, itemId: itemId, userId: userId,

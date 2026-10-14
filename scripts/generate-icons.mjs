@@ -10,23 +10,23 @@ const appDir = path.join(root, "src/app");
 const publicIconPartsDir = path.join(root, "public/icon");
 const iosIconDir = path.join(
   root,
-  "ios/HomeHub/Assets.xcassets/HomeHub.appiconset",
+  "ios/Tugboat/Assets.xcassets/Tugboat.appiconset",
 );
-const iconComposerDir = path.join(root, "ios/Beacon.icon");
-const iosAssetsDir = path.join(root, "ios/HomeHub/Assets.xcassets");
+const iconComposerDir = path.join(root, "ios/Tugboat.icon");
+const iosAssetsDir = path.join(root, "ios/Tugboat/Assets.xcassets");
 const iconCanvasSize = 1024;
 const iconCornerRadius = 0;
 const appIconPreviews = [
-  ["Sage", "Beacon"],
-  ["Ocean", "BeaconOcean"],
-  ["Clay", "BeaconClay"],
-  ["Plum", "BeaconPlum"],
-  ["Slate", "BeaconSlate"],
-  ["Rosewood", "BeaconRosewood"],
-  ["Teal", "BeaconTeal"],
-  ["Indigo", "BeaconIndigo"],
-  ["Rose", "BeaconRose"],
-  ["Ochre", "BeaconOchre"],
+  ["Sage", "Tugboat"],
+  ["Ocean", "TugboatOcean"],
+  ["Clay", "TugboatClay"],
+  ["Plum", "TugboatPlum"],
+  ["Slate", "TugboatSlate"],
+  ["Rosewood", "TugboatRosewood"],
+  ["Teal", "TugboatTeal"],
+  ["Indigo", "TugboatIndigo"],
+  ["Rose", "TugboatRose"],
+  ["Ochre", "TugboatOchre"],
 ];
 
 // Only the sizes src/app/layout.tsx links to (the 180 px apple-touch-icon is made separately below).
@@ -241,7 +241,7 @@ async function loadIconLayers(directory = iconComposerDir) {
   const iconGroup = iconDocument.groups?.[0];
 
   if (!iconGroup?.layers?.length) {
-    throw new Error("Missing layers in ios/Beacon.icon/icon.json");
+    throw new Error("Missing layers in ios/Tugboat.icon/icon.json");
   }
 
   const visibleLayerSpecs = iconGroup.layers
@@ -456,12 +456,12 @@ await writeFile(
 // this script's flat renderer would overwrite them. `--app-icon-previews-only` still makes the flat ones.
 
 console.log(
-  `Composed public/icon.svg from ${icon.layers.length} visible layers in ios/Beacon.icon/`,
+  `Composed public/icon.svg from ${icon.layers.length} visible layers in ios/Tugboat.icon/`,
 );
 console.log("Synced transformed source SVGs to public/icon/");
 console.log(`Generated ${webSizes.length + 1} icons in public/icons/`);
 console.log("Updated src/app/icon.png and src/app/apple-icon.png");
 console.log("Updated src/app/favicon.ico");
 console.log(
-  `Updated iOS HomeHub.appiconset fallback PNGs (${iosSizes.length} files)`,
+  `Updated iOS Tugboat.appiconset fallback PNGs (${iosSizes.length} files)`,
 );

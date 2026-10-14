@@ -5,7 +5,7 @@ Native SwiftUI app for Tugboat on iPhone and iPad. It talks to the existing Next
 ## Architecture
 
 ```
-ios/HomeHub/
+ios/Tugboat/
 ├── Models/          # Codable types mirroring src/db/schema.ts
 ├── Utilities/       # Port of src/lib/* business logic (dates, chores, roles, …)
 ├── Services/        # Auth + REST API client
@@ -26,19 +26,19 @@ The Next.js server in the repo root is the source of truth for household data, r
 ```bash
 cd ios
 python3 generate-xcode-project.py
-open HomeHub.xcodeproj
+open Tugboat.xcodeproj
 ```
 
 Re-run the script after adding or removing Swift files.
 
 ## Configure API URL
 
-Default: `https://hobbshomehub.vercel.app` (set in `HomeHub/Info.plist` as `HOMEHUB_API_URL`).
+Default: `https://hobbshomehub.vercel.app` (set in `Tugboat/Info.plist` as `TUGBOAT_API_URL`).
 
 For a physical iPhone or iPad pointing at your Mac:
 
 1. Find your Mac's LAN IP (for example `192.168.1.42`).
-2. Set `HOMEHUB_API_URL` to `http://192.168.1.42:3000`.
+2. Set `TUGBOAT_API_URL` to `http://192.168.1.42:3000`.
 3. Add that origin to `BETTER_AUTH_TRUSTED_ORIGINS` in `.env.local`.
 
 For another production deployment, use that HTTPS domain.
@@ -49,11 +49,11 @@ To load `http://` during development, add a temporary ATS exception in Info.plis
 
 ## Where things live
 
-| Server (`src/`) | iOS (`ios/HomeHub/`) |
+| Server (`src/`) | iOS (`ios/Tugboat/`) |
 |-----------------|----------------------|
 | `db/schema.ts` | `Models/*` |
 | `lib/*` business rules (dates, chores, streaks, tags, …) | `Utilities/*` (the rules the app needs on the device) |
-| `app/api/mobile/v1/*` | `Services/HomeHubAPI.swift` |
+| `app/api/mobile/v1/*` | `Services/TugboatAPI.swift` |
 | Today | `DashboardView`, with the sleep quick log |
 | Calendar | `CalendarView` (reads the device's calendars through EventKit) |
 | Routines, Chores, Food (weekly plan, snacks, recipes), Sleep | `RoutinesView`, `ChoresView`, `MealsView` / `SnacksView` / `RecipesView`, `NapsView` |
@@ -82,14 +82,14 @@ To load `http://` during development, add a temporary ATS exception in Info.plis
 - **Profile photos**: pick from library, upload, replace, remove (parents for any profile; guests for own)
 - Local snapshot cache for the last household/dashboard load
 - Local notifications for routines, chores, sleep, and **birthdays**. Birthday reminders are chosen in Settings → Notifications: on the day, and any of 1 day, 3 days, 1 week, or 2 weeks before, at a time you pick (8:00 AM by default) in the household's time zone. They are planned up to 45 days ahead so they arrive even if the app isn't opened, capped at 30 to leave room for the other reminders
-- Sleep Live Activity: while a child is napping or in bed, the lock screen and Dynamic Island show a running timer (`HomeHubLiveActivity/`, started and ended by `SleepLiveActivityManager`). It is started locally, so it needs no push entitlement; it appears on a device when the app next refreshes, and iOS ends any Live Activity after about 8 hours
+- Sleep Live Activity: while a child is napping or in bed, the lock screen and Dynamic Island show a running timer (`TugboatLiveActivity/`, started and ended by `SleepLiveActivityManager`). It is started locally, so it needs no push entitlement; it appears on a device when the app next refreshes, and iOS ends any Live Activity after about 8 hours
 - Per-user hub module toggles, sidebar order, and dashboard card order and size
 - Mobile REST API under `src/app/api/mobile/v1/`
 - Adaptive layouts: phone, and iPad with side panels that appear only when the window is wide enough (Groceries, Recipes, Snacks, Meals, Birthdays).
 
 **Still to build in Swift**
 
-- A home-screen widget. An earlier draft was removed because it could never run: it needs an App Group to share data with the app, which a Personal Team can't provision. It is in git history (the `HomeHubWidget/` folder before the commit that removed it) if that changes. The generated project has the `HomeHub` app and the `HomeHubLiveActivity` extension (sleep Live Activity) only
+- A home-screen widget. An earlier draft was removed because it could never run: it needs an App Group to share data with the app, which a Personal Team can't provision. It is in git history (the `TugboatWidget/` folder before the commit that removed it) if that changes. The generated project has the `Tugboat` app and the `TugboatLiveActivity` extension (sleep Live Activity) only
 - Creating and editing calendar events (the server-side event API was removed; the "default calendar for new events" setting is currently unused)
 
 ## Run checks

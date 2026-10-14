@@ -12,7 +12,7 @@ vi.mock("next/headers", () => ({
 // Sign-up, the email, following its link, and what an unverified address can still do, run against
 // the real Better Auth and a throwaway database. Nothing here talks to a mail provider.
 
-const dir = mkdtempSync(path.join(tmpdir(), "beacon-verify-"));
+const dir = mkdtempSync(path.join(tmpdir(), "tugboat-verify-"));
 process.env.TURSO_DATABASE_URL = `file:${path.join(dir, "test.db")}`;
 process.env.BETTER_AUTH_SECRET = "test-secret-that-is-long-enough-for-better-auth";
 process.env.BETTER_AUTH_URL = "http://localhost:3000";

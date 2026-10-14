@@ -1,7 +1,7 @@
 import Foundation
 
 struct WidgetStore: Sendable {
-    static let group = "group.com.porchlighthome.app"
+    static let group = "group.com.tugboatfamily.app"
     private let directory: URL?
 
     init(directory: URL? = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: Self.group)) {

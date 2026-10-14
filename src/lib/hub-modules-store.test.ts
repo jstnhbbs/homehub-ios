@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-const dir = mkdtempSync(path.join(tmpdir(), "beacon-layout-races-"));
+const dir = mkdtempSync(path.join(tmpdir(), "tugboat-layout-races-"));
 process.env.TURSO_DATABASE_URL = `file:${path.join(dir, "test.db")}`;
 
 beforeAll(async () => {

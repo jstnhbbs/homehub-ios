@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-const dir = mkdtempSync(path.join(tmpdir(), "beacon-export-"));
+const dir = mkdtempSync(path.join(tmpdir(), "tugboat-export-"));
 process.env.TURSO_DATABASE_URL = `file:${path.join(dir, "test.db")}`;
 
 type Db = typeof import("@/db/client");
@@ -88,7 +88,7 @@ describe("buildHouseholdExport", () => {
   it("includes the household's data, nested and readable", async () => {
     const data = await exporter.buildHouseholdExport("h1");
 
-    expect(data.format).toBe("beacon-household-export");
+    expect(data.format).toBe("tugboat-household-export");
     expect(data.household?.name).toBe("Test Family");
     expect(data.profiles.map((p) => p.name)).toEqual(["Kid"]);
     expect(data.routines[0].steps.map((s) => s.label)).toEqual(["Brush teeth"]);

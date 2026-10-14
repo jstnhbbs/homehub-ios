@@ -3,5 +3,5 @@
 set -e
 cd "$(dirname "$0")"
 out="$(mktemp -d)"
-swiftc -O ../../HomeHub/Utilities/AccentColors.swift main.swift -o "$out/checks"
+swiftc -O ../../Tugboat/Utilities/AccentColors.swift main.swift -o "$out/checks"
 "$out/checks"

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-const dir = mkdtempSync(path.join(tmpdir(), "beacon-streaks-"));
+const dir = mkdtempSync(path.join(tmpdir(), "tugboat-streaks-"));
 process.env.TURSO_DATABASE_URL = `file:${path.join(dir, "test.db")}`;
 
 type Store = typeof import("./streak-store");

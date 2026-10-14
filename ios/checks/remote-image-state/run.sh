@@ -4,5 +4,5 @@ set -e
 cd "$(dirname "$0")"
 out="$(mktemp -d)"
 trap 'rm -rf "$out"' EXIT
-swiftc -O ../../HomeHub/Utilities/RemoteImageState.swift main.swift -o "$out/checks"
+swiftc -O ../../Tugboat/Utilities/RemoteImageState.swift main.swift -o "$out/checks"
 "$out/checks"

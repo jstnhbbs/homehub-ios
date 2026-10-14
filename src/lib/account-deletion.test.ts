@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-const dir = mkdtempSync(path.join(tmpdir(), "beacon-delete-"));
+const dir = mkdtempSync(path.join(tmpdir(), "tugboat-delete-"));
 process.env.TURSO_DATABASE_URL = `file:${path.join(dir, "test.db")}`;
 process.env.BETTER_AUTH_SECRET = "test-secret-that-is-long-enough-for-better-auth";
 process.env.BETTER_AUTH_URL = "http://localhost:3000";

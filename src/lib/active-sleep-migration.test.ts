@@ -11,7 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 // to repair them first. This builds the database as it was before 0026, makes that mess, then
 // applies 0026 the way a deploy does.
 
-const dir = mkdtempSync(path.join(tmpdir(), "beacon-active-sleep-"));
+const dir = mkdtempSync(path.join(tmpdir(), "tugboat-active-sleep-"));
 const folder = path.join(dir, "drizzle");
 let client: Client;
 

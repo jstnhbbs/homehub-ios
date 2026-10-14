@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 cd "$(dirname "$0")"
-app=../../HomeHub
+app=../../Tugboat
 out="$(mktemp -d)"
 trap 'rm -rf "$out"' EXIT
 swiftc -O "$app/ViewModels/MealsViewModel.swift" "$app/ViewModels/SnacksViewModel.swift" \

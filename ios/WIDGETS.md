@@ -1,6 +1,6 @@
 # Home Screen Widgets
 
-The existing `HomeHubLiveActivity` WidgetKit extension now contains Sleep Live
+The existing `TugboatLiveActivity` WidgetKit extension now contains Sleep Live
 Activity plus nine Home Screen widgets: Up Next, Child's Routines, Chores,
 Tonight's Dinner, Sleep, Household Note, Groceries, Celebrations and Household
 Snapshot. Snapshot supports medium and large; the others support small, medium
@@ -8,7 +8,7 @@ and large. iOS 17 or later is required.
 
 ## Device Signing
 
-Both the app and extension use the App Group `group.com.porchlighthome.app`.
+Both the app and extension use the App Group `group.com.tugboatfamily.app`.
 Register/enable this group for both bundle IDs in the developer team's App Groups
 capability and regenerate provisioning profiles if Xcode requests it. Automatic
 signing may manage this. The generator preserves these entitlements.

@@ -19,7 +19,7 @@ const dropped = [
   "recycle_bin_items",
 ];
 
-const dir = mkdtempSync(path.join(tmpdir(), "beacon-drop-tables-"));
+const dir = mkdtempSync(path.join(tmpdir(), "tugboat-drop-tables-"));
 const folder = path.join(dir, "drizzle");
 let client: Client;
 

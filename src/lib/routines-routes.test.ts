@@ -9,7 +9,7 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ get: () => undefined, getAll: () => [] }),
 }));
 
-const dir = mkdtempSync(path.join(tmpdir(), "beacon-routines-"));
+const dir = mkdtempSync(path.join(tmpdir(), "tugboat-routines-"));
 process.env.TURSO_DATABASE_URL = `file:${path.join(dir, "test.db")}`;
 process.env.BETTER_AUTH_SECRET = "test-secret-that-is-long-enough-for-better-auth";
 process.env.BETTER_AUTH_URL = "http://localhost:3000";

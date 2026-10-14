@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-const dir = mkdtempSync(path.join(tmpdir(), "beacon-ratelimit-"));
+const dir = mkdtempSync(path.join(tmpdir(), "tugboat-ratelimit-"));
 process.env.TURSO_DATABASE_URL = `file:${path.join(dir, "test.db")}`;
 
 const window = { limit: 10, windowMs: 60_000 };

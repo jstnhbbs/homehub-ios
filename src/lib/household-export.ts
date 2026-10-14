@@ -124,7 +124,7 @@ export async function buildHouseholdExport(householdId: string) {
   ]);
 
   return {
-    format: "beacon-household-export",
+    format: "tugboat-household-export",
     version: 1,
     exportedAt: new Date().toISOString(),
     household,

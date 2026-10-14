@@ -5,36 +5,36 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-PROJECT = "HomeHub"
-BUNDLE_ID = "com.porchlighthome.app"
+PROJECT = "Tugboat"
+BUNDLE_ID = "com.tugboatfamily.app"
 DEVELOPMENT_TEAM = "25TTL3SG99"
 # The version shown to people (0.1 for the first TestFlight build) and the build number, which must go
 # up with every upload to App Store Connect. Both targets read these, and both Info.plists point at
 # them, so this is the only place to change.
 MARKETING_VERSION = "0.1"
 BUILD_NUMBER = "1"
-EXTENSION = "HomeHubLiveActivity"
+EXTENSION = "TugboatLiveActivity"
 EXTENSION_BUNDLE_ID = f"{BUNDLE_ID}.liveactivity"
 # Compiled into both the app and the extension.
 SHARED_WITH_EXTENSION = (
-    "HomeHub/Utilities/SleepActivityAttributes.swift",
-    "HomeHub/Utilities/ImageDownsampling.swift",
-    "HomeHub/Utilities/AccentColors.swift",
-    "HomeHub/Widgets/WidgetSnapshot.swift",
-    "HomeHub/Widgets/WidgetStore.swift",
-    "HomeHub/Widgets/WidgetIntents.swift",
+    "Tugboat/Utilities/SleepActivityAttributes.swift",
+    "Tugboat/Utilities/ImageDownsampling.swift",
+    "Tugboat/Utilities/AccentColors.swift",
+    "Tugboat/Widgets/WidgetSnapshot.swift",
+    "Tugboat/Widgets/WidgetStore.swift",
+    "Tugboat/Widgets/WidgetIntents.swift",
 )
-APP_ICON_NAME = "Beacon"
+APP_ICON_NAME = "Tugboat"
 ALTERNATE_APP_ICON_NAMES = (
-    "BeaconOcean",
-    "BeaconClay",
-    "BeaconPlum",
-    "BeaconSlate",
-    "BeaconRosewood",
-    "BeaconTeal",
-    "BeaconIndigo",
-    "BeaconRose",
-    "BeaconOchre",
+    "TugboatOcean",
+    "TugboatClay",
+    "TugboatPlum",
+    "TugboatSlate",
+    "TugboatRosewood",
+    "TugboatTeal",
+    "TugboatIndigo",
+    "TugboatRose",
+    "TugboatOchre",
 )
 ICON_COMPOSER_NAMES = (APP_ICON_NAME, *ALTERNATE_APP_ICON_NAMES)
 
@@ -43,7 +43,7 @@ def uid(key: str) -> str:
     # The same name always gets the same ID, so regenerating the project leaves the file unchanged
     # (a random ID per run rewrote every line) and an Xcode scheme saved in xcshareddata keeps
     # pointing at the right target instead of silently breaking archives.
-    return uuid.uuid5(uuid.NAMESPACE_URL, f"homehub-xcode-project:{key}").hex[:24].upper()
+    return uuid.uuid5(uuid.NAMESPACE_URL, f"tugboat-xcode-project:{key}").hex[:24].upper()
 
 
 swift_files = sorted((ROOT / PROJECT).rglob("*.swift"))
@@ -203,8 +203,8 @@ lines.extend(
         f'\t\t{release_config} /* Release */ = {{isa = XCBuildConfiguration; buildSettings = {{COPY_PHASE_STRIP = NO; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }}; name = Release; }};',
         f'\t\t{target_debug} /* Debug */ = {{isa = XCBuildConfiguration; buildSettings = {{ALWAYS_SEARCH_USER_PATHS = NO; ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = ({alternate_icon_names}); ASSETCATALOG_COMPILER_APPICON_NAME = {APP_ICON_NAME}; CODE_SIGN_ENTITLEMENTS = {PROJECT}/{PROJECT}.entitlements; CODE_SIGN_IDENTITY = "Apple Development"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = {BUILD_NUMBER}; DEVELOPMENT_TEAM = {DEVELOPMENT_TEAM}; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = {PROJECT}/Info.plist; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks"); MARKETING_VERSION = {MARKETING_VERSION}; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE_ID}; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; }}; name = Debug; }};',
         f'\t\t{target_release} /* Release */ = {{isa = XCBuildConfiguration; buildSettings = {{ALWAYS_SEARCH_USER_PATHS = NO; ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = ({alternate_icon_names}); ASSETCATALOG_COMPILER_APPICON_NAME = {APP_ICON_NAME}; CODE_SIGN_ENTITLEMENTS = {PROJECT}/{PROJECT}.entitlements; CODE_SIGN_IDENTITY = "Apple Development"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = {BUILD_NUMBER}; DEVELOPMENT_TEAM = {DEVELOPMENT_TEAM}; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = {PROJECT}/Info.plist; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks"); MARKETING_VERSION = {MARKETING_VERSION}; PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE_ID}; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; }}; name = Release; }};',
-        f'\t\t{ext_debug} /* Debug */ = {{isa = XCBuildConfiguration; buildSettings = {{ALWAYS_SEARCH_USER_PATHS = NO; APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = {EXTENSION}/{EXTENSION}.entitlements; CODE_SIGN_IDENTITY = "Apple Development"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = {BUILD_NUMBER}; DEVELOPMENT_TEAM = {DEVELOPMENT_TEAM}; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = {EXTENSION}/Info.plist; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks"); MARKETING_VERSION = {MARKETING_VERSION}; PRODUCT_BUNDLE_IDENTIFIER = {EXTENSION_BUNDLE_ID}; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG HOMEHUB_WIDGET_EXTENSION"; }}; name = Debug; }};',
-        f'\t\t{ext_release} /* Release */ = {{isa = XCBuildConfiguration; buildSettings = {{ALWAYS_SEARCH_USER_PATHS = NO; APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = {EXTENSION}/{EXTENSION}.entitlements; CODE_SIGN_IDENTITY = "Apple Development"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = {BUILD_NUMBER}; DEVELOPMENT_TEAM = {DEVELOPMENT_TEAM}; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = {EXTENSION}/Info.plist; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks"); MARKETING_VERSION = {MARKETING_VERSION}; PRODUCT_BUNDLE_IDENTIFIER = {EXTENSION_BUNDLE_ID}; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_ACTIVE_COMPILATION_CONDITIONS = HOMEHUB_WIDGET_EXTENSION; }}; name = Release; }};',
+        f'\t\t{ext_debug} /* Debug */ = {{isa = XCBuildConfiguration; buildSettings = {{ALWAYS_SEARCH_USER_PATHS = NO; APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = {EXTENSION}/{EXTENSION}.entitlements; CODE_SIGN_IDENTITY = "Apple Development"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = {BUILD_NUMBER}; DEVELOPMENT_TEAM = {DEVELOPMENT_TEAM}; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = {EXTENSION}/Info.plist; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks"); MARKETING_VERSION = {MARKETING_VERSION}; PRODUCT_BUNDLE_IDENTIFIER = {EXTENSION_BUNDLE_ID}; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG TUGBOAT_WIDGET_EXTENSION"; }}; name = Debug; }};',
+        f'\t\t{ext_release} /* Release */ = {{isa = XCBuildConfiguration; buildSettings = {{ALWAYS_SEARCH_USER_PATHS = NO; APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_ENTITLEMENTS = {EXTENSION}/{EXTENSION}.entitlements; CODE_SIGN_IDENTITY = "Apple Development"; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = {BUILD_NUMBER}; DEVELOPMENT_TEAM = {DEVELOPMENT_TEAM}; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = {EXTENSION}/Info.plist; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks"); MARKETING_VERSION = {MARKETING_VERSION}; PRODUCT_BUNDLE_IDENTIFIER = {EXTENSION_BUNDLE_ID}; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_ACTIVE_COMPILATION_CONDITIONS = TUGBOAT_WIDGET_EXTENSION; }}; name = Release; }};',
         f'\t\t{ext_config_list} = {{isa = XCConfigurationList; buildConfigurations = ({ext_debug} /* Debug */, {ext_release} /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; }};',
         f'\t\t{project_config_list} = {{isa = XCConfigurationList; buildConfigurations = ({debug_config} /* Debug */, {release_config} /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; }};',
         f'\t\t{target_config_list} = {{isa = XCConfigurationList; buildConfigurations = ({target_debug} /* Debug */, {target_release} /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; }};',

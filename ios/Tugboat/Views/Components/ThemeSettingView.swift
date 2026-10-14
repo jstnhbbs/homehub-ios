@@ -214,7 +214,7 @@ private struct ThemeColorGrid: View {
 
 /// The alternate app icons: the tugboat in each of the ten theme colors. The ids are the theme's
 /// saved ids (sage is Moss, and so on), so the icon and the theme color share a name and a
-/// color. The default icon is the first (Moss); the others are `Beacon<Id>.icon`.
+/// color. The default icon is the first (Moss); the others are `Tugboat<Id>.icon`.
 private enum AppIconOption: String, CaseIterable, Identifiable {
     case sage, ocean, clay, plum, slate, rosewood, teal, indigo, rose, ochre
 
@@ -222,7 +222,7 @@ private enum AppIconOption: String, CaseIterable, Identifiable {
     var label: String { AccentColorTable.labels[rawValue] ?? rawValue.capitalized }
 
     var alternateAppIconName: String? {
-        self == .sage ? nil : "Beacon\(rawValue.capitalized)"
+        self == .sage ? nil : "Tugboat\(rawValue.capitalized)"
     }
 
     var previewAssetName: String { "AppIcon\(rawValue.capitalized)Preview" }
