@@ -20,9 +20,10 @@ struct SignInView: View {
             VStack(spacing: 8) {
                 Text("Tugboat")
                     .font(.system(size: brandSize, weight: .bold, design: .rounded))
-                Text("Your family dashboard")
+                Text("Moving you in the right direction")
                     .font(.title3)
                     .foregroundStyle(HubTheme.muted)
+                    .multilineTextAlignment(.center)
             }
 
             Picker("Mode", selection: $mode) {

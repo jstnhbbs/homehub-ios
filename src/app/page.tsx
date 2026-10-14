@@ -51,7 +51,7 @@ export default async function Home() {
       <section className="mx-auto max-w-6xl px-6 pb-10 pt-4">
         <div className="hub-card overflow-hidden p-8 md:p-12">
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--sage)]">
-            Family dashboard
+            Moving you in the right direction
           </p>
           <h1 className="font-display mt-3 max-w-3xl text-5xl font-semibold leading-tight max-md:text-4xl">
             A calmer way to run the family week.
@@ -113,6 +113,10 @@ export default async function Home() {
           {" · "}
           <Link href="/terms" className="font-bold text-[var(--sage)]">
             Terms of Service
+          </Link>
+          {" · "}
+          <Link href="/support" className="font-bold text-[var(--sage)]">
+            Support
           </Link>
         </p>
       </footer>

@@ -14,7 +14,7 @@ export default async function SignInPage() {
         <div className="font-display relative text-3xl font-bold">Tugboat</div>
         <div className="relative max-w-xl">
           <p className="font-display text-6xl font-semibold leading-[1.02]">
-            A calmer way to run the family week.
+            Moving you in the right direction.
           </p>
           <div className="mt-10 grid grid-cols-3 gap-4">
             {[
