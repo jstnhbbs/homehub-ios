@@ -40,6 +40,12 @@ pretending that a write succeeded.
 
 ## Actions and Configuration
 
+Every widget has two appearance choices in Edit Widget: **Accent Color** (Same as App, or any of the
+ten theme colors by name) and **True Black** (a black background in dark mode; light mode stays white
+and dark mode is otherwise the app's charcoal). Same as App follows the theme chosen in Settings >
+Appearance, which the app writes into the snapshot whenever it changes. The accent is lightened or
+deepened to read on the widget's own background, as in the app (`ColorMath.textShade`).
+
 Routines and Notes use App Intent configuration. Child selection includes shared
 routine steps; selecting no child shows everyone. Selecting no note favors pinned
 notes. A deleted selected child/note is not silently replaced with another one.

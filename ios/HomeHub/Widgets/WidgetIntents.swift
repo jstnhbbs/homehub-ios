@@ -18,10 +18,45 @@ struct WidgetChildQuery: EntityQuery {
     }
 }
 
+/// The color a widget draws its accents in: the app's theme color, or one of the ten by name. The
+/// raw values are the saved theme ids (`AccentColorTable`), so the table gives the colors.
+enum WidgetAccentChoice: String, AppEnum {
+    case automatic, sage, ocean, clay, plum, slate, rosewood, teal, indigo, rose, ochre
+
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Accent Color"
+    // Each color has a filled circle in `WidgetSwatches.xcassets`, so the menu shows what the name looks like.
+    static let caseDisplayRepresentations: [WidgetAccentChoice: DisplayRepresentation] = [
+        .automatic: DisplayRepresentation(title: "Same as App", image: .init(systemName: "circle.lefthalf.filled")),
+        .sage: DisplayRepresentation(title: "Moss", image: .init(named: "WidgetAccentSage", isTemplate: false)),
+        .ocean: DisplayRepresentation(title: "Azure", image: .init(named: "WidgetAccentOcean", isTemplate: false)),
+        .clay: DisplayRepresentation(title: "Tangerine", image: .init(named: "WidgetAccentClay", isTemplate: false)),
+        .plum: DisplayRepresentation(title: "Blossom", image: .init(named: "WidgetAccentPlum", isTemplate: false)),
+        .slate: DisplayRepresentation(title: "Slate", image: .init(named: "WidgetAccentSlate", isTemplate: false)),
+        .rosewood: DisplayRepresentation(title: "Rosewood", image: .init(named: "WidgetAccentRosewood", isTemplate: false)),
+        .teal: DisplayRepresentation(title: "Seafoam", image: .init(named: "WidgetAccentTeal", isTemplate: false)),
+        .indigo: DisplayRepresentation(title: "Amethyst", image: .init(named: "WidgetAccentIndigo", isTemplate: false)),
+        .rose: DisplayRepresentation(title: "Raspberry", image: .init(named: "WidgetAccentRose", isTemplate: false)),
+        .ochre: DisplayRepresentation(title: "Sunflower", image: .init(named: "WidgetAccentOchre", isTemplate: false)),
+    ]
+
+    /// The theme id this choice stands for; nil follows the app.
+    var paletteId: String? { self == .automatic ? nil : rawValue }
+}
+
+/// The two appearance choices every widget offers in Edit Widget.
+struct WidgetAppearanceConfiguration: WidgetConfigurationIntent {
+    static let title: LocalizedStringResource = "Appearance"
+    static let description = IntentDescription("Choose the widget's accent color and a true black background.")
+    @Parameter(title: "Accent Color", default: .automatic) var accent: WidgetAccentChoice
+    @Parameter(title: "True Black", description: "Use a black background in dark mode.", default: false) var trueBlack: Bool
+}
+
 struct RoutineWidgetConfiguration: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Routines"
     static let description = IntentDescription("Choose a child, or show everyone's routines.")
     @Parameter(title: "Child") var child: WidgetChildEntity?
+    @Parameter(title: "Accent Color", default: .automatic) var accent: WidgetAccentChoice
+    @Parameter(title: "True Black", description: "Use a black background in dark mode.", default: false) var trueBlack: Bool
 }
 
 struct WidgetNoteEntity: AppEntity {
@@ -45,6 +80,8 @@ struct NoteWidgetConfiguration: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Household Note"
     static let description = IntentDescription("Choose a note, or automatically show a pinned note.")
     @Parameter(title: "Note") var note: WidgetNoteEntity?
+    @Parameter(title: "Accent Color", default: .automatic) var accent: WidgetAccentChoice
+    @Parameter(title: "True Black", description: "Use a black background in dark mode.", default: false) var trueBlack: Bool
 }
 
 /// Run in the app process so the extension never needs access to the sign-in Keychain.

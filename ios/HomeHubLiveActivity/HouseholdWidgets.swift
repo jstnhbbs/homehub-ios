@@ -9,10 +9,13 @@ struct HouseholdWidgetEntry: TimelineEntry {
     var personId: String? = nil
     var noteId: String? = nil
     var dinnerImage: UIImage? = nil
+    var accent: WidgetAccentChoice = .automatic
+    var trueBlack = false
 }
 
 enum HouseholdWidgetTimeline {
-    static func entry(date: Date = .now, personId: String? = nil, noteId: String? = nil, includesImage: Bool = false) async -> HouseholdWidgetEntry {
+    static func entry(date: Date = .now, personId: String? = nil, noteId: String? = nil, includesImage: Bool = false,
+                      accent: WidgetAccentChoice = .automatic, trueBlack: Bool = false) async -> HouseholdWidgetEntry {
         let store = WidgetStore()
         var snapshot = store.load()
         let originalUser = snapshot?.userId
@@ -34,7 +37,8 @@ enum HouseholdWidgetTimeline {
         if snapshot?.userId != originalUser || snapshot?.householdId != originalHome || snapshot?.dinner?.imageURL != originalImage {
             image = nil
         }
-        return HouseholdWidgetEntry(date: date, snapshot: snapshot, personId: personId, noteId: noteId, dinnerImage: image)
+        return HouseholdWidgetEntry(date: date, snapshot: snapshot, personId: personId, noteId: noteId, dinnerImage: image,
+                                    accent: accent, trueBlack: trueBlack)
     }
 
     static func timeline(_ entry: HouseholdWidgetEntry) -> Timeline<HouseholdWidgetEntry> {
@@ -55,22 +59,23 @@ enum HouseholdWidgetTimeline {
             dates += snapshot.events.flatMap { [$0.start, $0.end] }.filter { $0 > entry.date && $0 < entry.date.addingTimeInterval(3600) }
         }
         let entries = Set(dates).sorted().map { date in
-            HouseholdWidgetEntry(date: date, snapshot: entry.snapshot, personId: entry.personId,
-                                 noteId: entry.noteId, dinnerImage: entry.dinnerImage)
+            HouseholdWidgetEntry(date: date, snapshot: entry.snapshot, personId: entry.personId, noteId: entry.noteId,
+                                 dinnerImage: entry.dinnerImage, accent: entry.accent, trueBlack: entry.trueBlack)
         }
         return Timeline(entries: entries, policy: .after(entry.date.addingTimeInterval(900)))
     }
 }
 
-struct HouseholdSummaryProvider: TimelineProvider {
+struct HouseholdSummaryProvider: AppIntentTimelineProvider {
     var includesImage = false
     func placeholder(in context: Context) -> HouseholdWidgetEntry { .init(date: .now, snapshot: .preview) }
-    func getSnapshot(in context: Context, completion: @escaping (HouseholdWidgetEntry) -> Void) {
-        if context.isPreview { completion(placeholder(in: context)); return }
-        Task { completion(await HouseholdWidgetTimeline.entry(includesImage: includesImage)) }
+    func snapshot(for configuration: WidgetAppearanceConfiguration, in context: Context) async -> HouseholdWidgetEntry {
+        if context.isPreview { return placeholder(in: context) }
+        return await HouseholdWidgetTimeline.entry(includesImage: includesImage, accent: configuration.accent, trueBlack: configuration.trueBlack)
     }
-    func getTimeline(in context: Context, completion: @escaping (Timeline<HouseholdWidgetEntry>) -> Void) {
-        Task { completion(HouseholdWidgetTimeline.timeline(await HouseholdWidgetTimeline.entry(includesImage: includesImage))) }
+    func timeline(for configuration: WidgetAppearanceConfiguration, in context: Context) async -> Timeline<HouseholdWidgetEntry> {
+        HouseholdWidgetTimeline.timeline(await HouseholdWidgetTimeline.entry(
+            includesImage: includesImage, accent: configuration.accent, trueBlack: configuration.trueBlack))
     }
 }
 
@@ -78,10 +83,11 @@ struct RoutineWidgetProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> HouseholdWidgetEntry { .init(date: .now, snapshot: .preview) }
     func snapshot(for configuration: RoutineWidgetConfiguration, in context: Context) async -> HouseholdWidgetEntry {
         if context.isPreview { return placeholder(in: context) }
-        return await HouseholdWidgetTimeline.entry(personId: configuration.child?.id)
+        return await HouseholdWidgetTimeline.entry(personId: configuration.child?.id, accent: configuration.accent, trueBlack: configuration.trueBlack)
     }
     func timeline(for configuration: RoutineWidgetConfiguration, in context: Context) async -> Timeline<HouseholdWidgetEntry> {
-        HouseholdWidgetTimeline.timeline(await HouseholdWidgetTimeline.entry(personId: configuration.child?.id))
+        HouseholdWidgetTimeline.timeline(await HouseholdWidgetTimeline.entry(
+            personId: configuration.child?.id, accent: configuration.accent, trueBlack: configuration.trueBlack))
     }
 }
 
@@ -89,10 +95,11 @@ struct NoteWidgetProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> HouseholdWidgetEntry { .init(date: .now, snapshot: .preview) }
     func snapshot(for configuration: NoteWidgetConfiguration, in context: Context) async -> HouseholdWidgetEntry {
         if context.isPreview { return placeholder(in: context) }
-        return await HouseholdWidgetTimeline.entry(noteId: configuration.note?.id)
+        return await HouseholdWidgetTimeline.entry(noteId: configuration.note?.id, accent: configuration.accent, trueBlack: configuration.trueBlack)
     }
     func timeline(for configuration: NoteWidgetConfiguration, in context: Context) async -> Timeline<HouseholdWidgetEntry> {
-        HouseholdWidgetTimeline.timeline(await HouseholdWidgetTimeline.entry(noteId: configuration.note?.id))
+        HouseholdWidgetTimeline.timeline(await HouseholdWidgetTimeline.entry(
+            noteId: configuration.note?.id, accent: configuration.accent, trueBlack: configuration.trueBlack))
     }
 }
 
@@ -101,7 +108,8 @@ struct HouseholdSummaryWidget: Widget {
     init() { kind = .next }
     init(kind: HouseholdWidgetKind) { self.kind = kind }
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "Tugboat.\(kind.rawValue)", provider: HouseholdSummaryProvider(includesImage: kind == .dinner || kind == .overview)) { entry in
+        AppIntentConfiguration(kind: "Tugboat.\(kind.rawValue)", intent: WidgetAppearanceConfiguration.self,
+                               provider: HouseholdSummaryProvider(includesImage: kind == .dinner || kind == .overview)) { entry in
             HouseholdWidgetView(kind: kind, entry: entry)
         }
         .configurationDisplayName(kind.title)
@@ -152,10 +160,19 @@ private struct HouseholdWidgetView: View {
     private var small: Bool { family == .systemSmall }
     private var large: Bool { family == .systemLarge }
     private var rowLimit: Int { large ? 5 : (small ? 1 : 2) }
+    private var dark: Bool { colorScheme == .dark }
+    /// True black applies in dark mode only; light mode keeps its white background.
+    private var surfaceHex: String { dark ? (entry.trueBlack ? "#000000" : "#1C1C1E") : "#FFFFFF" }
+    /// The chosen color for text and symbols: the app's theme color unless this widget picked its own,
+    /// lightened or deepened where needed to read on the widget's background.
     private var accent: Color {
-        let hex = (colorScheme == .dark ? entry.snapshot?.accentDark : entry.snapshot?.accentLight) ?? "#5F8153"
-        let surface = RGBColor(hex: colorScheme == .dark ? "#1C1C1E" : "#FFFFFF")
-        return widgetColor(ColorMath.textShade(of: RGBColor(hex: hex), on: surface, lighten: colorScheme == .dark).hex)
+        let hex: String
+        if let id = entry.accent.paletteId {
+            hex = (dark ? AccentColorTable.dark : AccentColorTable.light)[id] ?? "#5F8153"
+        } else {
+            hex = (dark ? entry.snapshot?.accentDark : entry.snapshot?.accentLight) ?? "#5F8153"
+        }
+        return widgetColor(ColorMath.textShade(of: RGBColor(hex: hex), on: RGBColor(hex: surfaceHex), lighten: dark).hex)
     }
 
     var body: some View {
@@ -181,7 +198,7 @@ private struct HouseholdWidgetView: View {
         }
         .privacySensitive()
         .widgetURL(WidgetRoute.url(destination: kind.destination, recipeId: kind == .dinner ? entry.snapshot?.dinner?.recipeId : nil))
-        .containerBackground(for: .widget) { Color(uiColor: .systemBackground) }
+        .containerBackground(for: .widget) { widgetColor(surfaceHex) }
         .tint(accent)
     }
 

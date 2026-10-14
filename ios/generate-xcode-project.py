@@ -89,6 +89,9 @@ target_release = uid("target_release")
 info_ref = uid("info_ref")
 entitlements_ref = uid("entitlements_ref")
 assets_ref = uid("assets_ref")
+swatches_ref = uid("swatches_ref")
+swatches_app_build = uid("swatches_app_build")
+swatches_ext_build = uid("swatches_ext_build")
 assets_build = uid("assets_build")
 privacy_manifest_ref = uid("privacy_manifest_ref")
 privacy_manifest_build = uid("privacy_manifest_build")
@@ -120,6 +123,7 @@ lines.extend(
         f'\t\t{ext_product_ref} /* {EXTENSION}.appex */ = {{isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = {EXTENSION}.appex; sourceTree = BUILT_PRODUCTS_DIR; }};',
         f'\t\t{info_ref} /* Info.plist */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = {PROJECT}/Info.plist; sourceTree = SOURCE_ROOT; }};',
         f'\t\t{entitlements_ref} /* {PROJECT}.entitlements */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = {PROJECT}/{PROJECT}.entitlements; sourceTree = SOURCE_ROOT; }};',
+        f'\t\t{swatches_ref} /* WidgetSwatches.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = WidgetSwatches.xcassets; sourceTree = SOURCE_ROOT; }};',
         f'\t\t{assets_ref} /* Assets.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = {PROJECT}/Assets.xcassets; sourceTree = SOURCE_ROOT; }};',
         f'\t\t{privacy_manifest_ref} /* PrivacyInfo.xcprivacy */ = {{isa = PBXFileReference; lastKnownFileType = text.xml; path = {PROJECT}/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; }};',
         f'\t\t{product_ref} /* {PROJECT}.app */ = {{isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = {PROJECT}.app; sourceTree = BUILT_PRODUCTS_DIR; }};',
@@ -144,6 +148,12 @@ for path, ref in extension_shared_builds.items():
     )
 lines.append(
     f'\t\t{embed_build} /* {EXTENSION}.appex in Embed Foundation Extensions */ = {{isa = PBXBuildFile; fileRef = {ext_product_ref} /* {EXTENSION}.appex */; settings = {{ATTRIBUTES = (RemoveHeadersOnCopy, ); }}; }};'
+)
+lines.append(
+    f'\t\t{swatches_app_build} /* WidgetSwatches.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {swatches_ref} /* WidgetSwatches.xcassets */; }};'
+)
+lines.append(
+    f'\t\t{swatches_ext_build} /* WidgetSwatches.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {swatches_ref} /* WidgetSwatches.xcassets */; }};'
 )
 lines.append(
     f'\t\t{assets_build} /* Assets.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {assets_ref} /* Assets.xcassets */; }};'
@@ -176,13 +186,13 @@ lines.extend(
         f'\t\t{products_group} /* Products */ = {{isa = PBXGroup; children = ({product_ref} /* {PROJECT}.app */, {ext_product_ref} /* {EXTENSION}.appex */); name = Products; sourceTree = "<group>"; }};',
         f'\t\t{app_group} /* {PROJECT} */ = {{isa = PBXGroup; children = ({swift_ref_list}, {info_ref} /* Info.plist */, {entitlements_ref} /* {PROJECT}.entitlements */, {assets_ref} /* Assets.xcassets */, {privacy_manifest_ref} /* PrivacyInfo.xcprivacy */); name = {PROJECT}; sourceTree = "<group>"; }};',
         f'\t\t{ext_group} /* {EXTENSION} */ = {{isa = PBXGroup; children = ({ext_swift_ref_list}, {ext_info_ref} /* Info.plist */, {ext_entitlements_ref} /* {EXTENSION}.entitlements */); name = {EXTENSION}; sourceTree = "<group>"; }};',
-        f'\t\t{main_group} = {{isa = PBXGroup; children = ({app_group} /* {PROJECT} */, {ext_group} /* {EXTENSION} */, {icon_ref_list}, {products_group} /* Products */); sourceTree = "<group>"; }};',
+        f'\t\t{main_group} = {{isa = PBXGroup; children = ({app_group} /* {PROJECT} */, {ext_group} /* {EXTENSION} */, {swatches_ref} /* WidgetSwatches.xcassets */, {icon_ref_list}, {products_group} /* Products */); sourceTree = "<group>"; }};',
         f'\t\t{frameworks_phase} /* Frameworks */ = {{isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; }};',
         f'\t\t{sources_phase} /* Sources */ = {{isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = ({build_ref_list}); runOnlyForDeploymentPostprocessing = 0; }};',
-        f'\t\t{resources_phase} /* Resources */ = {{isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = ({assets_build} /* Assets.xcassets in Resources */, {privacy_manifest_build} /* PrivacyInfo.xcprivacy in Resources */, {icon_build_list}); runOnlyForDeploymentPostprocessing = 0; }};',
+        f'\t\t{resources_phase} /* Resources */ = {{isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = ({assets_build} /* Assets.xcassets in Resources */, {swatches_app_build} /* WidgetSwatches.xcassets in Resources */, {privacy_manifest_build} /* PrivacyInfo.xcprivacy in Resources */, {icon_build_list}); runOnlyForDeploymentPostprocessing = 0; }};',
         f'\t\t{ext_frameworks_phase} /* Frameworks */ = {{isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; }};',
         f'\t\t{ext_sources_phase} /* Sources */ = {{isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = ({ext_build_ref_list}); runOnlyForDeploymentPostprocessing = 0; }};',
-        f'\t\t{ext_resources_phase} /* Resources */ = {{isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; }};',
+        f'\t\t{ext_resources_phase} /* Resources */ = {{isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = ({swatches_ext_build} /* WidgetSwatches.xcassets in Resources */); runOnlyForDeploymentPostprocessing = 0; }};',
         f'\t\t{embed_phase} /* Embed Foundation Extensions */ = {{isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = ({embed_build} /* {EXTENSION}.appex in Embed Foundation Extensions */); name = "Embed Foundation Extensions"; runOnlyForDeploymentPostprocessing = 0; }};',
         f'\t\t{ext_proxy} /* PBXContainerItemProxy */ = {{isa = PBXContainerItemProxy; containerPortal = {project_uid} /* Project object */; proxyType = 1; remoteGlobalIDString = {ext_target_uid}; remoteInfo = {EXTENSION}; }};',
         f'\t\t{ext_dependency} /* PBXTargetDependency */ = {{isa = PBXTargetDependency; target = {ext_target_uid} /* {EXTENSION} */; targetProxy = {ext_proxy} /* PBXContainerItemProxy */; }};',
