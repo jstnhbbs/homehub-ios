@@ -34,6 +34,24 @@
           ]
         },
         {
+          "name": "Cabin Trim",
+          "image-name": "trim.svg",
+          "glass": false,
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.90196,0.29804,0.64314,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.90196,0.33725,0.65882,1.00000"
+              }
+            }
+          ]
+        },
+        {
           "name": "Cabin",
           "image-name": "cabin.svg",
           "glass": false

@@ -20,8 +20,11 @@
   <path d="M340 289 L540 266 V335 L340 358 Z" fill="#2C383B" clip-path="url(#k)"/>
   </g>
   <g id="Cabin" transform="translate(512 512) translate(0 0) scale(1) translate(-512 -512)">
-    <defs><linearGradient id="c" gradientUnits="userSpaceOnUse" x1="420" y1="355" x2="600" y2="585"><stop offset="0" stop-color="#F4E8CC"/><stop offset="1" stop-color="#D6C396"/></linearGradient></defs>
+    <defs><linearGradient id="c" gradientUnits="userSpaceOnUse" x1="420" y1="355" x2="600" y2="585"><stop offset="0" stop-color="#F6EBD0"/><stop offset="1" stop-color="#DCCBA0"/></linearGradient></defs>
   <path d="M328 600 L332 434 C333 406 347 390 375 386 L645 350 C673 346 690 359 693 386 L705 533 V600 Z" fill="url(#c)"/>
+  </g>
+  <g id="Cabin Trim" transform="translate(512 512) translate(0 0) scale(1) translate(-512 -512)">
+    <path d="M339.1 406.8 C346.0 395.4 357.9 388.4 375.0 386.0 L645 350 C662.0 347.6 675.0 351.4 683.2 360.9 Z" fill="#57764c"/>
   </g>
   <g id="Hull" transform="translate(512 512) translate(0 0) scale(1) translate(-512 -512)">
     <path d="M150 575 C335 574 605 536 862 470 C894 462 916 478 913 511 C909 590 873 716 812 725 C700 743 582 731 466 696 C350 661 249 652 150 689 C140 693 130 691 126 677 L117 607 C114 584 128 575 150 575 Z" fill="#57764c"/>
