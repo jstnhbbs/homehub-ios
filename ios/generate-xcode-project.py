@@ -11,8 +11,8 @@ DEVELOPMENT_TEAM = "25TTL3SG99"
 # The version shown to people (year.month of the release, like 2026.10 for October 2026, with a third number for a second release in the same month: 2026.10.1; it has to match the version in App Store Connect) and the build number, which must go
 # up with every upload to App Store Connect. Both targets read these, and both Info.plists point at
 # them, so this is the only place to change.
-MARKETING_VERSION = "2026.10"
-BUILD_NUMBER = "1"
+MARKETING_VERSION = "2026.10.1"
+BUILD_NUMBER = "4"
 EXTENSION = "TugboatLiveActivity"
 EXTENSION_BUNDLE_ID = f"{BUNDLE_ID}.liveactivity"
 # Compiled into both the app and the extension.
