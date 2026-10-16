@@ -23,6 +23,9 @@ SHARED_WITH_EXTENSION = (
     "Tugboat/Widgets/WidgetSnapshot.swift",
     "Tugboat/Widgets/WidgetStore.swift",
     "Tugboat/Widgets/WidgetIntents.swift",
+    # The widget's check-off buttons run in the extension, which sends them itself with the shared sign-in.
+    "Tugboat/Services/APIClient.swift",
+    "Tugboat/Services/SessionCredentials.swift",
 )
 APP_ICON_NAME = "Tugboat"
 ALTERNATE_APP_ICON_NAMES = (

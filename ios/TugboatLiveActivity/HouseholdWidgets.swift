@@ -233,7 +233,7 @@ private struct HouseholdWidgetView: View {
                     .accessibilityLabel("Updated \(snapshot.updatedAt.formatted(date: .omitted, time: .shortened))")
             }
             Spacer(minLength: 0)
-            Button(intent: HouseholdWidgetActionIntent(action: "refresh", itemId: "", snapshot: snapshot)) {
+            Button(intent: HouseholdWidgetRefreshIntent(snapshot: snapshot)) {
                 Image(systemName: "arrow.clockwise").frame(width: 26, height: 26)
             }
             .buttonStyle(.plain)

@@ -35,6 +35,8 @@ struct ChoresView: View {
         .onAppear { viewModel.bind(to: appState) }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
+        // A widget changed something while this page was open (or the app was in the background).
+        .onChange(of: appState.externalChangeToken) { _, _ in Task { await viewModel.load() } }
     }
 
     private var wideContent: some View {

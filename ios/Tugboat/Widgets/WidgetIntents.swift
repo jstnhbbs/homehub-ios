@@ -84,8 +84,12 @@ struct NoteWidgetConfiguration: WidgetConfigurationIntent {
     @Parameter(title: "True Black", description: "Use a black background in dark mode.", default: false) var trueBlack: Bool
 }
 
-/// Run in the app process so the extension never needs access to the sign-in Keychain.
-struct HouseholdWidgetActionIntent: LiveActivityIntent {
+/// A check-off or End Sleep tapped in a widget. It runs in the widget's own process, which is what lets
+/// the widget redraw the moment the tap finishes: an intent that runs in the app (a Live Activity
+/// intent) made iOS wait about three seconds before redrawing the widget that was tapped. The
+/// extension shows the change from the saved snapshot first and sends the write behind it
+/// (`WidgetWriter`), using the sign-in it shares with the app through the Keychain.
+struct HouseholdWidgetActionIntent: AppIntent {
     static let title: LocalizedStringResource = "Update Household Widget"
     static let openAppWhenRun = false
     static let isDiscoverable = false
@@ -105,15 +109,40 @@ struct HouseholdWidgetActionIntent: LiveActivityIntent {
     }
     func perform() async throws -> some IntentResult {
         #if TUGBOAT_WIDGET_EXTENSION
-        try requireAppExecution()
+        try await WidgetWriter.perform(action: action, itemId: itemId, userId: userId,
+                                       householdId: householdId, localDate: localDate)
         #else
-        try await WidgetActionRunner.perform(action: action, itemId: itemId, userId: userId,
+        throw WidgetActionFailure.openApp
+        #endif
+        return .result()
+    }
+}
+
+/// The refresh button. It rebuilds the whole snapshot (server data, calendar, reminders), which only the
+/// app can do, so it runs in the app process.
+struct HouseholdWidgetRefreshIntent: LiveActivityIntent {
+    static let title: LocalizedStringResource = "Refresh Household Widget"
+    static let openAppWhenRun = false
+    static let isDiscoverable = false
+    @Parameter(title: "User") var userId: String
+    @Parameter(title: "Household") var householdId: String
+    @Parameter(title: "Day") var localDate: String
+
+    init() {}
+    init(snapshot: WidgetSnapshot) {
+        self.userId = snapshot.userId
+        self.householdId = snapshot.householdId
+        self.localDate = snapshot.localDate
+    }
+    func perform() async throws -> some IntentResult {
+        #if TUGBOAT_WIDGET_EXTENSION
+        throw WidgetActionFailure.openApp
+        #else
+        try await WidgetActionRunner.perform(action: "refresh", itemId: "", userId: userId,
                                             householdId: householdId, localDate: localDate)
         #endif
         return .result()
     }
-
-    private func requireAppExecution() throws { throw WidgetActionFailure.openApp }
 }
 
 enum WidgetActionFailure: LocalizedError {

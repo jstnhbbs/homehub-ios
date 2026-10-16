@@ -34,7 +34,8 @@ enum WidgetSnapshotBuilder {
             groceries: enabled.contains("groceries") ? Array(remaining.prefix(30)).map(\.title) : [],
             groceryCount: enabled.contains("groceries") ? remaining.count : 0,
             celebrations: enabled.contains("birthdays") ? dashboard.upcomingBirthdays.map { .init(id: $0.id, name: $0.name, date: $0.nextDate, years: $0.upcomingAge, isAnniversary: $0.kind == .anniversary) } : [],
-            actionError: nil
+            actionError: nil,
+            server: AppConfig.baseURL.absoluteString
         )
     }
 }

@@ -80,6 +80,8 @@ struct NapsView: View {
         .background(HubTheme.surface)
         .refreshable { await load() }
         .task { await load() }
+        // A widget ended a sleep while this page was open (or the app was in the background).
+        .onChange(of: appState.externalChangeToken) { _, _ in Task { await load() } }
         .onReceive(timer) { date in
             now = date
         }

@@ -68,6 +68,9 @@ struct WidgetSnapshot: Codable, Equatable, Sendable {
     var groceryCount: Int
     var celebrations: [Celebration]
     var actionError: String?
+    /// The server this snapshot came from, so the widget can send a check-off itself. Nil in snapshots
+    /// saved before this was added, which makes a tap open the app instead.
+    var server: String?
 
     struct Person: Codable, Equatable, Identifiable, Sendable {
         var id: String
@@ -211,13 +214,112 @@ enum WidgetRoute {
     }
 }
 
+extension WidgetSnapshot {
+    /// The server this snapshot came from, but only one the widget may send a sign-in to: https, or a
+    /// local one while developing. Anything else (or a snapshot from before `server` existed) is nil,
+    /// and a tap then asks the person to open the app.
+    var serverURL: URL? {
+        guard let server, let url = URL(string: server), let host = url.host else { return nil }
+        let local = host == "localhost" || host == "127.0.0.1" || host.hasSuffix(".local")
+        guard url.scheme == "https" || (url.scheme == "http" && local) else { return nil }
+        return url
+    }
+}
+
+/// What the widget sends to the server for a check-off or End Sleep. The bodies match what the app
+/// sends (`TugboatAPI.toggleRoutineStep`, `toggleChore`, `endNap`), and always say the state wanted so
+/// a repeat can't flip it back.
+struct WidgetWriteRequest: Sendable {
+    let path: String
+    let body: any Encodable & Sendable
+}
+
+private struct WidgetStepBody: Encodable, Sendable { var stepId: String; var localDate: String; var completed: Bool }
+private struct WidgetChoreBody: Encodable, Sendable { var choreId: String; var periodKey: String; var completed: Bool }
+private struct WidgetEndSleepBody: Encodable, Sendable { var action: String; var napId: String }
+
 enum WidgetActionPolicy {
+    /// The request for `action` on `itemId` as the snapshot describes it, or nil if it isn't there.
+    static func writeRequest(action: String, itemId: String, in snapshot: WidgetSnapshot) -> WidgetWriteRequest? {
+        switch action {
+        case "step":
+            guard snapshot.steps.contains(where: { $0.id == itemId }) else { return nil }
+            return .init(path: "/api/mobile/v1/routines/toggle-step",
+                         body: WidgetStepBody(stepId: itemId, localDate: snapshot.localDate, completed: true))
+        case "chore":
+            guard let chore = snapshot.chores.first(where: { $0.id == itemId }) else { return nil }
+            return .init(path: "/api/mobile/v1/chores/toggle",
+                         body: WidgetChoreBody(choreId: itemId, periodKey: chore.periodKey, completed: true))
+        case "endSleep":
+            guard snapshot.sleeps.contains(where: { $0.id == itemId && $0.end == nil }) else { return nil }
+            return .init(path: "/api/mobile/v1/naps", body: WidgetEndSleepBody(action: "end", napId: itemId))
+        default:
+            return nil
+        }
+    }
+
     static func appliesCompletion(action: String, writtenDay: String, currentDay: String,
                                   writtenPeriod: String? = nil, currentPeriod: String? = nil) -> Bool {
         if action == "step" { return writtenDay == currentDay }
         if action == "chore" { return writtenPeriod != nil && writtenPeriod == currentPeriod }
         return false
     }
+    /// The snapshot as it will look once the action works, so the widget can show the tap at once and
+    /// the network round trip happens behind it. Nil when the action isn't allowed against this
+    /// snapshot (wrong account or day, item missing), in which case nothing is shown early.
+    static func appliedEarly(action: String, itemId: String, userId: String, householdId: String,
+                             localDate: String, to snapshot: WidgetSnapshot, now: Date = .now) -> WidgetSnapshot? {
+        guard action != "refresh", allows(action: action, itemId: itemId, userId: userId, householdId: householdId,
+                                          localDate: localDate, current: snapshot, now: now) else { return nil }
+        var result = snapshot
+        result.actionError = nil
+        switch action {
+        case "step":
+            guard let index = result.steps.firstIndex(where: { $0.id == itemId }) else { return nil }
+            result.steps[index].completed = true
+        case "chore":
+            guard let index = result.chores.firstIndex(where: { $0.id == itemId }) else { return nil }
+            result.chores[index].completed = true
+        case "endSleep":
+            guard let index = result.sleeps.firstIndex(where: { $0.id == itemId }) else { return nil }
+            result.sleeps[index].end = now
+        default: return nil
+        }
+        return result
+    }
+
+    /// The widgets that show what the action changes, the most direct one first. Reloading only these
+    /// right after a tap matters: `reloadAllTimelines()` makes iOS redraw every widget one after another,
+    /// and the one that was tapped could be last in line, a few seconds after the action had finished.
+    static func affectedKinds(action: String) -> [String] {
+        switch action {
+        case "step": return ["Tugboat.routines", "Tugboat.next", "Tugboat.overview"]
+        case "chore": return ["Tugboat.chores", "Tugboat.next", "Tugboat.overview"]
+        case "endSleep": return ["Tugboat.sleep", "Tugboat.overview"]
+        default: return []
+        }
+    }
+
+    /// Puts back the one item an early update changed, in whatever the stored snapshot is by now, so a
+    /// failed write doesn't leave the widget showing something that didn't happen (and doesn't throw
+    /// away anything newer the app saved in the meantime).
+    static func reverted(action: String, itemId: String, in current: WidgetSnapshot, from original: WidgetSnapshot) -> WidgetSnapshot {
+        var result = current
+        switch action {
+        case "step":
+            if let from = original.steps.first(where: { $0.id == itemId }),
+               let index = result.steps.firstIndex(where: { $0.id == itemId }) { result.steps[index] = from }
+        case "chore":
+            if let from = original.chores.first(where: { $0.id == itemId }),
+               let index = result.chores.firstIndex(where: { $0.id == itemId }) { result.chores[index] = from }
+        case "endSleep":
+            if let from = original.sleeps.first(where: { $0.id == itemId }),
+               let index = result.sleeps.firstIndex(where: { $0.id == itemId }) { result.sleeps[index] = from }
+        default: break
+        }
+        return result
+    }
+
     static func allows(action: String, itemId: String, userId: String, householdId: String,
                        localDate: String, current: WidgetSnapshot, now: Date = .now) -> Bool {
         guard current.userId == userId, current.householdId == householdId else { return false }

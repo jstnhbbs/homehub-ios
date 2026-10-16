@@ -46,6 +46,8 @@ struct RootView: View {
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active, appState.auth.isSignedIn else { return }
             Task {
+                // A widget may have checked something off or ended a sleep while the app was away.
+                await appState.refreshForWidgetWrites()
                 await appState.refreshHousehold()
                 // Someone who went to their mail app to confirm their address comes back here.
                 if appState.needsEmailVerification { await appState.refreshSession() }

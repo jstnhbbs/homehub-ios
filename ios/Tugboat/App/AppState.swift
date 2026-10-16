@@ -99,6 +99,12 @@ final class AppState: ObservableObject {
 
     private var eventKitObserver: NSObjectProtocol?
     private var dataChangedObserver: NSObjectProtocol?
+    private var widgetWriteObserver: NSObjectProtocol?
+    private let widgetWriteListener = WidgetWriteObserver()
+    private var lastSeenWidgetWrite = WidgetWriteSignal.lastWriteAt ?? .distantPast
+    /// Goes up when something changed outside the app's own screens (a widget check-off), so pages that
+    /// load their own data reload.
+    @Published private(set) var externalChangeToken = 0
     private var openDestinationObserver: NSObjectProtocol?
     private var eventKitRefreshTask: Task<Void, Never>?
     private var widgetUpdateTask: Task<Void, Never>?
@@ -143,6 +149,12 @@ final class AppState: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor in await self?.refreshDashboard() }
         }
+        // A widget finished a check-off or End Sleep: show it.
+        widgetWriteObserver = NotificationCenter.default.addObserver(
+            forName: .tugboatWidgetWrote, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in await self?.refreshForWidgetWrites() }
+        }
         // A tap on a notification opens the page it is about (Routines, Chores, Sleep, Celebrations).
         openDestinationObserver = NotificationCenter.default.addObserver(
             forName: .tugboatOpenDestination, object: nil, queue: .main
@@ -161,6 +173,7 @@ final class AppState: ObservableObject {
         if let eventKitObserver {
             NotificationCenter.default.removeObserver(eventKitObserver)
         }
+        if let widgetWriteObserver { NotificationCenter.default.removeObserver(widgetWriteObserver) }
         if let dataChangedObserver {
             NotificationCenter.default.removeObserver(dataChangedObserver)
         }
@@ -332,6 +345,15 @@ final class AppState: ObservableObject {
         updated.snackOptions = options
         dashboard = updated
         localStore.saveDashboard(updated)
+    }
+
+    /// A widget wrote something to the server since this app last looked (it runs in another process, so
+    /// nothing here changed by itself). Reloads the dashboard and tells the pages that load their own data.
+    func refreshForWidgetWrites() async {
+        guard let wrote = WidgetWriteSignal.lastWriteAt, wrote > lastSeenWidgetWrite else { return }
+        lastSeenWidgetWrite = wrote
+        await refreshDashboard()
+        externalChangeToken += 1
     }
 
     /// `forcingDeviceRefresh` re-reads the device's calendars, reminders and weather even if that was

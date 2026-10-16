@@ -1,5 +1,23 @@
 import Foundation
 
+/// How the widget tells the app it changed something on the server. The app is often running in the
+/// background (or even in front) with a copy of the data that doesn't have the change yet, and the widget
+/// is a separate process, so it leaves a timestamp in the shared defaults (read when the app comes to
+/// the front) and posts a system-wide notification (heard right away if the app is running).
+enum WidgetWriteSignal {
+    static let darwinName = "com.tugboatfamily.app.widget-wrote"
+    private static let key = "tugboat.widget.lastWriteAt"
+    private static var defaults: UserDefaults? { UserDefaults(suiteName: WidgetStore.group) }
+
+    static var lastWriteAt: Date? { defaults?.object(forKey: key) as? Date }
+
+    static func recordWrite() {
+        defaults?.set(Date(), forKey: key)
+        CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(),
+                                             CFNotificationName(darwinName as CFString), nil, nil, true)
+    }
+}
+
 struct WidgetStore: Sendable {
     static let group = "group.com.tugboatfamily.app"
     private let directory: URL?
