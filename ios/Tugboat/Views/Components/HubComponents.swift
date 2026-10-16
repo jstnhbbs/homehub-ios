@@ -314,10 +314,14 @@ struct CheckItemView: View {
                             .font(.body.weight(.semibold))
                             .foregroundStyle(isChecked ? HubTheme.muted : .primary)
                             .strikethrough(isChecked, color: HubTheme.muted)
+                            .fixedSize(horizontal: false, vertical: true)
                         if let detail {
                             Text(detail)
                                 .font(.caption.weight(.bold))
                                 .foregroundStyle(HubTheme.profileText(color))
+                                // The words ("Every month · on the 24th") are information; at the large text
+                                // sizes they wrap to the lines they need instead of ending in "…".
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                     Spacer()
