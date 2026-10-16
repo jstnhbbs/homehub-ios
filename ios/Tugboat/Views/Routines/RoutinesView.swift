@@ -118,6 +118,8 @@ private struct RoutineCard: View {
     @ObservedObject var viewModel: RoutinesViewModel
     let onEdit: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     private var meta: (label: String, icon: String, color: Color) {
         switch routine.period {
         case .morning: ("Morning", "sun.max.fill", HubTheme.sunSoft)
@@ -147,14 +149,15 @@ private struct RoutineCard: View {
                     VStack(alignment: .leading, spacing: 2) {
                         // Whose routine this is, in words as well as colour: a family with several
                         // children has several "Morning" cards that otherwise look alike.
-                        HStack(spacing: 6) {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
                             Circle()
                                 .fill(HubTheme.profileColor(profile?.color))
                                 .frame(width: 8, height: 8)
                             Text(headerLabel(profile: profile).uppercased())
                                 .font(.caption2.weight(.heavy))
                                 .foregroundStyle(HubTheme.muted)
-                                .lineLimit(1)
+                                // One line at normal sizes; at the accessibility sizes it wraps rather than ending in "…".
+                                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
                         }
                         Text(routine.name)
                             .font(.title2.weight(.semibold))
