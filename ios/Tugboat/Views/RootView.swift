@@ -47,6 +47,7 @@ struct RootView: View {
             guard phase == .active, appState.auth.isSignedIn else { return }
             Task {
                 // A widget may have checked something off or ended a sleep while the app was away.
+                await appState.flushPendingWidgetActions()
                 await appState.refreshForWidgetWrites()
                 await appState.refreshHousehold()
                 // Someone who went to their mail app to confirm their address comes back here.

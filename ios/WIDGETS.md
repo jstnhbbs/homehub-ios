@@ -37,7 +37,8 @@ app to be opened. The widget leaves a timestamp and a Darwin notification
 and also checks when it comes to the front (`AppState.refreshForWidgetWrites`), then
 reloads the dashboard and bumps `externalChangeToken`, which the Chores, Sleep and
 Routines pages watch. Rows that copy "done" into `@State` must follow their data with
-`.onChange` (they didn't, which hid widget changes). The Refresh button
+`.onChange` (they didn't, which hid widget changes). A tap made without a
+connection waits (see **Offline taps** below). The Refresh button
 (`HouseholdWidgetRefreshIntent`) is still a `LiveActivityIntent` because it rebuilds the
 whole snapshot (calendar, reminders, server data) in the app (`WidgetActionRunner`).
 To measure widget timing again, log timestamps from the intent, the provider and the
@@ -92,6 +93,29 @@ Tapping summary content opens a whitelisted `tugboat://widget/<destination>` dee
 link. Dinner can carry one validated recipe UUID to open its saved recipe;
 unknown routes and other query parameters are ignored. Hidden sections follow the
 app's navigation preferences rather than bypassing them.
+
+## Offline taps
+
+Every check-off or End Sleep is saved to the waiting list (`WidgetPendingQueue`, `Library/widget-pending.json` in
+the App Group, locked with `flock` because the widget and the app both change it) before it is sent. The widget
+shows it as done at once. `WidgetSync.flush` then sends the list oldest first:
+
+- sent: the tap leaves the list and the app is told (`WidgetWriteSignal`);
+- no connection (`URLError` such as not connected, timed out, connection lost): it stays, the sender stops
+  there, and the widget footer reads "Waiting to sync";
+- refused by the server: it leaves the list, the one item is put back (`undoing`) and the footer shows the error;
+- signed out: the list is cleared and the footer asks for the app to be opened.
+
+Senders: the tap itself, the widget building a timeline entry (`HouseholdWidgetTimeline.entry`, which waits up to
+five seconds), the app coming to the front, and `WidgetNetworkWatcher` in the app when the connection returns. A
+widget can't wake itself when the phone reconnects, so a tap with no connection syncs at the next of those. A
+tap is claimed by one sender for 60 seconds so two never send it at once; a sender that stopped before finishing
+is picked up again after that. A second End Sleep that finds nothing to end counts as sent (the first got
+through). Taps expire after 24 hours, the same limit the server puts on an end time. End Sleep sent more than 30
+seconds after it was tapped carries `endedAt` (the tap time), so a late sync doesn't lengthen the sleep; sent
+sooner it leaves the time to the server, which avoids trusting the phone's clock. Whoever rebuilds the snapshot
+from the server (`AppState.scheduleWidgetUpdate`, the Refresh button) applies the waiting taps first
+(`overlay`), or a refresh would show them as undone, and sign-out clears the list.
 
 ## Checks
 

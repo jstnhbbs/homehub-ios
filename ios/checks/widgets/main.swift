@@ -135,5 +135,60 @@ check("a snapshot saved before servers were recorded can't send", server(nil) ==
 check("https servers are allowed", server("https://example.com") != nil)
 check("plain http is allowed only for a local server", server("http://localhost:3000") != nil && server("http://192.168.1.2:3000") == nil && server("http://example.com") == nil)
 check("other schemes and malformed values are refused", server("ftp://example.com") == nil && server("not a url") == nil && server("") == nil)
+
+// Taps waiting for a connection
+let queueDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("tugboat-queue-\(UUID().uuidString)")
+defer { try? FileManager.default.removeItem(at: queueDirectory) }
+let queue = WidgetPendingQueue(directory: queueDirectory)
+snapshot.actionError = nil
+snapshot.sleeps = [.init(id: "sleep", personId: "child1", start: now.addingTimeInterval(-3600), kind: "nap")]
+let tapTime = now.addingTimeInterval(-600)
+func pendingTap(_ action: String, _ id: String, at time: Date = tapTime) -> WidgetPendingAction? { WidgetPendingAction.make(action: action, itemId: id, in: snapshot, now: time) }
+check("an empty queue has nothing waiting", queue.load().isEmpty && queue.count(userId: "user", now: now) == 0)
+let waitingSleep = pendingTap("endSleep", "sleep")!
+let waitingStep = pendingTap("step", "s1")!
+check("a tap is saved to the queue", queue.enqueue(waitingSleep) && queue.load() == [waitingSleep])
+check("the same item twice waits only once", !queue.enqueue(pendingTap("endSleep", "sleep")!) && queue.load().count == 1)
+check("another item waits too", queue.enqueue(waitingStep) && queue.count(userId: "user", now: now) == 2)
+check("another account's waiting taps aren't counted", queue.count(userId: "other", now: now) == 0)
+check("no pending tap is made for an unknown item", pendingTap("step", "missing") == nil && pendingTap("refresh", "") == nil)
+check("a chore keeps its period for later", pendingTap("chore", "c1")?.periodKey == snapshot.chores.first { $0.id == "c1" }?.periodKey)
+let first = queue.claim(userId: "user", now: now)
+check("a sender claims everything waiting, oldest first", first.count == 2 && first[0].tappedAt <= first[1].tappedAt)
+check("a second sender at the same time gets nothing", queue.claim(userId: "user", now: now.addingTimeInterval(5)).isEmpty)
+check("a claim that was never finished can be taken again", queue.claim(userId: "user", now: now.addingTimeInterval(61)).count == 2)
+queue.release(id: waitingSleep.id)
+check("a released tap can be taken again at once", queue.claim(userId: "user", now: now.addingTimeInterval(62)).map(\.id) == [waitingSleep.id])
+queue.remove(id: waitingSleep.id)
+check("a sent tap leaves the queue", queue.load().map(\.id) == [waitingStep.id])
+check("a tap more than a day old is dropped, not sent", queue.claim(userId: "user", now: now.addingTimeInterval(24 * 3600 + 700)).isEmpty && queue.load().isEmpty)
+queue.enqueue(waitingStep); queue.enqueue(waitingSleep)
+let overlaid = queue.overlay(on: snapshot, now: now)
+check("waiting taps stay shown when the snapshot is rebuilt from the server", overlaid.steps.first { $0.id == "s1" }?.completed == true && overlaid.sleeps.first { $0.id == "sleep" }?.end == tapTime)
+check("the overlay leaves another account's snapshot alone", { var other = snapshot; other.userId = "other"; return queue.overlay(on: other, now: now) == other }())
+queue.clear()
+check("sign-out clears everything waiting", queue.load().isEmpty)
+check("a queue with no App Group does nothing", WidgetPendingQueue(directory: nil).load().isEmpty && !WidgetPendingQueue(directory: nil).enqueue(waitingStep) && WidgetPendingQueue(directory: nil).claim(userId: "user").isEmpty)
+
+// What is sent when a waiting tap goes out
+func bodyText(_ request: WidgetWriteRequest?) -> String? {
+    guard let request else { return nil }
+    let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+    return (try? encoder.encode(AnyEncodable(request.body))).flatMap { String(data: $0, encoding: .utf8) }
+}
+let soon = waitingSleep.tappedAt.addingTimeInterval(5)
+let late = waitingSleep.tappedAt.addingTimeInterval(400)
+check("End Sleep sent right away leaves the time to the server", bodyText(waitingSleep.writeRequest(now: soon)) == "{\"action\":\"end\",\"napId\":\"sleep\"}")
+check("End Sleep sent late says when it was tapped", bodyText(waitingSleep.writeRequest(now: late))?.contains("\"endedAt\":\"\(WidgetPendingAction.iso(tapTime))\"") == true)
+check("the tap time is an ISO 8601 UTC time with fractions", WidgetPendingAction.iso(Date(timeIntervalSince1970: 1_792_000_000.25)).hasSuffix("Z") && WidgetPendingAction.iso(Date(timeIntervalSince1970: 1_792_000_000.25)).contains(".250"))
+check("a routine step sent late still says only that it is done", bodyText(waitingStep.writeRequest(now: late)) == "{\"completed\":true,\"localDate\":\"\(snapshot.localDate)\",\"stepId\":\"s1\"}")
+check("a queued chore is rebuilt without the snapshot", pendingTap("chore", "c1")?.writeRequest()?.path == "/api/mobile/v1/chores/toggle")
+
+// Putting a refused tap back, and telling offline from refused
+check("undoing a step marks it not done", WidgetActionPolicy.undoing(action: "step", itemId: "s1", in: WidgetActionPolicy.applying(action: "step", itemId: "s1", to: snapshot, at: now)).steps.first { $0.id == "s1" }?.completed == false)
+check("undoing End Sleep makes it run again", WidgetActionPolicy.undoing(action: "endSleep", itemId: "sleep", in: WidgetActionPolicy.applying(action: "endSleep", itemId: "sleep", to: snapshot, at: now)).sleeps.first?.end == nil)
+check("applying an action twice changes nothing more", WidgetActionPolicy.applying(action: "endSleep", itemId: "sleep", to: WidgetActionPolicy.applying(action: "endSleep", itemId: "sleep", to: snapshot, at: now), at: now.addingTimeInterval(60)).sleeps.first?.end == now)
+check("no connection counts as offline", [URLError.notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotConnectToHost, .dnsLookupFailed, .dataNotAllowed].allSatisfy { WidgetNetworkFailure.isOffline(URLError($0)) })
+check("a cancelled or bad request doesn't count as offline", !WidgetNetworkFailure.isOffline(URLError(.cancelled)) && !WidgetNetworkFailure.isOffline(URLError(.badURL)) && !WidgetNetworkFailure.isOffline(CocoaError(.fileNoSuchFile)))
 if failures > 0 { exit(1) }
 print("all passed")

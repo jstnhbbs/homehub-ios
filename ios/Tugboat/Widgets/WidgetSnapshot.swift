@@ -234,36 +234,21 @@ struct WidgetWriteRequest: Sendable {
     let body: any Encodable & Sendable
 }
 
-private struct WidgetStepBody: Encodable, Sendable { var stepId: String; var localDate: String; var completed: Bool }
-private struct WidgetChoreBody: Encodable, Sendable { var choreId: String; var periodKey: String; var completed: Bool }
-private struct WidgetEndSleepBody: Encodable, Sendable { var action: String; var napId: String }
+struct WidgetStepBody: Encodable, Sendable { var stepId: String; var localDate: String; var completed: Bool }
+struct WidgetChoreBody: Encodable, Sendable { var choreId: String; var periodKey: String; var completed: Bool }
+struct WidgetEndSleepBody: Encodable, Sendable {
+    var action: String
+    var napId: String
+    /// When it was tapped, for a tap that is sent late. Left out otherwise, so the server's own clock is used.
+    var endedAt: String?
+}
 
 enum WidgetActionPolicy {
     /// The request for `action` on `itemId` as the snapshot describes it, or nil if it isn't there.
     static func writeRequest(action: String, itemId: String, in snapshot: WidgetSnapshot) -> WidgetWriteRequest? {
-        switch action {
-        case "step":
-            guard snapshot.steps.contains(where: { $0.id == itemId }) else { return nil }
-            return .init(path: "/api/mobile/v1/routines/toggle-step",
-                         body: WidgetStepBody(stepId: itemId, localDate: snapshot.localDate, completed: true))
-        case "chore":
-            guard let chore = snapshot.chores.first(where: { $0.id == itemId }) else { return nil }
-            return .init(path: "/api/mobile/v1/chores/toggle",
-                         body: WidgetChoreBody(choreId: itemId, periodKey: chore.periodKey, completed: true))
-        case "endSleep":
-            guard snapshot.sleeps.contains(where: { $0.id == itemId && $0.end == nil }) else { return nil }
-            return .init(path: "/api/mobile/v1/naps", body: WidgetEndSleepBody(action: "end", napId: itemId))
-        default:
-            return nil
-        }
+        WidgetPendingAction.make(action: action, itemId: itemId, in: snapshot)?.writeRequest()
     }
 
-    static func appliesCompletion(action: String, writtenDay: String, currentDay: String,
-                                  writtenPeriod: String? = nil, currentPeriod: String? = nil) -> Bool {
-        if action == "step" { return writtenDay == currentDay }
-        if action == "chore" { return writtenPeriod != nil && writtenPeriod == currentPeriod }
-        return false
-    }
     /// The snapshot as it will look once the action works, so the widget can show the tap at once and
     /// the network round trip happens behind it. Nil when the action isn't allowed against this
     /// snapshot (wrong account or day, item missing), in which case nothing is shown early.
@@ -271,19 +256,48 @@ enum WidgetActionPolicy {
                              localDate: String, to snapshot: WidgetSnapshot, now: Date = .now) -> WidgetSnapshot? {
         guard action != "refresh", allows(action: action, itemId: itemId, userId: userId, householdId: householdId,
                                           localDate: localDate, current: snapshot, now: now) else { return nil }
-        var result = snapshot
+        guard exists(action: action, itemId: itemId, in: snapshot) else { return nil }
+        var result = applying(action: action, itemId: itemId, to: snapshot, at: now)
         result.actionError = nil
+        return result
+    }
+
+    private static func exists(action: String, itemId: String, in snapshot: WidgetSnapshot) -> Bool {
+        switch action {
+        case "step": return snapshot.steps.contains { $0.id == itemId }
+        case "chore": return snapshot.chores.contains { $0.id == itemId }
+        case "endSleep": return snapshot.sleeps.contains { $0.id == itemId }
+        default: return false
+        }
+    }
+
+    /// The snapshot with the action's result in it: a step or chore done, a sleep ended at `time`. A snapshot
+    /// that no longer has the item, or has it already done, comes back unchanged.
+    static func applying(action: String, itemId: String, to snapshot: WidgetSnapshot, at time: Date) -> WidgetSnapshot {
+        var result = snapshot
         switch action {
         case "step":
-            guard let index = result.steps.firstIndex(where: { $0.id == itemId }) else { return nil }
-            result.steps[index].completed = true
+            if let index = result.steps.firstIndex(where: { $0.id == itemId }) { result.steps[index].completed = true }
         case "chore":
-            guard let index = result.chores.firstIndex(where: { $0.id == itemId }) else { return nil }
-            result.chores[index].completed = true
+            if let index = result.chores.firstIndex(where: { $0.id == itemId }) { result.chores[index].completed = true }
         case "endSleep":
-            guard let index = result.sleeps.firstIndex(where: { $0.id == itemId }) else { return nil }
-            result.sleeps[index].end = now
-        default: return nil
+            if let index = result.sleeps.firstIndex(where: { $0.id == itemId }), result.sleeps[index].end == nil { result.sleeps[index].end = time }
+        default: break
+        }
+        return result
+    }
+
+    /// The reverse of `applying`, for a tap the server refused after the connection came back.
+    static func undoing(action: String, itemId: String, in snapshot: WidgetSnapshot) -> WidgetSnapshot {
+        var result = snapshot
+        switch action {
+        case "step":
+            if let index = result.steps.firstIndex(where: { $0.id == itemId }) { result.steps[index].completed = false }
+        case "chore":
+            if let index = result.chores.firstIndex(where: { $0.id == itemId }) { result.chores[index].completed = false }
+        case "endSleep":
+            if let index = result.sleeps.firstIndex(where: { $0.id == itemId }) { result.sleeps[index].end = nil }
+        default: break
         }
         return result
     }
@@ -320,6 +334,12 @@ enum WidgetActionPolicy {
         return result
     }
 
+    static func appliesCompletion(action: String, writtenDay: String, currentDay: String,
+                                  writtenPeriod: String? = nil, currentPeriod: String? = nil) -> Bool {
+        if action == "step" { return writtenDay == currentDay }
+        if action == "chore" { return writtenPeriod != nil && writtenPeriod == currentPeriod }
+        return false
+    }
     static func allows(action: String, itemId: String, userId: String, householdId: String,
                        localDate: String, current: WidgetSnapshot, now: Date = .now) -> Bool {
         guard current.userId == userId, current.householdId == householdId else { return false }

@@ -23,6 +23,8 @@ SHARED_WITH_EXTENSION = (
     "Tugboat/Widgets/WidgetSnapshot.swift",
     "Tugboat/Widgets/WidgetStore.swift",
     "Tugboat/Widgets/WidgetIntents.swift",
+    "Tugboat/Widgets/WidgetPendingQueue.swift",
+    "Tugboat/Widgets/WidgetSync.swift",
     # The widget's check-off buttons run in the extension, which sends them itself with the shared sign-in.
     "Tugboat/Services/APIClient.swift",
     "Tugboat/Services/SessionCredentials.swift",

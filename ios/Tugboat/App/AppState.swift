@@ -100,6 +100,7 @@ final class AppState: ObservableObject {
     private var eventKitObserver: NSObjectProtocol?
     private var dataChangedObserver: NSObjectProtocol?
     private var widgetWriteObserver: NSObjectProtocol?
+    private var widgetNetworkWatcher: WidgetNetworkWatcher?
     private let widgetWriteListener = WidgetWriteObserver()
     private var lastSeenWidgetWrite = WidgetWriteSignal.lastWriteAt ?? .distantPast
     /// Goes up when something changed outside the app's own screens (a widget check-off), so pages that
@@ -148,6 +149,11 @@ final class AppState: ObservableObject {
             forName: .tugboatDataChanged, object: nil, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in await self?.refreshDashboard() }
+        }
+        // Widget taps made without a connection are sent when the phone gets one back (and when the app comes
+        // to the front: `RootView`).
+        widgetNetworkWatcher = WidgetNetworkWatcher { [weak self] in
+            Task { @MainActor in await self?.flushPendingWidgetActions() }
         }
         // A widget finished a check-off or End Sleep: show it.
         widgetWriteObserver = NotificationCenter.default.addObserver(
@@ -345,6 +351,14 @@ final class AppState: ObservableObject {
         updated.snackOptions = options
         dashboard = updated
         localStore.saveDashboard(updated)
+    }
+
+    /// Sends the widget taps that were made without a connection, then shows what the server now has.
+    func flushPendingWidgetActions() async {
+        guard auth.isSignedIn, !WidgetPendingQueue().load().isEmpty else { return }
+        await WidgetSync.flush()
+        // A refused tap was undone in the widget's data; a sent one changed the server. Either way look again.
+        await refreshForWidgetWrites()
     }
 
     /// A widget wrote something to the server since this app last looked (it runs in another process, so
@@ -673,6 +687,7 @@ final class AppState: ObservableObject {
         widgetRecipeId = nil
         widgetRecipeFetchedAt = nil
         WidgetStore().clear()
+        WidgetPendingQueue().clear()
         WidgetCenter.shared.reloadAllTimelines()
         let notificationCleanup = nativeNotifications.clearSessionReminders()
         let activityCleanup = SleepLiveActivityManager.clearSessionActivities()
@@ -720,12 +735,13 @@ final class AppState: ObservableObject {
             do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
             guard let self, self.auth.isSignedIn, SessionCredentials.shared(for: AppConfig.baseURL).hasSession, let dashboard = self.dashboard,
                   let userId = self.currentUser?.id else { return }
-            let snapshot = WidgetSnapshotBuilder.make(
+            // Server data doesn't have taps still waiting for a connection yet; keep them shown.
+            let snapshot = WidgetPendingQueue().overlay(on: WidgetSnapshotBuilder.make(
                 dashboard: dashboard, userId: userId, palette: self.accentPalette.rawValue,
                 events: self.nativeTodayScheduleEvents,
                 groceries: self.groceriesUseNativeReminders ? self.nativeGroceryItems : dashboard.groceryItems,
                 modules: self.hubModules
-            )
+            ))
             if WidgetStore().save(snapshot) { WidgetCenter.shared.reloadAllTimelines() }
             guard let recipeId = snapshot.dinner?.recipeId,
                   recipeId != self.widgetRecipeId || Date().timeIntervalSince(self.widgetRecipeFetchedAt ?? .distantPast) >= 3600 else { return }

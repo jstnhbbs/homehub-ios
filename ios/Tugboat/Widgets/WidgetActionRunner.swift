@@ -62,8 +62,8 @@ enum WidgetActionRunner {
             let groceries = reminders.accessStatus == .authorized ? ((try? await reminders.loadItems()) ?? []) : fresh.groceryItems
             guard credentials.sessionGeneration == generation, store.load()?.userId == userId else { return }
             let palette = UserDefaults.standard.string(forKey: "tugboat.accentPalette") ?? "sage"
-            let snapshot = WidgetSnapshotBuilder.make(dashboard: fresh, userId: userId, palette: palette,
-                events: events, groceries: groceries, modules: fresh.hubModules ?? .defaults)
+            let snapshot = WidgetPendingQueue().overlay(on: WidgetSnapshotBuilder.make(dashboard: fresh, userId: userId, palette: palette,
+                events: events, groceries: groceries, modules: fresh.hubModules ?? .defaults))
             _ = store.save(snapshot, force: true)
             WidgetCenter.shared.reloadAllTimelines()
             NotificationCenter.default.post(name: .tugboatDataChanged, object: nil)

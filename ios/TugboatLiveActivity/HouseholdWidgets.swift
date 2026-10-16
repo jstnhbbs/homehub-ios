@@ -11,12 +11,20 @@ struct HouseholdWidgetEntry: TimelineEntry {
     var dinnerImage: UIImage? = nil
     var accent: WidgetAccentChoice = .automatic
     var trueBlack = false
+    /// Taps shown but not yet accepted by the server (no connection when they were made).
+    var pendingCount = 0
 }
 
 enum HouseholdWidgetTimeline {
     static func entry(date: Date = .now, personId: String? = nil, noteId: String? = nil, includesImage: Bool = false,
                       accent: WidgetAccentChoice = .automatic, trueBlack: Bool = false) async -> HouseholdWidgetEntry {
         let store = WidgetStore()
+        // Taps that were made without a connection: try them again now, briefly, so a widget refreshed once
+        // the phone is back online shows the result. With no connection this fails at once and they wait.
+        let queue = WidgetPendingQueue()
+        if let user = store.load()?.userId, queue.count(userId: user) > 0 {
+            await WidgetSync.flush(store: store, queue: queue, timeout: 5)
+        }
         var snapshot = store.load()
         let originalUser = snapshot?.userId
         let originalHome = snapshot?.householdId
@@ -37,8 +45,9 @@ enum HouseholdWidgetTimeline {
         if snapshot?.userId != originalUser || snapshot?.householdId != originalHome || snapshot?.dinner?.imageURL != originalImage {
             image = nil
         }
+        let pending = snapshot.map { queue.count(userId: $0.userId) } ?? 0
         return HouseholdWidgetEntry(date: date, snapshot: snapshot, personId: personId, noteId: noteId, dinnerImage: image,
-                                    accent: accent, trueBlack: trueBlack)
+                                    accent: accent, trueBlack: trueBlack, pendingCount: pending)
     }
 
     static func timeline(_ entry: HouseholdWidgetEntry) -> Timeline<HouseholdWidgetEntry> {
@@ -60,7 +69,8 @@ enum HouseholdWidgetTimeline {
         }
         let entries = Set(dates).sorted().map { date in
             HouseholdWidgetEntry(date: date, snapshot: entry.snapshot, personId: entry.personId, noteId: entry.noteId,
-                                 dinnerImage: entry.dinnerImage, accent: entry.accent, trueBlack: entry.trueBlack)
+                                 dinnerImage: entry.dinnerImage, accent: entry.accent, trueBlack: entry.trueBlack,
+                                 pendingCount: entry.pendingCount)
         }
         return Timeline(entries: entries, policy: .after(entry.date.addingTimeInterval(900)))
     }
@@ -231,6 +241,9 @@ private struct HouseholdWidgetView: View {
         HStack(spacing: 4) {
             if let error = snapshot.actionError {
                 Text(error).foregroundStyle(.red).lineLimit(small ? 2 : 1)
+            } else if entry.pendingCount > 0 {
+                // Shown, but the server hasn't had it yet: it will be sent when there is a connection.
+                Label("Waiting to sync", systemImage: "arrow.triangle.2.circlepath").foregroundStyle(.secondary).lineLimit(1)
             } else {
                 Text(snapshot.updatedAt, style: .time).foregroundStyle(.secondary)
                     .accessibilityLabel("Updated \(snapshot.updatedAt.formatted(date: .omitted, time: .shortened))")
