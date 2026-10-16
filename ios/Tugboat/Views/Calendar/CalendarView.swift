@@ -559,9 +559,11 @@ private struct CalendarDayCell: View {
             }
             if events.count > 3 {
                 Text("+\(events.count - 3)")
-                    .font(.system(size: 8, weight: .bold))
+                    .font(.caption2.weight(.bold))
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .foregroundStyle(HubTheme.muted)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
         }
     }

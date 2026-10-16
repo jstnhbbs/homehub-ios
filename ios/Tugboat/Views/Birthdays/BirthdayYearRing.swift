@@ -80,7 +80,10 @@ struct BirthdayYearRing: View {
                     ProfileAvatarView(name: mark.name, avatar: mark.avatar, color: mark.color, size: 26)
                     if mark.extra > 0 {
                         Text("+\(mark.extra)")
-                            .font(.system(size: 8, weight: .bold))
+                            // A text style, not a fixed size, so it grows with the reader's setting; the wheel is
+                            // drawn at one size, so it stops growing early rather than covering the avatar.
+                            .font(.caption2.weight(.bold))
+                            .dynamicTypeSize(...DynamicTypeSize.xLarge)
                             .padding(.horizontal, 4)
                             .padding(.vertical, 1)
                             .background(HubTheme.surface)
