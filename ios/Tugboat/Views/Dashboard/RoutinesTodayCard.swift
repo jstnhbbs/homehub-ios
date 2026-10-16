@@ -237,7 +237,7 @@ private struct RoutineNextStepRow: View {
                     Button { Task { await tick(next) } } label: {
                         Image(systemName: isWorking ? "hourglass" : "circle")
                             .font(.title3.weight(.bold))
-                            .foregroundStyle(tint)
+                            .foregroundStyle(HubTheme.profileText(group.color))
                             .frame(width: 36, height: 36)
                             .contentShape(Rectangle())
                     }
@@ -289,7 +289,7 @@ private struct RoutineChildColumn: View {
                         .lineLimit(1)
                     Text(group.isComplete ? "All set" : "\(group.completedCount)/\(group.totalCount)")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(tint)
+                        .foregroundStyle(HubTheme.profileText(group.color))
                         .monospacedDigit()
                 }
                 Spacer(minLength: 0)

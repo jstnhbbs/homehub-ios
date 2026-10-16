@@ -440,7 +440,7 @@ private struct RoutineStepCheckRow: View {
                             )
                             .font(.caption.weight(.heavy))
                             .textCase(.uppercase)
-                            .foregroundStyle(isCelebrating ? HubTheme.readableText(on: tint) : tint)
+                            .foregroundStyle(isCelebrating ? HubTheme.readableText(on: tint) : HubTheme.profileText(color, onTint: 0.24))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
                             .background(isCelebrating ? tint : tint.opacity(0.14))

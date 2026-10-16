@@ -149,6 +149,44 @@ enum AccentColorTable {
         )
     }
 
+    /// The stored hex values people's colors are saved as (the original palette) and the theme color
+    /// each is shown as.
+    static let personColorIds: [String: String] = [
+        "#d87861": "rose",      // Coral shows as Raspberry
+        "#6689a3": "ocean",     // Blue shows as Azure
+        "#4f7c6d": "sage",      // Sage shows as Moss
+        "#b07aa1": "plum",      // Plum shows as Blossom
+        "#d19b45": "ochre",     // Gold shows as Sunflower
+        "#5f8f8b": "teal",      // Teal shows as Seafoam
+        "#8c7ca8": "indigo",    // Lavender shows as Amethyst
+        "#b86f4d": "clay",      // Terracotta shows as Tangerine
+        "#7f8757": "rosewood",  // Olive shows as Rosewood
+        "#8e939b": "slate",     // Grey (a guest's starting color) shows as Slate
+    ]
+
+    /// The color a person's stored hex is drawn in (the same in both modes), or nil if it isn't a
+    /// "#rrggbb" value.
+    static func personFill(_ hex: String) -> RGBColor? {
+        guard hex.hasPrefix("#"), hex.count == 7, UInt32(hex.dropFirst(), radix: 16) != nil else { return nil }
+        if let id = personColorIds[hex.lowercased()] { return fill(id, dark: true) }
+        return RGBColor(hex: hex)
+    }
+
+    /// The shade of a person's color to use where it is text or a small icon: the color itself when it
+    /// already reads at `minimum` to 1, otherwise lighter (dark mode) or deeper (light mode). A chip
+    /// that sits on a tint of the color passes that tint's strength (0.14 for 14%) as `onTint`, and the
+    /// shade is measured against the tinted surface, which is a little further from the text.
+    static func personText(_ hex: String, dark isDark: Bool, minimum: Double = 4.5, onTint: Double = 0) -> RGBColor? {
+        guard let fill = personFill(hex) else { return nil }
+        let base = isDark ? darkSurface : lightSurface
+        let surface = RGBColor(
+            red: base.red * (1 - onTint) + fill.red * onTint,
+            green: base.green * (1 - onTint) + fill.green * onTint,
+            blue: base.blue * (1 - onTint) + fill.blue * onTint
+        )
+        return ColorMath.textShade(of: fill, on: surface, minimum: minimum, lighten: isDark)
+    }
+
     /// Text and icons on a fill of the color.
     static func onFill(_ id: String, dark isDark: Bool) -> RGBColor {
         ColorMath.readableText(on: fill(id, dark: isDark))

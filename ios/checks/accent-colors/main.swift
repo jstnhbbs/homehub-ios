@@ -57,5 +57,27 @@ check("Rosewood is #b05e6b and Slate #6c7684", AccentColorTable.dark["rosewood"]
 check("a color that already reads is left alone", AccentColorTable.text("clay", dark: true) == AccentColorTable.fill("clay", dark: true))
 check("Rosewood text on dark is lightened", AccentColorTable.text("rosewood", dark: true) != AccentColorTable.fill("rosewood", dark: true))
 
+
+// People's colors as text: every stored color, every mode, on a plain surface and under a tint chip
+let storedPersonColors = Array(AccentColorTable.personColorIds.keys).sorted() + ["#4a9fe0", "#123456"]
+for hex in storedPersonColors {
+    for isDark in [true, false] {
+        let mode = isDark ? "dark" : "light"
+        let surface = isDark ? AccentColorTable.darkSurface : AccentColorTable.lightSurface
+        let text = AccentColorTable.personText(hex, dark: isDark)!
+        check("person \(hex) text in \(mode) mode reaches 4.5 to 1", ColorMath.contrast(text, surface) >= 4.5, "got \(fmt(ColorMath.contrast(text, surface)))")
+        // A chip tints the surface with the color at 14%, and a card around it at 10%; the text still has to
+        // clear the bar against the tint (0.24 covers both).
+        let fill = AccentColorTable.personFill(hex)!
+        for strength in [0.14, 0.24] {
+            let tinted = RGBColor(red: surface.red * (1 - strength) + fill.red * strength, green: surface.green * (1 - strength) + fill.green * strength, blue: surface.blue * (1 - strength) + fill.blue * strength)
+            let chipText = AccentColorTable.personText(hex, dark: isDark, onTint: strength)!
+            check("person \(hex) text in \(mode) mode reaches 4.5 to 1 on a \(Int(strength * 100))% tint", ColorMath.contrast(chipText, tinted) >= 4.5, "got \(fmt(ColorMath.contrast(chipText, tinted)))")
+        }
+    }
+}
+check("a stored color that is not a person color is used as it is", AccentColorTable.personFill("#123456") == RGBColor(hex: "#123456"))
+check("an unreadable stored color has no shade", AccentColorTable.personText("coral", dark: false) == nil && AccentColorTable.personFill("#12345") == nil)
+
 if failures > 0 { print("\n\(failures) failed"); exit(1) }
 print("\nall accent color checks passed")

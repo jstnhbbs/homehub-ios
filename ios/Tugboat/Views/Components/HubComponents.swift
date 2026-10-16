@@ -149,30 +149,23 @@ enum HubTheme {
 
     /// The colors people can give a profile are stored as the muted hex values of the original
     /// palette (the server and the web settings still know them by those) and shown as the theme
-    /// colors here, so a person's dot matches the app. Anything else is shown as it is.
-    private static let personColors: [String: String] = [
-        "#d87861": "rose",      // Coral shows as Raspberry
-        "#6689a3": "ocean",     // Blue shows as Azure
-        "#4f7c6d": "sage",      // Sage shows as Moss
-        "#b07aa1": "plum",      // Plum shows as Blossom
-        "#d19b45": "ochre",     // Gold shows as Sunflower
-        "#5f8f8b": "teal",      // Teal shows as Seafoam
-        "#8c7ca8": "indigo",    // Lavender shows as Amethyst
-        "#b86f4d": "clay",      // Terracotta shows as Tangerine
-        "#7f8757": "rosewood",  // Olive shows as Rosewood
-        "#8e939b": "slate",     // Grey (a guest's starting color) shows as Slate
-    ]
-
+    /// colors here, so a person's dot matches the app (`AccentColorTable.personColorIds`). Anything else is
+    /// shown as it is. This is the fill color; for text use `profileText`.
     static func profileColor(_ hex: String?) -> Color {
-        guard let hex, hex.hasPrefix("#"), hex.count == 7 else { return accent }
-        if let id = personColors[hex.lowercased()] {
-            return Color(uiColor: UIColor(AccentColorTable.fill(id, dark: true)))
-        }
-        let start = hex.index(hex.startIndex, offsetBy: 1)
-        let r = Int(hex[start..<hex.index(start, offsetBy: 2)], radix: 16) ?? 79
-        let g = Int(hex[hex.index(start, offsetBy: 2)..<hex.index(start, offsetBy: 4)], radix: 16) ?? 124
-        let b = Int(hex[hex.index(start, offsetBy: 4)..<hex.index(start, offsetBy: 6)], radix: 16) ?? 109
-        return Color(red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255)
+        guard let hex, let fill = AccentColorTable.personFill(hex) else { return accent }
+        return Color(uiColor: UIColor(fill))
+    }
+
+    /// A person's color where it is text or a small icon: the color itself where it reads at 4.5 to 1,
+    /// otherwise a lighter (dark mode) or deeper (light mode) shade of it (`AccentColorTable.personText`).
+    /// Use this, not `profileColor`, for any text drawn in a person's color; `profileColor` is for fills.
+    /// A chip that sits on a tint of the same color passes that tint's strength as `onTint`.
+    static func profileText(_ hex: String?, onTint: Double = 0) -> Color {
+        guard let hex, AccentColorTable.personFill(hex) != nil else { return accentText }
+        return Color(uiColor: UIColor { traits in
+            let isDark = traits.userInterfaceStyle == .dark
+            return UIColor(AccentColorTable.personText(hex, dark: isDark, onTint: onTint) ?? AccentColorTable.text("sage", dark: isDark))
+        })
     }
 
     /// White or near-black, whichever has more contrast with `color`.
@@ -319,7 +312,7 @@ struct CheckItemView: View {
                         if let detail {
                             Text(detail)
                                 .font(.caption.weight(.bold))
-                                .foregroundStyle(HubTheme.profileColor(color))
+                                .foregroundStyle(HubTheme.profileText(color))
                         }
                     }
                     Spacer()

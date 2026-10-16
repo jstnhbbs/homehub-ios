@@ -53,7 +53,7 @@ struct SnackChildChips: View {
             } else {
                 Text(initials(for: child))
                     .font(.caption.weight(.heavy))
-                    .foregroundStyle(tint)
+                    .foregroundStyle(HubTheme.profileText(child.color, onTint: 0.14))
             }
         }
     }
