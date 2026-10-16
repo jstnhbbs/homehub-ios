@@ -207,6 +207,8 @@ private struct ChoreItemRow: View {
                 .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
             }
         }
+        // Something outside this row (a widget, another device) can change it; follow the data.
+        .onChange(of: chore.completed) { _, completed in isChecked = completed }
         .contextMenu {
             if viewModel.canManage {
                 Button(action: onEdit) {

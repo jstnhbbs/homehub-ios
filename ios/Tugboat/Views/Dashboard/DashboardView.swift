@@ -1167,6 +1167,8 @@ struct ChoreCheckRow: View {
                 }
             }
             .buttonStyle(.plain)
+            // Something outside this row (a widget, another device) can change it; follow the data.
+            .onChange(of: chore.completed) { _, completed in isChecked = completed }
             .disabled(isWorking)
             .accessibilityValue(isChecked ? "Done" : "Not done")
             .accessibilityAddTraits(.isToggle)
@@ -1266,6 +1268,8 @@ struct DashboardSnackCheckRow: View {
             }
         }
         .buttonStyle(.plain)
+        // Something outside this row (a widget, another device) can change it; follow the data.
+        .onChange(of: isEaten) { _, eaten in isChecked = eaten }
         .disabled(isWorking)
         .accessibilityValue(isChecked ? "Eaten" : "Not eaten")
         .accessibilityAddTraits(.isToggle)
@@ -1313,6 +1317,8 @@ struct DashboardGroceryItemRow: View {
                 }
             }
             .buttonStyle(.plain)
+            // Something outside this row (a widget, another device) can change it; follow the data.
+            .onChange(of: item.checked) { _, checked in isChecked = checked }
             .disabled(isWorking || !appState.canManageHousehold)
             .accessibilityValue(isChecked ? "Checked off" : "Not checked off")
             .accessibilityAddTraits(.isToggle)

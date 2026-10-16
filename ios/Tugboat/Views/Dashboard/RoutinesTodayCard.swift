@@ -343,6 +343,8 @@ private struct RoutineStepCheckRow: View {
             }
         }
         .buttonStyle(.plain)
+        // Something outside this row (a widget, another device) can change it; follow the data.
+        .onChange(of: step.completed) { _, completed in isChecked = completed }
         .disabled(isWorking)
         .onChange(of: step.completed) { _, completed in isChecked = completed }
         .accessibilityValue(isChecked ? "Done" : "Not done")
