@@ -241,6 +241,12 @@ enum NapHelpers {
         return String(format: "%.1f", value)
     }
 
+    /// "1 sleep/day", "2 sleeps/day", "1.5 sleeps/day": singular only for exactly one.
+    static func formatAverageSleepsPerDay(_ value: Double) -> String {
+        let number = formatAverageNapCount(value)
+        return "\(number) \(number == "1" ? "sleep" : "sleeps")/day"
+    }
+
     static func childWeekStats(
         profileId: String,
         naps: [NapLog],

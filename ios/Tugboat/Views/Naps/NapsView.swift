@@ -413,7 +413,7 @@ struct NapsView: View {
                 Circle().fill(color).frame(width: 12, height: 12)
                 Text(profile.name).font(.subheadline.weight(.bold))
             }
-            Text("Avg \(NapHelpers.formatAverageNapCount(stats.avgNapsPerDay)) sleeps/day · \(NapHelpers.formatDuration(minutes: Int(stats.avgMinutesPerDay.rounded())))/day")
+            Text("Avg \(NapHelpers.formatAverageSleepsPerDay(stats.avgNapsPerDay)) · \(NapHelpers.formatDuration(minutes: Int(stats.avgMinutesPerDay.rounded())))/day")
                 .font(.caption.weight(.bold))
                 .foregroundStyle(HubTheme.muted)
 

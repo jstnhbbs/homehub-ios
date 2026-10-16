@@ -92,6 +92,12 @@ check("US uses AM/PM", String(NapTimelineHelpers.uses24HourClock(locale: usLocal
 check("Germany does not", String(NapTimelineHelpers.uses24HourClock(locale: germanLocale)), "true")
 check("midday is 12p, not 0p", NapTimelineHelpers.compactHourLabel(12, locale: usLocale), "12p")
 
+// "1 sleep/day" is singular, anything else plural
+check("average of exactly one sleep a day is singular", NapHelpers.formatAverageSleepsPerDay(1), "1 sleep/day")
+check("average of two sleeps a day is plural", NapHelpers.formatAverageSleepsPerDay(2), "2 sleeps/day")
+check("a fractional average is plural", NapHelpers.formatAverageSleepsPerDay(1.5), "1.5 sleeps/day")
+check("no sleeps is plural", NapHelpers.formatAverageSleepsPerDay(0), "0 sleeps/day")
+
 if failures > 0 {
     print("\(failures) failed")
     exit(1)
