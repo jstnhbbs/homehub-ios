@@ -281,6 +281,9 @@ struct CheckItemView: View {
     var color: String?
     @Binding var isChecked: Bool
     var removeWhenChecked = false
+    /// The row can't be ticked yet (a chore waiting for its day). Only the circle is dimmed; the words
+    /// keep their full contrast, which is why this is not `.disabled` (that fades the whole label).
+    var isUnavailable = false
     var onToggle: () async -> Void
 
     @State private var isHidden = false
@@ -289,6 +292,7 @@ struct CheckItemView: View {
     var body: some View {
         if !isHidden {
             Button {
+                guard !isUnavailable else { return }
                 Task {
                     isWorking = true
                     await onToggle()
@@ -303,6 +307,7 @@ struct CheckItemView: View {
                     Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
                         .font(.title3)
                         .foregroundStyle(isChecked ? HubTheme.accentText : HubTheme.muted)
+                        .opacity(isUnavailable ? 0.4 : 1)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(label)
@@ -329,6 +334,7 @@ struct CheckItemView: View {
             .disabled(isWorking)
             .accessibilityValue(isChecked ? "Done" : "Not done")
             .accessibilityAddTraits(.isToggle)
+            .accessibilityHint(isUnavailable ? "Not due until its day" : "")
         }
     }
 }

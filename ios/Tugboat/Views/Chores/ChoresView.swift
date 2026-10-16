@@ -165,14 +165,13 @@ private struct ChoreItemRow: View {
                 label: chore.title,
                 detail: ChoreHelpers.repeatDetail(for: chore, timezone: viewModel.timezone),
                 color: groupColor,
-                isChecked: $isChecked
+                isChecked: $isChecked,
+                isUnavailable: isWaitingForItsDay
             ) {
                 // The row flips `isChecked` after this returns, so the state wanted is the opposite.
                 await viewModel.toggleChore(chore, completed: !isChecked)
                 await viewModel.load()
             }
-            .disabled(isWaitingForItsDay)
-            .opacity(isWaitingForItsDay ? 0.55 : 1)
 
             if isWaitingForItsDay {
                 Text(nextLine)
