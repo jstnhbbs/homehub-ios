@@ -7,6 +7,7 @@ import {
   formatDashboardSleepSecondary,
   getChildDashboardSleepStatus,
   napDurationMinutes,
+  resolveEndedAt,
 } from "./helpers";
 
 describe("napDurationMinutes", () => {
@@ -179,5 +180,39 @@ describe("childWeekSleepStats", () => {
     expect(stats.totalMinutes).toBe(11 * 60);
     expect(stats.days[0]?.totalMinutes).toBe(4 * 60);
     expect(stats.days[1]?.totalMinutes).toBe(7 * 60);
+  });
+});
+
+describe("resolveEndedAt", () => {
+  const now = new Date("2026-10-15T22:00:00.000Z");
+
+  it("is now when the device sends no time", () => {
+    expect(resolveEndedAt(undefined, now)).toEqual(now);
+  });
+
+  it("uses the moment of the tap when a device syncs late", () => {
+    const tapped = new Date("2026-10-15T21:40:00.000Z");
+    expect(resolveEndedAt(tapped, now)).toEqual(tapped);
+  });
+
+  it("treats a time a little ahead of the server clock as now", () => {
+    expect(resolveEndedAt(new Date("2026-10-15T22:03:00.000Z"), now)).toEqual(now);
+  });
+
+  it("refuses a time further in the future", () => {
+    expect(() => resolveEndedAt(new Date("2026-10-15T22:10:00.000Z"), now)).toThrow("future");
+  });
+
+  it("refuses a time more than a day old", () => {
+    expect(() => resolveEndedAt(new Date("2026-10-14T21:00:00.000Z"), now)).toThrow("too long ago");
+  });
+
+  it("accepts a time just inside a day", () => {
+    const tapped = new Date("2026-10-14T22:01:00.000Z");
+    expect(resolveEndedAt(tapped, now)).toEqual(tapped);
+  });
+
+  it("refuses an invalid date", () => {
+    expect(() => resolveEndedAt(new Date("nope"), now)).toThrow("isn't valid");
   });
 });

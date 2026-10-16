@@ -371,3 +371,25 @@ export function formatChildTodayNapSummary(
     options,
   );
 }
+
+/** How far ahead of the server's clock a device's end time may be (clocks drift a little). */
+export const END_TIME_CLOCK_SKEW_MS = 5 * 60 * 1000;
+/** How long after a sleep ended a device may still report it (a widget tap waiting for a connection). */
+export const END_TIME_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The time to record for ending a sleep. A device that could not reach the server when someone tapped
+ * End sends the moment they tapped, so a delayed sync doesn't make the sleep look longer than it was.
+ * Without a time it is now. A time a little ahead of the server's clock counts as now; one further ahead
+ * or more than a day old is refused, since that is a mistake rather than a late sync.
+ */
+export function resolveEndedAt(requested: Date | undefined, now: Date = new Date()): Date {
+  if (!requested) return now;
+  const time = requested.getTime();
+  if (Number.isNaN(time)) throw new Error("That end time isn't valid.");
+  if (time > now.getTime() + END_TIME_CLOCK_SKEW_MS) throw new Error("A sleep can't end in the future.");
+  if (time < now.getTime() - END_TIME_MAX_AGE_MS) {
+    throw new Error("That sleep ended too long ago to end it this way. Edit the entry instead.");
+  }
+  return time > now.getTime() ? now : requested;
+}

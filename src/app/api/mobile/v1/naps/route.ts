@@ -10,6 +10,7 @@ import {
   startNap,
   startNightSleep,
 } from "@/lib/naps/store";
+import { resolveEndedAt } from "@/lib/naps/helpers";
 import {
   handleMobileError,
   mobileJson,
@@ -61,6 +62,8 @@ export async function POST(request: Request) {
           action: z.literal("end"),
           profileId: z.string().uuid().optional(),
           napId: z.string().uuid().optional(),
+          // When the person tapped End, for a device that could only send it later.
+          endedAt: isoDate.optional(),
         }),
         z.object({
           action: z.literal("create"),
@@ -107,12 +110,14 @@ export async function POST(request: Request) {
       );
     }
 
+    const endedAt = resolveEndedAt(input.endedAt ? new Date(input.endedAt) : undefined);
     return changed(
       input.napId
-        ? await endNap(household, input.napId)
+        ? await endNap(household, input.napId, endedAt)
         : await endNapForProfile(
             household,
             z.string().uuid().parse(input.profileId),
+            endedAt,
           ),
     );
   } catch (error) {

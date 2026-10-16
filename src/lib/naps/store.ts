@@ -400,7 +400,7 @@ export async function endNap(
   return mapNap(updated[0]);
 }
 
-export async function endNapForProfile(household: Household, profileId: string) {
+export async function endNapForProfile(household: Household, profileId: string, endedAt?: Date) {
   const active = await db
     .select({ id: napLogs.id })
     .from(napLogs)
@@ -413,7 +413,7 @@ export async function endNapForProfile(household: Household, profileId: string) 
     )
     .limit(1);
   if (!active[0]) throw new Error("Active sleep not found.");
-  return endNap(household, active[0].id);
+  return endNap(household, active[0].id, endedAt);
 }
 
 export async function deleteNap(household: Household, napId: string) {
