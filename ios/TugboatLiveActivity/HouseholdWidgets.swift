@@ -165,15 +165,18 @@ private struct HouseholdWidgetView: View {
     private var surfaceHex: String { dark ? (entry.trueBlack ? "#000000" : "#1C1C1E") : "#FFFFFF" }
     /// The chosen color for text and symbols: the app's theme color unless this widget picked its own,
     /// lightened or deepened where needed to read on the widget's background.
-    private var accent: Color {
+    private var accentShade: RGBColor {
         let hex: String
         if let id = entry.accent.paletteId {
             hex = (dark ? AccentColorTable.dark : AccentColorTable.light)[id] ?? "#5F8153"
         } else {
             hex = (dark ? entry.snapshot?.accentDark : entry.snapshot?.accentLight) ?? "#5F8153"
         }
-        return widgetColor(ColorMath.textShade(of: RGBColor(hex: hex), on: RGBColor(hex: surfaceHex), lighten: dark).hex)
+        return ColorMath.textShade(of: RGBColor(hex: hex), on: RGBColor(hex: surfaceHex), lighten: dark)
     }
+    private var accent: Color { widgetColor(accentShade.hex) }
+    /// White or near-black, whichever reads better on a button filled with the accent.
+    private var onAccent: Color { widgetColor(ColorMath.readableText(on: accentShade).hex) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: small ? 4 : (large ? 8 : 6)) {
@@ -326,22 +329,71 @@ private struct HouseholdWidgetView: View {
 
     @ViewBuilder private func sleep(_ snapshot: WidgetSnapshot) -> some View {
         let active = snapshot.sleeps.filter { $0.end == nil }.sorted { $0.start < $1.start }
+        let limit = small ? 1 : (large ? 3 : 2)
         if active.isEmpty {
             headline("Everyone awake")
-            let minutes = snapshot.sleepMinutes(on: entry.date)
-            if snapshot.isCurrentDay(at: entry.date) { empty("\(minutes / 60)h \(minutes % 60)m logged today") }
+            sleepSummary(snapshot, awakeLimit: small ? 0 : (large ? 5 : 3), showsTotal: true)
+        } else {
+            ForEach(Array(active.prefix(limit))) { log in
+                sleepRow(log, snapshot: snapshot, roomy: active.count == 1)
+            }
+            // The room left over on a medium widget with one sleeper, and on a large one, shows who is
+            // awake and for how long, and how much has been slept today.
+            if large || (!small && active.count == 1) {
+                sleepSummary(snapshot, awakeLimit: large ? 4 : 2, showsTotal: true)
+            }
         }
-        ForEach(Array(active.prefix(large ? 4 : 1))) { log in
-            VStack(alignment: .leading, spacing: 3) {
-                Text(snapshot.personName(log.personId)).font(.headline).lineLimit(1)
-                HStack {
-                    Text(log.start, style: .timer).font(.title3.monospacedDigit()).lineLimit(1)
-                    Spacer(minLength: 4)
-                    Button(intent: HouseholdWidgetActionIntent(action: "endSleep", itemId: log.id, snapshot: snapshot)) {
-                        Text("End").font(.caption.weight(.semibold))
-                    }.buttonStyle(.bordered).accessibilityLabel("End sleep for \(snapshot.personName(log.personId))")
-                }
-                if large { Text(log.kind == "night" ? "Night Sleep" : "Nap").font(.caption).foregroundStyle(.secondary) }
+    }
+
+    /// One sleeper: their name, what kind of sleep and since when, the running timer, and an End button
+    /// big enough to hit without looking (at least 44 pt tall, and the full width on a small widget).
+    private func sleepRow(_ log: WidgetSnapshot.Sleep, snapshot: WidgetSnapshot, roomy: Bool) -> some View {
+        let name = snapshot.personName(log.personId)
+        let kind = log.kind == "night" ? "Night sleep" : "Nap"
+        let info = VStack(alignment: .leading, spacing: 1) {
+            Text(name).font(.headline).lineLimit(1)
+            (Text("\(kind) since ") + Text(log.start, style: .time)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            Text(log.start, style: .timer)
+                .font(.system(roomy && !small ? .largeTitle : .title2, design: .rounded).weight(.semibold).monospacedDigit())
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        let end = Button(intent: HouseholdWidgetActionIntent(action: "endSleep", itemId: log.id, snapshot: snapshot)) {
+            Text(small ? "End Sleep" : "End")
+                .font(.headline)
+                .foregroundStyle(onAccent)
+                .frame(maxWidth: small ? .infinity : 84, minHeight: small ? 34 : 44, maxHeight: roomy && !small ? .infinity : 44)
+        }
+        .buttonStyle(.borderedProminent)
+        .accessibilityLabel("End sleep for \(name)")
+        return Group {
+            if small {
+                VStack(alignment: .leading, spacing: 6) { info; end }
+            } else {
+                HStack(alignment: .center, spacing: 10) { info; end }
+            }
+        }
+    }
+
+    /// Who is awake and since when (from their last sleep), and the day's total, for the room a sleep
+    /// widget otherwise leaves empty.
+    @ViewBuilder private func sleepSummary(_ snapshot: WidgetSnapshot, awakeLimit: Int, showsTotal: Bool) -> some View {
+        let sleeping = Set(snapshot.sleeps.filter { $0.end == nil }.map(\.personId))
+        let awake: [(name: String, since: Date)] = snapshot.people.filter { $0.isChild && !sleeping.contains($0.id) }.compactMap { person in
+            guard let last = snapshot.sleeps.filter({ $0.personId == person.id }).compactMap(\.end).max() else { return nil }
+            return (person.name, last)
+        }.sorted { $0.since < $1.since }
+        ForEach(Array(awake.prefix(awakeLimit).enumerated()), id: \.offset) { _, item in
+            HStack(spacing: 4) {
+                Text("\(item.name) awake").lineLimit(1)
+                Spacer(minLength: 4)
+                Text(item.since, style: .relative).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+            }.font(.caption)
+        }
+        if showsTotal, !small, snapshot.isCurrentDay(at: entry.date) {
+            let minutes = snapshot.sleepMinutes(on: entry.date)
+            if minutes > 0 {
+                Text("\(minutes / 60)h \(minutes % 60)m slept today").font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
         }
     }
