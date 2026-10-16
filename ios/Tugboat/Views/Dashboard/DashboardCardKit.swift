@@ -140,6 +140,9 @@ struct DashboardMoreFooter: View {
     }
 }
 
+/// How far the corner "+N more" chip drops into the card's bottom padding (a little less than the footer's overlap, so it clears the border).
+private let dashboardMoreChipDrop: CGFloat = 5
+
 extension View {
     /// Fallback for a card so short that even one row leaves no room for the "+N more" line: a small
     /// chip in the corner instead, so the count is never silently clipped.
@@ -159,7 +162,10 @@ extension View {
                         .overlay(Capsule().stroke(HubTheme.line, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
-                .offset(y: -(liftedBy ?? 0))
+                // Raised onto the line above the rows when asked; otherwise dropped partly into the card's
+                // bottom padding (as the footer is), so it doesn't sit over the last row's own controls
+                // (the Notes card's x, whose touch area it overlapped).
+                .offset(y: liftedBy.map { -$0 } ?? dashboardMoreChipDrop)
                 .accessibilityLabel("\(hidden) more. Open the full list.")
             }
         }
