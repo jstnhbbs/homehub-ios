@@ -336,32 +336,38 @@ struct NapsView: View {
     private func entryRow(_ nap: NapLog, profile: Profile) -> some View {
         let end = nap.endedAt.map { DateHelpers.timeString($0, timezone: timezone) } ?? (nap.kind == "night" ? "still asleep" : "in progress")
         let duration = NapHelpers.formatDuration(minutes: NapHelpers.durationMinutes(startedAt: nap.startedAt, endedAt: nap.endedAt, now: now))
-        return Button {
-            editingNap = nap
-        } label: {
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(HubTheme.profileColor(profile.color))
-                    .frame(width: 12, height: 12)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(profile.name) · \(nap.kind == "night" ? "Night" : "Nap")")
-                        .font(.subheadline.weight(.bold))
-                    Text("\(DateHelpers.timeString(nap.startedAt, timezone: timezone)) – \(end)")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(HubTheme.muted)
-                }
-                Spacer()
-                Text(duration)
+        return HStack(spacing: 12) {
+            Circle()
+                .fill(HubTheme.profileColor(profile.color))
+                .frame(width: 12, height: 12)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(profile.name) · \(nap.kind == "night" ? "Night" : "Nap")")
                     .font(.subheadline.weight(.bold))
-                Image(systemName: "chevron.right")
+                Text("\(DateHelpers.timeString(nap.startedAt, timezone: timezone)) – \(end)")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(HubTheme.muted)
             }
-            .padding(.vertical, 10)
-            .contentShape(Rectangle())
+            Spacer()
+            Text(duration)
+                .font(.subheadline.weight(.bold))
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(HubTheme.muted)
         }
-        .buttonStyle(.plain)
+        .padding(.vertical, 10)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
         .accessibilityHint("Edit or delete this entry")
+        // Tap to edit; swipe left to delete, with a confirmation (the same delete as the editor's trash button).
+        .swipeToDelete(
+            title: "Delete this sleep?",
+            message: "\(profile.name)'s \(nap.kind == "night" ? "night" : "nap") will be removed. This can't be undone.",
+            onTap: { editingNap = nap }
+        ) {
+            Task {
+                if let message = await deleteNap(id: nap.id) { errorMessage = message }
+            }
+        }
     }
 
     // MARK: Week
