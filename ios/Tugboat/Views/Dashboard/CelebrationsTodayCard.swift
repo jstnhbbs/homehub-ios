@@ -87,7 +87,7 @@ struct CelebrationsTodayCard: View {
                 itemHeight: { _, _ in DashboardRow<EmptyView, EmptyView>.compactHeight },
                 onMore: { openHubDestination(.birthdays) }
             ) { item, _ in
-                row(item, summary: summary, ageInSubtitle: true)
+                row(item, summary: summary)
                     .environment(\.dashboardRowIsCompact, true)
             }
         }
@@ -102,44 +102,31 @@ struct CelebrationsTodayCard: View {
         .buttonStyle(.plain)
     }
 
-    /// `ageInSubtitle` puts the age after the countdown ("28 days · turns 37") instead of in a badge on the
-    /// right, so a name in a narrow column has the whole width.
-    private func row(_ item: BirthdayItem, summary: CelebrationCardSummary, ageInSubtitle: Bool = false) -> some View {
+    /// The same row as Sleep and Routines: a 28 pt avatar (their photo, or their initial in their color), the
+    /// name on one line and, under it, the countdown and the age ("28 days · turns 37"). Today's is a party
+    /// popper on an orange row instead.
+    private func row(_ item: BirthdayItem, summary: CelebrationCardSummary) -> some View {
         let isToday = item.nextDate == summary.todayDate
         let countdown = BirthdayHelpers.countdownLabel(daysUntil: item.daysUntil)
         let subtitle = isToday
             ? (BirthdayToday.ageLine(item.upcomingAge, kind: item.kind) ?? "Today")
-            : (ageInSubtitle ? [countdown, CelebrationCardSummary.ageText(item)].compactMap { $0 }.joined(separator: " · ") : countdown)
+            : [countdown, CelebrationCardSummary.ageText(item)].compactMap { $0 }.joined(separator: " · ")
         return DashboardRow(
             title: item.name,
             subtitle: subtitle,
-            leadingWidth: ageInSubtitle ? 16 : 28,
             tint: isToday ? .orange : nil,
             tintStrength: 0.14,
             outline: isToday ? Color.orange.opacity(0.5) : nil
         ) {
             if isToday {
                 Image(systemName: "party.popper.fill")
-                    .font(ageInSubtitle ? .caption : .subheadline)
+                    .font(.title3)
                     .foregroundStyle(.orange)
             } else {
-                Circle()
-                    .fill(HubTheme.profileColor(item.color))
-                    .frame(width: 10, height: 10)
+                ProfileAvatarView(name: item.name, avatar: item.avatar, color: item.color, size: 28)
             }
         } trailing: {
-            // The age they turn (or the years an anniversary marks) as a small badge, so it never
-            // crowds out the name or the countdown.
-            if !isToday, !ageInSubtitle, (1...120).contains(item.upcomingAge) {
-                Text(item.kind == .anniversary ? "\(item.upcomingAge)y" : "\(item.upcomingAge)")
-                    .font(.caption.weight(.heavy))
-                    .monospacedDigit()
-                    .foregroundStyle(HubTheme.muted)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(HubTheme.tile, in: Capsule())
-                    .accessibilityLabel(CelebrationCardSummary.ageText(item) ?? "")
-            }
+            EmptyView()
         }
     }
 }

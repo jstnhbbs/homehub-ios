@@ -100,16 +100,8 @@ struct SleepTodayCard: View {
                                 SleepChildColumn(child: child, summary: summary, timezone: timezone, now: now)
                             }
                         }
-                        if children.count > shown.count {
-                            Button { openHubDestination(.sleep) } label: {
-                                Text("+\(children.count - shown.count) more")
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(HubTheme.muted)
-                                    .frame(maxWidth: .infinity, minHeight: 28)
-                            }
-                            .buttonStyle(.plain)
-                        }
                     }
+                    .todayCardMore(count: children.count - shown.count) { openHubDestination(.sleep) }
                 }
             }
         }

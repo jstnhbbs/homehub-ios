@@ -62,10 +62,9 @@ struct FoodTodayCard: View {
     // MARK: Medium
 
     private var medium: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            TodayCardSummaryLine(text: summary.line)
-            meals(maxColumns: 3, byRelevance: true)
-        }
+        // A meal tile (the slot, then a dish that may take two lines) needs most of a one-cell card, so there is no
+        // summary line: each tile names its slot, and Small and Large say the day.
+        meals(maxColumns: 3, byRelevance: true)
     }
 
     // MARK: Large

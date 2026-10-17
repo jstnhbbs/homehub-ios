@@ -1210,7 +1210,8 @@ struct SnackChildTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: compact ? 3 : 6) {
             Text(snack)
-                .font(.subheadline.weight(.heavy))
+                // The same weight as a row's title everywhere else on Today.
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(isDone ? HubTheme.muted : .primary)
                 .strikethrough(isDone, color: HubTheme.muted)
                 .lineLimit(compact ? 1 : 2)
@@ -1229,7 +1230,9 @@ struct SnackChildTile: View {
                 }
             }
         }
-        .padding(compact ? 8 : 10)
+        // The same side padding as a DashboardRow, so the circles line up with other rows' markers.
+        .padding(.horizontal, 10)
+        .padding(.vertical, compact ? 8 : 10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(HubTheme.tileQuiet)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))

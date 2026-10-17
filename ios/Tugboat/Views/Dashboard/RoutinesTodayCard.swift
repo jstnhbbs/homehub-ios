@@ -119,16 +119,8 @@ struct RoutinesTodayCard: View {
                                 )
                             }
                         }
-                        if summary.groups.count > shown.count {
-                            Button { openHubDestination(.routines) } label: {
-                                Text("+\(summary.groups.count - shown.count) more")
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(HubTheme.muted)
-                                    .frame(maxWidth: .infinity, minHeight: 28)
-                            }
-                            .buttonStyle(.plain)
-                        }
                     }
+                    .todayCardMore(count: summary.groups.count - shown.count) { openHubDestination(.routines) }
                 }
             }
         }

@@ -89,7 +89,7 @@ struct GroceriesTodayCard: View {
                         itemHeight: DashboardRow<EmptyView, EmptyView>.compactHeight,
                         headerHeight: DashboardMetrics.scaled(18, .caption1),
                         spacing: 8,
-                        footerHeight: DashboardMoreFooter.height,
+                        footerHeight: 0,
                         availableHeight: geo.size.height
                     )
                     VStack(alignment: .leading, spacing: 4) {
@@ -104,14 +104,10 @@ struct GroceriesTodayCard: View {
                             }
                         }
                         .environment(\.dashboardRowIsCompact, true)
-                        if layout.hiddenItems > 0 {
-                            DashboardMoreFooter(count: layout.hiddenItems, suffix: summary.line) {
-                                openHubDestination(.groceries)
-                            }
-                        }
                         Spacer(minLength: 0)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .todayCardMore(count: layout.hiddenItems) { openHubDestination(.groceries) }
                 }
             }
         }

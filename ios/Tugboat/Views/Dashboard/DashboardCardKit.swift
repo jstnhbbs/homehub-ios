@@ -78,7 +78,10 @@ struct DashboardRow<Leading: View, Trailing: View>: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(isDone ? HubTheme.muted : .primary)
                     .strikethrough(isDone, color: HubTheme.muted)
-                    .lineLimit(isCompact && subtitle != nil ? 1 : 2)
+                    // One line when there is a subtitle under it, on every row of every card (a title that wrapped to
+                    // two with a subtitle under it filled a row from edge to edge); two when it stands alone.
+                    .lineLimit(subtitle != nil ? 1 : 2)
+                    .minimumScaleFactor(subtitle != nil ? 0.85 : 1)
                     .multilineTextAlignment(.leading)
                 if let subtitle {
                     subtitleText(subtitle)
@@ -117,62 +120,57 @@ struct DashboardCheckMarker: View {
     }
 }
 
-/// The "+N more" line under a card that has more items than fit. Tapping it opens the full list.
-struct DashboardMoreFooter: View {
-    static var height: CGFloat { DashboardMetrics.scaled(22, .caption1) }
+/// How many of a card's items do not fit, reported up to the card's frame, which shows it as one "+N more"
+/// pill in the header row (beside the chevron). Every card and size does it the same way, so the count is
+/// always in the same place and never sits on top of a row. A card with several lists adds their counts.
+struct TodayCardMore: Equatable {
+    var count: Int
+    var action: () -> Void
 
-    let count: Int
-    /// Extra text after the count, e.g. "25 to buy", so a card's summary shares this one line
-    /// instead of costing a second.
-    var suffix: String?
-    let action: () -> Void
+    static func == (lhs: TodayCardMore, rhs: TodayCardMore) -> Bool { lhs.count == rhs.count }
+}
 
-    private var text: String {
-        suffix.map { "+\(count) more · \($0)" } ?? "+\(count) more"
-    }
+struct TodayCardMoreKey: PreferenceKey {
+    static var defaultValue: TodayCardMore?
 
-    var body: some View {
-        Button(action: action) {
-            Text(text)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(HubTheme.muted)
-                .frame(maxWidth: .infinity, minHeight: Self.height)
+    static func reduce(value: inout TodayCardMore?, nextValue: () -> TodayCardMore?) {
+        guard let next = nextValue() else { return }
+        if let current = value {
+            value = TodayCardMore(count: current.count + next.count, action: current.action)
+        } else {
+            value = next
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(text). Open the full list.")
     }
 }
 
-/// How far the corner "+N more" chip drops into the card's bottom padding (a little less than the footer's overlap, so it clears the border).
-private let dashboardMoreChipDrop: CGFloat = 5
-
 extension View {
-    /// Fallback for a card so short that even one row leaves no room for the "+N more" line: a small
-    /// chip in the corner instead, so the count is never silently clipped.
-    /// `liftedBy` raises the chip that far, to sit on the line above the rows instead of over the last of them
-    /// (Snacks at Medium, where it would cover a tile's circles).
-    func dashboardMoreChip(hidden: Int, footerFits: Bool, suffix: String? = nil, liftedBy: CGFloat? = nil, trailingInset: CGFloat = 0, action: @escaping () -> Void) -> some View {
-        overlay(alignment: liftedBy == nil ? .bottomTrailing : .topTrailing) {
-            if hidden > 0 && !footerFits {
-                Button(action: action) {
-                    Text(suffix.map { "+\(hidden) more · \($0)" } ?? "+\(hidden) more")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(HubTheme.muted)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(HubTheme.tile)
-                        .clipShape(Capsule())
-                        .overlay(Capsule().stroke(HubTheme.line, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-                // Raised onto the line above the rows when asked; otherwise dropped partly into the card's
-                // bottom padding (as the footer is), so it doesn't sit over the last row's own controls
-                // (the Notes card's x, whose touch area it overlapped).
-                .padding(.trailing, trailingInset)
-                .offset(y: liftedBy.map { -$0 } ?? dashboardMoreChipDrop)
-                .accessibilityLabel("\(hidden) more. Open the full list.")
-            }
+    /// Says that `count` items did not fit. Nothing is drawn here: the card's header shows the pill.
+    func todayCardMore(count: Int, action: @escaping () -> Void) -> some View {
+        preference(key: TodayCardMoreKey.self, value: count > 0 ? TodayCardMore(count: count, action: action) : nil)
+    }
+}
+
+/// The "+N more" pill in a card's header. Tapping it opens the full list.
+struct DashboardMoreChip: View {
+    let count: Int
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text("+\(count) more")
+                .font(.caption.weight(.bold))
+                // The pill shares the header with the title and the chevron, so it stops growing with the text
+                // size before it takes the title's room.
+                .dynamicTypeSize(...DynamicTypeSize.xLarge)
+                .foregroundStyle(HubTheme.muted)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 3)
+                .background(HubTheme.tileQuiet, in: Capsule())
+                .overlay(Capsule().stroke(HubTheme.line, lineWidth: 1))
+                .minimumTapTarget()
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(count) more. Open the full list.")
     }
 }
 
@@ -189,28 +187,10 @@ struct WholeRowsGrid<Item: Identifiable, Tile: View>: View {
     var spacing: CGFloat = 8
     let itemHeight: (Item, CGFloat) -> CGFloat
     let onMore: () -> Void
-    /// Optional line shown under the rows, only when there is room to spare and nothing is hidden.
-    var spareHint: String?
-    /// Joined onto the "+N more" line when rows are hidden.
-    var moreSuffix: String?
-    /// Centre and enlarge the line, for a card's summary rather than a hint.
-    var centersHint = false
     /// Let the rows tighten to `DashboardRow.compactHeight` when that shows more of them. Only for
     /// cards whose tiles are `DashboardRow`s.
     var allowsCompactRows = false
-    /// Put the "+N more" chip this far above the rows (on the line above them) rather than over the last row,
-    /// when there is no room for the footer.
-    var moreChipLiftedBy: CGFloat?
-    /// Keeps the chip this far in from the right edge, for a chip lifted onto a card's header row (it must not
-    /// cover the chevron).
-    var moreChipTrailingInset: CGFloat = 0
     @ViewBuilder let tile: (Item, CGFloat) -> Tile
-
-    private var hintHeight: CGFloat { DashboardMetrics.scaled(30, .caption1) }
-    /// The footer sits against the bottom of the card, partly in its padding, so it costs the rows
-    /// less space and the card does not look like it has an empty strip under it.
-    private let footerOverlap: CGFloat = 8
-    private let footerGap: CGFloat = 6
 
     var body: some View {
         GeometryReader { geo in
@@ -225,12 +205,13 @@ struct WholeRowsGrid<Item: Identifiable, Tile: View>: View {
             let comfortableFit = fit(comfortableHeights, columns: columns, height: geo.size.height)
             let compactHeights = items.map { _ in DashboardRow<EmptyView, EmptyView>.compactHeight }
             let compactFit = fit(compactHeights, columns: columns, height: geo.size.height)
-            // Use the tighter rows only when they actually reveal another one.
-            let useCompact = allowsCompactRows && compactFit.shown > comfortableFit.shown
+            // Use the tighter rows when they reveal another one, or when not even one comfortable row fits (a row
+            // is always shown, so it would run past the card's padding) and the tight one does.
+            let comfortableOverflows = (comfortableHeights.first ?? 0) > geo.size.height
+            let useCompact = allowsCompactRows
+                && (compactFit.shown > comfortableFit.shown || (comfortableOverflows && (compactHeights.first ?? 0) <= geo.size.height))
             let heights = useCompact ? compactHeights : comfortableHeights
             let fit = useCompact ? compactFit : comfortableFit
-            let shownHeights = Array(heights.prefix(fit.shown))
-            let usedHeight = DashboardRowHelpers.rowsHeight(itemHeights: shownHeights, columns: columns, spacing: spacing)
             VStack(alignment: .leading, spacing: spacing) {
                 ForEach(0..<rowCount(shown: fit.shown, columns: columns), id: \.self) { row in
                     let start = row * columns
@@ -250,21 +231,7 @@ struct WholeRowsGrid<Item: Identifiable, Tile: View>: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .overlay(alignment: centersHint ? .bottom : .bottomLeading) {
-                if fit.hidden > 0 && fit.footerFits {
-                    DashboardMoreFooter(count: fit.hidden, suffix: moreSuffix, action: onMore)
-                        .offset(y: footerOverlap)
-                } else if let spareHint, geo.size.height - usedHeight >= hintHeight {
-                    Text(spareHint)
-                        .font(centersHint ? .caption.weight(.bold) : .caption2.weight(.bold))
-                        .foregroundStyle(HubTheme.muted)
-                        .lineLimit(2)
-                        .frame(maxWidth: centersHint ? .infinity : nil)
-                        .multilineTextAlignment(centersHint ? .center : .leading)
-                        .offset(y: footerOverlap)
-                }
-            }
-            .dashboardMoreChip(hidden: fit.hidden, footerFits: fit.footerFits, suffix: moreSuffix, liftedBy: moreChipLiftedBy, trailingInset: moreChipTrailingInset, action: onMore)
+            .todayCardMore(count: fit.hidden, action: onMore)
         }
     }
 
@@ -274,8 +241,8 @@ struct WholeRowsGrid<Item: Identifiable, Tile: View>: View {
             columns: columns,
             spacing: spacing,
             availableHeight: height,
-            footerHeight: DashboardMoreFooter.height - footerOverlap,
-            footerGap: footerGap
+            footerHeight: 0,
+            footerGap: 0
         )
     }
 

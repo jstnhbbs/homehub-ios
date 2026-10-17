@@ -17,11 +17,28 @@ struct TodayCardFrame<Content: View>: View {
     var onNavigate: (() -> Void)?
     @ViewBuilder var content: () -> Content
 
+    /// How many items the card's lists could not fit, shown as one "+N more" pill in the header.
+    @State private var more: TodayCardMore?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             header
+                .overlay(alignment: .trailing) {
+                    // Beside the chevron (or at the edge when there is none), above the header's own button.
+                    if let more, !dynamicTypeSize.isAccessibilitySize {
+                        DashboardMoreChip(count: more.count, action: more.action)
+                            .padding(.trailing, card.destination == nil ? 0 : 22)
+                    }
+                }
+            // At the accessibility text sizes the title alone fills the header, so the pill gets its own line.
+            if let more, dynamicTypeSize.isAccessibilitySize {
+                DashboardMoreChip(count: more.count, action: more.action)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
             content()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .onPreferenceChange(TodayCardMoreKey.self) { more = $0 }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -59,6 +76,8 @@ struct TodayCardFrame<Content: View>: View {
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(HubTheme.muted)
                 .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .layoutPriority(1)
             Spacer(minLength: 0)
             if showsChevron {
                 Image(systemName: "chevron.right")

@@ -69,8 +69,8 @@ struct SnacksTodayCard: View {
     @ViewBuilder
     private var medium: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // With a circle for each child the tiles need most of a one-cell card (a name line and 36 pt circles),
-            // so there is no summary line: "+N more" moves up to the header row and the tiles get the room.
+            // A per-child tile (a name line and 36 pt circles) needs most of a one-cell card, so at Medium the
+            // summary line gives way to the tiles; the count is on the Small and Large cards.
             if !perChild || total == 0 {
                 TodayCardSummaryLine(text: line)
             }
@@ -149,10 +149,7 @@ struct SnacksTodayCard: View {
                     : DashboardRow<EmptyView, EmptyView>.height
             },
             onMore: openSnacks,
-            allowsCompactRows: !perChild,
-            // At Medium the chip sits on the summary line, not over the circles of the last tile.
-            moreChipLiftedBy: compact ? (perChild ? DashboardMetrics.scaled(30, .caption1) : DashboardMetrics.scaled(26, .caption1)) : nil,
-            moreChipTrailingInset: compact && perChild ? DashboardMetrics.scaled(30, .caption1) : 0
+            allowsCompactRows: !perChild
         ) { item, _ in
             if perChild {
                 SnackChildTile(

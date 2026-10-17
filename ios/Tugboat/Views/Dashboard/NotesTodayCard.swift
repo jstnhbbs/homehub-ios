@@ -63,8 +63,10 @@ struct NotesTodayCard: View {
     // MARK: Medium
 
     private var medium: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            composerField
+        // The field and one note have to share a one-cell card, so the field is a little shorter and the gap
+        // between them tighter.
+        VStack(alignment: .leading, spacing: 6) {
+            composerField(compact: true)
             if notes.isEmpty {
                 TodayCardEmptyNote(text: "Leave a household note.")
             } else {
@@ -88,7 +90,7 @@ struct NotesTodayCard: View {
 
     private var large: some View {
         VStack(alignment: .leading, spacing: 8) {
-            composerField
+            composerField(compact: false)
             if notes.isEmpty {
                 TodayCardEmptyNote(text: "Leave a household note.")
             } else {
@@ -109,13 +111,13 @@ struct NotesTodayCard: View {
 
     // MARK: Pieces
 
-    private var composerField: some View {
+    private func composerField(compact: Bool) -> some View {
         HStack(spacing: 8) {
             TextField("Add a note", text: $composer.draft)
                 .textFieldStyle(.plain)
                 .font(.subheadline.weight(.semibold))
                 .padding(.horizontal, 12)
-                .padding(.vertical, 10)
+                .padding(.vertical, compact ? 7 : 10)
                 .background(HubTheme.tileQuiet)
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .submitLabel(.done)
@@ -124,7 +126,7 @@ struct NotesTodayCard: View {
             Button { Task { await addNote() } } label: {
                 Image(systemName: composer.isSaving ? "hourglass" : "plus")
                     .font(.headline.weight(.bold))
-                    .frame(width: 38, height: 38)
+                    .frame(width: compact ? 34 : 38, height: compact ? 34 : 38)
                     .minimumTapTarget()
             }
             .buttonStyle(.plain)
