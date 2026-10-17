@@ -37,6 +37,8 @@ struct DashboardRow<Leading: View, Trailing: View>: View {
 
     let title: String
     var subtitle: String?
+    /// What VoiceOver says for the subtitle when the visible words are abbreviated to fit.
+    var subtitleSpokenText: String?
     /// A small dot in this color before the subtitle, when the subtitle starts with a person's name.
     var subtitlePersonColor: Color?
     /// False for a row that has nothing worth a marker, so its text gets the room.
@@ -83,6 +85,7 @@ struct DashboardRow<Leading: View, Trailing: View>: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(HubTheme.muted)
                         .lineLimit(1)
+                        .accessibilityLabel(subtitleSpokenText ?? subtitle)
                 }
             }
             Spacer(minLength: 0)

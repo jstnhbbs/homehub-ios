@@ -57,4 +57,15 @@ check("a finished sleep has a range", day.entries(for: maya)[1].range.replacingO
 check("a running one says since", day.entries(for: maya)[2].range.hasPrefix("since ") ? "since" : day.entries(for: maya)[2].range, "since")
 check("how long a nap was", day.entries(for: maya)[1].duration, "1h 10m")
 
+// MARK: short wording for narrow rows
+
+let shortAwake = summary([maya, nova], [log("a", "maya", from: at(9), to: at(10)), log("b", "nova", from: at(11, 10), to: nil)])
+check("awake in a few words", shortAwake.shortStatusText(for: maya), "Awake 2h")
+check("asleep in a few words", shortAwake.shortStatusText(for: nova), "Zzz 50m")
+check("asleep, spoken in full", shortAwake.spokenStatusText(for: nova), "Asleep 50m")
+check("awake, spoken in full", shortAwake.spokenStatusText(for: maya), "Awake 2h")
+check("nothing logged, spoken in full", summary([maya], []).spokenStatusText(for: maya), "No sleep logged today")
+check("nothing logged in a few words", summary([maya], []).shortStatusText(for: maya), "No sleep yet")
+check("the short wording is shorter than the long", shortAwake.shortStatusText(for: nova).count < "Nap · asleep 50m".count ? "shorter" : "not shorter", "shorter")
+
 if failures > 0 { print("\n\(failures) check(s) failed"); exit(1) } else { print("\nall checks passed") }

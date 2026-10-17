@@ -62,15 +62,20 @@ struct SleepTodayCard: View {
             if children.isEmpty {
                 emptyNote
             } else {
+                // Two children side by side on a phone (three on an iPad): the rows use the short wording, so
+                // they need only the narrow minimum width. One row used to take the whole card and leave
+                // the next child behind "+1 more" with room to spare.
                 WholeRowsGrid(
                     items: children,
-                    minimumColumnWidth: DashboardRow<EmptyView, EmptyView>.minimumWidthWithStatus,
+                    minimumColumnWidth: DashboardRow<EmptyView, EmptyView>.minimumWidth,
                     maxColumns: 3,
                     itemHeight: { _, _ in DashboardRow<EmptyView, EmptyView>.height },
                     onMore: { openHubDestination(.sleep) },
                     allowsCompactRows: true
                 ) { profile, _ in
-                    DashboardSleepRow(profile: profile, logs: dashboard.naps, localDate: dashboard.localDate, timezone: timezone, now: now)
+                    DashboardSleepRow(profile: profile, logs: dashboard.naps, localDate: dashboard.localDate, timezone: timezone, now: now,
+                                      shortStatus: summary.shortStatusText(for: profile),
+                                      spokenStatus: summary.spokenStatusText(for: profile))
                 }
             }
         }

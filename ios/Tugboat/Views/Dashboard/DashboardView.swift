@@ -1031,6 +1031,10 @@ struct DashboardSleepRow: View {
     let localDate: String
     let timezone: TimeZone
     let now: Date
+    /// The status in a few words, when the row is narrow (the Medium Sleep card), and what VoiceOver says for
+    /// it. Nil uses the longer wording.
+    var shortStatus: String?
+    var spokenStatus: String?
 
     var body: some View {
         let status = NapHelpers.getChildDashboardSleepStatus(
@@ -1040,11 +1044,13 @@ struct DashboardSleepRow: View {
             timezone: timezone,
             now: now
         )
-        DashboardRow(title: profile.name, subtitle: statusText(for: status)) {
+        DashboardRow(title: profile.name, subtitle: shortStatus ?? statusText(for: status), subtitleSpokenText: spokenStatus) {
             ProfileAvatarView(name: profile.name, avatar: profile.avatar, color: profile.color, size: 28)
         } trailing: {
             if let activeLogId = status.activeLogId {
-                Button(status.state == .inBed ? "Wake Up" : "End") { end(activeLogId) }
+                // "End" in the narrow row: "Wake Up" would leave no room for the status.
+                Button(status.state == .inBed && shortStatus == nil ? "Wake Up" : "End") { end(activeLogId) }
+                    .accessibilityLabel(status.state == .inBed ? "Wake \(profile.name) up" : "End \(profile.name)'s sleep")
                     .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .mini))
             }
         }
