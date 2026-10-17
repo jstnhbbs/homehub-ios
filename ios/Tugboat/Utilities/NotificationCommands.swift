@@ -5,25 +5,25 @@ import Foundation
 enum NotificationCommand: Equatable, Sendable {
     /// Mark a chore done for the period the reminder was about.
     case completeChore(choreId: String, periodKey: String, title: String)
-    /// End a running nap.
-    case endNap(napId: String, name: String)
+    /// End a running sleep (the "still asleep" reminder's Wake Up button).
+    case endSleep(sleepId: String, name: String)
 }
 
 enum NotificationCommands {
     // Categories say which buttons a notification gets; actions say which button was pressed.
     static let choreCategory = "tugboat.chore"
-    static let napCategory = "tugboat.nap"
+    static let sleepCategory = "tugboat.sleep"
     static let doneAction = "tugboat.done"
-    static let endNapAction = "tugboat.endNap"
+    static let wakeUpAction = "tugboat.wakeUp"
 
     /// What a chore reminder carries so its Done button knows which chore and which period.
     static func choreInfo(choreId: String, periodKey: String, title: String) -> [String: String] {
         ["kind": "chore", "choreId": choreId, "periodKey": periodKey, "title": title]
     }
 
-    /// What a nap check carries so its End Nap button knows which nap.
-    static func napInfo(napId: String, name: String) -> [String: String] {
-        ["kind": "nap", "napId": napId, "name": name]
+    /// What a "still asleep" reminder carries so its Wake Up button knows which sleep.
+    static func sleepInfo(sleepId: String, name: String) -> [String: String] {
+        ["kind": "sleep", "sleepId": sleepId, "name": name]
     }
 
     /// The `userInfo` key that names the page a notification belongs to.
@@ -63,9 +63,9 @@ enum NotificationCommands {
         case (doneAction, "chore"):
             guard let choreId = text("choreId"), let periodKey = text("periodKey") else { return nil }
             return .completeChore(choreId: choreId, periodKey: periodKey, title: text("title") ?? "Chore")
-        case (endNapAction, "nap"):
-            guard let napId = text("napId") else { return nil }
-            return .endNap(napId: napId, name: text("name") ?? "Nap")
+        case (wakeUpAction, "sleep"):
+            guard let sleepId = text("sleepId") else { return nil }
+            return .endSleep(sleepId: sleepId, name: text("name") ?? "Sleep")
         default:
             return nil
         }
@@ -77,8 +77,8 @@ enum NotificationCommands {
         switch command {
         case .completeChore(_, _, let title):
             return ("Couldn't mark it done", "\(title) wasn't marked done. Open Tugboat to try again.")
-        case .endNap(_, let name):
-            return ("Couldn't end the nap", "\(name)'s nap wasn't ended. Open Tugboat to try again.")
+        case .endSleep(_, let name):
+            return ("Couldn't end the sleep", "\(name)'s sleep wasn't ended. Open Tugboat to try again.")
         }
     }
 }

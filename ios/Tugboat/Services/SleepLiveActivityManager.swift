@@ -1,9 +1,11 @@
 import ActivityKit
 import Foundation
 
-/// Keeps the lock screen and Dynamic Island in step with whoever is asleep.
+/// Keeps the lock screen and Dynamic Island in step with whoever is napping.
 ///
-/// There is one Live Activity per active sleep. `sync` is cheap and idempotent, so it runs whenever
+/// Naps only: a night's sleep outlasts the eight hours iOS gives a Live Activity, and a name and timer on the
+/// lock screen all night is not what anyone wants. A night sleep that is still running in the morning gets a
+/// reminder instead (`SleepNudgePlanner`). There is one Live Activity per running nap. `sync` is cheap and idempotent, so it runs whenever
 /// fresh data arrives (dashboard refresh, Sleep page load): it starts an activity for a sleep that
 /// has none, corrects one whose start time was edited, and ends any whose sleep has finished or was
 /// deleted. Activities can only be started while the app is in the foreground, so a nap started on
@@ -19,9 +21,12 @@ enum SleepLiveActivityManager {
     }
 
     private static func apply(logs: [NapLog], children: [Profile], isCurrent: @MainActor () -> Bool) async {
+        // A nap whose End was tapped on the Lock Screen with no connection is waiting to be sent: the server
+        // still shows it running, but it must not come back.
+        let waitingToEnd = Set(WidgetPendingQueue().load().filter { $0.action == "endSleep" }.map(\.itemId))
         var wanted: [String: (log: NapLog, child: Profile)] = [:]
         for child in children {
-            if let log = NapHelpers.activeSleep(for: child.id, in: logs) {
+            if let log = NapHelpers.activeSleep(for: child.id, in: logs), log.kind == "nap", !waitingToEnd.contains(log.id) {
                 wanted[log.id] = (log, child)
             }
         }

@@ -1336,7 +1336,7 @@ private struct NativeNotificationsSettingView: View {
             } header: {
                 Text("Local Reminders")
             } footer: {
-                Text("Tugboat can remind this device about routines, chores, bedtime, active naps, and birthdays and anniversaries without relying on server jobs.")
+                Text("Tugboat can remind this device about routines, chores, bedtime, sleep that is still running, and birthdays and anniversaries without relying on server jobs.")
             }
             .listRowBackground(HubTheme.tile)
 
@@ -1366,12 +1366,14 @@ private struct NativeNotificationsSettingView: View {
             }
             .listRowBackground(HubTheme.tile)
 
-            Section("Sleep") {
+            Section {
                 Toggle("Sleep Reminders", isOn: boolBinding(\.sleepEnabled))
                 timeRow("Bedtime", systemImage: "bed.double.fill", minute: \.bedtimeMinute)
-                Stepper(value: intBinding(\.napCheckMinutes), in: 30...180, step: 15) {
-                    Label("Nap Check After \(service.settings.napCheckMinutes) Minutes", systemImage: "timer")
-                }
+                timeRow("Still Asleep Reminder", systemImage: "sun.horizon.fill", minute: \.stillAsleepMinute)
+            } header: {
+                Text("Sleep")
+            } footer: {
+                Text("If a night sleep is still running at this time, you get a reminder with a Wake Up button. A nap shows on the Lock Screen with an End button instead.")
             }
             .listRowBackground(HubTheme.tile)
 

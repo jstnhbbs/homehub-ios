@@ -274,18 +274,18 @@ final class NativeNotificationService: ObservableObject {
             ))
         }
 
-        for nap in dashboard.naps where nap.kind == "nap" && nap.endedAt == nil {
-            guard let fireDate = calendar.date(byAdding: .minute, value: settings.napCheckMinutes, to: nap.startedAt),
-                  fireDate > .now else { continue }
-            let name = profilesById[nap.profileId]?.name ?? "Someone"
+        // A night sleep nobody has ended keeps counting. Remind in the morning, with a Wake Up button.
+        for nudge in SleepNudgePlanner.nudges(logs: dashboard.naps, minuteOfDay: settings.stillAsleepMinute, calendar: calendar, now: .now) {
+            let name = profilesById[nudge.profileId]?.name ?? "Someone"
+            let since = DateHelpers.timeString(nudge.startedAt, timezone: calendar.timeZone)
             requests.append(request(
-                id: "sleep.nap.\(nap.id)",
-                title: "Nap check",
-                body: "\(name) has been resting for about \(settings.napCheckMinutes) minutes.",
-                fireDate: fireDate,
+                id: nudge.id,
+                title: "Still asleep?",
+                body: "\(name) is still logged as asleep since \(since).",
+                fireDate: nudge.fireDate,
                 calendar: calendar,
-                category: NotificationCommands.napCategory,
-                userInfo: NotificationCommands.napInfo(napId: nap.id, name: name)
+                category: NotificationCommands.sleepCategory,
+                userInfo: NotificationCommands.sleepInfo(sleepId: nudge.sleepId, name: name)
             ))
         }
 

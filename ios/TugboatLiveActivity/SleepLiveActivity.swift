@@ -43,12 +43,16 @@ struct SleepLiveActivityWidget: Widget {
                         .font(.headline)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    Label(
-                        "\(stateLabel(context.attributes.kind)) since \(context.state.startedAt.formatted(date: .omitted, time: .shortened))",
-                        systemImage: icon(context.attributes.kind)
-                    )
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    HStack {
+                        Label(
+                            "\(stateLabel(context.attributes.kind)) since \(context.state.startedAt.formatted(date: .omitted, time: .shortened))",
+                            systemImage: icon(context.attributes.kind)
+                        )
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        Spacer(minLength: 8)
+                        EndNapButton(sleepId: context.attributes.sleepId, colorHex: context.attributes.colorHex, label: "End")
+                    }
                 }
             } compactLeading: {
                 Image(systemName: icon(context.attributes.kind))
@@ -72,36 +76,61 @@ private struct SleepLockScreenView: View {
 
     var body: some View {
         let tint = Color(hex: attributes.colorHex)
-        HStack(spacing: 14) {
-            SleepAvatar(name: attributes.childName, color: tint, size: 48)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(attributes.childName)
-                    .font(.headline)
-                    .lineLimit(1)
-                Label(stateLabel(attributes.kind), systemImage: icon(attributes.kind))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+        VStack(spacing: 10) {
+            HStack(spacing: 14) {
+                SleepAvatar(name: attributes.childName, color: tint, size: 48)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(attributes.childName)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Label(stateLabel(attributes.kind), systemImage: icon(attributes.kind))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .layoutPriority(1)
+                Spacer(minLength: 8)
+                VStack(alignment: .trailing, spacing: 2) {
+                    // The system words this out ("25 minutes") while the lock screen is dimmed, so let it
+                    // shrink rather than wrap.
+                    Text(state.startedAt, style: .timer)
+                        .font(.system(.title2, design: .rounded).weight(.semibold).monospacedDigit())
+                        .foregroundStyle(tint)
+                        .multilineTextAlignment(.trailing)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                    Text("since \(state.startedAt.formatted(date: .omitted, time: .shortened))")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
-            .layoutPriority(1)
-            Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 2) {
-                // The system words this out ("25 minutes") while the lock screen is dimmed, so let it
-                // shrink rather than wrap.
-                Text(state.startedAt, style: .timer)
-                    .font(.system(.title2, design: .rounded).weight(.semibold).monospacedDigit())
-                    .foregroundStyle(tint)
-                    .multilineTextAlignment(.trailing)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
-                Text("since \(state.startedAt.formatted(date: .omitted, time: .shortened))")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
+            EndNapButton(sleepId: attributes.sleepId, colorHex: attributes.colorHex, label: "End Nap", expands: true)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
+    }
+}
+
+/// The End button on a nap's Live Activity: the child's color, with text that reads on it.
+private struct EndNapButton: View {
+    let sleepId: String
+    let colorHex: String
+    let label: String
+    var expands = false
+
+    var body: some View {
+        let fill = RGBColor(hex: colorHex)
+        Button(intent: EndNapActivityIntent(sleepId: sleepId)) {
+            Text(label)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(Color(hex: ColorMath.readableText(on: fill).hex))
+                .padding(.horizontal, 14)
+                .frame(maxWidth: expands ? .infinity : nil, minHeight: expands ? 36 : 32)
+        }
+        .buttonStyle(.plain)
+        .background(Color(hex: colorHex), in: Capsule())
+        .accessibilityLabel("End nap")
     }
 }
 

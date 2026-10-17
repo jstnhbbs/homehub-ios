@@ -145,6 +145,26 @@ struct HouseholdWidgetRefreshIntent: LiveActivityIntent {
     }
 }
 
+/// The End button on a nap's Live Activity. It runs in the app's process, which can end the activity itself, and
+/// sends the write through the same waiting list as a widget tap (`NapEndRunner`).
+struct EndNapActivityIntent: LiveActivityIntent {
+    static let title: LocalizedStringResource = "End Nap"
+    static let openAppWhenRun = false
+    static let isDiscoverable = false
+    @Parameter(title: "Sleep") var sleepId: String
+
+    init() {}
+    init(sleepId: String) { self.sleepId = sleepId }
+    func perform() async throws -> some IntentResult {
+        #if TUGBOAT_WIDGET_EXTENSION
+        throw WidgetActionFailure.openApp
+        #else
+        await NapEndRunner.perform(sleepId: sleepId)
+        #endif
+        return .result()
+    }
+}
+
 enum WidgetActionFailure: LocalizedError {
     case openApp, stale, failed
     var errorDescription: String? {

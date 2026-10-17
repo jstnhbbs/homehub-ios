@@ -12,7 +12,8 @@ struct TugboatNotificationSettings: Codable, Equatable, Sendable {
     /// How long before its time a chore that has one reminds. 0 is at the time itself.
     var choreLeadMinutes: Int
     var bedtimeMinute: Int
-    var napCheckMinutes: Int
+    /// When to remind that a night sleep is still running (nobody ended it).
+    var stillAsleepMinute: Int
     var birthdaysEnabled: Bool
     var birthdayOnTheDay: Bool
     /// Days of advance notice, chosen from `BirthdayNotificationPlanner.leadDayChoices`.
@@ -29,7 +30,7 @@ struct TugboatNotificationSettings: Codable, Equatable, Sendable {
         choreMinute: 17 * 60,
         choreLeadMinutes: 0,
         bedtimeMinute: 20 * 60,
-        napCheckMinutes: 90,
+        stillAsleepMinute: 8 * 60,
         birthdaysEnabled: true,
         birthdayOnTheDay: true,
         birthdayLeadDays: [7],
@@ -57,7 +58,7 @@ extension TugboatNotificationSettings {
             choreMinute: try container.decodeIfPresent(Int.self, forKey: .choreMinute) ?? fallback.choreMinute,
             choreLeadMinutes: try container.decodeIfPresent(Int.self, forKey: .choreLeadMinutes) ?? fallback.choreLeadMinutes,
             bedtimeMinute: try container.decodeIfPresent(Int.self, forKey: .bedtimeMinute) ?? fallback.bedtimeMinute,
-            napCheckMinutes: try container.decodeIfPresent(Int.self, forKey: .napCheckMinutes) ?? fallback.napCheckMinutes,
+            stillAsleepMinute: try container.decodeIfPresent(Int.self, forKey: .stillAsleepMinute) ?? fallback.stillAsleepMinute,
             birthdaysEnabled: try container.decodeIfPresent(Bool.self, forKey: .birthdaysEnabled) ?? fallback.birthdaysEnabled,
             birthdayOnTheDay: try container.decodeIfPresent(Bool.self, forKey: .birthdayOnTheDay) ?? fallback.birthdayOnTheDay,
             birthdayLeadDays: try container.decodeIfPresent([Int].self, forKey: .birthdayLeadDays) ?? fallback.birthdayLeadDays,

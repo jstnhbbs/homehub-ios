@@ -22,10 +22,10 @@ final class NotificationResponder: NSObject, UNUserNotificationCenterDelegate, @
     /// Tells the system which buttons each kind of notification has. Call at launch.
     static func registerCategories() {
         let done = UNNotificationAction(identifier: NotificationCommands.doneAction, title: "Done", options: [])
-        let endNap = UNNotificationAction(identifier: NotificationCommands.endNapAction, title: "End Nap", options: [])
+        let wakeUp = UNNotificationAction(identifier: NotificationCommands.wakeUpAction, title: "Wake Up", options: [])
         UNUserNotificationCenter.current().setNotificationCategories([
             UNNotificationCategory(identifier: NotificationCommands.choreCategory, actions: [done], intentIdentifiers: [], options: []),
-            UNNotificationCategory(identifier: NotificationCommands.napCategory, actions: [endNap], intentIdentifiers: [], options: []),
+            UNNotificationCategory(identifier: NotificationCommands.sleepCategory, actions: [wakeUp], intentIdentifiers: [], options: []),
         ])
     }
 
@@ -83,8 +83,8 @@ final class NotificationResponder: NSObject, UNUserNotificationCenterDelegate, @
             switch command {
             case .completeChore(let choreId, let periodKey, _):
                 try await api.toggleChore(ToggleChoreRequest(choreId: choreId, periodKey: periodKey, completed: true))
-            case .endNap(let napId, _):
-                try await api.endNap(napId: napId)
+            case .endSleep(let sleepId, _):
+                try await api.endNap(napId: sleepId)
             }
             NotificationCenter.default.post(name: .tugboatDataChanged, object: nil)
         } catch {
