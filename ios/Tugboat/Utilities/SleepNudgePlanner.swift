@@ -14,11 +14,12 @@ struct SleepNudge: Equatable, Sendable {
 ///
 /// A night sleep that nobody ends keeps counting, so the next morning's totals show a 20-hour night. Naps
 /// have a Live Activity with an End button instead, so only night sleeps get this reminder.
+///
+/// The reminder is for the next time the chosen time of day comes round, whenever the sleep began. (An earlier
+/// version also required the sleep to be four hours old, so one started just before the chosen time was
+/// reminded a day later; that made the reminder impossible to try out and hid it from anyone who set an
+/// evening time.)
 enum SleepNudgePlanner {
-    /// A sleep that began this recently is not worth a "still asleep" reminder yet: it covers an early
-    /// start (a sleep begun at 6 a.m. would otherwise be reminded at 8).
-    static let minimumSleepHours = 4
-
     static func nudges(
         logs: [NapLog],
         minuteOfDay: Int,
@@ -27,8 +28,7 @@ enum SleepNudgePlanner {
     ) -> [SleepNudge] {
         logs.compactMap { log -> SleepNudge? in
             guard log.kind == "night", log.endedAt == nil else { return nil }
-            let earliest = max(now, log.startedAt.addingTimeInterval(TimeInterval(minimumSleepHours * 3600)))
-            guard let fire = nextOccurrence(ofMinute: minuteOfDay, onOrAfter: earliest, calendar: calendar) else { return nil }
+            guard let fire = nextOccurrence(ofMinute: minuteOfDay, onOrAfter: max(now, log.startedAt), calendar: calendar) else { return nil }
             return SleepNudge(id: "sleep.night.\(log.id)", fireDate: fire, sleepId: log.id, profileId: log.profileId, startedAt: log.startedAt)
         }
         .sorted { $0.fireDate < $1.fireDate }
