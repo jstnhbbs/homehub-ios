@@ -151,7 +151,7 @@ extension View {
     /// chip in the corner instead, so the count is never silently clipped.
     /// `liftedBy` raises the chip that far, to sit on the line above the rows instead of over the last of them
     /// (Snacks at Medium, where it would cover a tile's circles).
-    func dashboardMoreChip(hidden: Int, footerFits: Bool, suffix: String? = nil, liftedBy: CGFloat? = nil, action: @escaping () -> Void) -> some View {
+    func dashboardMoreChip(hidden: Int, footerFits: Bool, suffix: String? = nil, liftedBy: CGFloat? = nil, trailingInset: CGFloat = 0, action: @escaping () -> Void) -> some View {
         overlay(alignment: liftedBy == nil ? .bottomTrailing : .topTrailing) {
             if hidden > 0 && !footerFits {
                 Button(action: action) {
@@ -168,6 +168,7 @@ extension View {
                 // Raised onto the line above the rows when asked; otherwise dropped partly into the card's
                 // bottom padding (as the footer is), so it doesn't sit over the last row's own controls
                 // (the Notes card's x, whose touch area it overlapped).
+                .padding(.trailing, trailingInset)
                 .offset(y: liftedBy.map { -$0 } ?? dashboardMoreChipDrop)
                 .accessibilityLabel("\(hidden) more. Open the full list.")
             }
@@ -200,6 +201,9 @@ struct WholeRowsGrid<Item: Identifiable, Tile: View>: View {
     /// Put the "+N more" chip this far above the rows (on the line above them) rather than over the last row,
     /// when there is no room for the footer.
     var moreChipLiftedBy: CGFloat?
+    /// Keeps the chip this far in from the right edge, for a chip lifted onto a card's header row (it must not
+    /// cover the chevron).
+    var moreChipTrailingInset: CGFloat = 0
     @ViewBuilder let tile: (Item, CGFloat) -> Tile
 
     private var hintHeight: CGFloat { DashboardMetrics.scaled(30, .caption1) }
@@ -260,7 +264,7 @@ struct WholeRowsGrid<Item: Identifiable, Tile: View>: View {
                         .offset(y: footerOverlap)
                 }
             }
-            .dashboardMoreChip(hidden: fit.hidden, footerFits: fit.footerFits, suffix: moreSuffix, liftedBy: moreChipLiftedBy, action: onMore)
+            .dashboardMoreChip(hidden: fit.hidden, footerFits: fit.footerFits, suffix: moreSuffix, liftedBy: moreChipLiftedBy, trailingInset: moreChipTrailingInset, action: onMore)
         }
     }
 
