@@ -147,3 +147,15 @@ enum DashboardRowHelpers {
         rowsHeight(itemHeights: itemHeights, columns: columns, spacing: spacing) <= availableHeight
     }
 }
+
+/// The size of a child's snack circle and the gap between circles. Each circle's touch area is 44 pt
+/// (`minimumTapTarget`), so the two must add up to at least 44 or neighbouring areas overlap and a tap between
+/// two circles can tick off the wrong child.
+enum SnackChipSizing {
+    static let minimumTouchSide: CGFloat = 44
+    static let regularSize: CGFloat = 40
+    static let regularSpacing: CGFloat = 4
+    /// The Medium card is one cell tall, so its circles are smaller and the gap wider.
+    static let compactSize: CGFloat = 36
+    static let compactSpacing: CGFloat = 8
+}

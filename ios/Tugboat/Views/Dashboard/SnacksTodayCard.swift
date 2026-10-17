@@ -73,8 +73,8 @@ struct SnacksTodayCard: View {
             if total == 0 {
                 emptyNote
             } else {
-                // One cell tall: smaller tiles, a line of name and a line of circles, side by side.
-                snackGrid(sorted, maxColumns: 3, compact: true)
+                // One cell tall: a line of name and a line of circles, two tiles across (three circles each).
+                snackGrid(sorted, maxColumns: perChild ? 2 : 3, compact: true)
             }
         }
     }
@@ -137,7 +137,7 @@ struct SnacksTodayCard: View {
     private func snackGrid(_ items: [SnackListItem], maxColumns: Int, compact: Bool = false) -> some View {
         WholeRowsGrid(
             items: items,
-            minimumColumnWidth: compact && perChild ? DashboardMetrics.scaled(104) : DashboardRow<EmptyView, EmptyView>.minimumWidth,
+            minimumColumnWidth: compact && perChild ? DashboardCheckTile.compactTileMinimumWidth : DashboardRow<EmptyView, EmptyView>.minimumWidth,
             maxColumns: maxColumns,
             itemHeight: { item, columnWidth in
                 perChild

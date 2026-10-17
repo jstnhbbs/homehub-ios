@@ -3,10 +3,13 @@ import SwiftUI
 /// One tappable circle per child for a single snack, filled in once that child has had it.
 /// Wraps onto a second line for a large family rather than shrinking the tap targets.
 struct SnackChildChips: View {
-    static let chipSize: CGFloat = 32
-    static let spacing: CGFloat = 6
+    /// The circle and the gap add up to 44 pt, so each circle's 44 pt touch area (`minimumTapTarget`) ends where
+    /// its neighbour's begins. At 32 pt with a 6 pt gap they overlapped, and a tap between two circles could tick
+    /// off the wrong child.
+    static let chipSize: CGFloat = SnackChipSizing.regularSize
+    static let spacing: CGFloat = SnackChipSizing.regularSpacing
 
-    /// A card that is short on room (Snacks at Medium) uses smaller circles and a tighter gap.
+    /// A card that is short on room (Snacks at Medium) uses smaller circles and a wider gap, which still add up to 44 pt.
     var chipSize: CGFloat = SnackChildChips.chipSize
     var spacing: CGFloat = SnackChildChips.spacing
 
@@ -106,7 +109,8 @@ struct SnackChildChips: View {
             .frame(width: chipSize, height: chipSize)
             .opacity(working.contains(child.id) ? 0.6 : 1)
             .contentShape(Circle())
-            // The circles are smaller than a finger, so the touch area grows to 44 pt without moving anything.
+            // A circle smaller than 44 pt gets a 44 pt touch area without moving anything; the gap is sized so
+            // neighbouring areas do not overlap.
             .minimumTapTarget()
         }
         .buttonStyle(.plain)

@@ -1214,12 +1214,12 @@ struct SnackChildTile: View {
                 .foregroundStyle(isDone ? HubTheme.muted : .primary)
                 .strikethrough(isDone, color: HubTheme.muted)
                 .lineLimit(compact ? 1 : 2)
-                // The compact tile is three across, so a longer name shrinks a little before it is cut off.
+                // The compact tile is two across, so a longer name shrinks a little before it is cut off.
                 .minimumScaleFactor(compact ? 0.75 : 1)
                 .multilineTextAlignment(.leading)
             SnackChildChips(
                 chipSize: compact ? DashboardCheckTile.compactChipSize : SnackChildChips.chipSize,
-                spacing: compact ? 4 : SnackChildChips.spacing,
+                spacing: compact ? DashboardCheckTile.compactChipSpacing : SnackChildChips.spacing,
                 snack: snack, children: children, records: records
             ) { child, eaten in
                 do {
@@ -1353,15 +1353,18 @@ struct DashboardGroceryItemRow: View {
 /// Height of a per-child snack tile, which carries a row of child circles and so is not the
 /// shared row.
 enum DashboardCheckTile {
-    /// The circles on a compact snack tile.
-    static let compactChipSize: CGFloat = 26
+    /// The circles on a compact snack tile and the gap between them (36 + 8 = 44 pt, so touch areas do not overlap).
+    static let compactChipSize: CGFloat = SnackChipSizing.compactSize
+    static let compactChipSpacing: CGFloat = SnackChipSizing.compactSpacing
+    /// The narrowest compact tile: three circles and the tile's padding.
+    static var compactTileMinimumWidth: CGFloat { DashboardMetrics.scaled(3 * compactChipSize + 2 * compactChipSpacing + 16) }
 
     /// A per-child snack tile: padding, up to two title lines, then the child circles (which wrap
     /// onto more lines for a large family). `compact` is the one-line, smaller-circle version.
     static func snackChildHeight(title: String, childCount: Int, columnWidth: CGFloat, compact: Bool = false) -> CGFloat {
         let padding: CGFloat = compact ? 8 : 10
         let chipSize = compact ? compactChipSize : SnackChildChips.chipSize
-        let chipSpacing: CGFloat = compact ? 4 : SnackChildChips.spacing
+        let chipSpacing: CGFloat = compact ? compactChipSpacing : SnackChildChips.spacing
         let titleLineCount = compact ? 1 : DashboardRowHelpers.estimatedLineCount(
             characterCount: title.count,
             availableWidth: columnWidth - 2 * padding,

@@ -68,13 +68,15 @@ struct SleepCardSummary {
     }
 
     /// A child's state in as few words as will do, for the Medium card's narrow rows (two to a phone's width):
-    /// "Awake 17h 11m", "Zzz 1h 20m" (asleep or in bed: the End button takes most of the row, which left room
-    /// for only "Aslee…"), "No sleep yet". `spokenStatusText` has the full words for VoiceOver.
+    /// "Awake 17h 11m", "1h 20m" for someone asleep or in bed, "No sleep yet". The End button takes most of a
+    /// sleeper's row, which left room for only "Aslee…" and then "Zzz 1…" once a nap passed an hour, so the
+    /// duration stands alone (the button and the card's "1 asleep now" line say who is asleep).
+    /// `spokenStatusText` has the full words for VoiceOver.
     func shortStatusText(for child: Profile) -> String {
         let status = status(for: child)
         let duration = NapHelpers.formatDuration(minutes: status.durationMinutes)
         switch status.state {
-        case .napping, .inBed: return "Zzz \(duration)"
+        case .napping, .inBed: return duration
         case .awake: return "Awake \(duration)"
         case .empty: return "No sleep yet"
         }

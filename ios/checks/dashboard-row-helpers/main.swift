@@ -122,5 +122,12 @@ check("default gap is the row spacing", fitGap([50, 50, 50], height: 128, gap: n
 check("a smaller footer gap fits one more row in the same card", fitGap([50, 50, 50], height: 128, gap: 0), "2/1")
 check("a gap of zero changes nothing when everything fits", fitGap([50, 50], height: 108, gap: 0), "2/0")
 
+// Snack circles: touch areas must not overlap
+func yes(_ condition: Bool) -> String { condition ? "yes" : "no" }
+check("regular snack circles are a full touch target apart", yes(SnackChipSizing.regularSize + SnackChipSizing.regularSpacing >= SnackChipSizing.minimumTouchSide), "yes")
+check("compact snack circles are a full touch target apart", yes(SnackChipSizing.compactSize + SnackChipSizing.compactSpacing >= SnackChipSizing.minimumTouchSide), "yes")
+check("no snack circle is smaller than a thumbnail", yes(SnackChipSizing.compactSize >= 32), "yes")
+check("a compact tile holds three circles in two columns of a phone card", yes(3 * SnackChipSizing.compactSize + 2 * SnackChipSizing.compactSpacing + 16 <= (358 - 28 - 8) / 2), "yes")
+
 print(failures == 0 ? "\nALL PASSED" : "\n\(failures) FAILED")
 exit(failures == 0 ? 0 : 1)
