@@ -268,7 +268,6 @@ private struct RoutineChildColumn: View {
     let localDate: String
 
     var body: some View {
-        let tint = HubTheme.profileColor(group.color)
         let steps = summary.ordered(group.steps)
         // Say which part of the day a step belongs to once a child has steps in more than one.
         let spansPeriods = Set(group.steps.map(\.period)).count > 1
