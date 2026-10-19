@@ -8,6 +8,8 @@ the day it runs.
 
 ---
 
+**First launch** shows a five-screen welcome tour (sample data only) before sign-in; Skip or Get Started goes to the sign-in screen, and it can be replayed from Settings → About.
+
 **Sign-in is required.** Use either demo account (both are already set up with a made-up family):
 
 - Parent (owner) account: `<owner email>` / `<owner password>`

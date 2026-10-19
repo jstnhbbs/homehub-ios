@@ -20,6 +20,7 @@ struct SettingsView: View {
     @State private var isPreparingExport = false
     @State private var showExporter = false
     @State private var confirmingSignOut = false
+    @State private var showingWelcomeTour = false
     @State private var guestToRemove: HouseholdMemberSummary?
 
     var body: some View {
@@ -508,6 +509,15 @@ struct SettingsView: View {
             .listRowBackground(HubTheme.tile)
 
             Section {
+                Button {
+                    showingWelcomeTour = true
+                } label: {
+                    Label("Replay Welcome Tour", systemImage: "sparkles")
+                }
+            }
+            .listRowBackground(HubTheme.tile)
+
+            Section {
                 Link(destination: AppConfig.baseURL.appending(path: "privacy")) {
                     Label("Privacy Policy", systemImage: "hand.raised.fill")
                 }
@@ -520,6 +530,9 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .hubPageBackground()
+        .fullScreenCover(isPresented: $showingWelcomeTour) {
+            WelcomeTourView(replay: true) { showingWelcomeTour = false }
+        }
     }
 
     private var appVersionLabel: String {

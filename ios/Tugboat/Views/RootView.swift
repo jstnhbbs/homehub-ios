@@ -4,6 +4,8 @@ import UIKit
 struct RootView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.scenePhase) private var scenePhase
+    /// Whether the welcome tour has been shown (or skipped) on this device.
+    @AppStorage(WelcomeTourPolicy.seenKey) private var welcomeTourSeen = false
 
     var body: some View {
         Group {
@@ -11,7 +13,12 @@ struct RootView: View {
                 TugboatLoadingIndicator()
                     .accessibilityLabel("Tugboat is loading")
             } else if !appState.auth.isSignedIn {
-                SignInView()
+                if WelcomeTourPolicy.shouldShow(seen: welcomeTourSeen, isSignedIn: false) {
+                    WelcomeTourView { welcomeTourSeen = true }
+                        .transition(.opacity)
+                } else {
+                    SignInView()
+                }
             } else if appState.needsOnboarding {
                 OnboardingView()
             } else {
@@ -33,6 +40,14 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: appState.notice)
+        .animation(.easeInOut(duration: 0.25), value: welcomeTourSeen)
+        // Someone already signed in (an update, a restored session) has no use for the tour, now or after a later
+        // sign-out.
+        .task(id: appState.auth.isSignedIn) {
+            if WelcomeTourPolicy.shouldMarkSeen(seen: welcomeTourSeen, isSignedIn: appState.auth.isSignedIn) {
+                welcomeTourSeen = true
+            }
+        }
         .onOpenURL { url in
             guard let destination = WidgetRoute.destination(from: url) else { return }
             appState.pendingWidgetRecipeId = nil
