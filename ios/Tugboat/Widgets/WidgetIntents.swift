@@ -112,7 +112,7 @@ struct HouseholdWidgetActionIntent: AppIntent {
         try await WidgetWriter.perform(action: action, itemId: itemId, userId: userId,
                                        householdId: householdId, localDate: localDate)
         #else
-        throw WidgetActionFailure.openApp
+        try WidgetActionFailure.refuse()
         #endif
         return .result()
     }
@@ -136,7 +136,7 @@ struct HouseholdWidgetRefreshIntent: LiveActivityIntent {
     }
     func perform() async throws -> some IntentResult {
         #if TUGBOAT_WIDGET_EXTENSION
-        throw WidgetActionFailure.openApp
+        try WidgetActionFailure.refuse()
         #else
         try await WidgetActionRunner.perform(action: "refresh", itemId: "", userId: userId,
                                             householdId: householdId, localDate: localDate)
@@ -157,7 +157,7 @@ struct EndNapActivityIntent: LiveActivityIntent {
     init(sleepId: String) { self.sleepId = sleepId }
     func perform() async throws -> some IntentResult {
         #if TUGBOAT_WIDGET_EXTENSION
-        throw WidgetActionFailure.openApp
+        try WidgetActionFailure.refuse()
         #else
         await NapEndRunner.perform(sleepId: sleepId)
         #endif
@@ -167,6 +167,12 @@ struct EndNapActivityIntent: LiveActivityIntent {
 
 enum WidgetActionFailure: LocalizedError {
     case openApp, stale, failed
+
+    /// Where an intent must not run (the extension's copy of an app-only action, or the app's copy of a
+    /// widget-only one) this is called instead of a bare `throw`, so the `return .result()` after the
+    /// `#if` is not reported as unreachable.
+    static func refuse() throws { throw WidgetActionFailure.openApp }
+
     var errorDescription: String? {
         switch self {
         case .openApp: "Open Tugboat and sign in to update this widget."
