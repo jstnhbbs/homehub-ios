@@ -12,7 +12,7 @@ DEVELOPMENT_TEAM = "25TTL3SG99"
 # up with every upload to App Store Connect. Both targets read these, and both Info.plists point at
 # them, so this is the only place to change.
 MARKETING_VERSION = "2026.10.1"
-BUILD_NUMBER = "5"
+BUILD_NUMBER = "6"
 EXTENSION = "TugboatLiveActivity"
 EXTENSION_BUNDLE_ID = f"{BUNDLE_ID}.liveactivity"
 # Compiled into both the app and the extension.
