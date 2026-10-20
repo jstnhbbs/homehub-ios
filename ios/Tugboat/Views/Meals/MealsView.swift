@@ -248,30 +248,39 @@ struct MealsView: View {
 
     // MARK: - iPhone: one section per day
 
+    /// A scroll view of day cards rather than a `List`: a list lays its rows out across the whole window under the
+    /// safe area, which beside a side tab bar (the iPhone Duo's cover screen) put the cards under the bar.
     private var compactDayList: some View {
         ScrollViewReader { proxy in
-            List {
-                ForEach(Array(zip(viewModel.weekDates, viewModel.weekDateStrings)), id: \.1) { day, localDate in
-                    Section {
-                        ForEach(MealSlot.planningSlots, id: \.self) { slot in
-                            slotRow(localDate: localDate, slot: slot)
-                                .id(slot == .breakfast ? "day-\(localDate)" : "\(localDate)-\(slot.rawValue)")
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 18) {
+                    ForEach(Array(zip(viewModel.weekDates, viewModel.weekDateStrings)), id: \.1) { day, localDate in
+                        VStack(alignment: .leading, spacing: 8) {
+                            dayHeaderRow(day, localDate: localDate)
+                                .padding(.horizontal, 4)
+                                .id("day-\(localDate)")
+                            VStack(spacing: 0) {
+                                ForEach(Array(MealSlot.planningSlots.enumerated()), id: \.element) { index, slot in
+                                    slotRow(localDate: localDate, slot: slot)
+                                    if index < MealSlot.planningSlots.count - 1 {
+                                        Divider().padding(.leading, 90).padding(.trailing, 14)
+                                    }
+                                }
+                            }
+                            .background(HubTheme.tile)
+                            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                         }
-                    } header: {
-                        dayHeaderRow(day, localDate: localDate)
+                    }
+
+                    if viewModel.canManage {
+                        Text("Tap a meal to change it. Swipe to clear or copy to tomorrow, or press and hold to drag it to another slot.")
+                            .font(.footnote)
+                            .foregroundStyle(HubTheme.muted)
+                            .padding(.horizontal, 4)
                     }
                 }
-
-                if viewModel.canManage {
-                    Text("Tap a meal to change it. Swipe to clear or copy to tomorrow, or press and hold to drag it to another slot.")
-                        .font(.footnote)
-                        .foregroundStyle(HubTheme.muted)
-                        .listRowBackground(Color.clear)
-                }
+                .padding(.bottom, 12)
             }
-            .listStyle(.insetGrouped)
-            .listAlignedWithPage()
-            .scrollContentBackground(.hidden)
             .hubPageBackground()
             .refreshable { await viewModel.load(refreshRecipes: true) }
             .onChange(of: viewModel.isLoading) { _, loading in
@@ -302,9 +311,10 @@ struct MealsView: View {
                     .padding(.top, 3)
             }
         }
-        .padding(.vertical, 4)
-        .frame(minHeight: 36)
-        .listRowBackground(dropTarget == ref ? HubTheme.sage.opacity(0.18) : HubTheme.tile)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .frame(minHeight: 44)
+        .background(dropTarget == ref ? HubTheme.sage.opacity(0.18) : Color.clear)
         .modifier(interactions(ref: ref, meal: meal))
         .rowSwipe(
             trailing: [SwipeButton.delete {
