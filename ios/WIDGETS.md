@@ -135,3 +135,16 @@ Tugboat. The in-app Settings FAQ includes widget instructions and update limits.
 ## Check-off animation
 
 The circle on a chore or routine step is a `Toggle(isOn: false, intent: HouseholdWidgetCheckIntent)` (a `SetValueIntent`) with `WidgetCheckoffToggleStyle`. The system flips a widget toggle to its checked look the instant it is tapped, without a redraw, so the check and the struck-through words show at once. The action (`WidgetWriter.perform(holdSeconds: 1.6)`) starts the send, then holds until 1.6 s after the tap before returning, so the checked row stays on screen; the redraw WidgetKit does when an action returns then drops it from the list. This is the only mechanism that works: a redraw asked for while an action runs, a later reload from the extension, and a timeline entry dated a second ahead were all tried and none was drawn on time (the widget redraws promptly only when an action returns). The timeline provider also no longer waits to send a tap made in the last 8 seconds (it only retries older ones), because that wait held every redraw back, and "Waiting to sync" shows only for a tap unsent for 8 seconds.
+
+
+## Lock Screen widgets
+
+`TugboatLiveActivity/LockScreenWidgets.swift` adds five widgets for the Lock Screen (`accessoryInline`, `accessoryCircular`, `accessoryRectangular`), all read from the same saved snapshot as the Home Screen widgets (no server calls) and all opening a page when tapped:
+
+- **Today at a Glance**: inline chores left; circle routine progress; rectangle the next timed thing and chores left.
+- **Sleep**: inline/circle/rectangle show live timers for whoever is asleep (`Text(start, style: .timer)`), otherwise how long each child has been awake.
+- **Evening**: inline tonight's dinner; circle the days to the next birthday; rectangle dinner and the next birthday.
+- **Groceries**: how many are left, with the first two items in the rectangle.
+- **Child's Routine** (configurable, reuses `RoutineWidgetConfiguration`): progress ring, or name, progress bar and next step.
+
+They are single color (iOS tints them from the wallpaper), use `AccessoryWidgetBackground`, carry no accent choice and have no buttons: a Lock Screen widget button needs an unlock, so ending a nap stays on the Live Activity.

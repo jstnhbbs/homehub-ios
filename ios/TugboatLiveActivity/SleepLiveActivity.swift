@@ -15,6 +15,11 @@ struct TugboatLiveActivities: WidgetBundle {
         HouseholdSummaryWidget(kind: .groceries)
         HouseholdSummaryWidget(kind: .celebrations)
         HouseholdSummaryWidget(kind: .overview)
+        LockTodayWidget()
+        LockSleepWidget()
+        LockEveningWidget()
+        LockGroceriesWidget()
+        LockRoutineWidget()
     }
 }
 

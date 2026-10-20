@@ -499,7 +499,7 @@ private func widgetColor(_ hex: String?) -> Color {
     return Color(red: Double((value >> 16) & 255) / 255, green: Double((value >> 8) & 255) / 255, blue: Double(value & 255) / 255)
 }
 
-private extension WidgetSnapshot {
+extension WidgetSnapshot {
     static var preview: WidgetSnapshot {
         let now = Date.now
         return WidgetSnapshot(userId: "preview", householdId: "preview", householdName: "Our Family",
