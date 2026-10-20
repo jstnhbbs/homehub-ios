@@ -28,8 +28,12 @@ enum HouseholdWidgetTimeline {
         // Taps that were made without a connection: try them again now, briefly, so a widget refreshed once
         // the phone is back online shows the result. With no connection this fails at once and they wait.
         let queue = WidgetPendingQueue()
-        if let user = store.load()?.userId, queue.count(userId: user) > 0 {
-            await WidgetSync.flush(store: store, queue: queue, timeout: 5)
+        // A tap made a moment ago is already being sent by the extension that handled it; waiting for that here
+        // would hold the timeline back for seconds, long enough for the entries that show the row's check to
+        // be in the past by the time they are returned, so the check would never be seen.
+        if let user = store.load()?.userId {
+            let stuck = queue.load().contains { $0.userId == user && date.timeIntervalSince($0.tappedAt) >= HouseholdWidgetEntry.inFlightSeconds }
+            if stuck { await WidgetSync.flush(store: store, queue: queue, timeout: 5) }
         }
         var snapshot = store.load()
         let originalUser = snapshot?.userId
