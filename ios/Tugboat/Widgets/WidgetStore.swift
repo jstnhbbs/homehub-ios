@@ -18,6 +18,25 @@ enum WidgetWriteSignal {
     }
 }
 
+/// Items ticked off from a widget in the last moment. The widget keeps such a row on screen for
+/// `lingerSeconds` as a filled check, so the tap visibly registers, and only then lets it drop off the list.
+enum WidgetRecentTaps {
+    static let lingerSeconds: TimeInterval = 1.4
+    private static let key = "tugboat.widget.recentTaps"
+    private static var defaults: UserDefaults? { UserDefaults(suiteName: WidgetStore.group) }
+
+    static func record(_ itemId: String, at date: Date = .now) {
+        var taps = load(at: date)
+        taps[itemId] = date
+        defaults?.set(taps.mapValues { $0.timeIntervalSince1970 }, forKey: key)
+    }
+    /// Taps still within the linger window, with the time each was made.
+    static func load(at date: Date = .now) -> [String: Date] {
+        let raw = defaults?.dictionary(forKey: key) as? [String: Double] ?? [:]
+        return raw.compactMapValues { Date(timeIntervalSince1970: $0) }.filter { date.timeIntervalSince($0.value) < lingerSeconds }
+    }
+}
+
 struct WidgetStore: Sendable {
     static let group = "group.com.tugboatfamily.app"
     private let directory: URL?
