@@ -130,8 +130,3 @@ kinds reload, and which servers a snapshot may send a sign-in to.
 
 For installation: launch and sign in once, then Home Screen > Edit > Add Widget >
 Tugboat. The in-app Settings FAQ includes widget instructions and update limits.
-
-
-## Check-off animation
-
-Ticking a chore or routine step from a widget keeps that row on screen for about 1.4 s as a filled check with struck-through text (symbol replace transition), then the next timeline entry drops it. The extension records the tap in `WidgetRecentTaps` (App Group defaults) before writing; `HouseholdWidgetTimeline` reads it, marks those ids `lingering` on the entry, and adds a second entry at tap time + `lingerSeconds`. The saved snapshot and the server write are not delayed by this: the data is already updated, only the row's removal is held back. If iOS runs the second entry late, the checked row simply stays a little longer.
