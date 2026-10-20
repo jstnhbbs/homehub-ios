@@ -139,12 +139,16 @@ The circle on a chore or routine step is a `Toggle(isOn: false, intent: Househol
 
 ## Lock Screen widgets
 
-`TugboatLiveActivity/LockScreenWidgets.swift` adds five widgets for the Lock Screen (`accessoryInline`, `accessoryCircular`, `accessoryRectangular`), all read from the same saved snapshot as the Home Screen widgets (no server calls) and all opening a page when tapped:
+`TugboatLiveActivity/LockScreenWidgets.swift` provides seven widgets for the Lock Screen (`accessoryInline`, `accessoryCircular`, `accessoryRectangular`), read from the same saved snapshot as the Home Screen widgets and opening a page when tapped:
 
-- **Today at a Glance**: inline chores left; circle routine progress; rectangle the next timed thing and chores left.
-- **Sleep**: inline/circle/rectangle show live timers for whoever is asleep (`Text(start, style: .timer)`), otherwise how long each child has been awake.
-- **Evening**: inline tonight's dinner; circle the days to the next birthday; rectangle dinner and the next birthday.
+- **Coming Up**: the same next event, timed chore or routine in every size. Preserves Now and Overdue status and opens the displayed item's page. Circle prioritizes its time; rectangle adds the title and detail.
+- **Sleep**: optional Child selection, otherwise everyone. Shows live sleep timers (`Text(start, style: .timer)`) or time awake. The circle includes the child's initial; missing/deleted selections ask for a child instead of silently showing a sibling.
+- **Tonight's Dinner**: dinner only, with a saved-recipe link when available. The circle is a fork-and-knife shortcut; inline and rectangular layouts show the meal name.
+- **Celebrations**: birthday or anniversary name and countdown; circle shows days remaining. Always opens Celebrations, never Food.
+- **Chores**: remaining count and completed progress; rectangle includes the next incomplete chore.
 - **Groceries**: how many are left, with the first two items in the rectangle.
-- **Child's Routine** (configurable, reuses `RoutineWidgetConfiguration`): progress ring, or name, progress bar and next step.
+- **Child's Routine**: Child selection, progress ring, or name, progress bar and next step. Sleep and Routine use `LockChildConfiguration`, without irrelevant Accent Color or True Black options.
+
+Coming Up keeps the stored `Tugboat.lock.today` identifier and Dinner keeps `Tugboat.lock.evening`, so previously placed widgets remain registered. Groceries and celebration countdowns remain available across midnight; daily routines, Coming Up, chores and dinner require a current-day snapshot. Hidden sections show an unavailable state instead of misleading zero counts. Check-offs and End Sleep reload the affected Lock Screen kinds as well as the Home Screen kinds; timed chore boundaries are included in timelines.
 
 They are single color (iOS tints them from the wallpaper), use `AccessoryWidgetBackground`, carry no accent choice and have no buttons: a Lock Screen widget button needs an unlock, so ending a nap stays on the Live Activity.

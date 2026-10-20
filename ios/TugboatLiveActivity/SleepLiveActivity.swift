@@ -20,6 +20,8 @@ struct TugboatLiveActivities: WidgetBundle {
         LockEveningWidget()
         LockGroceriesWidget()
         LockRoutineWidget()
+        LockCelebrationsWidget()
+        LockChoresWidget()
     }
 }
 

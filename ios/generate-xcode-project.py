@@ -21,6 +21,7 @@ SHARED_WITH_EXTENSION = (
     "Tugboat/Utilities/ImageDownsampling.swift",
     "Tugboat/Utilities/AccentColors.swift",
     "Tugboat/Widgets/WidgetSnapshot.swift",
+    "Tugboat/Widgets/LockWidgetContent.swift",
     "Tugboat/Widgets/WidgetStore.swift",
     "Tugboat/Widgets/WidgetIntents.swift",
     "Tugboat/Widgets/WidgetPendingQueue.swift",

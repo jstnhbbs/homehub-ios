@@ -74,6 +74,9 @@ enum HouseholdWidgetTimeline {
                 }
             }
             dates += snapshot.events.flatMap { [$0.start, $0.end] }.filter { $0 > entry.date && $0 < entry.date.addingTimeInterval(3600) }
+            dates += snapshot.chores.filter { !$0.completed }.compactMap(\.dueAt)
+                .map { $0.addingTimeInterval(1) }
+                .filter { $0 > entry.date && $0 < entry.date.addingTimeInterval(3600) }
         }
         // A tap still unsent after the in-flight time becomes "Waiting to sync".
         dates += entry.pendingTapTimes.map { $0.addingTimeInterval(HouseholdWidgetEntry.inFlightSeconds) }.filter { $0 > entry.date }

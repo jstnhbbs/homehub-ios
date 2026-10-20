@@ -59,6 +59,13 @@ struct RoutineWidgetConfiguration: WidgetConfigurationIntent {
     @Parameter(title: "True Black", description: "Use a black background in dark mode.", default: false) var trueBlack: Bool
 }
 
+/// Lock Screen widgets use the system's appearance, so only the child is configurable.
+struct LockChildConfiguration: WidgetConfigurationIntent {
+    static let title: LocalizedStringResource = "Child"
+    static let description = IntentDescription("Choose a child, or show everyone.")
+    @Parameter(title: "Child") var child: WidgetChildEntity?
+}
+
 struct WidgetNoteEntity: AppEntity {
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "Note"
     static let defaultQuery = WidgetNoteQuery()

@@ -111,7 +111,9 @@ check("a sleep tap reloads the Sleep widget first", WidgetActionPolicy.affectedK
 check("a routine tap reloads the Routines widget first", WidgetActionPolicy.affectedKinds(action: "step").first == "Tugboat.routines")
 check("a chore tap reloads the Chores widget first", WidgetActionPolicy.affectedKinds(action: "chore").first == "Tugboat.chores")
 check("only widgets that show the change are reloaded", !WidgetActionPolicy.affectedKinds(action: "endSleep").contains("Tugboat.groceries") && WidgetActionPolicy.affectedKinds(action: "refresh").isEmpty)
-check("every reloaded kind is a real widget kind", Set(WidgetActionPolicy.affectedKinds(action: "step") + WidgetActionPolicy.affectedKinds(action: "chore") + WidgetActionPolicy.affectedKinds(action: "endSleep")).allSatisfy { kind in HouseholdWidgetKind.allCases.contains { "Tugboat.\($0.rawValue)" == kind } })
+let registeredKinds = Set(HouseholdWidgetKind.allCases.map { "Tugboat.\($0.rawValue)" }
+    + LockWidgetKind.allCases.map { "Tugboat.lock.\($0.rawValue)" } + ["Tugboat.lock.routine"])
+check("every reloaded kind is a real widget kind", Set(WidgetActionPolicy.affectedKinds(action: "step") + WidgetActionPolicy.affectedKinds(action: "chore") + WidgetActionPolicy.affectedKinds(action: "endSleep")).isSubset(of: registeredKinds))
 
 // What a tap sends, and where it may send it
 func body(_ request: WidgetWriteRequest?) -> String? {
@@ -190,5 +192,45 @@ check("undoing End Sleep makes it run again", WidgetActionPolicy.undoing(action:
 check("applying an action twice changes nothing more", WidgetActionPolicy.applying(action: "endSleep", itemId: "sleep", to: WidgetActionPolicy.applying(action: "endSleep", itemId: "sleep", to: snapshot, at: now), at: now.addingTimeInterval(60)).sleeps.first?.end == now)
 check("no connection counts as offline", [URLError.notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotConnectToHost, .dnsLookupFailed, .dataNotAllowed].allSatisfy { WidgetNetworkFailure.isOffline(URLError($0)) })
 check("a cancelled or bad request doesn't count as offline", !WidgetNetworkFailure.isOffline(URLError(.cancelled)) && !WidgetNetworkFailure.isOffline(URLError(.badURL)) && !WidgetNetworkFailure.isOffline(CocoaError(.fileNoSuchFile)))
+// Lock Screen: daily state expires, persistent lists and selected children do not silently switch.
+check("groceries survives household midnight", !LockWidgetKind.groceries.requiresCurrentDay)
+check("celebration countdown survives household midnight", !LockWidgetKind.celebrations.requiresCurrentDay)
+check("sleep survives household midnight", !LockWidgetKind.sleep.requiresCurrentDay)
+check("coming up, dinner and chores require today's snapshot", [LockWidgetKind.today, .evening, .chores].allSatisfy(\.requiresCurrentDay))
+check("existing Today and Evening identifiers are preserved", LockWidgetKind.today.rawValue == "today" && LockWidgetKind.evening.rawValue == "evening")
+check("seven Lock Screen widgets are registered by kind", LockWidgetKind.allCases.count + 1 == 7)
+check("Lock Screen routines reload after a check-off", WidgetActionPolicy.affectedKinds(action: "step").contains("Tugboat.lock.routine"))
+check("Coming Up reloads after a routine check-off", WidgetActionPolicy.affectedKinds(action: "step").contains("Tugboat.lock.today"))
+check("Lock Screen chores and Coming Up reload after a chore check-off", Set(WidgetActionPolicy.affectedKinds(action: "chore")).isSuperset(of: ["Tugboat.lock.chores", "Tugboat.lock.today"]))
+check("Lock Screen sleep reloads after End Sleep", WidgetActionPolicy.affectedKinds(action: "endSleep").contains("Tugboat.lock.sleep"))
+check("Coming Up preserves overdue wording", LockWidgetContent.status(for: .init(id: "late", title: "Plants", detail: "Overdue", start: now, destination: "chores")) == "Overdue")
+check("Coming Up preserves in-progress wording", LockWidgetContent.status(for: .init(id: "now", title: "Pickup", detail: "Now", start: now, destination: "calendar")) == "Now")
+check("future items use Coming Up", LockWidgetContent.status(for: .init(id: "future", title: "Pickup", detail: "Calendar", start: tomorrow, destination: "calendar")) == "Coming Up")
+check("a missing child asks for reselection", !LockWidgetContent.validChild("missing", in: snapshot))
+check("everyone and an existing child are valid selections", LockWidgetContent.validChild(nil, in: snapshot) && LockWidgetContent.validChild("child1", in: snapshot))
+var lockSnapshot = snapshot
+lockSnapshot.people.append(.init(id: "parent", name: "Parent", color: "#5F8153", isChild: false))
+check("an adult cannot be the selected child", !LockWidgetContent.validChild("parent", in: lockSnapshot))
+lockSnapshot.sleeps = [
+    .init(id: "alex-sleep", personId: "child1", start: now.addingTimeInterval(-3600), kind: "night"),
+    .init(id: "sam-ended", personId: "child2", start: now.addingTimeInterval(-7200), end: now.addingTimeInterval(-1200), kind: "nap")
+]
+check("selected sleeping child has only their timer", LockWidgetContent.sleeping(in: lockSnapshot, childId: "child1").map(\.personId) == ["child1"])
+check("selected awake child never displays a sibling's sleep", LockWidgetContent.sleeping(in: lockSnapshot, childId: "child2").isEmpty)
+check("selected awake child's timer uses their last sleep", LockWidgetContent.awake(in: lockSnapshot, childId: "child2", at: now).first?.since == now.addingTimeInterval(-1200))
+check("sleeping child is not shown as awake", LockWidgetContent.awake(in: lockSnapshot, childId: "child1", at: now).isEmpty)
+lockSnapshot.events = []
+lockSnapshot.chores = [.init(id: "late", title: "Plants", periodKey: "once", dueAt: now.addingTimeInterval(-60), completed: false)]
+check("Coming Up opens the displayed chore's page", WidgetRoute.destination(from: LockWidgetKind.today.url(in: lockSnapshot, at: now)) == "chores")
+lockSnapshot.dinner?.recipeId = recipeId
+check("Dinner opens its saved recipe", WidgetRoute.recipeId(from: LockWidgetKind.evening.url(in: lockSnapshot, at: now)) == recipeId)
+check("old Dinner never links to yesterday's recipe", WidgetRoute.recipeId(from: LockWidgetKind.evening.url(in: lockSnapshot, at: tomorrow)) == nil)
+check("Celebrations opens Celebrations, not Food", WidgetRoute.destination(from: LockWidgetKind.celebrations.url(in: lockSnapshot, at: now)) == "birthdays")
+lockSnapshot.celebrations = [.init(id: "yesterday", name: "Old", date: "2026-10-12", years: 5, isAnniversary: false),
+    .init(id: "next", name: "Alex", date: "2026-10-14", years: 5, isAnniversary: false)]
+check("celebration days use the household timezone", LockWidgetContent.nextCelebration(in: lockSnapshot, at: now)?.days == 1)
+check("celebration countdown advances at midnight", LockWidgetContent.nextCelebration(in: lockSnapshot, at: tomorrow)?.days == 0)
+lockSnapshot.enabledDestinations = []
+check("hidden sections are not presented as empty or completed", !LockWidgetKind.groceries.isEnabled(in: lockSnapshot) && !LockWidgetKind.sleep.isEnabled(in: lockSnapshot))
 if failures > 0 { exit(1) }
 print("all passed")

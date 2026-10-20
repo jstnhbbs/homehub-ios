@@ -307,9 +307,9 @@ enum WidgetActionPolicy {
     /// and the one that was tapped could be last in line, a few seconds after the action had finished.
     static func affectedKinds(action: String) -> [String] {
         switch action {
-        case "step": return ["Tugboat.routines", "Tugboat.next", "Tugboat.overview"]
-        case "chore": return ["Tugboat.chores", "Tugboat.next", "Tugboat.overview"]
-        case "endSleep": return ["Tugboat.sleep", "Tugboat.overview"]
+        case "step": return ["Tugboat.routines", "Tugboat.next", "Tugboat.overview", "Tugboat.lock.routine", "Tugboat.lock.today"]
+        case "chore": return ["Tugboat.chores", "Tugboat.next", "Tugboat.overview", "Tugboat.lock.chores", "Tugboat.lock.today"]
+        case "endSleep": return ["Tugboat.sleep", "Tugboat.overview", "Tugboat.lock.sleep"]
         default: return []
         }
     }
