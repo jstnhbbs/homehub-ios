@@ -171,9 +171,15 @@ private struct ChoreItemRow: View {
                 isUnavailable: isWaitingForItsDay
             ) {
                 // The row flips `isChecked` after this returns, so the state wanted is the opposite.
-                await viewModel.toggleChore(chore, completed: !isChecked)
-                await viewModel.load()
+                let wanted = !isChecked
+                await viewModel.toggleChore(chore, completed: wanted)
+                // Land the flip on what the server now says (a failed request leaves it as it was), so the row
+                // can't end up the opposite of the data and need a second tap.
+                let actual = viewModel.chores.first { $0.id == chore.id && $0.periodKey == chore.periodKey }?.completed ?? wanted
+                isChecked = !actual
             }
+            // Something outside this row (a widget, the Today card, another device) can change it; follow the data.
+            .onChange(of: chore.completed) { _, completed in isChecked = completed }
 
             if isWaitingForItsDay {
                 Text(nextLine)
