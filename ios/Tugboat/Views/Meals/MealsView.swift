@@ -269,6 +269,11 @@ struct MealsView: View {
                             }
                             .background(HubTheme.tile)
                             .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                            // The same bordered card as every other page's, on the page's own background.
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                    .stroke(HubTheme.line, lineWidth: 1)
+                            )
                         }
                     }
 
@@ -281,7 +286,6 @@ struct MealsView: View {
                 }
                 .padding(.bottom, 12)
             }
-            .hubPageBackground()
             .refreshable { await viewModel.load(refreshRecipes: true) }
             .onChange(of: viewModel.isLoading) { _, loading in
                 // Jump to today (or the first day) when a week appears, not on every refresh.
