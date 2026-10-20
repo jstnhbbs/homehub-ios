@@ -12,6 +12,7 @@ private struct SwipeToDelete: ViewModifier {
     let onTap: (() -> Void)?
     let onEdit: (() -> Void)?
     let isEnabled: Bool
+    let cornerRadius: CGFloat
     let onDelete: () -> Void
 
     /// One button's width; with an Edit button beside Delete the row opens twice as far.
@@ -31,32 +32,34 @@ private struct SwipeToDelete: ViewModifier {
     private func swipeable(_ content: Content) -> some View {
         ZStack(alignment: .trailing) {
             if offset < 0 {
-                HStack(spacing: 0) {
+                // Rounded buttons set apart from the row, like the system's own swipe actions.
+                HStack(spacing: 8) {
                     if let onEdit {
                         Button { close(); onEdit() } label: {
                             VStack(spacing: 2) {
-                                Image(systemName: "pencil")
+                                Image(systemName: "pencil").font(.body.weight(.semibold))
                                 Text("Edit").font(.caption2.weight(.bold))
                             }
                             .foregroundStyle(HubTheme.onAccent)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background(HubTheme.accent)
+                            .background(HubTheme.accent, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                         }
                         .buttonStyle(.plain)
                         .accessibilityHidden(true)
                     }
                     Button { confirming = true } label: {
                         VStack(spacing: 2) {
-                            Image(systemName: "trash.fill")
+                            Image(systemName: "trash.fill").font(.body.weight(.semibold))
                             Text("Delete").font(.caption2.weight(.bold))
                         }
                         .foregroundStyle(HubTheme.onFill)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.red)
+                        .background(Color.red, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .accessibilityHidden(true)
                 }
+                .padding(.leading, 8)
                 .frame(width: -offset)
                 .frame(maxHeight: .infinity)
                 .clipped()
@@ -132,8 +135,9 @@ extension View {
         onTap: (() -> Void)? = nil,
         onEdit: (() -> Void)? = nil,
         isEnabled: Bool = true,
+        cornerRadius: CGFloat = 18,
         onDelete: @escaping () -> Void
     ) -> some View {
-        modifier(SwipeToDelete(title: title, message: message, onTap: onTap, onEdit: onEdit, isEnabled: isEnabled, onDelete: onDelete))
+        modifier(SwipeToDelete(title: title, message: message, onTap: onTap, onEdit: onEdit, isEnabled: isEnabled, cornerRadius: cornerRadius, onDelete: onDelete))
     }
 }

@@ -178,6 +178,15 @@ private struct ChoreItemRow: View {
                 let actual = viewModel.chores.first { $0.id == chore.id && $0.periodKey == chore.periodKey }?.completed ?? wanted
                 isChecked = !actual
             }
+            // Only the row slides: the lines under it stay put and the buttons match the row's height.
+            .swipeToDelete(
+                title: "Delete \"\(chore.title)\"?",
+                message: "This removes the chore for everyone.",
+                onEdit: onEdit,
+                isEnabled: viewModel.canManage
+            ) {
+                Task { _ = await viewModel.deleteChore(id: chore.id) }
+            }
 
             if isWaitingForItsDay {
                 Text(nextLine)
@@ -205,14 +214,6 @@ private struct ChoreItemRow: View {
         }
         // Something outside this row (a widget, another device) can change it; follow the data.
         .onChange(of: chore.completed) { _, completed in isChecked = completed }
-        .swipeToDelete(
-            title: "Delete \"\(chore.title)\"?",
-            message: "This removes the chore for everyone.",
-            onEdit: onEdit,
-            isEnabled: viewModel.canManage
-        ) {
-            Task { _ = await viewModel.deleteChore(id: chore.id) }
-        }
         .contextMenu {
             if viewModel.canManage {
                 Button(action: onEdit) {
