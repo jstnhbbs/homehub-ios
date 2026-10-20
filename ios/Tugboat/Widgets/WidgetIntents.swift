@@ -109,6 +109,7 @@ struct HouseholdWidgetActionIntent: AppIntent {
     }
     func perform() async throws -> some IntentResult {
         #if TUGBOAT_WIDGET_EXTENSION
+        if action == "step" || action == "chore" { WidgetRecentTaps.record(itemId) }
         try await WidgetWriter.perform(action: action, itemId: itemId, userId: userId,
                                        householdId: householdId, localDate: localDate)
         #else
