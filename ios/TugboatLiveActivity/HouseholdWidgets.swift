@@ -12,7 +12,11 @@ struct HouseholdWidgetEntry: TimelineEntry {
     var accent: WidgetAccentChoice = .automatic
     var trueBlack = false
     /// Taps shown but not yet accepted by the server (no connection when they were made).
-    var pendingCount = 0
+    var pendingTapTimes: [Date] = []
+    /// A tap that was only just made is on its way to the server, not waiting: it counts as waiting once it has
+    /// been unsent for `inFlightSeconds`, which a quick send never reaches.
+    static let inFlightSeconds: TimeInterval = 8
+    var pendingCount: Int { pendingTapTimes.filter { date.timeIntervalSince($0) >= Self.inFlightSeconds }.count }
     /// Rows ticked a moment ago that still show as a filled check before they drop off the list.
     var lingering: Set<String> = []
 }
@@ -47,9 +51,9 @@ enum HouseholdWidgetTimeline {
         if snapshot?.userId != originalUser || snapshot?.householdId != originalHome || snapshot?.dinner?.imageURL != originalImage {
             image = nil
         }
-        let pending = snapshot.map { queue.count(userId: $0.userId) } ?? 0
+        let pending = snapshot.map { snap in queue.load().filter { $0.userId == snap.userId && !$0.isExpired(at: date) }.map(\.tappedAt) } ?? []
         return HouseholdWidgetEntry(date: date, snapshot: snapshot, personId: personId, noteId: noteId, dinnerImage: image,
-                                    accent: accent, trueBlack: trueBlack, pendingCount: pending,
+                                    accent: accent, trueBlack: trueBlack, pendingTapTimes: pending,
                                     lingering: Set(WidgetRecentTaps.load(at: date).keys))
     }
 
@@ -73,10 +77,12 @@ enum HouseholdWidgetTimeline {
         // A row just ticked stays as a filled check for a moment, then a second entry lets it go.
         let taps = WidgetRecentTaps.load(at: entry.date)
         if let last = taps.values.max() { dates.append(last.addingTimeInterval(WidgetRecentTaps.lingerSeconds)) }
+        // A tap still unsent after the in-flight time becomes "Waiting to sync".
+        dates += entry.pendingTapTimes.map { $0.addingTimeInterval(HouseholdWidgetEntry.inFlightSeconds) }.filter { $0 > entry.date }
         let entries = Set(dates).sorted().map { date in
             HouseholdWidgetEntry(date: date, snapshot: entry.snapshot, personId: entry.personId, noteId: entry.noteId,
                                  dinnerImage: entry.dinnerImage, accent: entry.accent, trueBlack: entry.trueBlack,
-                                 pendingCount: entry.pendingCount,
+                                 pendingTapTimes: entry.pendingTapTimes,
                                  lingering: Set(taps.filter { date.timeIntervalSince($0.value) < WidgetRecentTaps.lingerSeconds }.keys))
         }
         return Timeline(entries: entries, policy: .after(entry.date.addingTimeInterval(900)))
