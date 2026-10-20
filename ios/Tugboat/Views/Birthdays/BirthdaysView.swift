@@ -78,6 +78,8 @@ struct BirthdaysView: View {
                     editor = .add
                 } label: {
                     Label("Add \(CelebrationNaming.currentSingular)", systemImage: "plus")
+                        // One line: the text beside it wraps instead, rather than this button breaking in two.
+                        .fixedSize(horizontal: true, vertical: false)
                 }
                 .buttonStyle(HubButtonStyle(emphasis: .primary))
             }

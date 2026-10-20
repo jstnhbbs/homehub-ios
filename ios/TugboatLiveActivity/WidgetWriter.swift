@@ -34,7 +34,7 @@ enum WidgetWriter {
         // behind the return. A check-off then holds a little longer: its toggle already shows checked, and the row
         // is taken off the list by the redraw that follows this returning.
         await withTaskGroup(of: Void.self) { group in
-            group.addTask { await send.value }
+            group.addTask { _ = await send.value }
             group.addTask { try? await Task.sleep(nanoseconds: 1_000_000_000) }
             await group.next()
             group.cancelAll()
@@ -46,7 +46,7 @@ enum WidgetWriter {
             guard !expired else { return }   // still on the waiting list; the next send gets it
             let finished = DispatchSemaphore(value: 0)
             Task.detached {
-                await send.value
+                _ = await send.value
                 // The tap that is waiting redraws as "Waiting to sync"; one that went through needs nothing.
                 for kind in WidgetActionPolicy.affectedKinds(action: action) { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
                 finished.signal()
