@@ -69,6 +69,9 @@ private struct RowSwipe: ViewModifier {
     }
     private var trailingReveal: CGFloat { revealWidth(trailing) }
     private var leadingReveal: CGFloat { revealWidth(leading) }
+    /// How far a row has to be dragged to stay open when let go. The same for every row: it used to be half of the
+    /// buttons' width, so a row with one button opened on half the drag a row with two did and felt more sensitive.
+    private let openDistance: CGFloat = 56
     /// How far across a swipe has to go to count as asking for the last button outright: well past the buttons, so a
     /// comfortable swipe to reach them never does it by accident.
     private var fullSwipe: CGFloat { max(trailingReveal * 1.6, 190) }
@@ -178,9 +181,9 @@ private struct RowSwipe: ViewModifier {
                         close()
                         primary.action()
                     }
-                } else if offset < -trailingReveal * 0.5 {
+                } else if offset < -openDistance, !trailing.isEmpty {
                     settle(at: -trailingReveal)
-                } else if offset > leadingReveal * 0.5, !leading.isEmpty {
+                } else if offset > openDistance, !leading.isEmpty {
                     settle(at: leadingReveal)
                 } else {
                     close()
