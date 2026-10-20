@@ -306,25 +306,16 @@ struct MealsView: View {
         .frame(minHeight: 36)
         .listRowBackground(dropTarget == ref ? HubTheme.sage.opacity(0.18) : HubTheme.tile)
         .modifier(interactions(ref: ref, meal: meal))
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            if viewModel.canManage, meal != nil {
-                Button(role: .destructive) {
-                    Task { await viewModel.clearMeal(ref) }
-                } label: {
-                    Label("Clear", systemImage: "xmark.circle")
-                }
-            }
-        }
-        .swipeActions(edge: .leading) {
-            if viewModel.canManage, meal != nil {
-                Button {
-                    Task { await viewModel.copyMeal(from: ref, daysAhead: 1) }
-                } label: {
-                    Label("Tomorrow", systemImage: "arrow.turn.down.right")
-                }
-                .tint(HubTheme.accentText)
-            }
-        }
+        .rowSwipe(
+            trailing: [SwipeButton.delete {
+                Task { await viewModel.clearMeal(ref) }
+            }.titled("Clear", systemImage: "xmark.circle.fill")],
+            leading: [SwipeButton(title: "Tomorrow", systemImage: "arrow.turn.down.right", tint: HubTheme.accent, foreground: HubTheme.onAccent) {
+                Task { await viewModel.copyMeal(from: ref, daysAhead: 1) }
+            }],
+            isEnabled: viewModel.canManage && meal != nil,
+            cornerRadius: 12
+        )
     }
 
     private func dayHeaderRow(_ day: Date, localDate: String) -> some View {

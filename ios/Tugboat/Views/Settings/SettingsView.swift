@@ -610,16 +610,13 @@ struct SettingsView: View {
                         Spacer()
                         memberRoleControl(member)
                     }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        if member.role == .guest {
-                            Button(role: .destructive) {
-                                guestToRemove = member
-                            } label: {
-                                Label("Remove", systemImage: "person.crop.circle.badge.minus")
-                            }
-                            .disabled(membersViewModel.isWorking)
-                        }
-                    }
+                    .rowSwipe(
+                        trailing: [SwipeButton(title: "Remove", systemImage: "person.crop.circle.badge.minus") {
+                            guestToRemove = member
+                        }],
+                        isEnabled: member.role == .guest && !membersViewModel.isWorking,
+                        cornerRadius: 12
+                    )
                     .contextMenu {
                         if member.role == .guest {
                             Button(role: .destructive) {

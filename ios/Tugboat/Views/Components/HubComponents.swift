@@ -291,7 +291,42 @@ struct CheckItemView: View {
 
     var body: some View {
         if !isHidden {
-            Button {
+            // Not a Button: a Button counts a swipe that ends inside it as a tap, and this row is swiped (edit and
+            // delete). A tap gesture is dropped once the finger has moved.
+            HStack(spacing: 12) {
+                Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isChecked ? HubTheme.accentText : HubTheme.muted)
+                    .opacity(isUnavailable ? 0.4 : 1)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(isChecked ? HubTheme.muted : .primary)
+                        .strikethrough(isChecked, color: HubTheme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let detail {
+                        Text(detail)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(HubTheme.profileText(color))
+                            // The words ("Every month · on the 24th") are information; at the large text
+                            // sizes they wrap to the lines they need instead of ending in "…".
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Spacer()
+                if isWorking {
+                    ProgressView()
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(isChecked ? HubTheme.tileQuiet : HubTheme.tile)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .contentShape(Rectangle())
+            .opacity(isWorking ? 0.6 : 1)
+            .onTapGesture {
+                guard !isWorking else { return }
                 guard !isUnavailable else { return }
                 Task {
                     isWorking = true
@@ -302,40 +337,10 @@ struct CheckItemView: View {
                         withAnimation { isHidden = true }
                     }
                 }
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
-                        .font(.title3)
-                        .foregroundStyle(isChecked ? HubTheme.accentText : HubTheme.muted)
-                        .opacity(isUnavailable ? 0.4 : 1)
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(label)
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(isChecked ? HubTheme.muted : .primary)
-                            .strikethrough(isChecked, color: HubTheme.muted)
-                            .fixedSize(horizontal: false, vertical: true)
-                        if let detail {
-                            Text(detail)
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(HubTheme.profileText(color))
-                                // The words ("Every month · on the 24th") are information; at the large text
-                                // sizes they wrap to the lines they need instead of ending in "…".
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                    Spacer()
-                    if isWorking {
-                        ProgressView()
-                    }
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .background(isChecked ? HubTheme.tileQuiet : HubTheme.tile)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
-            .buttonStyle(.plain)
-            .disabled(isWorking)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { Task { guard !isWorking, !isUnavailable else { return }; isWorking = true; await onToggle(); isChecked.toggle(); isWorking = false } }
             .accessibilityValue(isChecked ? "Done" : "Not done")
             .accessibilityAddTraits(.isToggle)
             .accessibilityHint(isUnavailable ? "Not due until its day" : "")

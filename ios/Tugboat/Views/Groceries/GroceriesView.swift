@@ -234,54 +234,51 @@ private struct GroceryItemRow: View {
 
     @State private var isWorking = false
 
+    private func toggle() {
+        Task {
+            guard !isWorking else { return }
+            isWorking = true
+            await onToggle()
+            isWorking = false
+        }
+    }
+
     var body: some View {
-        Button {
-            Task {
-                guard !isWorking else { return }
-                isWorking = true
-                await onToggle()
-                isWorking = false
-            }
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: item.checked ? "checkmark.circle.fill" : "circle")
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(item.checked ? HubTheme.accentText : HubTheme.muted)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(item.title)
-                        .font((compact ? Font.subheadline : Font.body).weight(.semibold))
-                        .foregroundStyle(item.checked ? HubTheme.muted : .primary)
-                        .strikethrough(item.checked, color: HubTheme.muted)
-                        .lineLimit(2)
-                    // No second line when there is nothing to say: an empty one still takes its height and
-                    // left the title sitting above the circle's center.
-                    let detail = (item.quantity ?? item.category).trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !detail.isEmpty {
-                        Text(detail)
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(HubTheme.muted)
-                            .lineLimit(1)
-                    }
+        // Not a Button: a Button counts a swipe that ends inside it as a tap, which checked the item off as it was
+        // swiped. The tap goes to the swipe modifier, which drops it once the finger has moved.
+        HStack(spacing: 10) {
+            Image(systemName: item.checked ? "checkmark.circle.fill" : "circle")
+                .font(.title3.weight(.bold))
+                .foregroundStyle(item.checked ? HubTheme.accentText : HubTheme.muted)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title)
+                    .font((compact ? Font.subheadline : Font.body).weight(.semibold))
+                    .foregroundStyle(item.checked ? HubTheme.muted : .primary)
+                    .strikethrough(item.checked, color: HubTheme.muted)
+                    .lineLimit(2)
+                // No second line when there is nothing to say: an empty one still takes its height and
+                // left the title sitting above the circle's center.
+                let detail = (item.quantity ?? item.category).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !detail.isEmpty {
+                    Text(detail)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(HubTheme.muted)
+                        .lineLimit(1)
                 }
-                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, compact ? 9 : 12)
-            .background(item.checked ? HubTheme.tileQuiet : HubTheme.surfaceStrong)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            Spacer(minLength: 0)
         }
-        .buttonStyle(.plain)
-        .disabled(isWorking)
+        .padding(.horizontal, 12)
+        .padding(.vertical, compact ? 9 : 12)
+        .background(item.checked ? HubTheme.tileQuiet : HubTheme.surfaceStrong)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .opacity(isWorking ? 0.6 : 1)
+        .accessibilityElement(children: .combine)
         .accessibilityValue(item.checked ? "Checked off" : "Not checked off")
-        .accessibilityAddTraits(.isToggle)
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button(role: .destructive) {
-                Task { await onDelete() }
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        }
+        .accessibilityAddTraits([.isButton, .isToggle])
+        .accessibilityAction { toggle() }
+        .rowSwipe(trailing: [.delete { Task { await onDelete() } }], onTap: toggle, cornerRadius: 18)
         .contextMenu {
             Button(role: .destructive) {
                 Task { await onDelete() }

@@ -334,23 +334,14 @@ struct SnacksView: View {
         .accessibilityAction(named: "Move Down") {
             Task { await viewModel.shiftSnack(snack, by: 1) }
         }
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            if viewModel.canManage {
-                Button(role: .destructive) {
-                    Task { await viewModel.deleteSnack(snack) }
-                } label: {
-                    Label("Delete", systemImage: "trash")
-                }
-                .tint(.red)
-
-                Button {
-                    viewModel.beginEditing(snack)
-                } label: {
-                    Label("Edit", systemImage: "pencil")
-                }
-                .tint(.indigo)
-            }
-        }
+        .rowSwipe(
+            trailing: [
+                .edit { viewModel.beginEditing(snack) },
+                .delete { Task { await viewModel.deleteSnack(snack) } },
+            ],
+            isEnabled: viewModel.canManage,
+            cornerRadius: 12
+        )
     }
 }
 
