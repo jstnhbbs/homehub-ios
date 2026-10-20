@@ -10,7 +10,8 @@ import WidgetKit
 /// widget's next refresh, or the app) gets it through. A tap the server refuses is undone and the reason shown.
 /// The sign-in is the app's own session, read from the Keychain item the app and this extension share.
 enum WidgetWriter {
-    static func perform(action: String, itemId: String, userId: String, householdId: String, localDate: String) async throws {
+    static func perform(action: String, itemId: String, userId: String, householdId: String, localDate: String,
+                        holdSeconds: TimeInterval = 0) async throws {
         let store = WidgetStore()
         let tapped = Date()
         guard let saved = store.load(), saved.userId == userId, saved.householdId == householdId,
@@ -29,28 +30,23 @@ enum WidgetWriter {
         // fresh (the widget's timeline leaves it alone for a few seconds), and an extension is not guaranteed to
         // keep running once its action has returned.
         let send = Task.detached { await WidgetSync.flush() }
-        // The widget is only redrawn when this returns, not while it runs (a redraw asked for above waits for
-        // it), so return soon: the redraw then shows the ticked row as a filled check, and the timeline's
-        // next entry lets it go. Waiting here for the send, up to a second, keeps the extension working while
-        // it goes out; a slower send carries on behind the return.
+        // Up to a second for the send, so the extension is working while it goes out; a slower send carries on
+        // behind the return. A check-off then holds a little longer: its toggle already shows checked, and the row
+        // is taken off the list by the redraw that follows this returning.
         await withTaskGroup(of: Void.self) { group in
             group.addTask { await send.value }
             group.addTask { try? await Task.sleep(nanoseconds: 1_000_000_000) }
             await group.next()
             group.cancelAll()
         }
+        let hold = holdSeconds - Date().timeIntervalSince(tapped)
+        if hold > 0 { try? await Task.sleep(nanoseconds: UInt64(hold * 1_000_000_000)) }
         // Keep the extension alive to finish the send after this returns.
         ProcessInfo.processInfo.performExpiringActivity(withReason: "Tugboat widget action") { expired in
             guard !expired else { return }   // still on the waiting list; the next send gets it
             let finished = DispatchSemaphore(value: 0)
             Task.detached {
                 await send.value
-                // A ticked row is let go by a redraw asked for once its moment is over (the timeline's own next
-                // entry is not drawn on time); the provider no longer waits on the send, so this one is prompt.
-                if action == "step" || action == "chore" {
-                    let hold = WidgetRecentTaps.lingerSeconds + 0.1 - Date().timeIntervalSince(tapped)
-                    if hold > 0 { try? await Task.sleep(nanoseconds: UInt64(hold * 1_000_000_000)) }
-                }
                 // The tap that is waiting redraws as "Waiting to sync"; one that went through needs nothing.
                 for kind in WidgetActionPolicy.affectedKinds(action: action) { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
                 finished.signal()

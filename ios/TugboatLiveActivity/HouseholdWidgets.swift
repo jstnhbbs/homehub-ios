@@ -17,8 +17,6 @@ struct HouseholdWidgetEntry: TimelineEntry {
     /// been unsent for `inFlightSeconds`, which a quick send never reaches.
     static let inFlightSeconds: TimeInterval = 8
     var pendingCount: Int { pendingTapTimes.filter { date.timeIntervalSince($0) >= Self.inFlightSeconds }.count }
-    /// Rows ticked a moment ago that still show as a filled check before they drop off the list.
-    var lingering: Set<String> = []
 }
 
 enum HouseholdWidgetTimeline {
@@ -57,8 +55,7 @@ enum HouseholdWidgetTimeline {
         }
         let pending = snapshot.map { snap in queue.load().filter { $0.userId == snap.userId && !$0.isExpired(at: date) }.map(\.tappedAt) } ?? []
         return HouseholdWidgetEntry(date: date, snapshot: snapshot, personId: personId, noteId: noteId, dinnerImage: image,
-                                    accent: accent, trueBlack: trueBlack, pendingTapTimes: pending,
-                                    lingering: Set(WidgetRecentTaps.load(at: date).keys))
+                                    accent: accent, trueBlack: trueBlack, pendingTapTimes: pending)
     }
 
     static func timeline(_ entry: HouseholdWidgetEntry) -> Timeline<HouseholdWidgetEntry> {
@@ -78,16 +75,12 @@ enum HouseholdWidgetTimeline {
             }
             dates += snapshot.events.flatMap { [$0.start, $0.end] }.filter { $0 > entry.date && $0 < entry.date.addingTimeInterval(3600) }
         }
-        // A row just ticked stays as a filled check for a moment, then a second entry lets it go.
-        let taps = WidgetRecentTaps.load(at: entry.date)
-        if let last = taps.values.max() { dates.append(last.addingTimeInterval(WidgetRecentTaps.lingerSeconds)) }
         // A tap still unsent after the in-flight time becomes "Waiting to sync".
         dates += entry.pendingTapTimes.map { $0.addingTimeInterval(HouseholdWidgetEntry.inFlightSeconds) }.filter { $0 > entry.date }
         let entries = Set(dates).sorted().map { date in
             HouseholdWidgetEntry(date: date, snapshot: entry.snapshot, personId: entry.personId, noteId: entry.noteId,
                                  dinnerImage: entry.dinnerImage, accent: entry.accent, trueBlack: entry.trueBlack,
-                                 pendingTapTimes: entry.pendingTapTimes,
-                                 lingering: Set(taps.filter { date.timeIntervalSince($0.value) < WidgetRecentTaps.lingerSeconds }.keys))
+                                 pendingTapTimes: entry.pendingTapTimes)
         }
         return Timeline(entries: entries, policy: .after(entry.date.addingTimeInterval(900)))
     }
@@ -314,8 +307,8 @@ private struct HouseholdWidgetView: View {
                     Text("\(done) of \(steps.count) done").font(.caption2).foregroundStyle(.secondary)
                 }
             }
-            ForEach(Array(steps.filter { !$0.completed || entry.lingering.contains($0.id) }.prefix(large ? 5 : 1))) { step in
-                checkoff(step.label, detail: small ? nil : snapshot.personName(step.personId), action: "step", id: step.id, done: step.completed, snapshot: snapshot)
+            ForEach(Array(steps.filter { !$0.completed }.prefix(large ? 5 : 1))) { step in
+                checkoff(step.label, detail: small ? nil : snapshot.personName(step.personId), action: "step", id: step.id, snapshot: snapshot)
             }
             if done == steps.count { Text("All set").font(.subheadline).foregroundStyle(.secondary) }
         }
@@ -323,28 +316,22 @@ private struct HouseholdWidgetView: View {
 
     @ViewBuilder private func chores(_ snapshot: WidgetSnapshot) -> some View {
         let remaining = snapshot.chores.filter { !$0.completed }
-        let shown = snapshot.chores.filter { !$0.completed || entry.lingering.contains($0.id) }
         if small || large { headline("\(remaining.count) left") }
-        if remaining.isEmpty && shown.isEmpty { empty("All set for today.") }
-        ForEach(Array(shown.prefix(rowLimit))) { chore in
-            checkoff(chore.title, detail: small ? nil : snapshot.personName(chore.personId), action: "chore", id: chore.id, done: chore.completed, snapshot: snapshot)
+        if remaining.isEmpty { empty("All set for today.") }
+        ForEach(Array(remaining.prefix(rowLimit))) { chore in
+            checkoff(chore.title, detail: small ? nil : snapshot.personName(chore.personId), action: "chore", id: chore.id, snapshot: snapshot)
         }
     }
 
-    private func checkoff(_ title: String, detail: String?, action: String, id: String, done: Bool, snapshot: WidgetSnapshot) -> some View {
-        HStack(spacing: 8) {
-            Button(intent: HouseholdWidgetActionIntent(action: action, itemId: id, snapshot: snapshot)) {
-                Image(systemName: done ? "checkmark.circle.fill" : "circle").font(.title3)
-                    .foregroundStyle(done ? accent : Color.primary)
-                    .contentTransition(.symbolEffect(.replace))
-                    .frame(width: small ? 26 : 30, height: small ? 28 : 32)
-            }.buttonStyle(.plain).disabled(done).accessibilityLabel(done ? "\(title) done" : "Mark \(title) done")
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(small ? .caption.weight(.semibold) : .subheadline.weight(.semibold)).lineLimit(large ? 2 : 1)
-                    .strikethrough(done).foregroundStyle(done ? Color.secondary : Color.primary)
-                if let detail { Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
-            }
+    /// A toggle rather than a plain button: the system flips it to its checked look the instant it is tapped,
+    /// without waiting for a redraw, so the tap is seen while the action holds the row on screen. The row is
+    /// removed by the redraw that follows the action.
+    private func checkoff(_ title: String, detail: String?, action: String, id: String, snapshot: WidgetSnapshot) -> some View {
+        Toggle(isOn: false, intent: HouseholdWidgetCheckIntent(action: action, itemId: id, snapshot: snapshot)) {
+            Text(title)
         }
+        .toggleStyle(WidgetCheckoffToggleStyle(title: title, detail: detail, small: small, large: large, accent: accent))
+        .accessibilityLabel("Mark \(title) done")
     }
 
     @ViewBuilder private func dinner(_ snapshot: WidgetSnapshot) -> some View {
@@ -533,4 +520,30 @@ private extension WidgetSnapshot {
     HouseholdRoutineWidget()
 } timeline: {
     HouseholdWidgetEntry(date: .now, snapshot: .preview)
+}
+
+
+/// The look of a check-off row: an empty circle and the words, which turn into a filled check and struck-through
+/// words when the system flips the toggle.
+struct WidgetCheckoffToggleStyle: ToggleStyle {
+    let title: String
+    let detail: String?
+    let small: Bool
+    let large: Bool
+    let accent: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: configuration.isOn ? "checkmark.circle.fill" : "circle").font(.title3)
+                .foregroundStyle(configuration.isOn ? accent : Color.primary)
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: small ? 26 : 30, height: small ? 28 : 32)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(small ? .caption.weight(.semibold) : .subheadline.weight(.semibold)).lineLimit(large ? 2 : 1)
+                    .strikethrough(configuration.isOn)
+                    .foregroundStyle(configuration.isOn ? Color.secondary : Color.primary)
+                if let detail { Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+            }
+        }
+    }
 }

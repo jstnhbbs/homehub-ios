@@ -109,9 +109,42 @@ struct HouseholdWidgetActionIntent: AppIntent {
     }
     func perform() async throws -> some IntentResult {
         #if TUGBOAT_WIDGET_EXTENSION
-        if action == "step" || action == "chore" { WidgetRecentTaps.record(itemId) }
         try await WidgetWriter.perform(action: action, itemId: itemId, userId: userId,
                                        householdId: householdId, localDate: localDate)
+        #else
+        try WidgetActionFailure.refuse()
+        #endif
+        return .result()
+    }
+}
+
+/// The check circle of a chore or routine step. A `SetValueIntent` so the widget's toggle shows its checked look
+/// the moment it is tapped; the action then holds for a moment (the row stays, checked) before it returns and
+/// the redraw takes the row off the list.
+struct HouseholdWidgetCheckIntent: SetValueIntent {
+    static let title: LocalizedStringResource = "Check Off"
+    static let openAppWhenRun = false
+    static let isDiscoverable = false
+    @Parameter(title: "Done") var value: Bool
+    @Parameter(title: "Action") var action: String
+    @Parameter(title: "Item") var itemId: String
+    @Parameter(title: "User") var userId: String
+    @Parameter(title: "Household") var householdId: String
+    @Parameter(title: "Day") var localDate: String
+
+    init() {}
+    init(action: String, itemId: String, snapshot: WidgetSnapshot) {
+        self.value = true
+        self.action = action
+        self.itemId = itemId
+        self.userId = snapshot.userId
+        self.householdId = snapshot.householdId
+        self.localDate = snapshot.localDate
+    }
+    func perform() async throws -> some IntentResult {
+        #if TUGBOAT_WIDGET_EXTENSION
+        try await WidgetWriter.perform(action: action, itemId: itemId, userId: userId,
+                                       householdId: householdId, localDate: localDate, holdSeconds: 1.6)
         #else
         try WidgetActionFailure.refuse()
         #endif
