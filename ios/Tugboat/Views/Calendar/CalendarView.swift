@@ -58,6 +58,8 @@ struct CalendarView: View {
                 CalendarSettingsView()
                     .environmentObject(appState)
                     .navigationTitle("Calendar & Reminders")
+                    // A large title is cut off ("Calendar & Reminde…") on a narrow phone; the inline one fits.
+                    .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
                             Button("Done") { showCalendarSettings = false }
