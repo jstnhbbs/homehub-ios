@@ -236,15 +236,22 @@ struct BirthdaysView: View {
 
     private var ringCard: some View {
         HubCard {
-            BirthdayYearRing(
-                items: viewModel.items,
-                today: viewModel.today,
-                timezone: viewModel.timezone,
-                next: viewModel.nextBirthday,
-                size: horizontalSizeClass == .compact ? 320 : 380,
-                selectedId: selectedId,
-                onSelect: { selectedId = $0 }
-            )
+            // As big as the card allows, up to the usual size: a fixed 320 pt ring plus the card's padding is wider
+            // than a 375 pt phone's page, which pushed the whole page wider than the screen and cut off its right side.
+            GeometryReader { proxy in
+                BirthdayYearRing(
+                    items: viewModel.items,
+                    today: viewModel.today,
+                    timezone: viewModel.timezone,
+                    next: viewModel.nextBirthday,
+                    size: proxy.size.width,
+                    selectedId: selectedId,
+                    onSelect: { selectedId = $0 }
+                )
+            }
+            .aspectRatio(1, contentMode: .fit)
+            .frame(maxWidth: horizontalSizeClass == .compact ? 320 : 380)
+            .frame(maxWidth: .infinity)
         }
     }
 
@@ -305,7 +312,7 @@ struct BirthdaysView: View {
 
     /// One column where the list is narrow (and on a phone), two where there is room.
     private func rowGrid<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: 10, alignment: .top)], spacing: 10) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: horizontalSizeClass == .compact ? 280 : 340), spacing: 10, alignment: .top)], spacing: 10) {
             content()
         }
     }
