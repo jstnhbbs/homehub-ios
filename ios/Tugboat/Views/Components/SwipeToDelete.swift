@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Swipe a row left to reveal a red Delete button, for rows that sit in a card rather than in a `List` (a
+/// Swipe a row left to reveal a red Delete button (and an Edit button beside it when `onEdit` is given), for rows that sit in a card rather than in a `List` (a
 /// `List` gets `.swipeActions` for free; a row in a `VStack` does not).
 ///
 /// Deleting asks first, like the delete button in the editors does: tapping Delete, or swiping most of the way
@@ -10,29 +10,56 @@ private struct SwipeToDelete: ViewModifier {
     let title: String
     let message: String
     let onTap: (() -> Void)?
+    let onEdit: (() -> Void)?
+    let isEnabled: Bool
     let onDelete: () -> Void
 
-    private let revealWidth: CGFloat = 92
+    /// One button's width; with an Edit button beside Delete the row opens twice as far.
+    private var revealWidth: CGFloat { onEdit == nil ? 92 : 168 }
     @State private var offset: CGFloat = 0
     @State private var isDragging = false
     @State private var confirming = false
 
-    func body(content: Content) -> some View {
+    @ViewBuilder func body(content: Content) -> some View {
+        if !isEnabled {
+            content
+        } else {
+            swipeable(content)
+        }
+    }
+
+    private func swipeable(_ content: Content) -> some View {
         ZStack(alignment: .trailing) {
             if offset < 0 {
-                Button { confirming = true } label: {
-                    VStack(spacing: 2) {
-                        Image(systemName: "trash.fill")
-                        Text("Delete").font(.caption2.weight(.bold))
+                HStack(spacing: 0) {
+                    if let onEdit {
+                        Button { close(); onEdit() } label: {
+                            VStack(spacing: 2) {
+                                Image(systemName: "pencil")
+                                Text("Edit").font(.caption2.weight(.bold))
+                            }
+                            .foregroundStyle(HubTheme.onAccent)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(HubTheme.accent)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHidden(true)
                     }
-                    .foregroundStyle(HubTheme.onFill)
-                    .frame(width: -offset)
-                    .frame(maxHeight: .infinity)
-                    .background(Color.red)
-                    .clipped()
+                    Button { confirming = true } label: {
+                        VStack(spacing: 2) {
+                            Image(systemName: "trash.fill")
+                            Text("Delete").font(.caption2.weight(.bold))
+                        }
+                        .foregroundStyle(HubTheme.onFill)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.red)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHidden(true)
                 }
-                .buttonStyle(.plain)
-                .accessibilityHidden(true)
+                .frame(width: -offset)
+                .frame(maxHeight: .infinity)
+                .clipped()
             }
             content
                 .contentShape(Rectangle())
@@ -47,6 +74,7 @@ private struct SwipeToDelete: ViewModifier {
         .clipped()
         .simultaneousGesture(drag)
         .accessibilityAction(named: "Delete") { confirming = true }
+        .accessibilityAction(named: "Edit") { onEdit?() }
         .confirmationDialog(title, isPresented: $confirming, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
                 close()
@@ -102,8 +130,10 @@ extension View {
         title: String,
         message: String = "This can't be undone.",
         onTap: (() -> Void)? = nil,
+        onEdit: (() -> Void)? = nil,
+        isEnabled: Bool = true,
         onDelete: @escaping () -> Void
     ) -> some View {
-        modifier(SwipeToDelete(title: title, message: message, onTap: onTap, onDelete: onDelete))
+        modifier(SwipeToDelete(title: title, message: message, onTap: onTap, onEdit: onEdit, isEnabled: isEnabled, onDelete: onDelete))
     }
 }

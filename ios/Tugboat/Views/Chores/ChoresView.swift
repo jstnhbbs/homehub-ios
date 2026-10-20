@@ -178,8 +178,6 @@ private struct ChoreItemRow: View {
                 let actual = viewModel.chores.first { $0.id == chore.id && $0.periodKey == chore.periodKey }?.completed ?? wanted
                 isChecked = !actual
             }
-            // Something outside this row (a widget, the Today card, another device) can change it; follow the data.
-            .onChange(of: chore.completed) { _, completed in isChecked = completed }
 
             if isWaitingForItsDay {
                 Text(nextLine)
@@ -204,17 +202,17 @@ private struct ChoreItemRow: View {
                     .foregroundStyle(HubTheme.muted)
                     .padding(.leading, 8)
             }
-
-            if viewModel.canManage {
-                Button(action: onEdit) {
-                    Label("Edit Chore", systemImage: "pencil")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
-            }
         }
         // Something outside this row (a widget, another device) can change it; follow the data.
         .onChange(of: chore.completed) { _, completed in isChecked = completed }
+        .swipeToDelete(
+            title: "Delete \"\(chore.title)\"?",
+            message: "This removes the chore for everyone.",
+            onEdit: onEdit,
+            isEnabled: viewModel.canManage
+        ) {
+            Task { _ = await viewModel.deleteChore(id: chore.id) }
+        }
         .contextMenu {
             if viewModel.canManage {
                 Button(action: onEdit) {
