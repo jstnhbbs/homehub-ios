@@ -24,12 +24,21 @@ enum WidgetWriter {
         // Other widgets that show the same item. The one that was tapped redraws when this returns.
         for kind in WidgetActionPolicy.affectedKinds(action: action) { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
 
-        // Keep the extension alive for the send after this returns.
+        // The send starts now, in this extension, rather than after it returns: nothing else will send a tap this
+        // fresh (the widget's timeline leaves it alone for a few seconds), and an extension is not guaranteed to
+        // keep running once its action has returned.
+        let send = Task.detached { await WidgetSync.flush() }
+        // A ticked row shows as a filled check for a moment (the redraw asked for above), then lets go on the
+        // prompt redraw that follows this returning.
+        if action == "step" || action == "chore" {
+            try? await Task.sleep(nanoseconds: UInt64(WidgetRecentTaps.lingerSeconds * 1_000_000_000))
+        }
+        // Keep the extension alive to finish the send after this returns.
         ProcessInfo.processInfo.performExpiringActivity(withReason: "Tugboat widget action") { expired in
             guard !expired else { return }   // still on the waiting list; the next send gets it
             let finished = DispatchSemaphore(value: 0)
             Task.detached {
-                await WidgetSync.flush()
+                await send.value
                 // The tap that is waiting redraws as "Waiting to sync"; one that went through needs nothing.
                 for kind in WidgetActionPolicy.affectedKinds(action: action) { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
                 finished.signal()
