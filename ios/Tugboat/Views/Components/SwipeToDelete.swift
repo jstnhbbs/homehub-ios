@@ -60,7 +60,10 @@ private struct SwipeToDelete: ViewModifier {
                     .accessibilityHidden(true)
                 }
                 .padding(.leading, 8)
-                .frame(width: -offset)
+                // The buttons keep their full size and are uncovered as the row slides, instead of being squeezed
+                // narrower while it moves.
+                .frame(width: revealWidth)
+                .frame(width: -offset, alignment: .trailing)
                 .frame(maxHeight: .infinity)
                 .clipped()
             }
