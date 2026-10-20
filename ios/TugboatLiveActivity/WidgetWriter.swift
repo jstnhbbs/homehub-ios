@@ -28,10 +28,15 @@ enum WidgetWriter {
         // fresh (the widget's timeline leaves it alone for a few seconds), and an extension is not guaranteed to
         // keep running once its action has returned.
         let send = Task.detached { await WidgetSync.flush() }
-        // A ticked row shows as a filled check for a moment (the redraw asked for above), then lets go on the
-        // prompt redraw that follows this returning.
-        if action == "step" || action == "chore" {
-            try? await Task.sleep(nanoseconds: UInt64(WidgetRecentTaps.lingerSeconds * 1_000_000_000))
+        // The widget is only redrawn when this returns, not while it runs (a redraw asked for above waits for
+        // it), so return soon: the redraw then shows the ticked row as a filled check, and the timeline's
+        // next entry lets it go. Waiting here for the send, up to a second, keeps the extension working while
+        // it goes out; a slower send carries on behind the return.
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await send.value }
+            group.addTask { try? await Task.sleep(nanoseconds: 1_000_000_000) }
+            await group.next()
+            group.cancelAll()
         }
         // Keep the extension alive to finish the send after this returns.
         ProcessInfo.processInfo.performExpiringActivity(withReason: "Tugboat widget action") { expired in
