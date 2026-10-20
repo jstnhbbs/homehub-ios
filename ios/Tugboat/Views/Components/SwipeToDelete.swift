@@ -63,6 +63,9 @@ private struct SwipeToDelete: ViewModifier {
                 // The buttons keep their full size and are uncovered as the row slides, instead of being squeezed
                 // narrower while it moves.
                 .frame(width: revealWidth)
+                // Fade in and grow a little as the row slides open, rather than just appearing.
+                .opacity(min(1, Double(-offset / (revealWidth * 0.6))))
+                .scaleEffect(0.9 + 0.1 * min(1, -offset / revealWidth), anchor: .trailing)
                 .frame(width: -offset, alignment: .trailing)
                 .frame(maxHeight: .infinity)
                 .clipped()
