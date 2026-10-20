@@ -12,6 +12,7 @@ import WidgetKit
 enum WidgetWriter {
     static func perform(action: String, itemId: String, userId: String, householdId: String, localDate: String) async throws {
         let store = WidgetStore()
+        let tapped = Date()
         guard let saved = store.load(), saved.userId == userId, saved.householdId == householdId,
               saved.serverURL != nil else { throw WidgetActionFailure.openApp }
         guard let early = WidgetActionPolicy.appliedEarly(action: action, itemId: itemId, userId: userId,
@@ -44,6 +45,12 @@ enum WidgetWriter {
             let finished = DispatchSemaphore(value: 0)
             Task.detached {
                 await send.value
+                // A ticked row is let go by a redraw asked for once its moment is over (the timeline's own next
+                // entry is not drawn on time); the provider no longer waits on the send, so this one is prompt.
+                if action == "step" || action == "chore" {
+                    let hold = WidgetRecentTaps.lingerSeconds + 0.1 - Date().timeIntervalSince(tapped)
+                    if hold > 0 { try? await Task.sleep(nanoseconds: UInt64(hold * 1_000_000_000)) }
+                }
                 // The tap that is waiting redraws as "Waiting to sync"; one that went through needs nothing.
                 for kind in WidgetActionPolicy.affectedKinds(action: action) { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
                 finished.signal()
