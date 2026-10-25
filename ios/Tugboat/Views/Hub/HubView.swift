@@ -19,7 +19,7 @@ struct HubView: View {
                         compactTab(for: destination)
                             // The tab container paints the system background, which is true black
                             // in dark mode; every page paints the app's own page color over it.
-                            .background(HubTheme.canvas.ignoresSafeArea())
+                            .hubPageBackground()
                             .id("tab-\(compactTabLayoutID)-\(destination.rawValue)")
                             .tabItem {
                                 Label(destination.label, systemImage: destination.systemImage)
@@ -29,7 +29,7 @@ struct HubView: View {
                     }
                     if !compactOverflowDestinations.isEmpty {
                         compactMoreTab
-                            .background(HubTheme.canvas.ignoresSafeArea())
+                            .hubPageBackground()
                             .id("tab-\(compactTabLayoutID)-\(HubDestination.more.rawValue)")
                             .tabItem {
                                 Label(HubDestination.more.label, systemImage: HubDestination.more.systemImage)
@@ -40,7 +40,7 @@ struct HubView: View {
                 }
                 .id(compactTabLayoutID)
                 .tint(HubTheme.accentText)
-                .background(HubTheme.surface)
+                .hubSurfaceBackground()
                 .accessibilityHidden(showMoreMenu)
                 .overlay {
                     if showMoreMenu {
@@ -109,7 +109,7 @@ struct HubView: View {
                             }
                     }
                 }
-                .background(HubTheme.surface)
+                .hubSurfaceBackground()
             }
         }
         .environment(\.openHubDestination) { destination in
@@ -257,7 +257,7 @@ struct HubView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(HubTheme.surface)
+        .hubSurfaceBackground()
     }
 
     @ViewBuilder
@@ -443,7 +443,7 @@ struct HubHeaderView: View {
         .padding(.horizontal, 28)
         .padding(.vertical, 12)
         .frame(minHeight: 78)
-        .background(HubTheme.surface)
+        .hubSurfaceBackground()
         .overlay(alignment: .bottom) {
             Rectangle().fill(HubTheme.line).frame(height: 1)
         }

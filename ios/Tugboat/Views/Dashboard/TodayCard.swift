@@ -44,12 +44,7 @@ struct TodayCardFrame<Content: View>: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .frame(height: fixedHeight)
         .frame(maxHeight: fixedHeight == nil ? .infinity : nil, alignment: .topLeading)
-        .background(HubTheme.tile)
-        .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
-                .stroke(HubTheme.line, lineWidth: 1)
-        )
+        .hubGlass(cornerRadius: Self.cornerRadius)
     }
 
     @ViewBuilder

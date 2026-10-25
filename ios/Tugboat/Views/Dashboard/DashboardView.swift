@@ -291,7 +291,7 @@ struct DashboardView: View {
         .padding(.horizontal, destination == .settings ? 0 : 16)
         .padding(.vertical, destination == .settings ? 0 : 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(HubTheme.surface)
+        .hubSurfaceBackground()
         .navigationTitle(destination.label)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)

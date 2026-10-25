@@ -358,8 +358,7 @@ struct BirthdaysView: View {
                 }
             }
             .padding(12)
-            .background(HubTheme.tile)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .hubGlass(cornerRadius: 18)
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .stroke(HubTheme.sage, lineWidth: isSelected ? 2 : 0)

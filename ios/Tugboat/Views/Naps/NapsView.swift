@@ -77,7 +77,7 @@ struct NapsView: View {
                 .padding(embeddedInHub ? 0 : 24)
             }
         }
-        .background(HubTheme.surface)
+        .hubSurfaceBackground()
         .refreshable { await load() }
         .task { await load() }
         // A widget ended a sleep while this page was open (or the app was in the background).

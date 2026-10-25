@@ -270,20 +270,23 @@ struct SettingsView: View {
         }
     }
 
+    /// The page and the members list load separately and both fail the same way when the phone is offline, so the
+    /// same sentence is shown once, not once for each.
     @ViewBuilder
     private var statusMessages: some View {
-        if let error = viewModel.errorMessage {
+        let errors = Self.unique([viewModel.errorMessage, membersViewModel.errorMessage])
+        let successes = Self.unique([viewModel.successMessage, membersViewModel.successMessage])
+        ForEach(errors, id: \.self) { error in
             Text(error).font(.footnote).foregroundStyle(.red)
         }
-        if let success = viewModel.successMessage {
+        ForEach(successes, id: \.self) { success in
             Text(success).font(.footnote).foregroundStyle(HubTheme.accentText)
         }
-        if let membersError = membersViewModel.errorMessage {
-            Text(membersError).font(.footnote).foregroundStyle(.red)
-        }
-        if let membersSuccess = membersViewModel.successMessage {
-            Text(membersSuccess).font(.footnote).foregroundStyle(HubTheme.accentText)
-        }
+    }
+
+    private static func unique(_ messages: [String?]) -> [String] {
+        var seen = Set<String>()
+        return messages.compactMap { $0 }.filter { seen.insert($0).inserted }
     }
 
     @ViewBuilder

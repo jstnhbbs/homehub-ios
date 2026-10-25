@@ -39,7 +39,7 @@ struct SnacksView: View {
                 .scrollContentBackground(.hidden)
             }
         }
-        .hubPageBackground()
+        .hubSurfaceBackground()
         .onAppear { viewModel.bind(to: appState) }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
@@ -159,7 +159,7 @@ struct SnacksView: View {
             } header: {
                 Label("Progress", systemImage: "chart.bar.fill")
             }
-            .listRowBackground(HubTheme.tile)
+            .listRowBackground(HubGlassRow())
         }
     }
 
@@ -171,14 +171,14 @@ struct SnacksView: View {
                     .font(.footnote)
                     .foregroundStyle(.red)
             }
-            .listRowBackground(HubTheme.tile)
+            .listRowBackground(HubGlassRow())
         } else if let success = viewModel.successMessage {
             Section {
                 Text(success)
                     .font(.footnote)
                     .foregroundStyle(HubTheme.accentText)
             }
-            .listRowBackground(HubTheme.tile)
+            .listRowBackground(HubGlassRow())
         }
     }
 
@@ -198,7 +198,7 @@ struct SnacksView: View {
             } footer: {
                 Text("Off, one tap marks a snack eaten for everyone. On, each child has their own circle, which suits kids who eat different things.")
             }
-            .listRowBackground(HubTheme.tile)
+            .listRowBackground(HubGlassRow())
         }
     }
 
@@ -252,7 +252,7 @@ struct SnacksView: View {
                 Text("Add a snack below to start today's checklist.")
             }
         }
-        .listRowBackground(HubTheme.tile)
+        .listRowBackground(HubGlassRow())
     }
 
     /// The snack's name with a circle for each child to tick off once they have had it.
@@ -324,7 +324,7 @@ struct SnacksView: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(HubTheme.tile)
+        .background(.thinMaterial)
         .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
         .listRowBackground(Color.clear)
         .contentShape(.dragPreview, Rectangle())

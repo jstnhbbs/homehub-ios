@@ -194,7 +194,64 @@ extension View {
     /// themselves with the system background, which is true black in dark mode, so every screen
     /// that sits directly in one asks for the page color itself.
     func hubPageBackground() -> some View {
-        background(HubTheme.canvas.ignoresSafeArea())
+        background(HubBackdrop(base: HubTheme.canvas).ignoresSafeArea())
+    }
+
+    /// The page color for screens that sit on the app's white surface rather than the grouped canvas.
+    func hubSurfaceBackground() -> some View {
+        background(HubBackdrop(base: HubTheme.surface).ignoresSafeArea())
+    }
+
+    /// A card in glass: real Liquid Glass on iOS 26 and later, a frosted material with a bright rim before that.
+    func hubGlass(cornerRadius: CGFloat) -> some View {
+        modifier(HubGlassCard(cornerRadius: cornerRadius))
+    }
+}
+
+/// A frosted row background for grouped lists that sit on the page's own background.
+struct HubGlassRow: View {
+    var body: some View { Rectangle().fill(.thinMaterial) }
+}
+
+/// The page color with a soft wash of the theme color at the top, so glass cards have something to refract.
+struct HubBackdrop: View {
+    let base: Color
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        ZStack {
+            base
+            LinearGradient(
+                stops: [
+                    .init(color: HubTheme.accent.opacity(colorScheme == .dark ? 0.30 : 0.20), location: 0),
+                    .init(color: HubTheme.accent.opacity(colorScheme == .dark ? 0.12 : 0.07), location: 0.45),
+                    .init(color: .clear, location: 1),
+                ],
+                startPoint: .top, endPoint: .bottom
+            )
+        }
+    }
+}
+
+private struct HubGlassCard: ViewModifier {
+    let cornerRadius: CGFloat
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        if #available(iOS 26, *) {
+            content.glassEffect(.regular, in: shape)
+        } else {
+            content
+                .background(.ultraThinMaterial, in: shape)
+                .overlay(
+                    shape.strokeBorder(
+                        LinearGradient(
+                            colors: [.white.opacity(colorScheme == .dark ? 0.28 : 0.75), .white.opacity(0.05)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing),
+                        lineWidth: 1)
+                )
+        }
     }
 }
 
@@ -226,12 +283,7 @@ struct HubCard<Content: View>: View {
         content()
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(20)
-            .background(HubTheme.tile)
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(HubTheme.line, lineWidth: 1)
-            )
+            .hubGlass(cornerRadius: 24)
     }
 }
 
@@ -321,8 +373,8 @@ struct CheckItemView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
-            .background(isChecked ? HubTheme.tileQuiet : HubTheme.tile)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .hubGlass(cornerRadius: 18)
+            .opacity(isChecked ? 0.7 : 1)
             .contentShape(Rectangle())
             .opacity(isWorking ? 0.6 : 1)
             .onTapGesture {

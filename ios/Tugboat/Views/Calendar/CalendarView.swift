@@ -307,17 +307,7 @@ struct CalendarView: View {
         content()
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(horizontalSizeClass == .compact ? 12 : 20)
-            .background(HubTheme.tile)
-            .clipShape(
-                RoundedRectangle(
-                    cornerRadius: horizontalSizeClass == .compact ? 18 : 24, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(
-                    cornerRadius: horizontalSizeClass == .compact ? 18 : 24, style: .continuous
-                )
-                .stroke(HubTheme.line, lineWidth: 1)
-            )
+            .hubGlass(cornerRadius: horizontalSizeClass == .compact ? 18 : 24)
     }
 
 }
