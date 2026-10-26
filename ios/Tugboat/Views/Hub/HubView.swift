@@ -104,7 +104,13 @@ struct HubView: View {
                                 alignment: .topLeading
                             )
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                            .padding(24)
+                            // Scroll views run to the bottom and right edges of the screen (their content keeps the
+                            // 24 pt margin) instead of stopping 24 pt short and looking like a box inside the page.
+                            .contentMargins(.trailing, 24, for: .scrollContent)
+                            .contentMargins(.bottom, 24, for: .scrollContent)
+                            .padding(.top, 24)
+                            .padding(.leading, 24)
+                            .ignoresSafeArea(edges: [.bottom, .trailing])
                             // Settings is a grouped list, which sits on the grouped-list page color. Painted only
                             // behind the list it showed as a grey rectangle inset in the white page (with hard
                             // edges, and a 900 pt strip on a wide iPad), so the whole area takes the color.

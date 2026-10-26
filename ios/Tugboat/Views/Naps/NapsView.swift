@@ -41,7 +41,7 @@ struct NapsView: View {
     private static let sideBySideWidth: CGFloat = 820
     private static let weekPanelWidth: CGFloat = 360
     /// A status card needs about this much room before a second one fits beside it.
-    private static let statusCardMinWidth: CGFloat = 300
+    private static let statusCardMinWidth: CGFloat = 340
 
     private var sleepScrollContent: some View {
         GeometryReader { proxy in
