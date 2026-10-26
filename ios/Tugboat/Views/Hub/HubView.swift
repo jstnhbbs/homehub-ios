@@ -215,7 +215,22 @@ struct HubView: View {
     /// systems keep one bar with More as its last button.
     @ViewBuilder
     private var compactTabs: some View {
-        if #available(iOS 26, *) {
+        if #available(iOS 27, *) {
+            // iOS 27 no longer pulls a search-role tab out of the bar; the prominent role is the one that does.
+            TabView(selection: compactTabSelection) {
+                ForEach(compactPrimaryDestinations, id: \.rawValue) { destination in
+                    Tab(destination.label, systemImage: destination.systemImage, value: destination) {
+                        tabPage(destination)
+                    }
+                }
+                if !compactOverflowDestinations.isEmpty {
+                    Tab(HubDestination.more.label, systemImage: HubDestination.more.systemImage,
+                        value: HubDestination.more, role: .prominent) {
+                        moreTabPage
+                    }
+                }
+            }
+        } else if #available(iOS 26, *) {
             TabView(selection: compactTabSelection) {
                 ForEach(compactPrimaryDestinations, id: \.rawValue) { destination in
                     Tab(destination.label, systemImage: destination.systemImage, value: destination) {
