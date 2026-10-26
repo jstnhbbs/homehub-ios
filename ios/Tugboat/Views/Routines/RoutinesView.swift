@@ -456,6 +456,7 @@ private struct RoutineStepCheckRow: View {
                     }
                     .padding(14)
                     .frame(maxWidth: .infinity, minHeight: 116, alignment: .leading)
+                    .background(HubTheme.tile)
                     .background(tint.opacity(isCelebrating ? 0.22 : 0.10))
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                     .overlay(

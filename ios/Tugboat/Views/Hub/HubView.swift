@@ -20,6 +20,7 @@ struct HubView: View {
                 TabView(selection: compactTabSelection) {
                     ForEach(compactPrimaryDestinations, id: \.rawValue) { destination in
                         compactTab(for: destination)
+                            .environment(\.hubWash, wash(for: destination))
                             // The tab container paints the system background, which is true black
                             // in dark mode; every page paints the app's own page color over it.
                             .hubPageBackground()
@@ -32,6 +33,7 @@ struct HubView: View {
                     }
                     if !compactOverflowDestinations.isEmpty {
                         compactMoreTab
+                            .environment(\.hubWash, wash(for: moreTabDestination))
                             .hubPageBackground()
                             .id("tab-\(compactTabLayoutID)-\(HubDestination.more.rawValue)")
                             .tabItem {
@@ -187,6 +189,14 @@ struct HubView: View {
             }
         } else {
             compactPage(for: destination)
+        }
+    }
+
+    /// Pages made of people's colors get a neutral glow; the others get the theme's.
+    private func wash(for destination: HubDestination) -> HubWash {
+        switch destination {
+        case .routines, .chores, .sleep: .neutral
+        default: .theme
         }
     }
 

@@ -66,6 +66,7 @@ struct SleepStatusCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
+        .background(HubTheme.tile)
         .background(active == nil ? HubTheme.tile : tint.opacity(0.14))
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay(

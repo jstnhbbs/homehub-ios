@@ -11,6 +11,12 @@ struct ThemeSettingView: View {
             Toggle("True Black", isOn: $appState.usesTrueBlack)
                 .disabled(appState.appearanceMode == .light)
 
+            Picker("Background", selection: $appState.backgroundStyle) {
+                ForEach(HubBackgroundStyle.allCases) { style in
+                    Text(style.label).tag(style)
+                }
+            }
+
             ThemeColorGrid()
 
             AppIconPickerLink()

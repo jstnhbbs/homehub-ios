@@ -100,6 +100,7 @@ enum HubTheme {
     /// True Black), for OLED screens. Every surface moves down one step, so cards stay lighter than
     /// the page. Saved on the device by `AppState.usesTrueBlack`.
     static var usesTrueBlack = false
+    static var backgroundStyle: HubBackgroundStyle = .theme
 
     // Light mode keeps the system's colors. Dark mode is a soft charcoal rather than the system's
     // true black: the page is #1C1C1E, cards sit a step lighter at #2C2C2E and the things inside
@@ -247,22 +248,64 @@ struct HubGlassRow: View {
     var body: some View { Rectangle().fill(HubTheme.tile.opacity(0.62)).background(.ultraThinMaterial) }
 }
 
-/// The page color with a soft wash of the theme color at the top, so glass cards have something to refract.
+/// How the page background looks, chosen in Settings > Appearance and saved on this device.
+enum HubBackgroundStyle: String, CaseIterable, Identifiable {
+    /// A soft glow of the theme color behind the top of each page.
+    case theme
+    /// A faint grey glow, which never clashes with the colors people and routines are given.
+    case neutral
+    /// Just the page color.
+    case off
+
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .theme: "Theme Color"
+        case .neutral: "Neutral"
+        case .off: "Off"
+        }
+    }
+}
+
+/// Which glow a page asks for. Pages made of people's colors (routines, chores, snacks, sleep) ask for a neutral one,
+/// because a green wash behind rose and blue tiles turns them muddy.
+enum HubWash { case theme, neutral }
+
+private struct HubWashKey: EnvironmentKey { static let defaultValue: HubWash = .theme }
+extension EnvironmentValues {
+    var hubWash: HubWash {
+        get { self[HubWashKey.self] }
+        set { self[HubWashKey.self] = newValue }
+    }
+}
+
+/// The page color with a soft wash at the top, so glass cards have something to refract.
 struct HubBackdrop: View {
     let base: Color
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.hubWash) private var wash
+
+    private var washColor: Color {
+        switch (HubTheme.backgroundStyle, wash) {
+        case (.neutral, _), (.theme, .neutral): Color.gray
+        default: HubTheme.accent
+        }
+    }
 
     var body: some View {
+        let dark = colorScheme == .dark
         ZStack {
             base
-            LinearGradient(
-                stops: [
-                    .init(color: HubTheme.accent.opacity(colorScheme == .dark ? 0.30 : 0.20), location: 0),
-                    .init(color: HubTheme.accent.opacity(colorScheme == .dark ? 0.12 : 0.07), location: 0.45),
-                    .init(color: .clear, location: 1),
-                ],
-                startPoint: .top, endPoint: .bottom
-            )
+            if HubTheme.backgroundStyle != .off {
+                LinearGradient(
+                    stops: [
+                        .init(color: washColor.opacity(dark ? 0.17 : 0.20), location: 0),
+                        .init(color: washColor.opacity(dark ? 0.06 : 0.07), location: 0.32),
+                        .init(color: .clear, location: 0.7),
+                    ],
+                    startPoint: .top, endPoint: .bottom
+                )
+            }
         }
     }
 }
@@ -274,7 +317,11 @@ private struct HubGlassCard: ViewModifier {
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         if #available(iOS 26, *) {
-            content.glassEffect(.regular, in: shape)
+            // In dark mode a solid base sits under the glass, so what is behind a card (the page's wash, a person's
+            // color) cannot shift the card's own colors.
+            content
+                .background(colorScheme == .dark ? HubTheme.tile.opacity(0.7) : Color.clear, in: shape)
+                .glassEffect(.regular, in: shape)
         } else {
             content
                 .background(.ultraThinMaterial, in: shape)

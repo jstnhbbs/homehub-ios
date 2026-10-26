@@ -23,7 +23,7 @@ struct RootView: View {
                 OnboardingView()
             } else {
                 HubView()
-                    .id(appState.accentPalette)
+                    .id("\(appState.accentPalette.rawValue)-\(appState.backgroundStyle.rawValue)")
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -69,6 +69,14 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// The glow behind pages, saved on this device.
+    @Published var backgroundStyle: HubBackgroundStyle {
+        didSet {
+            HubTheme.backgroundStyle = backgroundStyle
+            UserDefaults.standard.set(backgroundStyle.rawValue, forKey: Self.backgroundStyleKey)
+        }
+    }
+
     /// Shows the failure as a banner for a few seconds. A cancelled request says nothing.
     func report(_ error: Error) {
         guard let message = error.userFacingMessage else { return }
@@ -96,6 +104,7 @@ final class AppState: ObservableObject {
     private static let accentStorageKey = "tugboat.accentPalette"
     private static let appearanceModeKey = "tugboat.appearanceMode"
     private static let trueBlackKey = "tugboat.trueBlack"
+    private static let backgroundStyleKey = "tugboat.backgroundStyle"
 
     private var eventKitObserver: NSObjectProtocol?
     private var dataChangedObserver: NSObjectProtocol?
@@ -143,6 +152,9 @@ final class AppState: ObservableObject {
         let trueBlack = defaults.bool(forKey: Self.trueBlackKey)
         self.usesTrueBlack = trueBlack
         HubTheme.usesTrueBlack = trueBlack
+        let style = HubBackgroundStyle(rawValue: defaults.string(forKey: Self.backgroundStyleKey) ?? "") ?? .theme
+        self.backgroundStyle = style
+        HubTheme.backgroundStyle = style
         observeEventKitChanges()
         // A button on a notification (Done on a chore, End Nap) changed something: show it.
         dataChangedObserver = NotificationCenter.default.addObserver(
