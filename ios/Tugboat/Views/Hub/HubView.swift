@@ -54,7 +54,8 @@ struct HubView: View {
                                 Button {
                                     showMoreMenu = false
                                 } label: {
-                                    Color.black.opacity(0.08)
+                                    // No dimming: the menu is a small glass card over a page that stays as it is.
+                                    Color.clear
                                         .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
@@ -143,7 +144,9 @@ struct HubView: View {
     private var compactTabSelection: Binding<HubDestination> {
         Binding(
             get: {
-                if showMoreMenu || compactOverflowDestinations.contains(appState.selectedDestination) {
+                // Opening the menu leaves the page you are on selected: switching to the More tab built a fresh
+                // copy of the page behind it, which scrolled back to the top.
+                if compactOverflowDestinations.contains(appState.selectedDestination) {
                     return compactOverflowDestinations.isEmpty ? appState.selectedDestination : .more
                 }
                 if compactPrimaryDestinations.contains(appState.selectedDestination) {
@@ -215,9 +218,8 @@ struct HubView: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .frame(height: min(maxHeight, CGFloat(compactOverflowDestinations.count) * moreMenuRowHeight + CGFloat(max(0, compactOverflowDestinations.count - 1))))
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
+        .hubGlass(cornerRadius: 22)
+        .shadow(color: .black.opacity(0.14), radius: 12, y: 4)
         .accessibilityIdentifier("hub.moreMenu")
     }
 
