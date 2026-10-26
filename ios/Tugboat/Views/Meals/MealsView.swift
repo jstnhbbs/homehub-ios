@@ -29,17 +29,21 @@ struct MealsView: View {
             if visibleSections.count > 1 {
                 sectionPicker
                     .padding(.horizontal, horizontalSizeClass == .compact ? 16 : 0)
-                    .padding(.top, horizontalSizeClass == .compact ? 14 : 0)
+                    .padding(.top, horizontalSizeClass == .compact ? HubScreen.topInset + 8 : 0)
             }
 
-            switch section {
-            case .week:
-                weekContent
-            case .recipes:
-                RecipesView()
-            case .snacks:
-                SnacksView()
+            // The page's top margin clears the status bar; beneath the section picker the pages only need a small gap.
+            Group {
+                switch section {
+                case .week:
+                    weekContent
+                case .recipes:
+                    RecipesView()
+                case .snacks:
+                    SnacksView()
+                }
             }
+            .contentMargins(.top, horizontalSizeClass == .compact ? 8 : 0, for: .scrollContent)
         }
     }
 

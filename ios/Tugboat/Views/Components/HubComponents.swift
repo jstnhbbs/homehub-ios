@@ -208,9 +208,43 @@ extension View {
     }
 }
 
+/// The phone's top safe area (status bar and Dynamic Island), read from the window, for pages that scroll under it.
+enum HubScreen {
+    private static var insets: UIEdgeInsets {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)?.safeAreaInsets ?? .zero
+    }
+    static var topInset: CGFloat { insets.top }
+    /// The room the floating tab bar takes at the bottom: the home indicator's inset and the bar itself.
+    static var tabBarClearance: CGFloat { insets.bottom + 52 }
+}
+
+/// A soft frosted fade over the status bar, so content that scrolls up under it stays out of the clock's way.
+struct HubTopFade: View {
+    var body: some View {
+        Rectangle()
+            .fill(.ultraThinMaterial)
+            .mask(LinearGradient(colors: [.black, .black, .clear], startPoint: .top, endPoint: .bottom))
+            .frame(height: HubScreen.topInset + 14)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
+extension View {
+    /// Lets a phone page's scroll view fill the screen and inset its own content for the bars, so content scrolls
+    /// under the status bar and the tab bar instead of stopping at a clip line.
+    func hubFullBleed() -> some View {
+        ignoresSafeArea(.container, edges: [.top, .bottom])
+            .overlay(alignment: .top) { HubTopFade().ignoresSafeArea(edges: .top) }
+    }
+}
+
 /// A frosted row background for grouped lists that sit on the page's own background.
 struct HubGlassRow: View {
-    var body: some View { Rectangle().fill(.thinMaterial) }
+    var body: some View { Rectangle().fill(HubTheme.tile.opacity(0.62)).background(.ultraThinMaterial) }
 }
 
 /// The page color with a soft wash of the theme color at the top, so glass cards have something to refract.

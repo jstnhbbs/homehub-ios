@@ -25,7 +25,9 @@ struct DashboardView: View {
                 NavigationStack(path: $compactNavigationPath) {
                     compactDashboardContent
                         .contentMargins(.horizontal, 14, for: .scrollContent)
-                        .contentMargins(.vertical, 10, for: .scrollContent)
+                        .contentMargins(.top, HubScreen.topInset + 10, for: .scrollContent)
+                        .contentMargins(.bottom, HubScreen.tabBarClearance + 10, for: .scrollContent)
+                        .hubFullBleed()
                     .hubPageBackground()
                     .navigationTitle("Today")
                     .navigationBarTitleDisplayMode(.inline)

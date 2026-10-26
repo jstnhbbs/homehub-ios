@@ -258,7 +258,9 @@ struct HubView: View {
             // view is a box inside the page, clipped at its edges, instead of content that moves under the
             // status bar and the tab bar like every native page.
             .contentMargins(.horizontal, 16, for: .scrollContent)
-            .contentMargins(.vertical, 14, for: .scrollContent)
+            .contentMargins(.top, HubScreen.topInset + 14, for: .scrollContent)
+            .contentMargins(.bottom, HubScreen.tabBarClearance + 14, for: .scrollContent)
+            .hubFullBleed()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .hubSurfaceBackground()
     }
