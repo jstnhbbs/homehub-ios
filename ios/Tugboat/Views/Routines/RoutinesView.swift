@@ -46,7 +46,7 @@ struct RoutinesView: View {
                     if let error = viewModel.errorMessage {
                         Text(error).font(.footnote).foregroundStyle(.red)
                     }
-                    routinesContent(columns: [GridItem(.adaptive(minimum: 320), spacing: 16, alignment: .top)])
+                    routinesContent(columns: [GridItem(.adaptive(minimum: 340), spacing: 16, alignment: .top)], flat: true)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -54,11 +54,21 @@ struct RoutinesView: View {
     }
 
     @ViewBuilder
-    private func routinesContent(columns: [GridItem]) -> some View {
+    private func routinesContent(columns: [GridItem], flat: Bool = false) -> some View {
         if viewModel.isLoading && viewModel.routines.isEmpty {
             ProgressView().frame(maxWidth: .infinity, minHeight: 240)
         } else if viewModel.routines.isEmpty {
             EmptyStateView(text: "Your first routine will appear here.")
+        } else if flat {
+            // On a wide screen every routine goes in one grid, across the page, not one small group per person stacked
+            // down it. Each card already says whose it is.
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
+                ForEach(viewModel.groups.flatMap(\.routines)) { routine in
+                    RoutineCard(routine: routine, viewModel: viewModel) {
+                        activeRoutineEditor = .edit(routine.id)
+                    }
+                }
+            }
         } else {
             VStack(alignment: .leading, spacing: 24) {
                 ForEach(viewModel.groups) { group in

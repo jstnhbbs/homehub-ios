@@ -272,10 +272,17 @@ enum HubBackgroundStyle: String, CaseIterable, Identifiable {
 enum HubWash { case theme, neutral }
 
 private struct HubWashKey: EnvironmentKey { static let defaultValue: HubWash = .theme }
+private struct HubBackdropProvidedKey: EnvironmentKey { static let defaultValue = false }
 extension EnvironmentValues {
     var hubWash: HubWash {
         get { self[HubWashKey.self] }
         set { self[HubWashKey.self] = newValue }
+    }
+    /// True inside the iPad's hub, which paints one page color and glow behind the whole screen; pages inside it must not
+    /// paint another, or each shows as a box with its own gradient.
+    var hubBackdropProvided: Bool {
+        get { self[HubBackdropProvidedKey.self] }
+        set { self[HubBackdropProvidedKey.self] = newValue }
     }
 }
 
@@ -284,6 +291,7 @@ struct HubBackdrop: View {
     let base: Color
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.hubWash) private var wash
+    @Environment(\.hubBackdropProvided) private var provided
 
     private var washColor: Color {
         switch (HubTheme.backgroundStyle, wash) {
@@ -294,6 +302,9 @@ struct HubBackdrop: View {
 
     var body: some View {
         let dark = colorScheme == .dark
+        if provided {
+            Color.clear
+        } else {
         ZStack {
             base
             if HubTheme.backgroundStyle != .off {
@@ -306,6 +317,7 @@ struct HubBackdrop: View {
                     startPoint: .top, endPoint: .bottom
                 )
             }
+        }
         }
     }
 }

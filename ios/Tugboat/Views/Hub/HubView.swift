@@ -115,6 +115,8 @@ struct HubView: View {
                             }
                     }
                 }
+                // Everything inside shares this one page color and glow; see `hubBackdropProvided`.
+                .environment(\.hubBackdropProvided, true)
                 .hubSurfaceBackground()
             }
         }
@@ -550,7 +552,8 @@ struct HubHeaderView: View {
         .padding(.horizontal, 28)
         .padding(.vertical, 12)
         .frame(minHeight: 78)
-        .hubSurfaceBackground()
+        // No background of its own: the whole screen already has the page color and glow, and a second copy here made
+        // a second gradient inside the header.
         .overlay(alignment: .bottom) {
             Rectangle().fill(HubTheme.line).frame(height: 1)
         }
