@@ -8,6 +8,11 @@ struct HubView: View {
     @ScaledMetric(relativeTo: .body) private var moreMenuLineHeight = 22.0
     @ScaledMetric(relativeTo: .body) private var moreMenuIconWidth = 20.0
     @State private var showMoreMenu = false
+    /// A picture of the page the menu opened over, shown as the More tab's content so the page behind the menu does not
+    /// move; the real page is untouched and comes back when the menu closes.
+    @State private var moreSnapshot: UIImage?
+    /// The tab bar's hook already handled this tap, so the binding's setter must not handle it a second time.
+    @State private var moreTapHandled = false
     /// On a phone Settings opens over whatever page is showing, as a sheet, instead of replacing it.
     @State private var showingSettingsSheet = false
     @State private var destinationBeforeSettings: HubDestination = .dashboard
@@ -20,6 +25,16 @@ struct HubView: View {
                 TabView(selection: compactTabSelection) {
                     ForEach(compactPrimaryDestinations, id: \.rawValue) { destination in
                         compactTab(for: destination)
+                            .background {
+                                // Inside a tab, so it can find the tab bar controller (outside the tab view it cannot).
+                                if destination == compactPrimaryDestinations.first {
+                                    MoreTabInterceptor(hasMoreTab: !compactOverflowDestinations.isEmpty) { snapshot in
+                                        moreTapHandled = true
+                                        if !showMoreMenu { moreSnapshot = snapshot }
+                                        showMoreMenu.toggle()
+                                    }
+                                }
+                            }
                             .environment(\.hubWash, wash(for: destination))
                             // The tab container paints the system background, which is true black
                             // in dark mode; every page paints the app's own page color over it.
@@ -32,7 +47,7 @@ struct HubView: View {
                             .tag(destination)
                     }
                     if !compactOverflowDestinations.isEmpty {
-                        compactMoreTab
+                        moreTabContent
                             .environment(\.hubWash, wash(for: moreTabDestination))
                             .hubPageBackground()
                             .id("tab-\(compactTabLayoutID)-\(HubDestination.more.rawValue)")
@@ -41,11 +56,6 @@ struct HubView: View {
                                     .id("tab-item-\(compactTabLayoutID)-\(HubDestination.more.rawValue)")
                             }
                             .tag(HubDestination.more)
-                    }
-                }
-                .background {
-                    MoreTabInterceptor(hasMoreTab: !compactOverflowDestinations.isEmpty) {
-                        showMoreMenu.toggle()
                     }
                 }
                 .id(compactTabLayoutID)
@@ -151,9 +161,9 @@ struct HubView: View {
     private var compactTabSelection: Binding<HubDestination> {
         Binding(
             get: {
-                // Opening the menu leaves the page you are on selected: switching to the More tab built a fresh
-                // copy of the page behind it, which scrolled back to the top.
-                if compactOverflowDestinations.contains(appState.selectedDestination) {
+                // While the menu is open the More tab is the selected one, like any other tab (and like Ivory); the page
+                // behind it is a picture of the page you were on.
+                if showMoreMenu || compactOverflowDestinations.contains(appState.selectedDestination) {
                     return compactOverflowDestinations.isEmpty ? appState.selectedDestination : .more
                 }
                 if compactPrimaryDestinations.contains(appState.selectedDestination) {
@@ -163,7 +173,8 @@ struct HubView: View {
             },
             set: { destination in
                 if destination == .more {
-                    showMoreMenu.toggle()
+                    // Normally the tab bar hook has already handled this tap; without it, handle it here.
+                    if moreTapHandled { moreTapHandled = false } else { showMoreMenu.toggle() }
                     return
                 }
                 showMoreMenu = false
@@ -197,6 +208,19 @@ struct HubView: View {
         switch destination {
         case .routines, .chores, .sleep: .neutral
         default: .theme
+        }
+    }
+
+    @ViewBuilder
+    private var moreTabContent: some View {
+        if showMoreMenu, let snapshot = moreSnapshot, !compactOverflowDestinations.contains(appState.selectedDestination) {
+            Image(uiImage: snapshot)
+                .resizable()
+                .scaledToFill()
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
+        } else {
+            compactMoreTab
         }
     }
 
@@ -581,7 +605,7 @@ struct HubDestinationContent: View {
 /// like the app bouncing. The page you are on stays selected and the menu floats over it.
 private struct MoreTabInterceptor: UIViewControllerRepresentable {
     let hasMoreTab: Bool
-    let onMoreTapped: () -> Void
+    let onMoreTapped: (UIImage?) -> Void
 
     func makeUIViewController(context: Context) -> Finder { Finder() }
 
@@ -593,7 +617,7 @@ private struct MoreTabInterceptor: UIViewControllerRepresentable {
 
     final class Finder: UIViewController {
         var hasMoreTab = false
-        var onMoreTapped: () -> Void = {}
+        var onMoreTapped: (UIImage?) -> Void = { _ in }
         private var proxy: Proxy?
 
         override func viewDidAppear(_ animated: Bool) {
@@ -623,8 +647,9 @@ private struct MoreTabInterceptor: UIViewControllerRepresentable {
 
         func tabBarController(_ tabBarController: UITabBarController, shouldSelect viewController: UIViewController) -> Bool {
             if let finder, finder.hasMoreTab, viewController === tabBarController.viewControllers?.last {
-                finder.onMoreTapped()
-                return false
+                let leaving = tabBarController.selectedViewController
+                finder.onMoreTapped(leaving === viewController ? nil : Proxy.picture(of: leaving?.view))
+                return true
             }
             return original?.tabBarController?(tabBarController, shouldSelect: viewController) ?? true
         }
@@ -634,10 +659,19 @@ private struct MoreTabInterceptor: UIViewControllerRepresentable {
         @available(iOS 18.0, *)
         func tabBarController(_ tabBarController: UITabBarController, shouldSelectTab tab: UITab) -> Bool {
             if let finder, finder.hasMoreTab, tab === tabBarController.tabs.last {
-                finder.onMoreTapped()
-                return false
+                let leaving = tabBarController.selectedTab
+                finder.onMoreTapped(leaving === tab ? nil : Proxy.picture(of: leaving?.viewController?.view))
+                return true
             }
             return original?.tabBarController?(tabBarController, shouldSelectTab: tab) ?? true
+        }
+
+        /// What a page looks like right now, tab bar not included.
+        static func picture(of view: UIView?) -> UIImage? {
+            guard let view, view.bounds.width > 0 else { return nil }
+            return UIGraphicsImageRenderer(bounds: view.bounds).image { _ in
+                view.drawHierarchy(in: view.bounds, afterScreenUpdates: false)
+            }
         }
 
         override func responds(to aSelector: Selector!) -> Bool {
