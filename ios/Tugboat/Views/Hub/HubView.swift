@@ -22,42 +22,7 @@ struct HubView: View {
     var body: some View {
         Group {
             if horizontalSizeClass == .compact {
-                TabView(selection: compactTabSelection) {
-                    ForEach(compactPrimaryDestinations, id: \.rawValue) { destination in
-                        compactTab(for: destination)
-                            .background {
-                                // Inside a tab, so it can find the tab bar controller (outside the tab view it cannot).
-                                if destination == compactPrimaryDestinations.first {
-                                    MoreTabInterceptor(hasMoreTab: !compactOverflowDestinations.isEmpty) { snapshot in
-                                        moreTapHandled = true
-                                        if !showMoreMenu { moreSnapshot = snapshot }
-                                        showMoreMenu.toggle()
-                                    }
-                                }
-                            }
-                            .environment(\.hubWash, wash(for: destination))
-                            // The tab container paints the system background, which is true black
-                            // in dark mode; every page paints the app's own page color over it.
-                            .hubPageBackground()
-                            .id("tab-\(compactTabLayoutID)-\(destination.rawValue)")
-                            .tabItem {
-                                Label(destination.label, systemImage: destination.systemImage)
-                                    .id("tab-item-\(compactTabLayoutID)-\(destination.rawValue)")
-                            }
-                            .tag(destination)
-                    }
-                    if !compactOverflowDestinations.isEmpty {
-                        moreTabContent
-                            .environment(\.hubWash, wash(for: moreTabDestination))
-                            .hubPageBackground()
-                            .id("tab-\(compactTabLayoutID)-\(HubDestination.more.rawValue)")
-                            .tabItem {
-                                Label(HubDestination.more.label, systemImage: HubDestination.more.systemImage)
-                                    .id("tab-item-\(compactTabLayoutID)-\(HubDestination.more.rawValue)")
-                            }
-                            .tag(HubDestination.more)
-                    }
-                }
+                compactTabs
                 .id(compactTabLayoutID)
                 .tint(HubTheme.accentText)
                 .hubSurfaceBackground()
@@ -208,6 +173,73 @@ struct HubView: View {
         switch destination {
         case .routines, .chores, .sleep: .neutral
         default: .theme
+        }
+    }
+
+    /// One page of the phone's tab bar, with the hook that watches the tab bar riding on the first one (inside a tab, so it
+    /// can find the tab bar controller; outside the tab view it cannot).
+    private func tabPage(_ destination: HubDestination) -> some View {
+        compactTab(for: destination)
+            .background {
+                if destination == compactPrimaryDestinations.first {
+                    MoreTabInterceptor(hasMoreTab: !compactOverflowDestinations.isEmpty) { snapshot in
+                        moreTapHandled = true
+                        if !showMoreMenu { moreSnapshot = snapshot }
+                        showMoreMenu.toggle()
+                    }
+                }
+            }
+            .environment(\.hubWash, wash(for: destination))
+            // The tab container paints the system background, which is true black
+            // in dark mode; every page paints the app's own page color over it.
+            .hubPageBackground()
+            .id("tab-\(compactTabLayoutID)-\(destination.rawValue)")
+    }
+
+    private var moreTabPage: some View {
+        moreTabContent
+            .environment(\.hubWash, wash(for: moreTabDestination))
+            .hubPageBackground()
+            .id("tab-\(compactTabLayoutID)-\(HubDestination.more.rawValue)")
+    }
+
+    /// iOS 26 draws a tab with the search role as its own glass bubble beside the bar, which is where More goes; earlier
+    /// systems keep one bar with More as its last button.
+    @ViewBuilder
+    private var compactTabs: some View {
+        if #available(iOS 26, *) {
+            TabView(selection: compactTabSelection) {
+                ForEach(compactPrimaryDestinations, id: \.rawValue) { destination in
+                    Tab(destination.label, systemImage: destination.systemImage, value: destination) {
+                        tabPage(destination)
+                    }
+                }
+                if !compactOverflowDestinations.isEmpty {
+                    Tab(HubDestination.more.label, systemImage: HubDestination.more.systemImage,
+                        value: HubDestination.more, role: .search) {
+                        moreTabPage
+                    }
+                }
+            }
+        } else {
+            TabView(selection: compactTabSelection) {
+                ForEach(compactPrimaryDestinations, id: \.rawValue) { destination in
+                    tabPage(destination)
+                        .tabItem {
+                            Label(destination.label, systemImage: destination.systemImage)
+                                .id("tab-item-\(compactTabLayoutID)-\(destination.rawValue)")
+                        }
+                        .tag(destination)
+                }
+                if !compactOverflowDestinations.isEmpty {
+                    moreTabPage
+                        .tabItem {
+                            Label(HubDestination.more.label, systemImage: HubDestination.more.systemImage)
+                                .id("tab-item-\(compactTabLayoutID)-\(HubDestination.more.rawValue)")
+                        }
+                        .tag(HubDestination.more)
+                }
+            }
         }
     }
 
