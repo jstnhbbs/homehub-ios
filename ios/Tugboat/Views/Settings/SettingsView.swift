@@ -43,6 +43,7 @@ struct SettingsView: View {
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar(.hidden, for: .navigationBar)
                 }
+                .environment(\.hubSolidBackdrop, true)
             } else {
                 settingsContent
                     .navigationTitle(presentation == .pushed ? "Settings" : "")

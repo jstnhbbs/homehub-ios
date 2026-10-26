@@ -273,6 +273,7 @@ enum HubWash { case theme, neutral }
 
 private struct HubWashKey: EnvironmentKey { static let defaultValue: HubWash = .theme }
 private struct HubBackdropProvidedKey: EnvironmentKey { static let defaultValue = false }
+private struct HubSolidBackdropKey: EnvironmentKey { static let defaultValue = false }
 extension EnvironmentValues {
     var hubWash: HubWash {
         get { self[HubWashKey.self] }
@@ -280,6 +281,12 @@ extension EnvironmentValues {
     }
     /// True inside the iPad's hub, which paints one page color and glow behind the whole screen; pages inside it must not
     /// paint another, or each shows as a box with its own gradient.
+    /// Inside a navigation stack on the iPad's hub, which paints its own system black behind its pages: they paint the
+    /// plain page color (no glow, the hub already draws that) so the stack does not show as a black box.
+    var hubSolidBackdrop: Bool {
+        get { self[HubSolidBackdropKey.self] }
+        set { self[HubSolidBackdropKey.self] = newValue }
+    }
     var hubBackdropProvided: Bool {
         get { self[HubBackdropProvidedKey.self] }
         set { self[HubBackdropProvidedKey.self] = newValue }
@@ -292,6 +299,7 @@ struct HubBackdrop: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.hubWash) private var wash
     @Environment(\.hubBackdropProvided) private var provided
+    @Environment(\.hubSolidBackdrop) private var solid
 
     private var washColor: Color {
         switch (HubTheme.backgroundStyle, wash) {
@@ -303,7 +311,7 @@ struct HubBackdrop: View {
     var body: some View {
         let dark = colorScheme == .dark
         if provided {
-            Color.clear
+            if solid { base } else { Color.clear }
         } else {
         ZStack {
             base
