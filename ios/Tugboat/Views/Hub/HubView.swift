@@ -8,6 +8,9 @@ struct HubView: View {
     @ScaledMetric(relativeTo: .body) private var moreMenuLineHeight = 22.0
     @ScaledMetric(relativeTo: .body) private var moreMenuIconWidth = 20.0
     @State private var showMoreMenu = false
+    /// On a phone Settings opens over whatever page is showing, as a sheet, instead of replacing it.
+    @State private var showingSettingsSheet = false
+    @State private var destinationBeforeSettings: HubDestination = .dashboard
     @State private var lastPrimaryDestination: HubDestination = .dashboard
     @State private var compactMealsPath = NavigationPath()
 
@@ -75,10 +78,30 @@ struct HubView: View {
                         lastPrimaryDestination = appState.selectedDestination
                     }
                 }
-                .onChange(of: appState.selectedDestination) { _, newValue in
+                .onChange(of: appState.selectedDestination) { old, newValue in
+                    if newValue == .settings {
+                        // Keep the page that was showing, and put Settings over it.
+                        destinationBeforeSettings = old == .settings ? destinationBeforeSettings : old
+                        appState.selectedDestination = destinationBeforeSettings
+                        showingSettingsSheet = true
+                        return
+                    }
                     if compactPrimaryDestinations.contains(newValue) {
                         lastPrimaryDestination = newValue
                     }
+                }
+                .sheet(isPresented: $showingSettingsSheet) {
+                    SettingsStack(model: appState.settingsNavigation) {
+                        SettingsView(presentation: .pushed)
+                            .hubPageBackground()
+                            .toolbar {
+                                ToolbarItem(placement: .confirmationAction) {
+                                    Button("Done") { showingSettingsSheet = false }
+                                }
+                            }
+                    }
+                    .environmentObject(appState)
+                    .presentationDragIndicator(.visible)
                 }
             } else {
                 HStack(spacing: 0) {
