@@ -33,9 +33,7 @@ struct MealsView: View {
                 .contentMargins(.top, 8, for: .scrollContent)
                 .safeAreaInset(edge: .top, spacing: 0) {
                     if visibleSections.count > 1 {
-                        sectionPicker
-                            .padding(6)
-                            .hubGlass(cornerRadius: 22)
+                        glassSectionPicker
                             .padding(.horizontal, 16)
                             .padding(.top, HubScreen.topInset + 6)
                             .padding(.bottom, 6)
@@ -59,6 +57,34 @@ struct MealsView: View {
         case .snacks:
             SnacksView()
         }
+    }
+
+    /// The section picker for the phone: glass segments with a lighter pill under the chosen one, instead of the
+    /// system's segmented control, whose darker track showed as a dark inset inside the glass.
+    private var glassSectionPicker: some View {
+        HStack(spacing: 0) {
+            ForEach(visibleSections, id: \.self) { item in
+                Button {
+                    withAnimation(.snappy(duration: 0.2)) { section = item }
+                } label: {
+                    Text(sectionLabel(item))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(section == item ? Color.primary : HubTheme.muted)
+                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .background {
+                            if section == item {
+                                Capsule().fill(HubTheme.surface.opacity(0.9))
+                                    .shadow(color: .black.opacity(0.10), radius: 3, y: 1)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(section == item ? [.isSelected, .isButton] : .isButton)
+            }
+        }
+        .padding(4)
+        .hubGlass(cornerRadius: 26)
     }
 
     private var visibleSections: [FoodHubSection] {

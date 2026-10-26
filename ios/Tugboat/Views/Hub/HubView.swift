@@ -41,6 +41,11 @@ struct HubView: View {
                             .tag(HubDestination.more)
                     }
                 }
+                .background {
+                    MoreTabInterceptor(hasMoreTab: !compactOverflowDestinations.isEmpty) {
+                        showMoreMenu.toggle()
+                    }
+                }
                 .id(compactTabLayoutID)
                 .tint(HubTheme.accentText)
                 .hubSurfaceBackground()
@@ -557,6 +562,68 @@ struct HubDestinationContent: View {
             SettingsView(presentation: presentation)
         case .more:
             EmptyView()
+        }
+    }
+}
+
+/// Lets a tap on the More tab open the menu without ever selecting the tab. Selecting it showed a second, fresh copy
+/// of the current page behind the menu (scrolled to the top) and moved the highlight to More and back, which looked
+/// like the app bouncing. The page you are on stays selected and the menu floats over it.
+private struct MoreTabInterceptor: UIViewControllerRepresentable {
+    let hasMoreTab: Bool
+    let onMoreTapped: () -> Void
+
+    func makeUIViewController(context: Context) -> Finder { Finder() }
+
+    func updateUIViewController(_ controller: Finder, context: Context) {
+        controller.hasMoreTab = hasMoreTab
+        controller.onMoreTapped = onMoreTapped
+        controller.install()
+    }
+
+    final class Finder: UIViewController {
+        var hasMoreTab = false
+        var onMoreTapped: () -> Void = {}
+        private var proxy: Proxy?
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            install()
+        }
+
+        func install() {
+            guard let tabBarController else { return }
+            if let existing = proxy, tabBarController.delegate === existing { 
+                existing.finder = self
+                return
+            }
+            let proxy = Proxy(original: tabBarController.delegate, finder: self)
+            self.proxy = proxy
+            tabBarController.delegate = proxy
+        }
+    }
+
+    final class Proxy: NSObject, UITabBarControllerDelegate {
+        weak var original: UITabBarControllerDelegate?
+        weak var finder: Finder?
+        init(original: UITabBarControllerDelegate?, finder: Finder) {
+            self.original = original
+            self.finder = finder
+        }
+
+        func tabBarController(_ tabBarController: UITabBarController, shouldSelect viewController: UIViewController) -> Bool {
+            if let finder, finder.hasMoreTab, viewController === tabBarController.viewControllers?.last {
+                finder.onMoreTapped()
+                return false
+            }
+            return original?.tabBarController?(tabBarController, shouldSelect: viewController) ?? true
+        }
+
+        override func responds(to aSelector: Selector!) -> Bool {
+            super.responds(to: aSelector) || (original?.responds(to: aSelector) ?? false)
+        }
+        override func forwardingTarget(for aSelector: Selector!) -> Any? {
+            (original?.responds(to: aSelector) ?? false) ? original : super.forwardingTarget(for: aSelector)
         }
     }
 }

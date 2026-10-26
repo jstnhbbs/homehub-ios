@@ -189,8 +189,9 @@ struct DashboardView: View {
             .overlay(alignment: .bottomTrailing) {
                 if edit.isEditing {
                     DashboardEditBar(hiddenCards: hiddenCards, onAdd: addCard, onDone: toggleEditing)
-                        .padding(.trailing, 2)
-                        .padding(.bottom, 4)
+                        .padding(.trailing, horizontalSizeClass == .compact ? 16 : 2)
+                        // The page runs under the floating tab bar now, so the bar sits above it, not behind it.
+                        .padding(.bottom, (horizontalSizeClass == .compact ? HubScreen.tabBarClearance : 0) + 4)
                 }
             }
         } else if let errorMessage = appState.errorMessage {
