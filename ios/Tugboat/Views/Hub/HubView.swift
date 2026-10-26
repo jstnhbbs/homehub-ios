@@ -214,11 +214,17 @@ struct HubView: View {
     @ViewBuilder
     private var moreTabContent: some View {
         if showMoreMenu, let snapshot = moreSnapshot, !compactOverflowDestinations.contains(appState.selectedDestination) {
-            Image(uiImage: snapshot)
-                .resizable()
-                .scaledToFill()
-                .ignoresSafeArea()
-                .accessibilityHidden(true)
+            // At its own size, pinned to the top corner: scaling it to fill the screen moved the page by a few points.
+            // Pinned to the screen's own corner whatever the container's position is: the picture is of the whole screen.
+            GeometryReader { proxy in
+                let origin = proxy.frame(in: .global).origin
+                Image(uiImage: snapshot)
+                    .fixedSize()
+                    .offset(x: -origin.x, y: -origin.y)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .ignoresSafeArea()
+            .accessibilityHidden(true)
         } else {
             compactMoreTab
         }
@@ -648,7 +654,7 @@ private struct MoreTabInterceptor: UIViewControllerRepresentable {
         func tabBarController(_ tabBarController: UITabBarController, shouldSelect viewController: UIViewController) -> Bool {
             if let finder, finder.hasMoreTab, viewController === tabBarController.viewControllers?.last {
                 let leaving = tabBarController.selectedViewController
-                finder.onMoreTapped(leaving === viewController ? nil : Proxy.picture(of: leaving?.view))
+                finder.onMoreTapped(leaving === viewController ? nil : Proxy.picture(of: tabBarController))
                 return true
             }
             return original?.tabBarController?(tabBarController, shouldSelect: viewController) ?? true
@@ -660,17 +666,21 @@ private struct MoreTabInterceptor: UIViewControllerRepresentable {
         func tabBarController(_ tabBarController: UITabBarController, shouldSelectTab tab: UITab) -> Bool {
             if let finder, finder.hasMoreTab, tab === tabBarController.tabs.last {
                 let leaving = tabBarController.selectedTab
-                finder.onMoreTapped(leaving === tab ? nil : Proxy.picture(of: leaving?.viewController?.view))
+                finder.onMoreTapped(leaving === tab ? nil : Proxy.picture(of: tabBarController))
                 return true
             }
             return original?.tabBarController?(tabBarController, shouldSelectTab: tab) ?? true
         }
 
-        /// What a page looks like right now, tab bar not included.
-        static func picture(of view: UIView?) -> UIImage? {
-            guard let view, view.bounds.width > 0 else { return nil }
-            return UIGraphicsImageRenderer(bounds: view.bounds).image { _ in
-                view.drawHierarchy(in: view.bounds, afterScreenUpdates: false)
+        /// What the screen looks like right now with the tab bar left out, in the screen's own coordinates, so it can
+        /// stand in for the page without moving it.
+        static func picture(of controller: UITabBarController) -> UIImage? {
+            guard let window = controller.view.window, window.bounds.width > 0 else { return nil }
+            let wasHidden = controller.tabBar.isHidden
+            controller.tabBar.isHidden = true
+            defer { controller.tabBar.isHidden = wasHidden }
+            return UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
             }
         }
 

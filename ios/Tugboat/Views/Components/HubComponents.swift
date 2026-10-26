@@ -299,9 +299,9 @@ struct HubBackdrop: View {
             if HubTheme.backgroundStyle != .off {
                 LinearGradient(
                     stops: [
-                        .init(color: washColor.opacity(dark ? 0.17 : 0.20), location: 0),
-                        .init(color: washColor.opacity(dark ? 0.06 : 0.07), location: 0.32),
-                        .init(color: .clear, location: 0.7),
+                        .init(color: washColor.opacity(dark ? (wash == .neutral || HubTheme.backgroundStyle == .neutral ? 0.17 : 0.38) : 0.20), location: 0),
+                        .init(color: washColor.opacity(dark ? (wash == .neutral || HubTheme.backgroundStyle == .neutral ? 0.06 : 0.16) : 0.07), location: 0.38),
+                        .init(color: .clear, location: 0.8),
                     ],
                     startPoint: .top, endPoint: .bottom
                 )
