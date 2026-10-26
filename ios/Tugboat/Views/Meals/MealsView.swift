@@ -24,26 +24,40 @@ struct MealsView: View {
             }
     }
 
+    @ViewBuilder
     private var foodContent: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            if visibleSections.count > 1 {
-                sectionPicker
-                    .padding(.horizontal, horizontalSizeClass == .compact ? 16 : 0)
-                    .padding(.top, horizontalSizeClass == .compact ? HubScreen.topInset + 8 : 0)
-            }
-
-            // The page's top margin clears the status bar; beneath the section picker the pages only need a small gap.
-            Group {
-                switch section {
-                case .week:
-                    weekContent
-                case .recipes:
-                    RecipesView()
-                case .snacks:
-                    SnacksView()
+        if horizontalSizeClass == .compact {
+            // The page scrolls the whole screen and passes under the section picker, which floats over it in glass
+            // like a toolbar, instead of the page being a box that starts below a fixed picker.
+            foodPage
+                .contentMargins(.top, 8, for: .scrollContent)
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    if visibleSections.count > 1 {
+                        sectionPicker
+                            .padding(6)
+                            .hubGlass(cornerRadius: 22)
+                            .padding(.horizontal, 16)
+                            .padding(.top, HubScreen.topInset + 6)
+                            .padding(.bottom, 6)
+                    }
                 }
+        } else {
+            VStack(alignment: .leading, spacing: 16) {
+                if visibleSections.count > 1 { sectionPicker }
+                foodPage
             }
-            .contentMargins(.top, horizontalSizeClass == .compact ? 8 : 0, for: .scrollContent)
+        }
+    }
+
+    @ViewBuilder
+    private var foodPage: some View {
+        switch section {
+        case .week:
+            weekContent
+        case .recipes:
+            RecipesView()
+        case .snacks:
+            SnacksView()
         }
     }
 
@@ -89,12 +103,11 @@ struct MealsView: View {
 
     private var weekContent: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Group {
+            if horizontalSizeClass != .compact {
                 header
                 weekNavigator
                 messages
             }
-            .padding(.horizontal, horizontalSizeClass == .compact ? 16 : 0)
             if horizontalSizeClass == .compact {
                 compactDayList
             } else {
@@ -263,6 +276,11 @@ struct MealsView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        header
+                        weekNavigator
+                        messages
+                    }
                     ForEach(Array(zip(viewModel.weekDates, viewModel.weekDateStrings)), id: \.1) { day, localDate in
                         VStack(alignment: .leading, spacing: 8) {
                             dayHeaderRow(day, localDate: localDate)
