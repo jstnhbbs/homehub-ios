@@ -629,6 +629,17 @@ private struct MoreTabInterceptor: UIViewControllerRepresentable {
             return original?.tabBarController?(tabBarController, shouldSelect: viewController) ?? true
         }
 
+        /// iOS 18 and later ask this instead when the controller is built from tabs, which is how SwiftUI builds it
+        /// on the newest systems; the question above is then never asked.
+        @available(iOS 18.0, *)
+        func tabBarController(_ tabBarController: UITabBarController, shouldSelectTab tab: UITab) -> Bool {
+            if let finder, finder.hasMoreTab, tab === tabBarController.tabs.last {
+                finder.onMoreTapped()
+                return false
+            }
+            return original?.tabBarController?(tabBarController, shouldSelectTab: tab) ?? true
+        }
+
         override func responds(to aSelector: Selector!) -> Bool {
             super.responds(to: aSelector) || (original?.responds(to: aSelector) ?? false)
         }
