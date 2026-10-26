@@ -28,6 +28,8 @@ struct MealsView: View {
         VStack(alignment: .leading, spacing: 16) {
             if visibleSections.count > 1 {
                 sectionPicker
+                    .padding(.horizontal, horizontalSizeClass == .compact ? 16 : 0)
+                    .padding(.top, horizontalSizeClass == .compact ? 14 : 0)
             }
 
             switch section {
@@ -83,9 +85,12 @@ struct MealsView: View {
 
     private var weekContent: some View {
         VStack(alignment: .leading, spacing: 12) {
-            header
-            weekNavigator
-            messages
+            Group {
+                header
+                weekNavigator
+                messages
+            }
+            .padding(.horizontal, horizontalSizeClass == .compact ? 16 : 0)
             if horizontalSizeClass == .compact {
                 compactDayList
             } else {

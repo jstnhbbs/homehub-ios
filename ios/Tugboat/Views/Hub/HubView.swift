@@ -254,8 +254,11 @@ struct HubView: View {
     private func compactPage(for destination: HubDestination) -> some View {
         content(for: destination)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+            // The page's margin is a margin on what scrolls, not padding around the scroll view: a padded scroll
+            // view is a box inside the page, clipped at its edges, instead of content that moves under the
+            // status bar and the tab bar like every native page.
+            .contentMargins(.horizontal, 16, for: .scrollContent)
+            .contentMargins(.vertical, 14, for: .scrollContent)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .hubSurfaceBackground()
     }

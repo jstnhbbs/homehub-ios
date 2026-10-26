@@ -262,11 +262,16 @@ private struct HubGlassCard: ViewModifier {
 private struct ListAlignedWithPage: ViewModifier {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
+    @ViewBuilder
     func body(content: Content) -> some View {
-        let margin: CGFloat = horizontalSizeClass == .compact ? 16 : 24
-        content
-            .contentMargins(.horizontal, margin, for: .scrollContent)
-            .padding(.horizontal, -margin)
+        if horizontalSizeClass == .compact {
+            // A phone page no longer pads its scroll view, so a grouped list's own margin is already right.
+            content
+        } else {
+            content
+                .contentMargins(.horizontal, 24, for: .scrollContent)
+                .padding(.horizontal, -24)
+        }
     }
 }
 

@@ -24,8 +24,8 @@ struct DashboardView: View {
             if horizontalSizeClass == .compact {
                 NavigationStack(path: $compactNavigationPath) {
                     compactDashboardContent
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
+                        .contentMargins(.horizontal, 14, for: .scrollContent)
+                        .contentMargins(.vertical, 10, for: .scrollContent)
                     .hubPageBackground()
                     .navigationTitle("Today")
                     .navigationBarTitleDisplayMode(.inline)
