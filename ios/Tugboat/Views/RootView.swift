@@ -6,6 +6,8 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     /// Whether the welcome tour has been shown (or skipped) on this device.
     @AppStorage(WelcomeTourPolicy.seenKey) private var welcomeTourSeen = false
+    @AppStorage(PermissionsSetupView.seenKey) private var permissionsSetupSeen = false
+    @State private var showingPermissionsSetup = false
 
     var body: some View {
         Group {
@@ -69,6 +71,25 @@ struct RootView: View {
             if WelcomeTourPolicy.shouldMarkSeen(seen: welcomeTourSeen, isSignedIn: appState.auth.isSignedIn) {
                 welcomeTourSeen = true
             }
+        }
+        // Once, after signing in and setting up a household: explain what the device permissions are for and let the
+        // person allow them. Someone who has already answered every one (an update, a restored session) never sees it.
+        .task(id: "\(appState.auth.isSignedIn)-\(appState.needsOnboarding)-\(appState.isBootstrapping)") {
+            guard appState.auth.isSignedIn, !appState.needsOnboarding, !appState.isBootstrapping, !permissionsSetupSeen else { return }
+            if await PermissionsSetupView.hasUnaskedPermission(in: appState) {
+                showingPermissionsSetup = true
+            } else {
+                permissionsSetupSeen = true
+            }
+        }
+        .fullScreenCover(isPresented: $showingPermissionsSetup) {
+            PermissionsSetupView {
+                permissionsSetupSeen = true
+                showingPermissionsSetup = false
+            }
+            .environmentObject(appState)
+            .tint(appState.accentPalette.textColor)
+            .preferredColorScheme(appState.appearanceMode.colorScheme)
         }
         .onOpenURL { url in
             guard let destination = WidgetRoute.destination(from: url) else { return }
