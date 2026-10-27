@@ -79,7 +79,7 @@ struct ScheduleTodayCard: View {
             if !isConnected {
                 notConnected
             } else if summary.todayLeft.isEmpty {
-                TodayCardEmptyNote(text: summary.today.isEmpty ? "Nothing on the calendar today." : "Nothing left today.")
+                TodayCardEmptyNote(text: summary.today.isEmpty ? "Enjoy the open day." : "You're clear for the rest of today.")
             } else {
                 rows(summary.todayLeft, maxColumns: 2)
             }
@@ -99,7 +99,7 @@ struct ScheduleTodayCard: View {
                 HStack(alignment: .top, spacing: 12) {
                     TodayCardSection(title: "Today") {
                         if summary.todayLeft.isEmpty {
-                            TodayCardEmptyNote(text: summary.today.isEmpty ? "Nothing today." : "Nothing left today.")
+                            TodayCardEmptyNote(text: summary.today.isEmpty ? "Enjoy the open day." : "You're clear for the rest of today.")
                         } else {
                             rows(summary.todayLeft, maxColumns: 1)
                         }
