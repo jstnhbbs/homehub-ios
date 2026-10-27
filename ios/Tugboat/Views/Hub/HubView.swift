@@ -84,6 +84,12 @@ struct HubView: View {
                             }
                     }
                     .environmentObject(appState)
+                    // A sheet is its own view controller and keeps the style it was shown with, so choosing Light or
+                    // Dark in Appearance changed the app behind it but not the page you were on until it was reopened.
+                    .preferredColorScheme(appState.appearanceMode.colorScheme)
+                    // The navigation bar's title keeps its old color until the stack is rebuilt, and the stack
+                    // reopens on the same page because its path lives in `settingsNavigation`.
+                    .id(appState.appearanceMode)
                     .presentationDragIndicator(.visible)
                 }
             } else {
