@@ -108,6 +108,13 @@ struct HubView: View {
                             // 24 pt margin) instead of stopping 24 pt short and looking like a box inside the page.
                             .contentMargins(.trailing, 24, for: .scrollContent)
                             .contentMargins(.bottom, 24, for: .scrollContent)
+                            // A scroll view clips at its bounds, which cut the cards' shadows in a hard line along the
+                            // edge where the cards begin. Let them draw past the sides and bottom (within the 24 pt
+                            // margin), and keep the top clipped so scrolled cards don't show over the page title.
+                            .scrollClipDisabled()
+                            .mask {
+                                Rectangle().padding(.leading, -20).padding(.trailing, -20).padding(.bottom, -20)
+                            }
                             .padding(.top, 24)
                             .padding(.leading, 24)
                             .ignoresSafeArea(edges: [.bottom, .trailing])
