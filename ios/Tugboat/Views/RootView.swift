@@ -31,6 +31,28 @@ struct RootView: View {
         // Dragging any scrolling screen or sheet puts the keyboard away. Set once here, it reaches all of them.
         .scrollDismissesKeyboard(.interactively)
         .tint(appState.accentPalette.textColor)
+        // Settings on the phone is a sheet. It lives here, above the hub that is rebuilt whenever the theme color
+        // changes, so choosing a color does not close it.
+        .sheet(isPresented: $appState.showingSettingsSheet) {
+            SettingsStack(model: appState.settingsNavigation) {
+                SettingsView(presentation: .pushed)
+                    .hubPageBackground()
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { appState.showingSettingsSheet = false }
+                        }
+                    }
+            }
+            .environmentObject(appState)
+            .tint(appState.accentPalette.textColor)
+            // A sheet is its own view controller and keeps the style it was shown with, so choosing Light or Dark
+            // in Appearance changed the app behind it but not the page you were on until it was reopened.
+            .preferredColorScheme(appState.appearanceMode.colorScheme)
+            // The colors are read again, and the navigation bar's title takes the new style, only when the stack is
+            // rebuilt; it reopens on the same page because its path lives in `settingsNavigation`.
+            .id("\(appState.appearanceMode.rawValue)-\(appState.accentPalette.rawValue)-\(appState.backgroundStyle.rawValue)")
+            .presentationDragIndicator(.visible)
+        }
         .overlay(alignment: .top) {
             if let notice = appState.notice {
                 NoticeBanner(message: notice) { appState.dismissNotice() }

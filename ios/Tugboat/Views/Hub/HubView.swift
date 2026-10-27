@@ -14,7 +14,6 @@ struct HubView: View {
     /// The tab bar's hook already handled this tap, so the binding's setter must not handle it a second time.
     @State private var moreTapHandled = false
     /// On a phone Settings opens over whatever page is showing, as a sheet, instead of replacing it.
-    @State private var showingSettingsSheet = false
     @State private var destinationBeforeSettings: HubDestination = .dashboard
     @State private var lastPrimaryDestination: HubDestination = .dashboard
     @State private var compactMealsPath = NavigationPath()
@@ -66,31 +65,12 @@ struct HubView: View {
                         // Keep the page that was showing, and put Settings over it.
                         destinationBeforeSettings = old == .settings ? destinationBeforeSettings : old
                         appState.selectedDestination = destinationBeforeSettings
-                        showingSettingsSheet = true
+                        appState.showingSettingsSheet = true
                         return
                     }
                     if compactPrimaryDestinations.contains(newValue) {
                         lastPrimaryDestination = newValue
                     }
-                }
-                .sheet(isPresented: $showingSettingsSheet) {
-                    SettingsStack(model: appState.settingsNavigation) {
-                        SettingsView(presentation: .pushed)
-                            .hubPageBackground()
-                            .toolbar {
-                                ToolbarItem(placement: .confirmationAction) {
-                                    Button("Done") { showingSettingsSheet = false }
-                                }
-                            }
-                    }
-                    .environmentObject(appState)
-                    // A sheet is its own view controller and keeps the style it was shown with, so choosing Light or
-                    // Dark in Appearance changed the app behind it but not the page you were on until it was reopened.
-                    .preferredColorScheme(appState.appearanceMode.colorScheme)
-                    // The navigation bar's title keeps its old color until the stack is rebuilt, and the stack
-                    // reopens on the same page because its path lives in `settingsNavigation`.
-                    .id(appState.appearanceMode)
-                    .presentationDragIndicator(.visible)
                 }
             } else {
                 HStack(spacing: 0) {

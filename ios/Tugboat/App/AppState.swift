@@ -100,6 +100,9 @@ final class AppState: ObservableObject {
 
     /// The open Settings pages; see `SettingsNavigationModel`.
     let settingsNavigation = SettingsNavigationModel()
+    /// Whether Settings is open as a sheet over the phone's tabs. Held here, not in the hub, because the hub is rebuilt when
+    /// the theme color changes and would take the sheet with it.
+    @Published var showingSettingsSheet = false
 
     private static let accentStorageKey = "tugboat.accentPalette"
     private static let appearanceModeKey = "tugboat.appearanceMode"
@@ -694,6 +697,7 @@ final class AppState: ObservableObject {
     /// Everything that belongs to the signed-in person, for sign-out and for an ended session.
     @discardableResult
     private func clearSignedInState() -> Task<Void, Never> {
+        showingSettingsSheet = false
         widgetUpdateTask?.cancel()
         widgetRecipeTask?.cancel()
         widgetRecipeId = nil
