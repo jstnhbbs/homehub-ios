@@ -388,113 +388,97 @@ private struct RecipeDetailPanel: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                HubCard {
-                    VStack(alignment: .leading, spacing: 16) {
-                        if let imageUrl = recipe.imageUrl, let url = URL(string: imageUrl) {
-                            RemoteImage(url: url, maxPixelSize: 1100) {
-                                Color.clear
-                            }
-                            .frame(height: 180)
-                            .frame(maxWidth: .infinity)
-                            .clipped()
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        }
+                header
 
-                        Text(recipe.title)
-                            .font(.title.weight(.semibold))
-                            .fixedSize(horizontal: false, vertical: true)
-                        if let description = recipe.description, !description.isEmpty {
-                            Text(description)
-                                .foregroundStyle(HubTheme.muted)
-                                .fixedSize(horizontal: false, vertical: true)
+                if !recipe.tags.isEmpty {
+                    TagFlowLayout(spacing: 6) {
+                        ForEach(recipe.tags, id: \.self) { tag in
+                            TagPill(text: tag)
                         }
+                    }
+                }
 
-                        LazyVGrid(
-                            columns: [GridItem(.adaptive(minimum: 92), spacing: 8)],
-                            alignment: .leading,
-                            spacing: 8
-                        ) {
-                            if let servings = recipe.servings {
-                                metaChip(servings, icon: "person.2")
-                            }
-                            if let prepTime = recipe.prepTime {
-                                metaChip("Prep \(prepTime)", icon: "clock")
-                            }
-                            if let cookTime = recipe.cookTime {
-                                metaChip("Cook \(cookTime)", icon: "clock")
-                            }
-                            if let totalTime = recipe.totalTime {
-                                metaChip("Total \(totalTime)", icon: "clock")
-                            }
+                statsRow
+
+                if !recipe.ingredients.isEmpty {
+                    sectionHeader("Ingredients") {
+                        Button {
+                            Task { await viewModel.addIngredientsToGroceryList(recipe) }
+                        } label: {
+                            Label("Add to List", systemImage: "cart.badge.plus")
                         }
-
-                        if !recipe.tags.isEmpty {
-                            TagFlowLayout(spacing: 6) {
-                                ForEach(recipe.tags, id: \.self) { tag in
-                                    TagPill(text: tag)
-                                }
-                            }
-                        }
-
-                        if !recipe.ingredients.isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Ingredients").font(.headline)
-                                Button {
-                                    Task { await viewModel.addIngredientsToGroceryList(recipe) }
-                                } label: {
-                                    Label("Add to List", systemImage: "cart.badge.plus")
-                                }
-                                .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
-                                .disabled(viewModel.isWorking)
-                            }
-                            ForEach(Array(RecipeLines.display(recipe.ingredients).enumerated()), id: \.offset) { _, line in
-                                switch line {
-                                case .heading(let text):
-                                    RecipeSectionHeading(text: text)
-                                case .item(_, let text):
-                                    recipeIngredientText(text)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                        .padding(.vertical, 4)
-                                }
-                            }
-                        }
-
-                        if !recipe.directions.isEmpty {
-                            Text("Directions").font(.headline)
-                            ForEach(Array(RecipeLines.display(recipe.directions).enumerated()), id: \.offset) { _, line in
-                                switch line {
-                                case .heading(let text):
-                                    RecipeSectionHeading(text: text)
-                                case .item(let number, let text):
-                                    Text("\(number). \(text)")
-                                        .fixedSize(horizontal: false, vertical: true)
-                                        .padding(.vertical, 4)
-                                }
-                            }
-                        }
-
-                        if let nutrition = recipe.nutrition, !nutrition.isEmpty {
-                            Text("Nutrition").font(.headline)
-                            ForEach(nutrition.keys.sorted(), id: \.self) { key in
-                                HStack(alignment: .top, spacing: 12) {
-                                    Text(key).font(.subheadline.weight(.bold))
-                                    Spacer(minLength: 8)
-                                    Text(nutrition[key] ?? "")
-                                        .foregroundStyle(HubTheme.muted)
-                                        .multilineTextAlignment(.trailing)
-                                }
-                            }
-                        }
-
-                        if let notes = recipe.notes, !notes.isEmpty {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Notes").font(.headline)
-                                Text(notes)
+                        .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
+                        .disabled(viewModel.isWorking)
+                    }
+                    cardStack {
+                        let lines = RecipeLines.display(recipe.ingredients)
+                        ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
+                            if index > 0 { Divider().overlay(HubTheme.line) }
+                            switch line {
+                            case .heading(let text):
+                                RecipeSectionHeading(text: text)
+                                    .padding(.vertical, 6)
+                            case .item(_, let text):
+                                recipeIngredientText(text, smallNotes: true)
                                     .fixedSize(horizontal: false, vertical: true)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.vertical, 10)
                             }
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                if !recipe.directions.isEmpty {
+                    sectionHeader("Method") { EmptyView() }
+                    let keywords = RecipeKeywords.keywords(for: recipe.ingredients)
+                    ForEach(Array(RecipeLines.display(recipe.directions).enumerated()), id: \.offset) { _, line in
+                        switch line {
+                        case .heading(let text):
+                            RecipeSectionHeading(text: text)
+                        case .item(let number, let text):
+                            HStack(alignment: .top, spacing: 12) {
+                                Text("\(number)")
+                                    .font(.footnote.weight(.bold))
+                                    .foregroundStyle(HubTheme.onAccent)
+                                    .frame(width: 26, height: 26)
+                                    .background(HubTheme.accent, in: Circle())
+                                    .accessibilityHidden(true)
+                                recipeStepText(text, keywords: keywords)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .padding(14)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .hubGlass(cornerRadius: 16)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("Step \(number). \(text)")
+                        }
+                    }
+                }
+
+                if let nutrition = recipe.nutrition, !nutrition.isEmpty {
+                    sectionHeader("Nutrition") { EmptyView() }
+                    cardStack {
+                        ForEach(nutrition.keys.sorted(), id: \.self) { key in
+                            HStack(alignment: .top, spacing: 12) {
+                                Text(key).font(.subheadline.weight(.semibold))
+                                Spacer(minLength: 8)
+                                Text(nutrition[key] ?? "")
+                                    .foregroundStyle(HubTheme.muted)
+                                    .multilineTextAlignment(.trailing)
+                            }
+                            .padding(.vertical, 3)
+                        }
+                    }
+                }
+
+                if let notes = recipe.notes, !notes.isEmpty {
+                    sectionHeader("Notes") { EmptyView() }
+                    cardStack {
+                        Text(notes)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
 
                 if viewModel.canManage {
@@ -518,13 +502,124 @@ private struct RecipeDetailPanel: View {
         }
     }
 
-    private func metaChip(_ text: String, icon: String) -> some View {
-        Label(text, systemImage: icon)
-            .font(.caption2.weight(.bold))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(HubTheme.tileQuiet)
-            .clipShape(Capsule())
+    /// The photo with the title over it and the website it came from, or just the title when there is no photo.
+    @ViewBuilder
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let imageUrl = recipe.imageUrl, let url = URL(string: imageUrl) {
+                RemoteImage(url: url, maxPixelSize: 1400) {
+                    Color.clear
+                }
+                .frame(height: 200)
+                .frame(maxWidth: .infinity)
+                .clipped()
+                .overlay(alignment: .bottom) {
+                    LinearGradient(colors: [.clear, .black.opacity(0.65)], startPoint: .center, endPoint: .bottom)
+                        .allowsHitTesting(false)
+                }
+                .overlay(alignment: .bottomLeading) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(recipe.title)
+                            .font(.title2.weight(.bold))
+                            .foregroundStyle(.white)
+                            .shadow(radius: 4)
+                            .fixedSize(horizontal: false, vertical: true)
+                        sourceChip(onPhoto: true)
+                    }
+                    .padding(14)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .contentShape(Rectangle())
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(recipe.title)
+                .accessibilityAddTraits(.isHeader)
+            } else {
+                Text(recipe.title)
+                    .font(.title.weight(.bold))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+                sourceChip(onPhoto: false)
+            }
+            if let description = recipe.description, !description.isEmpty {
+                Text(description)
+                    .foregroundStyle(HubTheme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    /// The website the recipe came from, opening it when tapped.
+    @ViewBuilder
+    private func sourceChip(onPhoto: Bool) -> some View {
+        if let source = recipe.sourceUrl, let url = URL(string: source), let host = url.host {
+            Link(destination: url) {
+                Label(host.replacingOccurrences(of: "www.", with: ""), systemImage: "safari")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(onPhoto ? Color.white : HubTheme.accentText)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(onPhoto ? AnyShapeStyle(.black.opacity(0.45)) : AnyShapeStyle(HubTheme.tile), in: Capsule())
+            }
+            .accessibilityLabel("Open \(host)")
+        }
+    }
+
+    /// Servings on the left, the times on the right, split by hairlines.
+    @ViewBuilder
+    private var statsRow: some View {
+        let times: [(String, String)] = [
+            ("Prep", recipe.prepTime), ("Cook", recipe.cookTime), ("Total", recipe.totalTime),
+        ].compactMap { label, value in
+            guard let value, !value.isEmpty else { return nil }
+            return (label, value)
+        }
+        if recipe.servings != nil || !times.isEmpty {
+            HStack(alignment: .center, spacing: 12) {
+                if let servings = recipe.servings {
+                    HStack(spacing: 8) {
+                        Image(systemName: "person.2")
+                            .foregroundStyle(HubTheme.muted)
+                            .accessibilityHidden(true)
+                        stat(servings, "Servings")
+                    }
+                }
+                Spacer(minLength: 8)
+                ForEach(Array(times.enumerated()), id: \.offset) { index, item in
+                    if index > 0 {
+                        Rectangle().fill(HubTheme.line).frame(width: 1, height: 28)
+                    }
+                    stat(item.1, item.0)
+                }
+            }
+            .padding(.horizontal, 4)
+        }
+    }
+
+    private func stat(_ value: String, _ label: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(value).font(.subheadline.weight(.semibold))
+            Text(label).font(.caption).foregroundStyle(HubTheme.muted)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func sectionHeader<Trailing: View>(_ title: String, @ViewBuilder trailing: () -> Trailing) -> some View {
+        HStack {
+            Text(title)
+                .font(.headline)
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 8)
+            trailing()
+        }
+        .padding(.top, 4)
+    }
+
+    private func cardStack<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 0) { content() }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .hubGlass(cornerRadius: 16)
     }
 }
 

@@ -38,13 +38,39 @@ struct EditableRecipeLine: Identifiable, Equatable {
 }
 
 /// An ingredient line with its amount in the accent color ("1 Tbsp" olive oil), the way the recipe page shows it.
-func recipeIngredientText(_ line: String) -> Text {
+/// With `smallNotes`, a note in brackets ("(burrito size)") is set smaller and quieter.
+func recipeIngredientText(_ line: String, smallNotes: Bool = false) -> Text {
     let parts = RecipeIngredientParts.split(line)
-    guard !parts.amount.isEmpty else { return Text(line) }
-    var amount = AttributedString(parts.amount)
-    amount.foregroundColor = HubTheme.accentText
-    var result = amount
-    if !parts.rest.isEmpty { result += AttributedString(" " + parts.rest) }
+    var result = AttributedString()
+    if !parts.amount.isEmpty {
+        var amount = AttributedString(parts.amount)
+        amount.foregroundColor = HubTheme.accentText
+        result += amount
+        if !parts.rest.isEmpty { result += AttributedString(" ") }
+    }
+    var rest = AttributedString(parts.rest)
+    if smallNotes, let regex = try? NSRegularExpression(pattern: "\\([^)]*\\)") {
+        let text = parts.rest
+        for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
+            guard let range = Range(match.range, in: text),
+                  let lower = AttributedString.Index(range.lowerBound, within: rest),
+                  let upper = AttributedString.Index(range.upperBound, within: rest) else { continue }
+            rest[lower..<upper].font = .caption
+            rest[lower..<upper].foregroundColor = HubTheme.muted
+        }
+    }
+    result += rest
+    return Text(result)
+}
+
+/// A method step with the ingredients it mentions in the accent color.
+func recipeStepText(_ step: String, keywords: [String]) -> Text {
+    var result = AttributedString(step)
+    for range in RecipeKeywords.ranges(of: keywords, in: step) {
+        guard let lower = AttributedString.Index(range.lowerBound, within: result),
+              let upper = AttributedString.Index(range.upperBound, within: result) else { continue }
+        result[lower..<upper].foregroundColor = HubTheme.accentText
+    }
     return Text(result)
 }
 
