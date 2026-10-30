@@ -13,8 +13,8 @@ struct RecipeFormView: View {
     @State private var prepTime = ""
     @State private var cookTime = ""
     @State private var totalTime = ""
-    @State private var ingredientsText = ""
-    @State private var directionsText = ""
+    @State private var ingredientLines: [EditableRecipeLine] = []
+    @State private var directionLines: [EditableRecipeLine] = []
     @State private var nutritionText = ""
     @State private var sourceUrl = ""
     @State private var imageUrl = ""
@@ -27,128 +27,120 @@ struct RecipeFormView: View {
 
     private struct Draft: Equatable {
         var text: [String]
+        var ingredients: [String]
+        var directions: [String]
         var tags: [String]
     }
 
     private var draft: Draft {
-        Draft(text: [title, description, servings, prepTime, cookTime, totalTime, ingredientsText,
-                     directionsText, nutritionText, sourceUrl, imageUrl, notes, newTag], tags: tags)
+        Draft(text: [title, description, servings, prepTime, cookTime, totalTime,
+                     nutritionText, sourceUrl, imageUrl, notes, newTag],
+              ingredients: EditableRecipeLine.stored(ingredientLines),
+              directions: EditableRecipeLine.stored(directionLines),
+              tags: tags)
     }
 
+    private var ingredientsText: String { EditableRecipeLine.stored(ingredientLines).joined(separator: "\n") }
+    private var directionsText: String { EditableRecipeLine.stored(directionLines).joined(separator: "\n") }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            FormField(label: "Title") {
-                TextField("Recipe title", text: $title)
-                    .accessibilityLabel("Title")
-                    .textFieldStyle(HubFieldStyle())
+        VStack(alignment: .leading, spacing: 20) {
+            group {
+                valueRow("Name", text: $title, placeholder: "Recipe title")
             }
 
-            FormField(label: "Description") {
-                TextField("Short description (optional)", text: $description, axis: .vertical)
-                    .accessibilityLabel("Description")
-                    .lineLimit(2...4)
-                    .textFieldStyle(HubFieldStyle())
+            group {
+                valueRow("Servings", text: $servings, placeholder: "4")
+                Divider().overlay(HubTheme.line)
+                valueRow("Prep Time", text: $prepTime, placeholder: "15 min")
+                Divider().overlay(HubTheme.line)
+                valueRow("Cook Time", text: $cookTime, placeholder: "30 min")
+                Divider().overlay(HubTheme.line)
+                valueRow("Total Time", text: $totalTime, placeholder: "45 min")
             }
 
-            HStack(spacing: 8) {
-                FormField(label: "Servings") {
-                    TextField("4", text: $servings).textFieldStyle(HubFieldStyle())
-                        .accessibilityLabel("Servings")
-                }
-                FormField(label: "Total Time") {
-                    TextField("45 min", text: $totalTime).textFieldStyle(HubFieldStyle())
-                        .accessibilityLabel("Total Time")
-                }
-            }
-
-            HStack(spacing: 8) {
-                FormField(label: "Prep Time") {
-                    TextField("15 min", text: $prepTime).textFieldStyle(HubFieldStyle())
-                        .accessibilityLabel("Prep Time")
-                }
-                FormField(label: "Cook Time") {
-                    TextField("30 min", text: $cookTime).textFieldStyle(HubFieldStyle())
-                        .accessibilityLabel("Cook Time")
+            section("Description") {
+                group {
+                    TextField("Short description (optional)", text: $description, axis: .vertical)
+                        .accessibilityLabel("Description")
+                        .lineLimit(2...4)
+                        .padding(.vertical, 12)
                 }
             }
 
-            FormField(label: "Ingredients") {
-                TextField("One ingredient per line", text: $ingredientsText, axis: .vertical)
-                    .accessibilityLabel("Ingredients")
-                    .lineLimit(4...8)
-                    .textFieldStyle(HubFieldStyle())
-                    .font(.system(.body, design: .monospaced))
+            section("Ingredients") {
+                RecipeLineListEditor(kind: .ingredients, lines: $ingredientLines)
             }
 
-            FormField(label: "Directions") {
-                TextField("One step per line", text: $directionsText, axis: .vertical)
-                    .accessibilityLabel("Directions")
-                    .lineLimit(4...10)
-                    .textFieldStyle(HubFieldStyle())
+            section("Method") {
+                RecipeLineListEditor(kind: .method, lines: $directionLines)
             }
 
-            FormField(label: "Nutrition") {
-                TextField("Calories: 420", text: $nutritionText, axis: .vertical)
-                    .accessibilityLabel("Nutrition")
-                    .lineLimit(2...6)
-                    .textFieldStyle(HubFieldStyle())
-                    .font(.system(.body, design: .monospaced))
+            section("Notes") {
+                group {
+                    TextField("Add Note", text: $notes, axis: .vertical)
+                        .accessibilityLabel("Family Notes")
+                        .lineLimit(2...6)
+                        .padding(.vertical, 12)
+                }
             }
 
-            FormField(label: "Source URL") {
-                TextField("Optional", text: $sourceUrl)
-                    .accessibilityLabel("Source URL")
-                    .textFieldStyle(HubFieldStyle())
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.URL)
+            section("Nutrition") {
+                group {
+                    TextField("Calories: 420", text: $nutritionText, axis: .vertical)
+                        .accessibilityLabel("Nutrition")
+                        .lineLimit(2...10)
+                        .font(.system(.body, design: .monospaced))
+                        .padding(.vertical, 12)
+                }
             }
 
-            FormField(label: "Image URL") {
-                TextField("Optional", text: $imageUrl)
-                    .accessibilityLabel("Image URL")
-                    .textFieldStyle(HubFieldStyle())
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.URL)
+            section("Photo") {
+                group {
+                    valueRow("Image URL", text: $imageUrl, placeholder: "Optional", isURL: true)
+                }
             }
 
-            FormField(label: "Tags") {
-                VStack(alignment: .leading, spacing: 10) {
-                    TagFlowLayout(spacing: 8) {
-                        ForEach(tagChoices, id: \.self) { tag in
-                            TagChip(text: tag, isSelected: RecipeTagHelpers.contains(tags, tag)) {
-                                tags = RecipeTagHelpers.toggling(tag, in: tags)
+            section("Website") {
+                group {
+                    valueRow("Source URL", text: $sourceUrl, placeholder: "Optional", isURL: true)
+                }
+            }
+
+            section("Tags") {
+                group {
+                    VStack(alignment: .leading, spacing: 10) {
+                        TagFlowLayout(spacing: 8) {
+                            ForEach(tagChoices, id: \.self) { tag in
+                                TagChip(text: tag, isSelected: RecipeTagHelpers.contains(tags, tag)) {
+                                    tags = RecipeTagHelpers.toggling(tag, in: tags)
+                                }
                             }
                         }
-                    }
 
-                    HStack(spacing: 8) {
-                        TextField("Add your own tag", text: $newTag)
-                            .accessibilityLabel("New Tag")
-                            .textFieldStyle(HubFieldStyle())
-                            .submitLabel(.done)
-                            .onSubmit(addNewTag)
-                        Button("Add", action: addNewTag)
-                            .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
-                            .disabled(newTag.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-
-                    if onSuggestTags != nil {
-                        Button {
-                            Task { await suggestTags() }
-                        } label: {
-                            Label(isSuggestingTags ? "Looking" : "Suggest from ingredients", systemImage: "wand.and.stars")
+                        HStack(spacing: 8) {
+                            TextField("Add your own tag", text: $newTag)
+                                .accessibilityLabel("New Tag")
+                                .textFieldStyle(HubFieldStyle())
+                                .submitLabel(.done)
+                                .onSubmit(addNewTag)
+                            Button("Add", action: addNewTag)
+                                .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
+                                .disabled(newTag.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
-                        .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
-                        .disabled(isSuggestingTags || ingredientsText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-                }
-            }
 
-            FormField(label: "Family Notes") {
-                TextField("Optional", text: $notes, axis: .vertical)
-                    .accessibilityLabel("Family Notes")
-                    .lineLimit(2...4)
-                    .textFieldStyle(HubFieldStyle())
+                        if onSuggestTags != nil {
+                            Button {
+                                Task { await suggestTags() }
+                            } label: {
+                                Label(isSuggestingTags ? "Looking" : "Suggest from ingredients", systemImage: "wand.and.stars")
+                            }
+                            .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
+                            .disabled(isSuggestingTags || ingredientsText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
+                    }
+                    .padding(.vertical, 12)
+                }
             }
 
             Button(submitLabel) {
@@ -202,8 +194,8 @@ struct RecipeFormView: View {
         prepTime = recipe.prepTime ?? ""
         cookTime = recipe.cookTime ?? ""
         totalTime = recipe.totalTime ?? ""
-        ingredientsText = RecipeFormHelpers.ingredientsText(recipe.ingredients)
-        directionsText = RecipeFormHelpers.directionsText(recipe.directions)
+        ingredientLines = EditableRecipeLine.lines(from: recipe.ingredients)
+        directionLines = EditableRecipeLine.lines(from: recipe.directions)
         nutritionText = RecipeFormHelpers.nutritionText(recipe.nutrition)
         sourceUrl = recipe.sourceUrl ?? ""
         imageUrl = recipe.imageUrl ?? ""
@@ -231,5 +223,41 @@ struct RecipeFormView: View {
         for tag in suggested {
             tags = RecipeTagHelpers.adding(tag, to: tags)
         }
+    }
+
+    // MARK: Layout pieces
+
+    /// A named group of cards, with its title above it like the sections of a Settings list.
+    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(HubTheme.muted)
+                .padding(.leading, 4)
+                .accessibilityAddTraits(.isHeader)
+            content()
+        }
+    }
+
+    private func group<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 0) { content() }
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(HubTheme.tile, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    /// A label on the left and the value, in the accent color, on the right.
+    private func valueRow(_ label: String, text: Binding<String>, placeholder: String, isURL: Bool = false) -> some View {
+        HStack(spacing: 12) {
+            Text(label)
+            TextField(placeholder, text: text)
+                .accessibilityLabel(label)
+                .multilineTextAlignment(.trailing)
+                .foregroundStyle(HubTheme.accentText)
+                .textInputAutocapitalization(isURL ? .never : .sentences)
+                .keyboardType(isURL ? .URL : .default)
+        }
+        .padding(.vertical, 12)
+        .frame(minHeight: 44)
     }
 }

@@ -452,7 +452,7 @@ private struct RecipeDetailPanel: View {
                                 case .heading(let text):
                                     RecipeSectionHeading(text: text)
                                 case .item(_, let text):
-                                    Text("• \(text)")
+                                    recipeIngredientText(text)
                                         .fixedSize(horizontal: false, vertical: true)
                                         .padding(.vertical, 4)
                                 }
