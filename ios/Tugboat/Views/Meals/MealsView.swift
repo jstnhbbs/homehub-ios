@@ -225,6 +225,24 @@ struct MealsView: View {
         }
     }
 
+    /// The week and its More menu on one line, so the menu sits level with the arrows instead of on a row of its own
+    /// above them. When the text size or the Today button leaves no room, the menu drops under the week, at the right.
+    private var compactWeekRow: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: 12) {
+                weekNavigator
+                mealActions
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                weekNavigator
+                HStack {
+                    Spacer()
+                    mealActions
+                }
+            }
+        }
+    }
+
     private var weekNavigator: some View {
         HStack(spacing: 10) {
             weekArrow("chevron.left", label: "Previous week") {
@@ -303,8 +321,7 @@ struct MealsView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 18) {
                     VStack(alignment: .leading, spacing: 12) {
-                        header
-                        weekNavigator
+                        compactWeekRow
                         messages
                     }
                     ForEach(Array(zip(viewModel.weekDates, viewModel.weekDateStrings)), id: \.1) { day, localDate in
