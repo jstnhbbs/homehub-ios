@@ -122,6 +122,38 @@ struct RecipesView: View {
         }
     }
 
+    /// Finds recipes by any word in their titles; it narrows the list together with the tag filters below it.
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(HubTheme.muted)
+                .accessibilityHidden(true)
+            TextField("Search Recipes", text: $viewModel.searchText)
+                .textFieldStyle(.plain)
+                .submitLabel(.search)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+            if !viewModel.searchText.isEmpty {
+                Button {
+                    viewModel.searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(HubTheme.muted)
+                        .minimumTapTarget()
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear Search")
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(HubTheme.tile, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(HubTheme.line.opacity(0.7), lineWidth: 1)
+        )
+    }
+
     /// Tags in use across the household's recipes. Pick several to narrow down (Dinner + Chicken).
     @ViewBuilder
     private var tagFilterBar: some View {
@@ -146,12 +178,16 @@ struct RecipesView: View {
         } else if viewModel.recipes.isEmpty {
             EmptyStateView(text: "Save your first recipe manually or import one from a website.")
         } else {
+            searchField
             tagFilterBar
             if viewModel.filteredRecipes.isEmpty {
                 VStack(spacing: 10) {
-                    EmptyStateView(text: "No recipes have all of those tags.")
-                    Button("Clear Filters") { viewModel.clearTagFilters() }
-                        .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
+                    EmptyStateView(text: viewModel.isSearching ? "No recipes match that search." : "No recipes have all of those tags.")
+                    Button(viewModel.isSearching ? "Clear Search" : "Clear Filters") {
+                        viewModel.searchText = ""
+                        viewModel.clearTagFilters()
+                    }
+                    .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
                 }
             }
             LazyVGrid(columns: columns, spacing: 16) {

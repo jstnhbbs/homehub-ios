@@ -15,6 +15,10 @@ final class RecipesViewModel: ObservableObject {
     @Published var tagFilters: [String] = [] {
         didSet { updateDerivedLists() }
     }
+    /// What is typed in the search box; recipes whose titles have all of its words are shown (see `RecipeSearch`).
+    @Published var searchText = "" {
+        didSet { updateDerivedLists() }
+    }
 
     private var appState: AppState?
 
@@ -60,14 +64,20 @@ final class RecipesViewModel: ObservableObject {
     /// on every redraw, and with a few hundred recipes that was noticeable.
     private(set) var availableTags: [String] = []
 
-    /// Recipes that have every selected tag; all recipes when nothing is selected.
+    /// Recipes that have every selected tag and every word searched for; all recipes when neither is set.
     private(set) var filteredRecipes: [Recipe] = []
+
+    var isSearching: Bool {
+        !RecipeSearch.words(in: searchText).isEmpty
+    }
 
     private func updateDerivedLists() {
         availableTags = RecipeTagHelpers.usedTags(in: recipes.map(\.tags))
-        filteredRecipes = tagFilters.isEmpty
-            ? recipes
-            : recipes.filter { RecipeTagHelpers.matches(recipeTags: $0.tags, selected: tagFilters) }
+        let words = RecipeSearch.words(in: searchText)
+        filteredRecipes = recipes.filter { recipe in
+            (tagFilters.isEmpty || RecipeTagHelpers.matches(recipeTags: recipe.tags, selected: tagFilters))
+                && RecipeSearch.matches(title: recipe.title, words: words)
+        }
     }
 
     func toggleTagFilter(_ tag: String) {
