@@ -10,14 +10,21 @@ struct MealsView: View {
     @State private var dropTarget: MealSlotRef?
     @State private var confirmClearWeek = false
     @State private var scrolledWeekOffset: Int?
+    /// Only a Food page that is on screen acts on a request to open one of its sections. Another live copy (a
+    /// tab's page that is not showing) used to take the request first, so the page being opened found it gone and
+    /// stayed on Weekly Plan.
+    @State private var isOnScreen = false
 
     var body: some View {
         foodContent
             .onAppear {
+                isOnScreen = true
                 normalizeSection()
                 applyPendingFoodSection()
             }
+            .onDisappear { isOnScreen = false }
             .onChange(of: appState.pendingFoodSection) { _, _ in
+                guard isOnScreen else { return }
                 applyPendingFoodSection()
             }
             .onChange(of: appState.hubModules) { _, _ in
