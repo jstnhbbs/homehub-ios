@@ -239,7 +239,6 @@ struct SnacksView: View {
                             }
                         }
                 }
-                .disabled(viewModel.isWorking)
             }
         } header: {
             Label("Snacks", systemImage: "carrot.fill")
@@ -333,14 +332,23 @@ struct SnacksView: View {
         .accessibilityAction(named: "Move Down") {
             Task { await viewModel.shiftSnack(snack, by: 1) }
         }
-        .rowSwipe(
-            trailing: [
-                .edit { viewModel.beginEditing(snack) },
-                .delete { Task { await viewModel.deleteSnack(snack) } },
-            ],
-            isEnabled: viewModel.canManage,
-            cornerRadius: 12
-        )
+        // The list's own swipe actions, not the custom drag gesture: a drag gesture on every row of a list that also
+        // reorders competed with its scrolling and could leave the page stuck until it was left and reopened.
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if viewModel.canManage {
+                Button(role: .destructive) {
+                    Task { await viewModel.deleteSnack(snack) }
+                } label: {
+                    Label("Delete", systemImage: "trash.fill")
+                }
+                Button {
+                    viewModel.beginEditing(snack)
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+                .tint(HubTheme.accent)
+            }
+        }
     }
 }
 
