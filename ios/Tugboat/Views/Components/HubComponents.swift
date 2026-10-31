@@ -274,6 +274,7 @@ enum HubWash { case theme, neutral }
 private struct HubWashKey: EnvironmentKey { static let defaultValue: HubWash = .theme }
 private struct HubBackdropProvidedKey: EnvironmentKey { static let defaultValue = false }
 private struct HubSolidBackdropKey: EnvironmentKey { static let defaultValue = false }
+private struct HubPushedPageKey: EnvironmentKey { static let defaultValue = false }
 extension EnvironmentValues {
     var hubWash: HubWash {
         get { self[HubWashKey.self] }
@@ -283,6 +284,12 @@ extension EnvironmentValues {
     /// paint another, or each shows as a box with its own gradient.
     /// Inside a navigation stack on the iPad's hub, which paints its own system black behind its pages: they paint the
     /// plain page color (no glow, the hub already draws that) so the stack does not show as a black box.
+    /// True for a page pushed onto Today's navigation stack on the phone, which has a navigation bar of its own;
+    /// a tab's root page has none and clears the status bar itself.
+    var hubPushedPage: Bool {
+        get { self[HubPushedPageKey.self] }
+        set { self[HubPushedPageKey.self] = newValue }
+    }
     var hubSolidBackdrop: Bool {
         get { self[HubSolidBackdropKey.self] }
         set { self[HubSolidBackdropKey.self] = newValue }

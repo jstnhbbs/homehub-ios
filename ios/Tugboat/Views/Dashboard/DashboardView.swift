@@ -287,17 +287,33 @@ struct DashboardView: View {
 
     @ViewBuilder
     private func compactDestinationPage(_ destination: HubDestination) -> some View {
-        HubDestinationContent(
+        let page = HubDestinationContent(
             destination: destination,
             presentation: destination == .settings ? .pushed : .split
         )
-        .padding(.horizontal, destination == .settings ? 0 : 16)
-        .padding(.vertical, destination == .settings ? 0 : 14)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .hubSurfaceBackground()
-        .navigationTitle(destination.label)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.visible, for: .navigationBar)
+        if destination == .meals {
+            // Food scrolls full-bleed like a tab's page: its margin is on the scrolling content, so it passes under
+            // the navigation bar and the tab bar instead of being a padded box between them.
+            page
+                .environment(\.hubPushedPage, true)
+                .contentMargins(.horizontal, 16, for: .scrollContent)
+                .contentMargins(.bottom, 14, for: .scrollContent)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .overlay(alignment: .top) { HubTopFade().ignoresSafeArea(edges: .top) }
+                .hubSurfaceBackground()
+                .navigationTitle(destination.label)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar(.visible, for: .navigationBar)
+        } else {
+            page
+                .padding(.horizontal, destination == .settings ? 0 : 16)
+                .padding(.vertical, destination == .settings ? 0 : 14)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .hubSurfaceBackground()
+                .navigationTitle(destination.label)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar(.visible, for: .navigationBar)
+        }
     }
 
     @ViewBuilder

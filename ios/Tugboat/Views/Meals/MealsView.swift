@@ -3,6 +3,7 @@ import SwiftUI
 struct MealsView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.hubPushedPage) private var isPushedPage
     @StateObject private var viewModel = MealsViewModel()
     @State private var section: FoodHubSection = .week
     @State private var pickerTarget: MealSlotRef?
@@ -35,7 +36,7 @@ struct MealsView: View {
                     if visibleSections.count > 1 {
                         glassSectionPicker
                             .padding(.horizontal, 16)
-                            .padding(.top, HubScreen.topInset + 6)
+                            .padding(.top, isPushedPage ? 0 : HubScreen.topInset + 6)
                             .padding(.bottom, 6)
                     }
                 }
