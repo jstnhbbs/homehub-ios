@@ -234,7 +234,58 @@ struct HubTopFade: View {
     }
 }
 
+/// How a page looks on the phone, whichever way it was reached: the tab bar and More open it as a tab's root, and
+/// Today's cards push it onto Today's navigation stack. Both go through this one definition, so the two can't drift
+/// apart again. The page scrolls full-bleed, its margin is on the scrolling content, and the status bar gets the
+/// soft fade. The only difference is room at the top: a tab's page clears the status bar itself, a pushed one clears
+/// the navigation bar, which keeps only its back button (no title, no band).
+private struct HubPhonePage: ViewModifier {
+    let pushed: Bool
+    let topMargin: CGFloat?
+
+    func body(content: Content) -> some View {
+        if pushed {
+            content
+                .environment(\.hubPushedPage, true)
+                .contentMargins(.horizontal, 16, for: .scrollContent)
+                .contentMargins(.top, topMargin ?? 8, for: .scrollContent)
+                .contentMargins(.bottom, 14, for: .scrollContent)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .overlay(alignment: .top) { HubTopFade().ignoresSafeArea(edges: .top) }
+                .hubSurfaceBackground()
+                .navigationTitle("")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar(.visible, for: .navigationBar)
+                .toolbarBackground(.hidden, for: .navigationBar)
+                .hubHidesTopScrollEdgeEffect()
+        } else {
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .contentMargins(.horizontal, 16, for: .scrollContent)
+                .contentMargins(.top, HubScreen.topInset + 14, for: .scrollContent)
+                .contentMargins(.bottom, HubScreen.tabBarClearance + 14, for: .scrollContent)
+                .hubFullBleed()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .hubSurfaceBackground()
+        }
+    }
+}
+
 extension View {
+    func hubPhonePage(pushed: Bool = false, topMargin: CGFloat? = nil) -> some View {
+        modifier(HubPhonePage(pushed: pushed, topMargin: topMargin))
+    }
+
+    /// Removes the blurred band iOS 26 puts under a navigation bar where content scrolls beneath it.
+    @ViewBuilder
+    func hubHidesTopScrollEdgeEffect() -> some View {
+        if #available(iOS 26, *) {
+            scrollEdgeEffectHidden(true, for: .top)
+        } else {
+            self
+        }
+    }
+
     /// Lets a phone page's scroll view fill the screen and inset its own content for the bars, so content scrolls
     /// under the status bar and the tab bar instead of stopping at a clip line.
     func hubFullBleed() -> some View {
