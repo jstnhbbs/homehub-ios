@@ -622,6 +622,7 @@ struct HubHeaderView: View {
 }
 
 struct HubDestinationContent: View {
+    @EnvironmentObject private var appState: AppState
     let destination: HubDestination
     var presentation: SettingsPresentation = .split
 
@@ -638,7 +639,8 @@ struct HubDestinationContent: View {
         case .chores:
             ChoresView()
         case .meals:
-            MealsView()
+            // The section a card asked for is handed over as the page is made, not left for it to pick up later.
+            MealsView(initialSection: appState.pendingFoodSection)
         case .sleep:
             NapsView(embeddedInHub: true)
         case .birthdays:

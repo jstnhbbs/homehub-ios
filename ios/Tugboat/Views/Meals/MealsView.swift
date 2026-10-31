@@ -5,7 +5,13 @@ struct MealsView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.hubPushedPage) private var isPushedPage
     @StateObject private var viewModel = MealsViewModel()
-    @State private var section: FoodHubSection = .week
+    @State private var section: FoodHubSection
+
+    /// `initialSection` is the section a card asked to open (Today's Snacks card). It is read when the page is made
+    /// because the page just left (still alive while it slides away) used to hear the request first and clear it.
+    init(initialSection: FoodHubSection? = nil) {
+        _section = State(initialValue: initialSection ?? .week)
+    }
     @State private var pickerTarget: MealSlotRef?
     @State private var dropTarget: MealSlotRef?
     @State private var confirmClearWeek = false
@@ -23,9 +29,15 @@ struct MealsView: View {
                 applyPendingFoodSection()
             }
             .onDisappear { isOnScreen = false }
-            .onChange(of: appState.pendingFoodSection) { _, _ in
-                guard isOnScreen else { return }
-                applyPendingFoodSection()
+            .onChange(of: appState.pendingFoodSection) { _, pending in
+                // A page already showing switches section; it leaves the request for the page about to open (which
+                // clears it as it appears), and drops it itself a moment later if no page opens.
+                guard isOnScreen, let pending else { return }
+                if pending.isVisible(in: appState.hubModules) { section = pending }
+                Task {
+                    try? await Task.sleep(for: .milliseconds(600))
+                    if appState.pendingFoodSection == pending { appState.pendingFoodSection = nil }
+                }
             }
             .onChange(of: appState.hubModules) { _, _ in
                 normalizeSection()
