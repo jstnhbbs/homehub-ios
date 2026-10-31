@@ -291,12 +291,14 @@ struct DashboardView: View {
             destination: destination,
             presentation: destination == .settings ? .pushed : .split
         )
-        if destination == .meals {
-            // Food scrolls full-bleed like a tab's page: its margin is on the scrolling content, so it passes under
-            // the navigation bar and the tab bar instead of being a padded box between them.
+        if destination != .settings && destination != .profile {
+            // The page scrolls full-bleed like a tab's page: its margin is on the scrolling content, so it passes
+            // under the navigation bar and the tab bar instead of being a padded box between them. Food brings its
+            // own section picker below the bar, so it needs no top margin.
             page
                 .environment(\.hubPushedPage, true)
                 .contentMargins(.horizontal, 16, for: .scrollContent)
+                .contentMargins(.top, destination == .meals ? 0 : 8, for: .scrollContent)
                 .contentMargins(.bottom, 14, for: .scrollContent)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .overlay(alignment: .top) { HubTopFade().ignoresSafeArea(edges: .top) }
