@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// One button revealed by swiping a row.
 struct SwipeButton: Identifiable {
@@ -99,7 +100,10 @@ private struct RowSwipe: ViewModifier {
                 .offset(x: offset)
         }
         .clipped()
-        .simultaneousGesture(drag)
+        // A UIKit pan that only begins for a horizontal drag. A SwiftUI `DragGesture` on a row, even a simultaneous
+        // one, kept a scroll that started on the row from scrolling the page; a recognizer that refuses to begin
+        // for a vertical drag leaves that drag entirely to the scroll view.
+        .background(HorizontalPanProbe(onChanged: panChanged, onEnded: panEnded))
         .onChange(of: coordinator.openID) { _, openID in
             if openID != rowID, settledOffset != 0 { close() }
         }
@@ -157,38 +161,32 @@ private struct RowSwipe: ViewModifier {
         }
     }
 
-    private var drag: some Gesture {
-        DragGesture(minimumDistance: 12)
-            .onChanged { value in
-                // Leave a mostly vertical drag to the page's scrolling.
-                if !isDragging {
-                    guard abs(value.translation.width) > abs(value.translation.height) * 1.6 else { return }
-                    isDragging = true
-                }
-                let proposed = settledOffset + value.translation.width
-                offset = min(leadingReveal * 1.4, max(-(fullSwipe + 30), proposed))
+    private func panChanged(_ translation: CGFloat) {
+        isDragging = true
+        let proposed = settledOffset + translation
+        offset = min(leadingReveal * 1.4, max(-(fullSwipe + 30), proposed))
+    }
+
+    private func panEnded() {
+        guard isDragging else { return }
+        isDragging = false
+        if !trailing.isEmpty, offset < -fullSwipe, let primary = trailing.last {
+            // A long swipe is a request for the last button (the delete): ask when it has to, with the buttons
+            // still showing, otherwise just do it.
+            if primary.confirmation != nil {
+                settle(at: -trailingReveal)
+                pending = primary
+            } else {
+                close()
+                primary.action()
             }
-            .onEnded { value in
-                guard isDragging else { return }
-                isDragging = false
-                if !trailing.isEmpty, offset < -fullSwipe, let primary = trailing.last {
-                    // A long swipe is a request for the last button (the delete): ask when it has to, with the buttons
-                    // still showing, otherwise just do it.
-                    if primary.confirmation != nil {
-                        settle(at: -trailingReveal)
-                        pending = primary
-                    } else {
-                        close()
-                        primary.action()
-                    }
-                } else if offset < -openDistance, !trailing.isEmpty {
-                    settle(at: -trailingReveal)
-                } else if offset > openDistance, !leading.isEmpty {
-                    settle(at: leadingReveal)
-                } else {
-                    close()
-                }
-            }
+        } else if offset < -openDistance, !trailing.isEmpty {
+            settle(at: -trailingReveal)
+        } else if offset > openDistance, !leading.isEmpty {
+            settle(at: leadingReveal)
+        } else {
+            close()
+        }
     }
 
     private func settle(at value: CGFloat) {
@@ -244,5 +242,85 @@ extension View {
         if let onEdit { buttons.append(.edit(onEdit)) }
         buttons.append(.delete(confirmation: .init(title: title, message: message), onDelete))
         return rowSwipe(trailing: buttons, onTap: onTap, isEnabled: isEnabled, cornerRadius: cornerRadius)
+    }
+}
+
+
+/// Reports a horizontal drag that starts on the view it sits behind. It puts one `UIPanGestureRecognizer` on the
+/// enclosing scroll view (or the view's parent when there is none) and begins only when the touch started inside
+/// this view and is moving more sideways than up or down, so every other drag stays with the scroll view.
+private struct HorizontalPanProbe: UIViewRepresentable {
+    let onChanged: (CGFloat) -> Void
+    let onEnded: () -> Void
+
+    func makeUIView(context: Context) -> ProbeView {
+        let view = ProbeView()
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+        view.onChanged = onChanged
+        view.onEnded = onEnded
+        return view
+    }
+
+    func updateUIView(_ view: ProbeView, context: Context) {
+        view.onChanged = onChanged
+        view.onEnded = onEnded
+    }
+
+    final class ProbeView: UIView, UIGestureRecognizerDelegate {
+        var onChanged: (CGFloat) -> Void = { _ in }
+        var onEnded: () -> Void = {}
+        private var pan: UIPanGestureRecognizer?
+        private weak var host: UIView?
+        private var startedInside = false
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            detach()
+            guard window != nil else { return }
+            var ancestor = superview
+            while let view = ancestor, !(view is UIScrollView) { ancestor = view.superview }
+            guard let host = ancestor ?? superview else { return }
+            let recognizer = UIPanGestureRecognizer(target: self, action: #selector(handle(_:)))
+            recognizer.delegate = self
+            recognizer.cancelsTouchesInView = false
+            host.addGestureRecognizer(recognizer)
+            pan = recognizer
+            self.host = host
+        }
+
+        private func detach() {
+            if let pan, let host { host.removeGestureRecognizer(pan) }
+            pan = nil
+            host = nil
+        }
+
+        deinit { detach() }
+
+        override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard gestureRecognizer === pan, let pan, window != nil else { return super.gestureRecognizerShouldBegin(gestureRecognizer) }
+            let velocity = pan.velocity(in: self)
+            guard abs(velocity.x) > abs(velocity.y) * 1.6 else { return false }
+            // Where the finger went down, not where it is now: take the translation back out.
+            let translation = pan.translation(in: self)
+            let location = pan.location(in: self)
+            let start = CGPoint(x: location.x - translation.x, y: location.y - translation.y)
+            return bounds.insetBy(dx: -4, dy: -4).contains(start)
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+            true
+        }
+
+        @objc private func handle(_ recognizer: UIPanGestureRecognizer) {
+            switch recognizer.state {
+            case .changed:
+                onChanged(recognizer.translation(in: self).x)
+            case .ended, .cancelled, .failed:
+                onEnded()
+            default:
+                break
+            }
+        }
     }
 }

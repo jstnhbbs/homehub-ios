@@ -269,10 +269,12 @@ private struct GroceryItemRow: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 14)
         .padding(.vertical, compact ? 9 : 12)
-        .background(item.checked ? HubTheme.tileQuiet : HubTheme.surfaceStrong)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        // Glass like a chore's row, so the two lists read as the same kind of thing.
+        .hubGlass(cornerRadius: 18)
+        .opacity(item.checked ? 0.7 : 1)
+        .contentShape(Rectangle())
         .opacity(isWorking ? 0.6 : 1)
         .accessibilityElement(children: .combine)
         .accessibilityValue(item.checked ? "Checked off" : "Not checked off")
