@@ -769,12 +769,14 @@ struct SetupProgressCard: View {
                     Image(systemName: "xmark")
                         .font(.footnote.weight(.bold))
                         .foregroundStyle(HubTheme.muted)
-                        .minimumTapTarget()
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Dismiss Setup")
             }
             .padding(.leading, 16)
-            .padding(.vertical, 8)
+            .padding(.trailing, 8)
+            .padding(.vertical, 4)
             .hubGlass(cornerRadius: 22)
         }
     }
