@@ -7,7 +7,6 @@ struct DashboardView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     private static let gridMinimumWidth: CGFloat = 520
-    @State private var compactNavigationPath = NavigationPath()
     /// Rearranging the cards on the page itself (edit mode); see DashboardEditing.swift.
     @StateObject private var edit = DashboardEditState()
     @State private var layoutSaveTask: Task<Void, Never>?
@@ -22,21 +21,14 @@ struct DashboardView: View {
     var body: some View {
         Group {
             if horizontalSizeClass == .compact {
-                NavigationStack(path: $compactNavigationPath) {
-                    compactDashboardContent
-                        .contentMargins(.horizontal, 14, for: .scrollContent)
-                        .contentMargins(.top, HubScreen.topInset + 10, for: .scrollContent)
-                        .contentMargins(.bottom, HubScreen.tabBarClearance + 10, for: .scrollContent)
-                        .hubFullBleed()
+                // Cards open their page by selecting it in the tab bar (or More), like the iPad's sidebar: the page
+                // is the same one the tab shows, and Today is always one tap away in the bar.
+                compactDashboardContent
+                    .contentMargins(.horizontal, 14, for: .scrollContent)
+                    .contentMargins(.top, HubScreen.topInset + 10, for: .scrollContent)
+                    .contentMargins(.bottom, HubScreen.tabBarClearance + 10, for: .scrollContent)
+                    .hubFullBleed()
                     .hubPageBackground()
-                    .navigationTitle("Today")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar(.hidden, for: .navigationBar)
-                    .navigationDestination(for: HubDestination.self) { destination in
-                        compactDestinationPage(destination)
-                            .hubPageBackground()
-                    }
-                }
             } else {
                 GeometryReader { proxy in
                     // Under this width the page is a single column of fixed-height cards; above it, the real
@@ -274,36 +266,7 @@ struct DashboardView: View {
     private func openDestination(_ destination: HubDestination) {
         // The finger lifting after a press-and-hold has just started editing is not a tap on the card.
         guard !edit.tapsSuppressed else { return }
-        if horizontalSizeClass == .compact {
-            if destination == .dashboard {
-                compactNavigationPath = NavigationPath()
-            } else {
-                compactNavigationPath.append(destination)
-            }
-        } else {
-            appState.selectedDestination = destination
-        }
-    }
-
-    @ViewBuilder
-    private func compactDestinationPage(_ destination: HubDestination) -> some View {
-        let page = HubDestinationContent(
-            destination: destination,
-            presentation: destination == .settings ? .pushed : .split
-        )
-        if destination != .settings && destination != .profile {
-            // Food brings its own section picker below the bar, so it needs no top margin.
-            page.hubPhonePage(pushed: true, topMargin: destination == .meals ? 0 : nil)
-        } else {
-            page
-                .padding(.horizontal, destination == .settings ? 0 : 16)
-                .padding(.vertical, destination == .settings ? 0 : 14)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .hubSurfaceBackground()
-                .navigationTitle(destination.label)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar(.visible, for: .navigationBar)
-        }
+        appState.selectedDestination = destination
     }
 
     @ViewBuilder
