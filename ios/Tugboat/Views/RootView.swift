@@ -91,6 +91,23 @@ struct RootView: View {
             .tint(appState.accentPalette.textColor)
             .preferredColorScheme(appState.appearanceMode.colorScheme)
         }
+        // The guided setup, for someone who has just created a household. It waits for the permissions screen, opens
+        // once by itself, and after that is reached from Today's card or Settings.
+        .task(id: "\(appState.household?.id ?? "")-\(appState.isBootstrapping)") {
+            appState.loadSetupState()
+        }
+        .task(id: "\(appState.setupState?.shouldPresentAutomatically ?? false)-\(permissionsSetupSeen)-\(showingPermissionsSetup)-\(appState.needsOnboarding)-\(appState.isBootstrapping)") {
+            guard appState.auth.isSignedIn, !appState.needsOnboarding, !appState.isBootstrapping,
+                  permissionsSetupSeen, !showingPermissionsSetup,
+                  appState.setupState?.shouldPresentAutomatically == true else { return }
+            appState.openSetup()
+        }
+        .fullScreenCover(isPresented: $appState.showingSetup) {
+            HouseholdSetupView()
+                .environmentObject(appState)
+                .tint(appState.accentPalette.textColor)
+                .preferredColorScheme(appState.appearanceMode.colorScheme)
+        }
         .onOpenURL { url in
             guard let destination = WidgetRoute.destination(from: url) else { return }
             appState.pendingWidgetRecipeId = nil

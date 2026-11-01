@@ -103,6 +103,10 @@ final class AppState: ObservableObject {
     /// Whether Settings is open as a sheet over the phone's tabs. Held here, not in the hub, because the hub is rebuilt when
     /// the theme color changes and would take the sheet with it.
     @Published var showingSettingsSheet = false
+    /// The guided setup for a household this device created (`HouseholdSetup.swift`). Nil when it was never
+    /// offered, which is everyone who joined a household and everyone who was using the app before it existed.
+    @Published var setupState: HouseholdSetupState?
+    @Published var showingSetup = false
 
     private static let accentStorageKey = "tugboat.accentPalette"
     private static let appearanceModeKey = "tugboat.appearanceMode"
@@ -698,6 +702,8 @@ final class AppState: ObservableObject {
     @discardableResult
     private func clearSignedInState() -> Task<Void, Never> {
         showingSettingsSheet = false
+        showingSetup = false
+        setupState = nil
         widgetUpdateTask?.cancel()
         widgetRecipeTask?.cancel()
         widgetRecipeId = nil

@@ -518,6 +518,19 @@ struct SettingsView: View {
                 } label: {
                     Label("Replay Welcome Tour", systemImage: "sparkles")
                 }
+                if appState.canManageHousehold {
+                    Button {
+                        // A cover can't open while the Settings sheet is still going away.
+                        let wasSheet = appState.showingSettingsSheet
+                        appState.showingSettingsSheet = false
+                        Task {
+                            if wasSheet { try? await Task.sleep(nanoseconds: 500_000_000) }
+                            appState.openSetup()
+                        }
+                    } label: {
+                        Label("Household Setup", systemImage: "checklist")
+                    }
+                }
             }
             .listRowBackground(HubTheme.tile)
 

@@ -82,7 +82,7 @@ struct OnboardingView: View {
         do {
             switch mode {
             case .create:
-                _ = try await appState.api.createHousehold(
+                let created = try await appState.api.createHousehold(
                     CreateHouseholdRequest(
                         name: householdName,
                         ownerLastName: ownerLastName,
@@ -90,6 +90,8 @@ struct OnboardingView: View {
                         timezone: TimeZone.current.identifier
                     )
                 )
+                // Only the person who creates a household is offered the guided setup.
+                HouseholdSetupStore().begin(householdId: created.id)
             case .join:
                 _ = try await appState.api.joinHousehold(
                     JoinHouseholdRequest(inviteCode: inviteCode.uppercased())
@@ -100,6 +102,7 @@ struct OnboardingView: View {
                 )
             }
             await appState.refreshHousehold()
+            appState.loadSetupState()
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -102,6 +102,8 @@ struct DashboardView: View {
                 LazyVStack(alignment: .leading, spacing: 10) {
                     compactHeader(dashboard: dashboard)
 
+                    SetupProgressCard()
+
                     if !todaysBirthdays.items.isEmpty {
                         BirthdayTodayBanners(items: todaysBirthdays.items, localDate: todaysBirthdays.localDate)
                     }
