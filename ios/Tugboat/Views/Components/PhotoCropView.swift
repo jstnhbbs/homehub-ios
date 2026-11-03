@@ -33,6 +33,7 @@ struct PhotoCropView: View {
     var onCancel: () -> Void
     var onDone: (UIImage) -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var zoom: CGFloat = 1
     @State private var offset: CGSize = .zero
     @State private var dragStart: CGSize?
@@ -123,15 +124,34 @@ struct PhotoCropView: View {
             .gesture(dragGesture(side: side))
             .simultaneousGesture(pinchGesture(side: side))
             .onTapGesture(count: 2) {
-                withAnimation(.snappy) {
+                withAnimation(reduceMotion ? nil : .snappy) {
                     zoom = 1
                     offset = .zero
                 }
             }
             .accessibilityElement()
             .accessibilityLabel("Photo crop")
-            .accessibilityHint("Use the zoom slider to zoom. Choose uses the part inside the outline.")
+            .accessibilityValue(positionDescription(geometry))
+            .accessibilityHint("Use the zoom slider to zoom and the actions to move the photo. Choose uses the part inside the outline.")
+            .accessibilityAction(named: Text("Move Left")) { move(x: -1, y: 0, side: side) }
+            .accessibilityAction(named: Text("Move Right")) { move(x: 1, y: 0, side: side) }
+            .accessibilityAction(named: Text("Move Up")) { move(x: 0, y: -1, side: side) }
+            .accessibilityAction(named: Text("Move Down")) { move(x: 0, y: 1, side: side) }
+            .accessibilityAction(named: Text("Reset")) { zoom = 1; offset = .zero }
         }
+    }
+
+    private func move(x: CGFloat, y: CGFloat, side: CGFloat) {
+        var geometry = current(side: side)
+        geometry.setOffset(CGSize(width: offset.width + x * side * 0.1, height: offset.height + y * side * 0.1))
+        offset = geometry.offset
+    }
+
+    private func positionDescription(_ geometry: PhotoCropGeometry) -> String {
+        let rect = geometry.cropRect()
+        let across = Int((rect.midX / max(1, image.size.width) * 100).rounded())
+        let down = Int((rect.midY / max(1, image.size.height) * 100).rounded())
+        return "Crop centered at \(across) percent across and \(down) percent down"
     }
 
     private func dragGesture(side: CGFloat) -> some Gesture {

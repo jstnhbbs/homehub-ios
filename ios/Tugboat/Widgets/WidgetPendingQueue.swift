@@ -16,6 +16,9 @@ struct WidgetPendingAction: Codable, Equatable, Identifiable, Sendable {
     /// When a sender took this to send it. Another sender leaves it alone for `claimWindow`, so a tap isn't
     /// sent twice at once, and takes it up again if the first one never finished.
     var claimedAt: Date?
+    /// Optional so queues written by older versions still decode.
+    var retryAfter: Date?
+    var attempts: Int?
 
     /// The same limit the server puts on how old an end time may be.
     static let maxAge: TimeInterval = 24 * 60 * 60
@@ -39,6 +42,26 @@ struct WidgetPendingAction: Codable, Equatable, Identifiable, Sendable {
 
     func isExpired(at now: Date) -> Bool { now.timeIntervalSince(tappedAt) > Self.maxAge }
     func isClaimed(at now: Date) -> Bool { claimedAt.map { now.timeIntervalSince($0) < Self.claimWindow } ?? false }
+
+    func isSameCompletion(as other: Self) -> Bool {
+        guard action == other.action, itemId == other.itemId, userId == other.userId,
+              householdId == other.householdId else { return false }
+        switch action {
+        case "step": return localDate == other.localDate
+        case "chore": return periodKey == other.periodKey
+        default: return true
+        }
+    }
+
+    func applies(to snapshot: WidgetSnapshot) -> Bool {
+        guard userId == snapshot.userId, householdId == snapshot.householdId else { return false }
+        switch action {
+        case "step": return localDate == snapshot.localDate
+        case "chore": return snapshot.chores.contains { $0.id == itemId && $0.periodKey == periodKey }
+        case "endSleep": return snapshot.sleeps.contains { $0.id == itemId }
+        default: return false
+        }
+    }
 
     /// What to send. End Sleep carries the time it was tapped once it is being sent late, so a delayed sync
     /// doesn't make the sleep look longer than it was.
@@ -86,7 +109,7 @@ struct WidgetPendingQueue: Sendable {
     func enqueue(_ action: WidgetPendingAction) -> Bool {
         var added = false
         _ = locked { items in
-            guard !items.contains(where: { $0.action == action.action && $0.itemId == action.itemId && $0.userId == action.userId }) else { return items }
+            guard !items.contains(where: { $0.isSameCompletion(as: action) }) else { return items }
             added = true
             return items + [action]
         }
@@ -95,11 +118,14 @@ struct WidgetPendingQueue: Sendable {
 
     /// The taps this sender should send now, oldest first: not expired and not taken by another sender in the
     /// last minute. They are marked as taken. Expired ones are dropped (the app will reconcile from the server).
-    func claim(userId: String, now: Date = .now) -> [WidgetPendingAction] {
+    func claim(userId: String, householdId: String? = nil, limit: Int = .max, now: Date = .now) -> [WidgetPendingAction] {
         var mine: [WidgetPendingAction] = []
         _ = locked { items in
             var result = items.filter { !$0.isExpired(at: now) }
-            for index in result.indices where result[index].userId == userId && !result[index].isClaimed(at: now) {
+            for index in result.indices.sorted(by: { result[$0].tappedAt < result[$1].tappedAt })
+                where mine.count < limit && result[index].userId == userId
+                    && (householdId == nil || result[index].householdId == householdId)
+                    && !result[index].isClaimed(at: now) && (result[index].retryAfter ?? .distantPast) <= now {
                 result[index].claimedAt = now
                 mine.append(result[index])
             }
@@ -123,6 +149,24 @@ struct WidgetPendingQueue: Sendable {
         _ = locked { _ in [] }
     }
 
+    func clear(userId: String, householdId: String) {
+        _ = locked { $0.filter { $0.userId != userId || $0.householdId != householdId } }
+    }
+
+    func retry(_ id: String, after delay: TimeInterval? = nil, now: Date = .now) {
+        _ = locked { items in
+            items.map { original in
+                guard original.id == id else { return original }
+                var item = original
+                let attempts = min((item.attempts ?? 0) + 1, 10)
+                item.attempts = attempts
+                item.claimedAt = nil
+                item.retryAfter = now.addingTimeInterval(max(1, delay ?? min(900, 5 * pow(2, Double(attempts - 1)))))
+                return item
+            }
+        }
+    }
+
     /// How many taps are waiting for this person, for the widget's "Waiting to sync".
     func count(userId: String, now: Date = .now) -> Int {
         load().filter { $0.userId == userId && !$0.isExpired(at: now) }.count
@@ -132,7 +176,7 @@ struct WidgetPendingQueue: Sendable {
     /// doesn't have them yet; otherwise a refresh would show the item as undone until it syncs.
     func overlay(on snapshot: WidgetSnapshot, now: Date = .now) -> WidgetSnapshot {
         var result = snapshot
-        for item in load() where item.userId == snapshot.userId && item.householdId == snapshot.householdId && !item.isExpired(at: now) {
+        for item in load() where item.applies(to: snapshot) && !item.isExpired(at: now) {
             result = WidgetActionPolicy.applying(action: item.action, itemId: item.itemId, to: result, at: item.tappedAt)
         }
         return result

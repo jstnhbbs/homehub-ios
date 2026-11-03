@@ -45,144 +45,190 @@ final class GroceriesViewModel: ObservableObject {
         appState?.canManageHousehold ?? false
     }
 
+    var canManage: Bool { appState?.canManageHousehold ?? false }
+
+    private var loadVersion = 0
+
+    private struct Context {
+        let session: Int
+        let userId: String?
+        let householdId: String?
+        let native: Bool
+        let listId: String?
+    }
+
+    private func context(_ app: AppState) -> Context {
+        Context(session: app.auth.sessionVersion, userId: app.currentUser?.id, householdId: app.household?.id,
+                native: app.nativeReminders.hasFullAccess, listId: app.nativeReminders.selectedListId)
+    }
+
+    private func isCurrent(_ context: Context, in app: AppState) -> Bool {
+        !Task.isCancelled && app.auth.isSignedIn && context.session == app.auth.sessionVersion
+            && context.userId == app.currentUser?.id && context.householdId == app.household?.id
+            && context.native == app.nativeReminders.hasFullAccess && context.listId == app.nativeReminders.selectedListId
+    }
+
     func load() async {
-        guard let appState else { return }
+        guard let appState, !isWorking else { return }
+        syncReminderState(from: appState)
+        loadVersion += 1
+        let version = loadVersion
+        let remindersRevision = appState.nativeReminders.revision
+        let context = context(appState)
         isLoading = true
         errorMessage = nil
-        defer { isLoading = false }
-
+        defer { if version == loadVersion { isLoading = false } }
         do {
-            syncReminderState(from: appState)
-            if usesNativeReminders {
-                items = try await appState.nativeReminders.loadItems()
-                appState.nativeGroceryItems = items
-            } else {
-                items = try await appState.api.fetchGroceryItems()
+            let fetched = context.native ? try await appState.nativeReminders.loadItems() : try await appState.api.fetchGroceryItems()
+            guard version == loadVersion, isCurrent(context, in: appState) else { return }
+            guard remindersRevision == appState.nativeReminders.revision else {
+                Task { await load() }
+                return
             }
+            items = fetched
+            if context.native { appState.nativeGroceryItems = fetched }
         } catch {
-            if let message = error.userFacingMessage {
-                errorMessage = message
+            guard version == loadVersion, isCurrent(context, in: appState) else { return }
+            if remindersRevision != appState.nativeReminders.revision {
+                Task { await load() }
+                return
             }
+            errorMessage = error.userFacingMessage
         }
     }
 
     func requestRemindersAccess() async {
         guard let appState else { return }
         await appState.nativeReminders.requestFullAccess()
-        syncReminderState(from: appState)
         await load()
     }
 
     func selectReminderList(id: String?) {
-        guard let appState, appState.canManageHousehold else { return }
+        guard let appState, canManage, !isWorking else { return }
+        loadVersion += 1
+        items = []
+        appState.nativeGroceryItems = []
         appState.nativeReminders.selectedListId = id
         syncReminderState(from: appState)
         Task { await load() }
     }
 
+    /// Reserve the write before any suspension, and invalidate older reads before optimistic edits.
+    private func beginWrite(_ app: AppState) -> Context? {
+        guard app.canManageHousehold, !isWorking, app.auth.isSignedIn else { return nil }
+        syncReminderState(from: app)
+        loadVersion += 1
+        isLoading = false
+        isWorking = true
+        errorMessage = nil
+        return context(app)
+    }
+
+    private func report(_ error: Error, in app: AppState) {
+        errorMessage = error.userFacingMessage
+        app.report(error)
+    }
+
     func addItem() async {
         guard let appState else { return }
         let title = newItemTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !title.isEmpty else { return }
-
-        isWorking = true
-        errorMessage = nil
+        guard !title.isEmpty, let context = beginWrite(appState) else { return }
         defer { isWorking = false }
-
         do {
-            if usesNativeReminders {
-                _ = try appState.nativeReminders.addItem(title: title)
-                items = try await appState.nativeReminders.loadItems()
+            if context.native {
+                let created = try appState.nativeReminders.addItem(title: title)
+                items.insert(created, at: 0)
+                items = GroceryHelpers.sortedItems(items)
                 appState.nativeGroceryItems = items
+                // The write already committed. A cancelled reconciliation must not turn it into a failed Add.
+                let fetched = try? await appState.nativeReminders.loadItems()
+                guard isCurrent(context, in: appState) else { return }
+                if let fetched { items = fetched; appState.nativeGroceryItems = fetched }
             } else {
-                let created = try await appState.api.addGroceryItem(
-                    GroceryItemInput(title: title, category: nil)
-                )
+                let created = try await appState.api.addGroceryItem(GroceryItemInput(title: title, category: nil))
+                guard isCurrent(context, in: appState) else { return }
                 items.insert(created, at: 0)
                 items = GroceryHelpers.sortedItems(items)
             }
-            newItemTitle = ""
+            // Keep a new draft typed while this request was pending.
+            if newItemTitle.trimmingCharacters(in: .whitespacesAndNewlines) == title { newItemTitle = "" }
             await appState.refreshDashboard()
         } catch {
-            if let message = error.userFacingMessage {
-                errorMessage = message
-            }
+            guard isCurrent(context, in: appState) else { return }
+            report(error, in: appState)
         }
     }
 
     func toggle(_ item: GroceryItem) async {
-        guard let appState else { return }
+        guard let appState, let context = beginWrite(appState) else { return }
+        defer { isWorking = false }
         let nextChecked = !item.checked
-        updateLocalItem(item.id) { draft in
-            draft.checked = nextChecked
-            draft.checkedAt = nextChecked ? Date() : nil
-        }
-
+        updateLocalItem(item.id) { $0.checked = nextChecked; $0.checkedAt = nextChecked ? Date() : nil }
         do {
-            if usesNativeReminders {
+            if context.native {
                 try appState.nativeReminders.setCompleted(itemId: item.id, completed: nextChecked)
-                items = try await appState.nativeReminders.loadItems()
                 appState.nativeGroceryItems = items
+                let fetched = try? await appState.nativeReminders.loadItems()
+                guard isCurrent(context, in: appState) else { return }
+                if let fetched { items = fetched; appState.nativeGroceryItems = fetched }
             } else {
                 let updated = try await appState.api.toggleGroceryItem(id: item.id, checked: nextChecked)
+                guard isCurrent(context, in: appState) else { return }
                 updateLocalItem(item.id) { $0 = updated }
             }
             await appState.refreshDashboard()
         } catch {
-            updateLocalItem(item.id) { draft in
-                draft.checked = item.checked
-                draft.checkedAt = item.checkedAt
-            }
-            if let message = error.userFacingMessage {
-                errorMessage = message
-            }
+            guard isCurrent(context, in: appState) else { return }
+            updateLocalItem(item.id) { $0 = item }
+            report(error, in: appState)
         }
     }
 
     func delete(_ item: GroceryItem) async {
-        guard let appState else { return }
+        guard let appState, let context = beginWrite(appState) else { return }
+        defer { isWorking = false }
         let previous = items
         items.removeAll { $0.id == item.id }
-
         do {
-            if usesNativeReminders {
+            if context.native {
                 try appState.nativeReminders.deleteItem(itemId: item.id)
                 appState.nativeGroceryItems = items
             } else {
                 try await appState.api.deleteGroceryItem(id: item.id)
             }
+            guard isCurrent(context, in: appState) else { return }
             await appState.refreshDashboard()
         } catch {
+            guard isCurrent(context, in: appState) else { return }
             items = previous
-            if let message = error.userFacingMessage {
-                errorMessage = message
-            }
+            report(error, in: appState)
         }
     }
 
     func clearChecked() async {
-        guard let appState else { return }
+        guard let appState, let context = beginWrite(appState) else { return }
+        defer { isWorking = false }
         let previous = items
         items.removeAll { $0.checked }
-        isWorking = true
-        errorMessage = nil
-        defer { isWorking = false }
-
         do {
-            if usesNativeReminders {
-                for item in previous where item.checked {
-                    try appState.nativeReminders.deleteItem(itemId: item.id)
-                }
+            if context.native {
+                for item in previous where item.checked { try appState.nativeReminders.deleteItem(itemId: item.id) }
                 appState.nativeGroceryItems = items
             } else {
                 try await appState.api.clearCheckedGroceryItems()
             }
+            guard isCurrent(context, in: appState) else { return }
             await appState.refreshDashboard()
         } catch {
-            items = previous
-            if let message = error.userFacingMessage {
-                errorMessage = message
+            guard isCurrent(context, in: appState) else { return }
+            // Native deletes commit individually; reconcile any partial success rather than restore phantom items.
+            if context.native, let fetched = try? await appState.nativeReminders.loadItems(), isCurrent(context, in: appState) {
+                items = fetched
+                appState.nativeGroceryItems = fetched
+            } else if isCurrent(context, in: appState) {
+                items = previous
             }
+            report(error, in: appState)
         }
     }
 

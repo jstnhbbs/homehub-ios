@@ -63,6 +63,15 @@ check("changed button target replaces an otherwise identical reminder",
       describe(NotificationDiff.changes(existing: [oldCommand], desired: [newCommand])), "remove= add=chore")
 check("unchanged button arguments do not reschedule",
       describe(NotificationDiff.changes(existing: [oldCommand], desired: [oldCommand])), "remove= add=")
+newCommand = oldCommand
+newCommand.userInfo["userId"] = "user"
+newCommand.userInfo["householdId"] = "household"
+check("an older reminder gains its recipient without needing a title change",
+      describe(NotificationDiff.changes(existing: [oldCommand], desired: [newCommand])), "remove= add=chore")
+oldCommand = newCommand
+newCommand.userInfo["userId"] = "other-user"
+check("an account change replaces the same household's reminder",
+      describe(NotificationDiff.changes(existing: [oldCommand], desired: [newCommand])), "remove= add=chore")
 
 if failures > 0 {
     print("\(failures) failed")

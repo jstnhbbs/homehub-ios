@@ -3,11 +3,13 @@ import SwiftUI
 struct HubView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ScaledMetric(relativeTo: .body) private var moreMenuWidth = 188.0
     @ScaledMetric(relativeTo: .body) private var moreMenuLineHeight = 22.0
     @ScaledMetric(relativeTo: .body) private var moreMenuIconWidth = 20.0
     @State private var showMoreMenu = false
+    @AccessibilityFocusState private var focusedMoreDestination: HubDestination?
     /// A picture of the page the menu opened over, shown as the More tab's content so the page behind the menu does not
     /// move; the real page is untouched and comes back when the menu closes.
     @State private var moreSnapshot: UIImage?
@@ -20,7 +22,7 @@ struct HubView: View {
 
     var body: some View {
         Group {
-            if horizontalSizeClass == .compact {
+            if horizontalSizeClass == .compact || dynamicTypeSize.isAccessibilitySize {
                 compactTabs
                 .id(compactTabLayoutID)
                 .tint(HubTheme.accentText)
@@ -50,11 +52,20 @@ struct HubView: View {
                                     .padding(.bottom, layout.bottomInset)
                             }
                             .frame(width: proxy.size.width, height: proxy.size.height)
+                            .accessibilityElement(children: .contain)
+                            .accessibilityAddTraits(.isModal)
+                            .accessibilityAction(.escape) { showMoreMenu = false }
                         }
                         .transition(.scale(scale: 0.92, anchor: UnitPoint(x: 0.86, y: 1)).combined(with: .opacity))
                     }
                 }
                 .animation(reduceMotion ? nil : .snappy(duration: 0.2), value: showMoreMenu)
+                .onChange(of: showMoreMenu) { _, isShowing in
+                    if !isShowing {
+                        focusedMoreDestination = nil
+                        moreSnapshot = nil
+                    }
+                }
                 .onAppear {
                     if compactPrimaryDestinations.contains(appState.selectedDestination) {
                         lastPrimaryDestination = appState.selectedDestination
@@ -74,15 +85,10 @@ struct HubView: View {
                 }
             } else {
                 HStack(spacing: 0) {
-                    // The sidebar and the top bar are navigation chrome, like a tab bar: they grow with the text
-                    // up to a point and then stop, because a fixed-width sidebar cannot wrap its labels
-                    // ("Chore / s") and nothing is gained by a header that fills the screen. The page itself
-                    // keeps scaling all the way.
+                    // At accessibility sizes use the full-width navigation above, leaving room for readable labels.
                     HubNavView()
-                        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     VStack(spacing: 0) {
                         HubHeaderView()
-                            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                         content(for: appState.selectedDestination)
                             .frame(
                                 maxWidth: regularContentMaxWidth(for: appState.selectedDestination),
@@ -140,11 +146,13 @@ struct HubView: View {
             set: { destination in
                 if destination == .more {
                     // Normally the tab bar hook has already handled this tap; without it, handle it here.
+                    Haptics.select()
                     if moreTapHandled { moreTapHandled = false } else { showMoreMenu.toggle() }
                     return
                 }
                 showMoreMenu = false
                 lastPrimaryDestination = destination
+                if appState.selectedDestination != destination { Haptics.select() }
                 appState.selectedDestination = destination
             }
         )
@@ -314,6 +322,7 @@ struct HubView: View {
         .hubGlass(cornerRadius: 22)
         .shadow(color: .black.opacity(0.14), radius: 12, y: 4)
         .accessibilityIdentifier("hub.moreMenu")
+        .onAppear { focusedMoreDestination = compactOverflowDestinations.last }
     }
 
     private var moreMenuRows: some View {
@@ -341,6 +350,7 @@ struct HubView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(appState.selectedDestination == destination ? .isSelected : [])
+                .accessibilityFocused($focusedMoreDestination, equals: destination)
 
                 if index < compactOverflowDestinations.count - 1 {
                     Rectangle()

@@ -10,6 +10,16 @@ enum NotificationCommand: Equatable, Sendable {
 }
 
 enum NotificationCommands {
+    static let userIdKey = "userId"
+    static let householdIdKey = "householdId"
+
+    /// A reminder belongs to the person and household it was planned for, even after an account switch.
+    static func recipient(userInfo: [AnyHashable: Any]) -> NotificationRecipient? {
+        guard let userId = userInfo[userIdKey] as? String, !userId.isEmpty,
+              let householdId = userInfo[householdIdKey] as? String, !householdId.isEmpty else { return nil }
+        return NotificationRecipient(userId: userId, householdId: householdId)
+    }
+
     // Categories say which buttons a notification gets; actions say which button was pressed.
     static let choreCategory = "tugboat.chore"
     static let sleepCategory = "tugboat.sleep"
@@ -81,4 +91,9 @@ enum NotificationCommands {
             return ("Couldn't end the sleep", "\(name)'s sleep wasn't ended. Open Tugboat to try again.")
         }
     }
+}
+
+struct NotificationRecipient: Equatable, Sendable {
+    let userId: String
+    let householdId: String
 }

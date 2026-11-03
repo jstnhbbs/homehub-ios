@@ -48,6 +48,7 @@ final class SwipeCoordinator: ObservableObject {
 /// button has a confirmation. The drag is tracked alongside a scroll view's own, and only moves the row once it is
 /// clearly horizontal, so scrolling the page past the row still works.
 private struct RowSwipe: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let trailing: [SwipeButton]
     let leading: [SwipeButton]
     let onTap: (() -> Void)?
@@ -174,15 +175,19 @@ private struct RowSwipe: ViewModifier {
             // A long swipe is a request for the last button (the delete): ask when it has to, with the buttons
             // still showing, otherwise just do it.
             if primary.confirmation != nil {
+                Haptics.warning()
                 settle(at: -trailingReveal)
                 pending = primary
             } else {
+                Haptics.check()
                 close()
                 primary.action()
             }
         } else if offset < -openDistance, !trailing.isEmpty {
+            Haptics.select()
             settle(at: -trailingReveal)
         } else if offset > openDistance, !leading.isEmpty {
+            Haptics.select()
             settle(at: leadingReveal)
         } else {
             close()
@@ -190,7 +195,7 @@ private struct RowSwipe: ViewModifier {
     }
 
     private func settle(at value: CGFloat) {
-        withAnimation(.spring(duration: 0.25)) { offset = value }
+        withAnimation(reduceMotion ? nil : .spring(duration: 0.25)) { offset = value }
         settledOffset = value
         if value != 0 {
             coordinator.openID = rowID

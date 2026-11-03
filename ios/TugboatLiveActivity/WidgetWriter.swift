@@ -26,32 +26,10 @@ enum WidgetWriter {
         // Other widgets that show the same item. The one that was tapped redraws when this returns.
         for kind in WidgetActionPolicy.affectedKinds(action: action) { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
 
-        // The send starts now, in this extension, rather than after it returns: nothing else will send a tap this
-        // fresh (the widget's timeline leaves it alone for a few seconds), and an extension is not guaranteed to
-        // keep running once its action has returned.
-        let send = Task.detached { await WidgetSync.flush() }
-        // Up to a second for the send, so the extension is working while it goes out; a slower send carries on
-        // behind the return. A check-off then holds a little longer: its toggle already shows checked, and the row
-        // is taken off the list by the redraw that follows this returning.
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask { _ = await send.value }
-            group.addTask { try? await Task.sleep(nanoseconds: 1_000_000_000) }
-            await group.next()
-            group.cancelAll()
-        }
+        // The durable queue survives extension suspension. Try now within a real network deadline,
+        // then return for WidgetKit's redraw; a future timeline or the app retries anything left.
+        await WidgetSync.flush(timeout: 1)
         let hold = holdSeconds - Date().timeIntervalSince(tapped)
-        if hold > 0 { try? await Task.sleep(nanoseconds: UInt64(hold * 1_000_000_000)) }
-        // Keep the extension alive to finish the send after this returns.
-        ProcessInfo.processInfo.performExpiringActivity(withReason: "Tugboat widget action") { expired in
-            guard !expired else { return }   // still on the waiting list; the next send gets it
-            let finished = DispatchSemaphore(value: 0)
-            Task.detached {
-                _ = await send.value
-                // The tap that is waiting redraws as "Waiting to sync"; one that went through needs nothing.
-                for kind in WidgetActionPolicy.affectedKinds(action: action) { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
-                finished.signal()
-            }
-            finished.wait()
-        }
+        if hold > 0 { try? await Task.sleep(for: .seconds(hold)) }
     }
 }

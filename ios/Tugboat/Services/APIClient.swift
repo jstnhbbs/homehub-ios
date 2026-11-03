@@ -5,6 +5,7 @@ enum APIError: LocalizedError, Sendable {
     case invalidResponse
     case unauthorized
     case serverError(String)
+    case retryableServerError(statusCode: Int, message: String, retryAfter: TimeInterval?)
     case decodingError(String)
 
     var errorDescription: String? {
@@ -16,6 +17,8 @@ enum APIError: LocalizedError, Sendable {
         case .unauthorized:
             "You are not signed in."
         case .serverError(let message):
+            message
+        case .retryableServerError(_, let message, _):
             message
         case .decodingError(let message):
             "Could not read server data: \(message)"
@@ -87,13 +90,16 @@ struct APIClient: Sendable {
 
     /// Runs a request and keeps any cookies the server set or removed.
     private func send(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        try Task.checkCancellation()
+        guard credentials.isCurrent else { throw CancellationError() }
         guard let url = request.url else { throw APIError.invalidURL }
         let snapshot = credentials.snapshot(for: url)
         let generation = snapshot.generation
         var request = request
         request.setValue(snapshot.header, forHTTPHeaderField: "Cookie")
         let (data, response) = try await session.data(for: request)
-        guard generation == credentials.sessionGeneration else { throw CancellationError() }
+        try Task.checkCancellation()
+        guard generation == credentials.sessionGeneration, credentials.isCurrent else { throw CancellationError() }
         if let http = response as? HTTPURLResponse, let url = request.url {
             credentials.absorb(http, from: url, generation: generation)
         }
@@ -104,7 +110,8 @@ struct APIClient: Sendable {
         _ path: String,
         method: String = "GET",
         body: (any Encodable)? = nil,
-        authorized: Bool = true
+        authorized: Bool = true,
+        timeout: TimeInterval = 15
     ) async throws -> T {
         guard let url = URL(string: path, relativeTo: baseURL) else {
             throw APIError.invalidURL
@@ -112,7 +119,7 @@ struct APIClient: Sendable {
 
         var request = URLRequest(url: url)
         request.httpMethod = method
-        request.timeoutInterval = 15
+        request.timeoutInterval = timeout
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Tugboat-iOS/1.0", forHTTPHeaderField: "User-Agent")
         addOriginIfNeeded(to: &request, path: path)
@@ -132,7 +139,7 @@ struct APIClient: Sendable {
         }
 
         guard (200..<300).contains(http.statusCode) else {
-            throw APIError.serverError(APIClient.serverErrorMessage(statusCode: http.statusCode, data: data))
+            throw APIClient.responseError(http, data: data)
         }
 
         do {
@@ -160,7 +167,7 @@ struct APIClient: Sendable {
             throw APIError.unauthorized
         }
         guard (200..<300).contains(http.statusCode) else {
-            throw APIError.serverError(APIClient.serverErrorMessage(statusCode: http.statusCode, data: data))
+            throw APIClient.responseError(http, data: data)
         }
         return data
     }
@@ -168,9 +175,10 @@ struct APIClient: Sendable {
     func requestVoid(
         _ path: String,
         method: String = "POST",
-        body: (any Encodable)? = nil
+        body: (any Encodable)? = nil,
+        timeout: TimeInterval = 15
     ) async throws {
-        try await performRequest(path: path, method: method, jsonBody: body)
+        try await performRequest(path: path, method: method, jsonBody: body, timeout: timeout)
     }
 
     func uploadMultipart<T: Decodable>(
@@ -210,7 +218,7 @@ struct APIClient: Sendable {
         }
 
         guard (200..<300).contains(http.statusCode) else {
-            throw APIError.serverError(APIClient.serverErrorMessage(statusCode: http.statusCode, data: data))
+            throw APIClient.responseError(http, data: data)
         }
 
         do {
@@ -223,7 +231,8 @@ struct APIClient: Sendable {
     private func performRequest(
         path: String,
         method: String,
-        jsonBody: (any Encodable)? = nil
+        jsonBody: (any Encodable)? = nil,
+        timeout: TimeInterval = 15
     ) async throws {
         guard let url = URL(string: path, relativeTo: baseURL) else {
             throw APIError.invalidURL
@@ -231,7 +240,7 @@ struct APIClient: Sendable {
 
         var request = URLRequest(url: url)
         request.httpMethod = method
-        request.timeoutInterval = 15
+        request.timeoutInterval = timeout
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Tugboat-iOS/1.0", forHTTPHeaderField: "User-Agent")
         addOriginIfNeeded(to: &request, path: path)
@@ -251,8 +260,28 @@ struct APIClient: Sendable {
         }
 
         guard (200..<300).contains(http.statusCode) else {
-            throw APIError.serverError(APIClient.serverErrorMessage(statusCode: http.statusCode, data: data))
+            throw APIClient.responseError(http, data: data)
         }
+    }
+
+    static func responseError(_ response: HTTPURLResponse, data: Data, now: Date = .now) -> APIError {
+        let message = serverErrorMessage(statusCode: response.statusCode, data: data)
+        guard [408, 425, 429].contains(response.statusCode) || (500...599).contains(response.statusCode) else {
+            return .serverError(message)
+        }
+        var delay: TimeInterval?
+        if let value = response.value(forHTTPHeaderField: "Retry-After") {
+            if let seconds = Double(value), seconds.isFinite {
+                delay = max(0, seconds)
+            } else {
+                let formatter = DateFormatter()
+                formatter.locale = Locale(identifier: "en_US_POSIX")
+                formatter.timeZone = TimeZone(secondsFromGMT: 0)
+                formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+                delay = formatter.date(from: value).map { max(0, $0.timeIntervalSince(now)) }
+            }
+        }
+        return .retryableServerError(statusCode: response.statusCode, message: message, retryAfter: delay)
     }
 
     static func serverErrorMessage(statusCode: Int, data: Data) -> String {

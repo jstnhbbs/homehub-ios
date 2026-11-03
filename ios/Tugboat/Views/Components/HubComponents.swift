@@ -258,7 +258,16 @@ extension View {
 
 /// A frosted row background for grouped lists that sit on the page's own background.
 struct HubGlassRow: View {
-    var body: some View { Rectangle().fill(HubTheme.tile.opacity(0.62)).background(.ultraThinMaterial) }
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    var body: some View {
+        if reduceTransparency || contrast == .increased {
+            Rectangle().fill(HubTheme.tile)
+        } else {
+            Rectangle().fill(HubTheme.tile.opacity(0.62)).background(.ultraThinMaterial)
+        }
+    }
 }
 
 /// How the page background looks, chosen in Settings > Appearance and saved on this device.
@@ -313,6 +322,8 @@ struct HubBackdrop: View {
     @Environment(\.hubWash) private var wash
     @Environment(\.hubBackdropProvided) private var provided
     @Environment(\.hubSolidBackdrop) private var solid
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
 
     private var washColor: Color {
         switch (HubTheme.backgroundStyle, wash) {
@@ -328,7 +339,7 @@ struct HubBackdrop: View {
         } else {
         ZStack {
             base
-            if HubTheme.backgroundStyle != .off {
+            if HubTheme.backgroundStyle != .off, !reduceTransparency, contrast != .increased {
                 LinearGradient(
                     stops: [
                         .init(color: washColor.opacity(dark ? (wash == .neutral || HubTheme.backgroundStyle == .neutral ? 0.17 : 0.38) : 0.20), location: 0),
@@ -346,10 +357,16 @@ struct HubBackdrop: View {
 private struct HubGlassCard: ViewModifier {
     let cornerRadius: CGFloat
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        if #available(iOS 26, *) {
+        if reduceTransparency || contrast == .increased {
+            content
+                .background(HubTheme.tile, in: shape)
+                .overlay(shape.strokeBorder(contrast == .increased ? Color.primary.opacity(0.45) : HubTheme.line, lineWidth: 1))
+        } else if #available(iOS 26, *) {
             // In dark mode a solid base sits under the glass, so what is behind a card (the page's wash, a person's
             // color) cannot shift the card's own colors.
             content
@@ -499,6 +516,7 @@ struct CheckItemView: View {
             .onTapGesture {
                 guard !isWorking else { return }
                 guard !isUnavailable else { return }
+                Haptics.toggled(on: !isChecked)
                 Task {
                     isWorking = true
                     await onToggle()
@@ -785,6 +803,7 @@ enum HubButtonEmphasis {
 }
 
 struct HubButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var emphasis: HubButtonEmphasis = .primary
     var size: HubButtonSize = .regular
 
@@ -794,12 +813,12 @@ struct HubButtonStyle: ButtonStyle {
             .foregroundStyle(foregroundColor)
             // The regular button's minimum height is its whole height (48pt), padding included, which is
             // about what Apple's own buttons are; the padding used to be added on top, making it 68pt.
-            // A label that grows with the text size still pushes the button taller. Small and mini keep
-            // the sizes they have always had.
+            // A label that grows with the text size still pushes the button taller. Every size keeps
+            // at least a 44pt target, including the compact mini buttons.
             .frame(minHeight: size == .regular ? nil : size.minHeight)
             .padding(.horizontal, size.horizontalPadding)
             .padding(.vertical, size.verticalPadding)
-            .frame(minHeight: size == .regular ? size.minHeight : nil)
+            .frame(minHeight: size == .regular ? size.minHeight : 44)
             .background(backgroundColor)
             .overlay {
                 if showsBorder {
@@ -808,8 +827,9 @@ struct HubButtonStyle: ButtonStyle {
             }
             .clipShape(Capsule())
             .opacity(configuration.isPressed ? 0.88 : 1)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
+            .sensoryFeedback(.impact(weight: .light), trigger: configuration.isPressed) { _, pressed in pressed }
     }
 
     private var showsBorder: Bool {

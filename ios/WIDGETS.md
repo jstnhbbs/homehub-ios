@@ -101,10 +101,15 @@ the App Group, locked with `flock` because the widget and the app both change it
 shows it as done at once. `WidgetSync.flush` then sends the list oldest first:
 
 - sent: the tap leaves the list and the app is told (`WidgetWriteSignal`);
-- no connection (`URLError` such as not connected, timed out, connection lost): it stays, the sender stops
-  there, and the widget footer reads "Waiting to sync";
+- no connection, cancellation, rate limit or temporary server failure: it stays with exponential backoff
+  (or the server’s `Retry-After`), the sender stops, and the footer reads "Waiting to sync";
 - refused by the server: it leaves the list, the one item is put back (`undoing`) and the footer shows the error;
-- signed out: the list is cleared and the footer asks for the app to be opened.
+- signed out: only that account and household’s waiting taps are cleared, and the footer asks for the app to be opened.
+
+Each flush verifies the account and uses one read-only credential snapshot, checked against the shared Keychain
+before and after requests. A changed session stops the old flush without changing the new account’s data. A real
+URLSession cancellation deadline covers the whole flush: one second for a tap, five for a timeline, twenty for
+the app. There is no detached send to wait for after a timer wins. A sender claims only the item it is about to send.
 
 Senders: the tap itself, the widget building a timeline entry (`HouseholdWidgetTimeline.entry`, which waits up to
 five seconds), the app coming to the front, and `WidgetNetworkWatcher` in the app when the connection returns. A
@@ -115,7 +120,9 @@ through). Taps expire after 24 hours, the same limit the server puts on an end t
 seconds after it was tapped carries `endedAt` (the tap time), so a late sync doesn't lengthen the sleep; sent
 sooner it leaves the time to the server, which avoids trusting the phone's clock. Whoever rebuilds the snapshot
 from the server (`AppState.scheduleWidgetUpdate`, the Refresh button) applies the waiting taps first
-(`overlay`), or a refresh would show them as undone, and sign-out clears the list.
+(`overlay`), or a refresh would show them as undone, and sign-out clears the list. Routine completions are
+deduplicated and overlaid only within their household date; chores use their period key, so a weekly or one-off
+completion survives a date change without completing a different day’s daily chore.
 
 ## Checks
 
@@ -152,3 +159,7 @@ The circle on a chore or routine step is a `Toggle(isOn: false, intent: Househol
 Coming Up keeps the stored `Tugboat.lock.today` identifier and Dinner keeps `Tugboat.lock.evening`, so previously placed widgets remain registered. Groceries and celebration countdowns remain available across midnight; daily routines, Coming Up, chores and dinner require a current-day snapshot. Hidden sections show an unavailable state instead of misleading zero counts. Check-offs and End Sleep reload the affected Lock Screen kinds as well as the Home Screen kinds; timed chore boundaries are included in timelines.
 
 They are single color (iOS tints them from the wallpaper), use `AccessoryWidgetBackground`, carry no accent choice and have no buttons: a Lock Screen widget button needs an unlock, so ending a nap stays on the Live Activity.
+
+`ios/checks/widget-sync/run.sh` exercises real HTTP cancellation, retry backoff and account-switch protection
+with a stub URLProtocol. `ios/checks/groceries-races/run.sh` covers selected-list and session races plus grocery
+write permissions for each role, against both source types.

@@ -49,8 +49,10 @@ final class NotificationResponder: NSObject, UNUserNotificationCenterDelegate, @
         // The system lets the app run only until the handler is called, so it is called when the
         // request has finished, not before.
         let finish = UncheckedHandler(completionHandler)
+        let recipient = NotificationCommands.recipient(userInfo: response.notification.request.content.userInfo)
+        let tappedAt = Date()
         Task { @MainActor in
-            await Self.perform(command)
+            await Self.perform(command, recipient: recipient, tappedAt: tappedAt)
             finish.call()
         }
     }
@@ -77,15 +79,9 @@ final class NotificationResponder: NSObject, UNUserNotificationCenterDelegate, @
     }
 
     @MainActor
-    private static func perform(_ command: NotificationCommand) async {
-        let api = TugboatAPI(baseURL: AppConfig.baseURL)
+    private static func perform(_ command: NotificationCommand, recipient: NotificationRecipient?, tappedAt: Date) async {
         do {
-            switch command {
-            case .completeChore(let choreId, let periodKey, _):
-                try await api.toggleChore(ToggleChoreRequest(choreId: choreId, periodKey: periodKey, completed: true))
-            case .endSleep(let sleepId, _):
-                try await api.endNap(napId: sleepId)
-            }
+            try await NotificationActionRunner.perform(command, recipient: recipient, tappedAt: tappedAt, baseURL: AppConfig.baseURL)
             NotificationCenter.default.post(name: .tugboatDataChanged, object: nil)
         } catch {
             guard !error.isCancellation else { return }

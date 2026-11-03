@@ -25,5 +25,19 @@ let square = ProfilePhotoHelpers.cropped(crop, to: CGRect(x: 400, y: 300, width:
 check("cropping preserves square pixels", square.cgImage?.width == 1000 && square.cgImage?.height == 1000)
 let small = UIImage(data: ProfilePhotoHelpers.prepareUploadData(from: square)!.data)!
 check("small uploads are not enlarged", small.cgImage?.width == 1000)
-if failures > 0 { exit(1) }
-print("all passed")
+Task { @MainActor in
+    do {
+        let processed = try await ProfilePhotoHelpers.cropSourceInBackground(from: data)
+        check("background crop preserves the pixel cap", processed?.cgImage?.width == 3000)
+        let prepared = try await ProfilePhotoHelpers.prepareUploadDataInBackground(from: processed!)
+        check("background upload preserves the size limit", prepared!.data.count <= ProfilePhotoHelpers.maxBytes)
+        let cancelled = Task { try await ProfilePhotoHelpers.cropSourceInBackground(from: data) }
+        cancelled.cancel()
+        do { _ = try await cancelled.value; check("cancelled preprocessing is discarded", false) }
+        catch { check("cancelled preprocessing is discarded", error is CancellationError) }
+    } catch { check("background processing succeeds", false) }
+    if failures > 0 { exit(1) }
+    print("all passed")
+    exit(0)
+}
+RunLoop.main.run()

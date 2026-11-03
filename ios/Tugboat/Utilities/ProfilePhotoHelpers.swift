@@ -54,6 +54,30 @@ enum ProfilePhotoHelpers {
         return nil
     }
 
+    /// A view's async task still resumes on MainActor. Keep the synchronous ImageIO/UIKit work
+    /// on a worker, and discard results if the originating picker or upload has been cancelled.
+    static func cropSourceInBackground(from data: Data) async throws -> UIImage? {
+        try await process { cropSource(from: data) }
+    }
+
+    static func prepareUploadDataInBackground(from image: UIImage) async throws -> (data: Data, mimeType: String, fileName: String)? {
+        try await process { prepareUploadData(from: image) }
+    }
+
+    private static func process<Value: Sendable>(_ operation: @escaping @Sendable () -> Value) async throws -> Value {
+        let task = Task.detached(priority: .userInitiated) {
+            try Task.checkCancellation()
+            return autoreleasepool(invoking: operation)
+        }
+        return try await withTaskCancellationHandler {
+            let result = try await task.value
+            try Task.checkCancellation()
+            return result
+        } onCancel: {
+            task.cancel()
+        }
+    }
+
     private static func compress(
         image: UIImage,
         mimeType: String,

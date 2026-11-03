@@ -242,6 +242,7 @@ final class CroutonImportViewModel: ObservableObject {
     /// Errors where trying the next batch can only fail the same way.
     private static func isFatal(_ error: Error) -> Bool {
         if case APIError.unauthorized = error { return true }
+        if case APIError.retryableServerError(let status, _, _) = error, status == 429 { return true }
         if let api = error as? APIError, case .serverError(let message) = api {
             return message.localizedCaseInsensitiveContains("permission") || message.localizedCaseInsensitiveContains("too many")
         }

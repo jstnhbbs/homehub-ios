@@ -65,16 +65,18 @@ final class SessionCredentials: @unchecked Sendable {
     private let origin: String
     private let host: String?
     private let store: SecretStore
+    private let readOnly: Bool
     private let lock = NSLock()
     private var cookies: [String: String]
     private var generation = 0
 
     var sessionGeneration: Int { lock.withLock { generation } }
 
-    init(baseURL: URL, store: SecretStore = KeychainSecretStore()) {
+    init(baseURL: URL, store: SecretStore = KeychainSecretStore(), readOnly: Bool = false) {
         self.origin = APIClient.origin(of: baseURL) ?? baseURL.absoluteString
         self.host = baseURL.host
         self.store = store
+        self.readOnly = readOnly
         if let data = store.read(account: origin),
            let saved = try? JSONDecoder().decode([String: String].self, from: data) {
             cookies = saved
@@ -114,9 +116,20 @@ final class SessionCredentials: @unchecked Sendable {
 
     var hasSession: Bool { lock.withLock { !cookies.isEmpty } }
 
+    /// A widget holds one credential for its entire flush. It must never adopt a new account's
+    /// cookie or restore a removed cookie from a response arriving after sign-out.
+    var isCurrent: Bool {
+        lock.withLock {
+            guard readOnly else { return true }
+            guard !cookies.isEmpty, let data = store.read(account: origin),
+                  let saved = try? JSONDecoder().decode([String: String].self, from: data) else { return false }
+            return saved == cookies
+        }
+    }
+
     /// Takes in whatever cookies a response set or removed.
     func absorb(_ response: HTTPURLResponse, from url: URL, generation expectedGeneration: Int? = nil) {
-        guard url.host == host else { return }
+        guard !readOnly, url.host == host else { return }
         let fields = response.allHeaderFields.reduce(into: [String: String]()) { result, pair in
             if let key = pair.key as? String, let value = pair.value as? String { result[key] = value }
         }

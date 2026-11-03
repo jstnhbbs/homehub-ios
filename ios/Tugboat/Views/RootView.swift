@@ -4,6 +4,7 @@ import UIKit
 struct RootView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Whether the welcome tour has been shown (or skipped) on this device.
     @AppStorage(WelcomeTourPolicy.seenKey) private var welcomeTourSeen = false
     @AppStorage(PermissionsSetupView.seenKey) private var permissionsSetupSeen = false
@@ -60,11 +61,11 @@ struct RootView: View {
                 NoticeBanner(message: notice) { appState.dismissNotice() }
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: appState.notice)
-        .animation(.easeInOut(duration: 0.25), value: welcomeTourSeen)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: appState.notice)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: welcomeTourSeen)
         // Someone already signed in (an update, a restored session) has no use for the tour, now or after a later
         // sign-out.
         .task(id: appState.auth.isSignedIn) {

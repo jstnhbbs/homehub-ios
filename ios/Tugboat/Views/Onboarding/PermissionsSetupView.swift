@@ -113,6 +113,10 @@ struct PermissionsSetupView: View {
                 Button("Settings") { openSystemSettings() }
                     .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
                     .accessibilityLabel("Open Settings for \(title(kind))")
+            case .restricted:
+                Text("Restricted")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(HubTheme.muted)
             case .unavailable:
                 EmptyView()
             }
@@ -124,7 +128,7 @@ struct PermissionsSetupView: View {
 
     // MARK: State and actions
 
-    private enum RowState: Equatable { case allowed, notAsked, denied, unavailable }
+    private enum RowState: Equatable { case allowed, notAsked, denied, restricted, unavailable }
 
     private func state(of kind: Kind) -> RowState {
         switch kind {
@@ -132,19 +136,22 @@ struct PermissionsSetupView: View {
             switch appState.nativeCalendar.accessStatus {
             case .authorized: .allowed
             case .notDetermined: .notAsked
-            case .denied, .restricted: .denied
+            case .denied: .denied
+            case .restricted: .restricted
             }
         case .reminders:
             switch appState.nativeReminders.accessStatus {
             case .authorized: .allowed
             case .notDetermined: .notAsked
-            case .denied, .restricted: .denied
+            case .denied: .denied
+            case .restricted: .restricted
             }
         case .location:
             switch appState.nativeWeather.accessStatus {
             case .authorized: .allowed
             case .notDetermined: .notAsked
-            case .denied, .restricted: .denied
+            case .denied: .denied
+            case .restricted: .restricted
             case .unavailable: .unavailable
             }
         case .notifications:

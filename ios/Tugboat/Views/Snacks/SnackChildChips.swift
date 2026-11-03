@@ -94,7 +94,7 @@ struct SnackChildChips: View {
             Task {
                 guard !working.contains(child.id) else { return }
                 working.insert(child.id)
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                Haptics.toggled(on: !isEaten)
                 await onToggle(child, !isEaten)
                 working.remove(child.id)
             }

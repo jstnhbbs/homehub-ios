@@ -34,7 +34,7 @@ struct SleepLiveActivityWidget: Widget {
             let tint = Color(hex: context.attributes.colorHex)
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    SleepAvatar(name: context.attributes.childName, color: tint, size: 36)
+                    SleepAvatar(name: context.attributes.childName, colorHex: context.attributes.colorHex, size: 36)
                         .padding(.leading, 4)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
@@ -85,7 +85,7 @@ private struct SleepLockScreenView: View {
         let tint = Color(hex: attributes.colorHex)
         VStack(spacing: 10) {
             HStack(spacing: 14) {
-                SleepAvatar(name: attributes.childName, color: tint, size: 48)
+                SleepAvatar(name: attributes.childName, colorHex: attributes.colorHex, size: 48)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(attributes.childName)
                         .font(.headline)
@@ -133,7 +133,7 @@ private struct EndNapButton: View {
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(Color(hex: ColorMath.readableText(on: fill).hex))
                 .padding(.horizontal, 14)
-                .frame(maxWidth: expands ? .infinity : nil, minHeight: expands ? 36 : 32)
+                .frame(maxWidth: expands ? .infinity : nil, minHeight: 44)
         }
         .buttonStyle(.plain)
         .background(Color(hex: colorHex), in: Capsule())
@@ -143,15 +143,15 @@ private struct EndNapButton: View {
 
 private struct SleepAvatar: View {
     let name: String
-    let color: Color
+    let colorHex: String
     let size: CGFloat
 
     var body: some View {
         Text(String(name.prefix(1)).uppercased())
             .font(.system(size: size * 0.42, weight: .bold, design: .rounded))
-            .foregroundStyle(.white)
+            .foregroundStyle(Color(hex: ColorMath.readableText(on: RGBColor(hex: colorHex)).hex))
             .frame(width: size, height: size)
-            .background(color, in: Circle())
+            .background(Color(hex: colorHex), in: Circle())
     }
 }
 

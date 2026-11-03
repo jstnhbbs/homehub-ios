@@ -1,90 +1,110 @@
 import Foundation
 import WidgetKit
 
-/// Sends the taps waiting in `WidgetPendingQueue`. Used by the widget (right after a tap, and when it is
-/// asked for a new picture) and by the app (when it comes to the front or the connection returns).
+/// Replays durable widget taps using one verified account and one bounded network session.
 enum WidgetSync {
     enum Outcome: Equatable, Sendable {
         case sent
-        /// No connection: the tap stays, and is tried again later.
-        case offline
-        /// The server refused it (or it could not be built): the tap is undone and the reason shown.
+        case retry(after: TimeInterval?)
         case rejected(WidgetActionFailure)
-        /// There is no usable sign-in.
         case signedOut
     }
 
-    /// Sends one tap, reading the sign-in from the Keychain item shared with the app.
-    static func send(_ pending: WidgetPendingAction, to server: URL, timeout: TimeInterval = 20) async -> Outcome {
+    private struct SessionIdentity: Decodable {
+        struct User: Decodable { let id: String }
+        let user: User?
+    }
+
+    private static func send(_ pending: WidgetPendingAction, client: APIClient, timeout: TimeInterval) async -> Outcome {
         guard let write = pending.writeRequest() else { return .rejected(.stale) }
-        // Not `SessionCredentials.shared(for:)`: that also runs the app's first-launch migration, which
-        // would clear a session it can't find in this process's own defaults.
-        let credentials = SessionCredentials(baseURL: server)
-        guard credentials.hasSession else { return .signedOut }
         do {
-            let configuration = URLSessionConfiguration.default
-            configuration.httpCookieStorage = nil
-            configuration.httpShouldSetCookies = false
-            configuration.httpCookieAcceptPolicy = .never
-            configuration.timeoutIntervalForRequest = timeout
-            let client = APIClient(baseURL: server, session: URLSession(configuration: configuration), credentials: credentials)
-            try await client.requestVoid(write.path, method: "POST", body: write.body)
+            try await client.requestVoid(write.path, method: "POST", body: write.body, timeout: timeout)
             return .sent
         } catch {
             if case APIError.unauthorized = error { return .signedOut }
-            if WidgetNetworkFailure.isOffline(error) { return .offline }
-            // A second send of End Sleep (the first got through but its answer was lost) finds nothing to end.
-            if pending.action == "endSleep", let message = (error as? APIError).flatMap({ $0.errorDescription }),
+            if case APIError.retryableServerError(_, _, let delay) = error { return .retry(after: delay) }
+            if error.isCancellation || WidgetNetworkFailure.isOffline(error) { return .retry(after: nil) }
+            // End Sleep is idempotent even if the first response was lost.
+            if pending.action == "endSleep", let message = (error as? APIError)?.errorDescription,
                message.localizedCaseInsensitiveContains("not found") { return .sent }
             return .rejected(.failed)
         }
     }
 
-    /// Sends what is waiting, oldest first, and stops at the first one that finds no connection. Returns
-    /// whether the server accepted anything. Safe to run from the widget and the app at once: each tap is
-    /// taken by one sender at a time.
+    /// Claims one tap at a time so a backlog cannot outlive the claims of items not yet sent.
+    /// Injection is used by the checks; production always creates a read-only Keychain snapshot.
     @discardableResult
     static func flush(store: WidgetStore = WidgetStore(), queue: WidgetPendingQueue = WidgetPendingQueue(),
-                      timeout: TimeInterval = 20) async -> Bool {
-        guard let snapshot = store.load(), let server = snapshot.serverURL else { return false }
-        let claimed = queue.claim(userId: snapshot.userId)
-        guard !claimed.isEmpty else { return false }
-        var accepted = false
-        var changedKinds = Set<String>()
-        for item in claimed {
-            let outcome = await send(item, to: server, timeout: timeout)
-            changedKinds.formUnion(WidgetActionPolicy.affectedKinds(action: item.action))
-            switch outcome {
-            case .sent:
-                queue.remove(id: item.id)
-                accepted = true
-            case .offline:
-                queue.release(id: item.id)
-                for later in claimed where later.id != item.id { queue.release(id: later.id) }
-                reload(changedKinds)
-                return accepted
-            case .rejected(let failure):
-                queue.remove(id: item.id)
-                undo(item, failure: failure, store: store)
-            case .signedOut:
-                queue.clear()
-                undo(item, failure: .openApp, store: store)
-            }
+                      timeout: TimeInterval = 20, credentials suppliedCredentials: SessionCredentials? = nil,
+                      configuration suppliedConfiguration: URLSessionConfiguration? = nil) async -> Bool {
+        guard !Task.isCancelled, timeout > 0, let snapshot = store.load(), let server = snapshot.serverURL else { return false }
+        let credentials = suppliedCredentials ?? SessionCredentials(baseURL: server, readOnly: true)
+        func isCurrent() -> Bool {
+            guard !Task.isCancelled, credentials.hasSession, credentials.isCurrent, let current = store.load() else { return false }
+            return current.userId == snapshot.userId && current.householdId == snapshot.householdId && current.serverURL == server
         }
-        if accepted { WidgetWriteSignal.recordWrite() }
-        reload(changedKinds)
-        return accepted
+        guard isCurrent() else { return false }
+        let configuration = suppliedConfiguration ?? URLSessionConfiguration.ephemeral
+        configuration.httpCookieStorage = nil
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieAcceptPolicy = .never
+        configuration.timeoutIntervalForRequest = timeout
+        configuration.timeoutIntervalForResource = timeout
+        let session = URLSession(configuration: configuration)
+        let client = APIClient(baseURL: server, session: session, credentials: credentials)
+        // Cancelling the actual URLSession ends a pending request; cancelling a child awaiting a detached
+        // task does not. This deadline covers verification and the entire batch, including slow streaming.
+        let deadline = Task {
+            do { try await Task.sleep(for: .seconds(timeout)) } catch { return }
+            session.invalidateAndCancel()
+        }
+        defer { deadline.cancel(); session.invalidateAndCancel() }
+        return await withTaskCancellationHandler {
+            var accepted = false
+            var changedKinds = Set<String>()
+            defer {
+                if accepted { WidgetWriteSignal.recordWrite() }
+                for kind in changedKinds.sorted() { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
+            }
+            do {
+                let identity: SessionIdentity? = try await client.request("/api/auth/get-session", timeout: timeout)
+                guard isCurrent(), identity?.user?.id == snapshot.userId else { return false }
+            } catch {
+                // A locked Keychain, unreachable auth service or changed session must not lose waiting taps.
+                return false
+            }
+            let end = Date().addingTimeInterval(timeout)
+            while isCurrent(), Date() < end,
+                  let item = queue.claim(userId: snapshot.userId, householdId: snapshot.householdId, limit: 1).first {
+                let outcome = await send(item, client: client, timeout: timeout)
+                guard isCurrent() else { queue.release(id: item.id); return accepted }
+                changedKinds.formUnion(WidgetActionPolicy.affectedKinds(action: item.action))
+                switch outcome {
+                case .sent:
+                    queue.remove(id: item.id)
+                    accepted = true
+                case .retry(let delay):
+                    queue.retry(item.id, after: delay)
+                    return accepted
+                case .rejected(let failure):
+                    queue.remove(id: item.id)
+                    undo(item, failure: failure, store: store)
+                case .signedOut:
+                    queue.clear(userId: snapshot.userId, householdId: snapshot.householdId)
+                    undo(item, failure: .openApp, store: store)
+                    return accepted
+                }
+            }
+            return accepted
+        } onCancel: {
+            session.invalidateAndCancel()
+        }
     }
 
-    /// Puts one refused tap back in the saved snapshot and says why.
     private static func undo(_ item: WidgetPendingAction, failure: WidgetActionFailure, store: WidgetStore) {
-        guard let current = store.load(), current.userId == item.userId else { return }
+        guard let current = store.load(), item.applies(to: current) else { return }
         var snapshot = WidgetActionPolicy.undoing(action: item.action, itemId: item.itemId, in: current)
         snapshot.actionError = failure.localizedDescription
         _ = store.save(snapshot, force: true)
-    }
-
-    private static func reload(_ kinds: Set<String>) {
-        for kind in kinds.sorted() { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
     }
 }

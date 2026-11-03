@@ -57,6 +57,8 @@ struct DashboardView: View {
                             }
                         }
                 }
+                // The accessibility tab layout has no sidebar to supply the page's outer margin.
+                .padding(.horizontal, dynamicTypeSize.isAccessibilitySize ? 24 : 0)
             }
         }
         // Both layouts open a card's page through `openDestination`, which ignores the tap that ends a
@@ -1157,6 +1159,7 @@ struct ChoreCheckRow: View {
 
     private func toggle() async {
         guard !isWorking else { return }
+        Haptics.check()
         isWorking = true
         defer { isWorking = false }
         do {
@@ -1233,8 +1236,8 @@ struct DashboardSnackCheckRow: View {
             Task {
                 guard !isWorking else { return }
                 isWorking = true
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 let previous = isChecked
+                Haptics.toggled(on: !previous)
                 isChecked.toggle()
                 do {
                     try await appState.toggleSnack(localDate: localDate, label: label, completed: !previous)

@@ -396,6 +396,42 @@ func run() async {
         check("a fresh install clears a session left in the Keychain", String(credentials.hasSession) + " " + String(leftover.read(account: "http://localhost:3000") == nil), "false true")
     }
 
+    // Widget credentials are immutable and tied to the persisted session, across process instances.
+    do {
+        let store = InMemorySecretStore()
+        let origin = APIClient.origin(of: base)!
+        store.write(try! JSONEncoder().encode(["better-auth.session_token": "OLD.sig"]), account: origin)
+        let old = SessionCredentials(baseURL: base, store: store, readOnly: true)
+        check("widget session initially matches Keychain", String(old.isCurrent), "true")
+        store.write(try! JSONEncoder().encode(["better-auth.session_token": "NEW.sig"]), account: origin)
+        check("a different process's new sign-in invalidates the old widget session", String(old.isCurrent), "false")
+        let response = HTTPURLResponse(url: base, statusCode: 200, httpVersion: nil, headerFields: setSession)!
+        old.absorb(response, from: base)
+        let fresh = SessionCredentials(baseURL: base, store: store)
+        check("late widget responses cannot overwrite the new cookie", fresh.cookieHeader(for: base) ?? "nil", "better-auth.session_token=NEW.sig")
+        let client = APIClient(baseURL: base, session: makeSession(), credentials: old)
+        let count = StubServer.seen.count
+        do { try await client.requestVoid("/api/mobile/v1/chores/toggle"); check("stale widget request fails", "sent", "cancelled") }
+        catch { check("stale widget request fails", String(error.isCancellation), "true") }
+        check("stale credentials never reach the server", String(StubServer.seen.count == count), "true")
+    }
+    do {
+        let response = HTTPURLResponse(url: base, statusCode: 429, httpVersion: nil, headerFields: ["Retry-After": "120"])!
+        let error = APIClient.responseError(response, data: Data())
+        if case .retryableServerError(let code, _, let delay) = error {
+            check("HTTP status is kept for retry policy", String(code), "429")
+            check("Retry-After is kept", String(delay ?? -1), "120.0")
+        } else { check("rate limits stay retryable", "permanent", "retryable") }
+        let server = HTTPURLResponse(url: base, statusCode: 503, httpVersion: nil, headerFields: [:])!
+        if case .retryableServerError = APIClient.responseError(server, data: Data()) {} else {
+            check("service failures stay retryable", "permanent", "retryable")
+        }
+        let validation = HTTPURLResponse(url: base, statusCode: 400, httpVersion: nil, headerFields: [:])!
+        if case .serverError = APIClient.responseError(validation, data: Data()) {} else {
+            check("validation failures stay permanent", "retryable", "permanent")
+        }
+    }
+
     if failures > 0 {
         print("\(failures) failed")
         exit(1)

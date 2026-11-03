@@ -384,6 +384,9 @@ private struct RecipeDetailPanel: View {
     let recipe: Recipe
     @ObservedObject var viewModel: RecipesViewModel
     let onEdit: () -> Void
+    /// The Add to List button shows "Added" for a moment so a tap is seen to have worked.
+    @State private var justAdded = false
+    @State private var addedResetTask: Task<Void, Never>?
 
     var body: some View {
         ScrollView {
@@ -403,12 +406,38 @@ private struct RecipeDetailPanel: View {
                 if !recipe.ingredients.isEmpty {
                     sectionHeader("Ingredients") {
                         Button {
-                            Task { await viewModel.addIngredientsToGroceryList(recipe) }
+                            Task {
+                                if await viewModel.addIngredientsToGroceryList(recipe) {
+                                    justAdded = true
+                                    addedResetTask?.cancel()
+                                    addedResetTask = Task {
+                                        try? await Task.sleep(nanoseconds: 2_000_000_000)
+                                        if !Task.isCancelled { justAdded = false }
+                                    }
+                                }
+                            }
                         } label: {
-                            Label("Add to List", systemImage: "cart.badge.plus")
+                            Label {
+                                Text(viewModel.isWorking ? "Adding…" : justAdded ? "Added" : "Add to List")
+                            } icon: {
+                                if viewModel.isWorking {
+                                    ProgressView().controlSize(.mini)
+                                } else {
+                                    Image(systemName: justAdded ? "checkmark" : "cart.badge.plus")
+                                        .contentTransition(.symbolEffect(.replace))
+                                }
+                            }
                         }
-                        .buttonStyle(HubButtonStyle(emphasis: .secondary, size: .small))
+                        .buttonStyle(HubButtonStyle(emphasis: justAdded ? .primary : .secondary, size: .small))
+                        .animation(.spring(duration: 0.3), value: justAdded)
+                        .sensoryFeedback(.success, trigger: justAdded) { _, new in new }
                         .disabled(viewModel.isWorking)
+                        .allowsHitTesting(!justAdded)
+                        .onChange(of: recipe.id) { _, _ in
+                            addedResetTask?.cancel()
+                            justAdded = false
+                        }
+                        .onDisappear { addedResetTask?.cancel() }
                     }
                     cardStack {
                         let lines = RecipeLines.display(recipe.ingredients)

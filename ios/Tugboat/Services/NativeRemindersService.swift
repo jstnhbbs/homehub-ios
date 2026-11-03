@@ -7,9 +7,13 @@ final class NativeRemindersService: ObservableObject {
     @Published private(set) var accessStatus: NativeRemindersAccessStatus
     @Published var selectedListId: String? {
         didSet {
+            revision += 1
             UserDefaults.standard.set(selectedListId, forKey: Self.selectedListKey)
         }
     }
+
+    /// Shared by Today and Groceries: a read started before a local write/list change is stale.
+    private(set) var revision = 0
 
     private static let selectedListKey = "tugboat.reminders.selectedListId"
     private let eventStore = EKEventStore()
@@ -39,6 +43,7 @@ final class NativeRemindersService: ObservableObject {
     }
 
     func resetCachedData() {
+        revision += 1
         eventStore.reset()
         refreshAccessStatus()
     }
@@ -73,9 +78,12 @@ final class NativeRemindersService: ObservableObject {
 
     func loadItems() async throws -> [GroceryItem] {
         guard hasFullAccess else { return [] }
+        let revision = revision
         let calendars = selectedList.map { [$0] }
         let predicate = eventStore.predicateForReminders(in: calendars)
         let reminders = try await reminders(matching: predicate)
+        try Task.checkCancellation()
+        guard revision == self.revision, hasFullAccess else { throw CancellationError() }
         return reminders
             .map(Self.groceryItem(from:))
             .sorted { lhs, rhs in
@@ -92,6 +100,7 @@ final class NativeRemindersService: ObservableObject {
         reminder.title = title
         reminder.calendar = calendar
         try eventStore.save(reminder, commit: true)
+        revision += 1
         return Self.groceryItem(from: reminder)
     }
 
@@ -111,6 +120,7 @@ final class NativeRemindersService: ObservableObject {
         }
         if count > 0 {
             try eventStore.commit()
+            revision += 1
         }
         return count
     }
@@ -126,6 +136,7 @@ final class NativeRemindersService: ObservableObject {
             reminder.completionDate = nil
         }
         try eventStore.save(reminder, commit: true)
+        revision += 1
     }
 
     func deleteItem(itemId: String) throws {
@@ -133,6 +144,7 @@ final class NativeRemindersService: ObservableObject {
             throw NativeRemindersError.reminderNotFound
         }
         try eventStore.remove(reminder, commit: true)
+        revision += 1
     }
 
     private func reminders(matching predicate: NSPredicate) async throws -> [EKReminder] {

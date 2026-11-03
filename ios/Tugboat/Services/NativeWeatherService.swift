@@ -121,16 +121,22 @@ final class NativeWeatherService: NSObject, ObservableObject {
             let weather = try await WeatherService.shared.weather(for: location)
             try Task.checkCancellation()
             guard generation == authorizationGeneration, accessStatus.canRequestWeather else { return }
-            snapshot = NativeWeatherSnapshot(weather: weather)
-            // Fetched once; it only changes with the service itself.
-            if attribution == nil, let info = try? await WeatherService.shared.attribution {
-                attribution = WeatherAttributionInfo(
+            // Publish weather only alongside its required attribution. If the attribution request fails,
+            // preserve the last attributed reading (or show no reading) rather than publish an uncredited one.
+            var freshAttribution = attribution
+            if freshAttribution == nil {
+                let info = try await WeatherService.shared.attribution
+                freshAttribution = WeatherAttributionInfo(
                     lightMarkURL: info.combinedMarkLightURL,
                     darkMarkURL: info.combinedMarkDarkURL,
                     legalPageURL: info.legalPageURL,
                     serviceName: info.serviceName
                 )
             }
+            try Task.checkCancellation()
+            guard generation == authorizationGeneration, accessStatus.canRequestWeather else { return }
+            attribution = freshAttribution
+            snapshot = NativeWeatherSnapshot(weather: weather)
         } catch {
             guard generation == authorizationGeneration else { return }
             if error.isCancellation {

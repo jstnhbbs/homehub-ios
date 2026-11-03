@@ -16,59 +16,70 @@ struct SignInView: View {
     }
 
     var body: some View {
-        VStack(spacing: 28) {
-            VStack(spacing: 8) {
-                Text("Tugboat")
-                    .font(.system(size: brandSize, weight: .bold, design: .rounded))
-                Text("Moving you in the right direction")
-                    .font(.title3)
-                    .foregroundStyle(HubTheme.muted)
-                    .multilineTextAlignment(.center)
-            }
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(spacing: 28) {
+                    VStack(spacing: 8) {
+                        Text("Tugboat")
+                            .font(.system(size: brandSize, weight: .bold, design: .rounded))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
+                        Text("Moving you in the right direction")
+                            .font(.title3)
+                            .foregroundStyle(HubTheme.muted)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
 
-            Picker("Mode", selection: $mode) {
-                Text("Sign In").tag(AuthMode.signIn)
-                Text("Create Account").tag(AuthMode.signUp)
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 420)
+                    Picker("Mode", selection: $mode) {
+                        Text("Sign In").tag(AuthMode.signIn)
+                        Text("Create Account").tag(AuthMode.signUp)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 420)
 
-            VStack(spacing: 14) {
-                if mode == .signUp {
-                    TextField("Name", text: $name)
-                        .textContentType(.name)
-                        .textFieldStyle(HubFieldStyle())
+                    VStack(spacing: 14) {
+                        if mode == .signUp {
+                            TextField("Name", text: $name)
+                                .textContentType(.name)
+                                .textFieldStyle(HubFieldStyle())
+                        }
+                        // The account field is an email, but Password AutoFill keys off
+                        // `.username` to pair it with the password; `.emailAddress` only
+                        // selects the keyboard.
+                        TextField("Email", text: $email)
+                            .textContentType(.username)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .keyboardType(.emailAddress)
+                            .textFieldStyle(HubFieldStyle())
+                        // `.newPassword` is what prompts iOS to offer a generated strong
+                        // password when creating an account; `.password` fills an existing one.
+                        SecureField("Password (min 10 characters)", text: $password)
+                            .textContentType(mode == .signIn ? .password : .newPassword)
+                            .textFieldStyle(HubFieldStyle())
+                    }
+                    .frame(maxWidth: 420)
+
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.red)
+                    }
+
+                    Button(mode == .signIn ? "Sign In" : "Create Account") {
+                        Task { await submit() }
+                    }
+                    .buttonStyle(HubButtonStyle(emphasis: .primary))
+                    .disabled(appState.auth.isLoading)
                 }
-                // The account field is an email, but Password AutoFill keys off
-                // `.username` to pair it with the password; `.emailAddress` only
-                // selects the keyboard.
-                TextField("Email", text: $email)
-                    .textContentType(.username)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .keyboardType(.emailAddress)
-                    .textFieldStyle(HubFieldStyle())
-                // `.newPassword` is what prompts iOS to offer a generated strong
-                // password when creating an account; `.password` fills an existing one.
-                SecureField("Password (min 10 characters)", text: $password)
-                    .textContentType(mode == .signIn ? .password : .newPassword)
-                    .textFieldStyle(HubFieldStyle())
+                .frame(maxWidth: 420)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 32)
+                .frame(maxWidth: .infinity, minHeight: proxy.size.height)
             }
-            .frame(maxWidth: 420)
-
-            if let errorMessage {
-                Text(errorMessage)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.red)
-            }
-
-            Button(mode == .signIn ? "Sign In" : "Create Account") {
-                Task { await submit() }
-            }
-            .buttonStyle(HubButtonStyle(emphasis: .primary))
-            .disabled(appState.auth.isLoading)
+            .scrollDismissesKeyboard(.interactively)
         }
-        .padding(40)
     }
 
     private func submit() async {

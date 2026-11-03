@@ -84,13 +84,23 @@ struct ProfilePhotoUploadView: View {
 
     /// Loads the chosen photo and opens the crop screen for it.
     private func prepareCrop(from item: PhotosPickerItem) async {
+        guard !isWorking else { return }
+        let session = appState.auth.sessionVersion
+        isWorking = true
         errorMessage = nil
-        guard let data = try? await item.loadTransferable(type: Data.self),
-              let image = ProfilePhotoHelpers.cropSource(from: data) else {
-            errorMessage = "Choose a JPEG, PNG, or WebP image under 5 MB."
-            return
+        defer { isWorking = false }
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self),
+                  let image = try await ProfilePhotoHelpers.cropSourceInBackground(from: data) else {
+                errorMessage = "Choose a JPEG, PNG, or WebP image under 5 MB."
+                return
+            }
+            guard session == appState.auth.sessionVersion, !Task.isCancelled else { return }
+            cropCandidate = PhotoCropCandidate(image: image)
+        } catch {
+            errorMessage = error.userFacingMessage
+            appState.report(error)
         }
-        cropCandidate = PhotoCropCandidate(image: image)
     }
 
     private func uploadPhoto(_ image: UIImage) async {
@@ -100,21 +110,25 @@ struct ProfilePhotoUploadView: View {
         errorMessage = nil
         defer { isWorking = false; editorSession?.endOperation() }
 
+        let session = appState.auth.sessionVersion
         do {
-            guard let prepared = ProfilePhotoHelpers.prepareUploadData(from: image) else {
+            guard let prepared = try await ProfilePhotoHelpers.prepareUploadDataInBackground(from: image) else {
                 errorMessage = "Choose a JPEG, PNG, or WebP image under 5 MB."
                 return
             }
 
+            guard session == appState.auth.sessionVersion, !Task.isCancelled else { return }
             _ = try await appState.api.uploadProfilePhoto(
                 id: profile.id,
                 data: prepared.data,
                 fileName: prepared.fileName,
                 mimeType: prepared.mimeType
             )
+            guard session == appState.auth.sessionVersion, !Task.isCancelled else { return }
             await onUpdated()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = error.userFacingMessage
+            appState.report(error)
         }
     }
 
@@ -129,7 +143,8 @@ struct ProfilePhotoUploadView: View {
             _ = try await appState.api.removeProfilePhoto(id: profile.id)
             await onUpdated()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = error.userFacingMessage
+            appState.report(error)
         }
     }
 }

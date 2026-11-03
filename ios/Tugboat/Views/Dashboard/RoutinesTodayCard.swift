@@ -249,6 +249,7 @@ private struct RoutineNextStepRow: View {
 
     private func tick(_ step: RoutineStepRow) async {
         guard !isWorking else { return }
+        Haptics.check()
         isWorking = true
         defer { isWorking = false }
         do {
@@ -347,6 +348,7 @@ private struct RoutineStepCheckRow: View {
         isWorking = true
         defer { isWorking = false }
         let wanted = !isChecked
+        Haptics.toggled(on: wanted)
         isChecked = wanted
         do {
             try await appState.toggleRoutineStep(stepId: step.id, localDate: localDate, completed: wanted)

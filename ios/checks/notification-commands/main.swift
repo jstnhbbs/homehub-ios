@@ -54,6 +54,10 @@ check("a name that merely starts with a page word opens nothing", NotificationCo
 check("a tap reads the destination", NotificationCommands.destination(userInfo: ["destination": "chores"]) == "chores")
 check("an unknown destination is ignored", NotificationCommands.destination(userInfo: ["destination": "settings"]) == nil)
 check("no destination, nothing to open", NotificationCommands.destination(userInfo: ["kind": "chore"]) == nil)
+check("a reminder decodes its original recipient", NotificationCommands.recipient(userInfo: ["userId": "u", "householdId": "h"]) == NotificationRecipient(userId: "u", householdId: "h"))
+check("an old reminder has no inferred recipient", NotificationCommands.recipient(userInfo: chore) == nil)
+check("an empty recipient is refused", NotificationCommands.recipient(userInfo: ["userId": "", "householdId": "h"]) == nil)
+check("a partial recipient is refused", NotificationCommands.recipient(userInfo: ["userId": "u"]) == nil)
 
 if failures > 0 { print("\n\(failures) failed"); exit(1) }
 print("\nall notification command checks passed")

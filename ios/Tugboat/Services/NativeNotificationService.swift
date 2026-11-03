@@ -53,9 +53,9 @@ final class NativeNotificationService: ObservableObject {
     /// Replaces this app's pending reminders with ones planned from the latest dashboard.
     /// `birthdaysModuleEnabled` is the household's Birthdays module toggle; turning that module
     /// off also stops its reminders.
-    func scheduleDashboardReminders(from dashboard: DashboardData, birthdaysModuleEnabled: Bool = true) async {
+    func scheduleDashboardReminders(from dashboard: DashboardData, userId: String, birthdaysModuleEnabled: Bool = true) async {
         await workQueue.schedule { [self] isCurrent in
-            await applyDashboardReminders(from: dashboard, birthdaysModuleEnabled: birthdaysModuleEnabled, isCurrent: isCurrent)
+            await applyDashboardReminders(from: dashboard, userId: userId, birthdaysModuleEnabled: birthdaysModuleEnabled, isCurrent: isCurrent)
         }
     }
 
@@ -76,6 +76,7 @@ final class NativeNotificationService: ObservableObject {
 
     private func applyDashboardReminders(
         from dashboard: DashboardData,
+        userId: String,
         birthdaysModuleEnabled: Bool,
         isCurrent: @MainActor () -> Bool
     ) async {
@@ -127,6 +128,14 @@ final class NativeNotificationService: ObservableObject {
                 timezone: timezone,
                 calendar: calendar
             ))
+        }
+
+        // Include the recipient in the diff so reminders from older builds are replaced too.
+        requests = requests.map { request in
+            let content = request.content.mutableCopy() as! UNMutableNotificationContent
+            content.userInfo[NotificationCommands.userIdKey] = userId
+            content.userInfo[NotificationCommands.householdIdKey] = dashboard.household.id
+            return UNNotificationRequest(identifier: request.identifier, content: content, trigger: request.trigger)
         }
 
         // Only what differs from what is already scheduled is touched. A refresh follows every

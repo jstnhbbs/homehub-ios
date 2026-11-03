@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CalendarSettingsView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var viewModel = CalendarSettingsViewModel()
     @AppStorage(NativeCalendarPreferenceKeys.defaultNewItem) private var defaultNewItem = NativeNewItemKind.event.rawValue
     @AppStorage(NativeCalendarPreferenceKeys.eventAlert) private var eventAlertMinutes = NativeAlertOffset.fifteenMinutes.rawValue
@@ -27,6 +28,10 @@ struct CalendarSettingsView: View {
         .onAppear { viewModel.bind(to: appState) }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await viewModel.load() }
+        }
     }
 
     @ViewBuilder

@@ -232,5 +232,36 @@ check("celebration days use the household timezone", LockWidgetContent.nextCeleb
 check("celebration countdown advances at midnight", LockWidgetContent.nextCelebration(in: lockSnapshot, at: tomorrow)?.days == 0)
 lockSnapshot.enabledDestinations = []
 check("hidden sections are not presented as empty or completed", !LockWidgetKind.groceries.isEnabled(in: lockSnapshot) && !LockWidgetKind.sleep.isEnabled(in: lockSnapshot))
+// Offline completions belong to their day or period, even while the queue survives midnight.
+queue.clear()
+var yesterday = snapshot
+yesterday.localDate = "2026-10-13"
+yesterday.steps[0].completed = false
+yesterday.chores[0].periodKey = "2026-10-13"
+yesterday.chores[0].completed = false
+var nextDay = yesterday
+nextDay.localDate = "2026-10-14"
+nextDay.chores[0].periodKey = "2026-10-14"
+let oldStep = WidgetPendingAction.make(action: "step", itemId: yesterday.steps[0].id, in: yesterday, now: now)!
+let newStep = WidgetPendingAction.make(action: "step", itemId: nextDay.steps[0].id, in: nextDay, now: tomorrow)!
+let oldChore = WidgetPendingAction.make(action: "chore", itemId: yesterday.chores[0].id, in: yesterday, now: now)!
+let newChore = WidgetPendingAction.make(action: "chore", itemId: nextDay.chores[0].id, in: nextDay, now: tomorrow)!
+queue.enqueue(oldStep); queue.enqueue(oldChore)
+check("yesterday's queued routine cannot complete today", !queue.overlay(on: nextDay, now: tomorrow).steps[0].completed)
+check("yesterday's queued daily chore cannot complete today", !queue.overlay(on: nextDay, now: tomorrow).chores[0].completed)
+check("today's routine gets its own queued completion", queue.enqueue(newStep))
+check("today's chore gets its own queued completion", queue.enqueue(newChore))
+check("today's queued routine is shown as done", queue.overlay(on: nextDay, now: tomorrow).steps[0].completed)
+check("same day's repeated tap is still deduplicated", !queue.enqueue(newStep))
+var otherHome = newStep
+otherHome.id = UUID().uuidString; otherHome.householdId = "other-home"
+check("another household's item has a separate identity", queue.enqueue(otherHome))
+check("a sender claims only its household and one item at a time", queue.claim(userId: "user", householdId: "home", limit: 1, now: tomorrow).count == 1)
+queue.clear(userId: "user", householdId: "home")
+check("scoped cleanup preserves another household's taps", queue.load().map(\.householdId) == ["other-home"])
+queue.retry(otherHome.id, after: 120, now: tomorrow)
+check("retry backoff prevents an immediate resend", queue.claim(userId: "user", now: tomorrow.addingTimeInterval(119)).isEmpty)
+check("Retry-After allows a later retry", queue.claim(userId: "user", now: tomorrow.addingTimeInterval(121)).count == 1)
+queue.clear()
 if failures > 0 { exit(1) }
 print("all passed")

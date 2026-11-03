@@ -7,7 +7,15 @@ final class HouseholdSetupModel: ObservableObject {
     @Published var profiles: [Profile] = []
     @Published var added: Set<String> = []
     @Published var errorMessage: String?
-    @Published var isWorking = false
+    /// Keys of the adds under way. A second tap on the same thing before the first finishes is ignored, which is
+    /// what stopped a button pressed three times from adding the item three times.
+    @Published private(set) var inFlight: Set<String> = []
+
+    var isWorking: Bool { !inFlight.isEmpty }
+
+    /// False when `key` is already being added.
+    func begin(_ key: String) -> Bool { inFlight.insert(key).inserted }
+    func end(_ key: String) { inFlight.remove(key) }
 
     func load(_ appState: AppState) async {
         if let loaded = try? await appState.api.fetchProfiles() { profiles = loaded }
@@ -344,7 +352,7 @@ private struct SetupFamilyStep: View {
                             showingAdd = false
                             return true
                         } catch {
-                            model.errorMessage = error.localizedDescription
+                            model.errorMessage = error.userFacingMessage
                             return false
                         }
                     }
@@ -419,9 +427,10 @@ private struct SetupRoutinesStep: View {
     private func key(_ starter: RoutineStarter) -> String { "routine|\(profileId ?? "")|\(starter.name)" }
 
     private func add(_ starter: RoutineStarter) async {
-        model.isWorking = true
+        let addKey = key(starter)
+        guard !model.added.contains(addKey), model.begin(addKey) else { return }
         model.errorMessage = nil
-        defer { model.isWorking = false }
+        defer { model.end(addKey) }
         do {
             _ = try await appState.api.addRoutine(RoutineInput(
                 name: starter.name,
@@ -434,7 +443,7 @@ private struct SetupRoutinesStep: View {
             appState.completeSetupStep(.routines)
             await appState.refreshDashboard()
         } catch {
-            model.errorMessage = error.localizedDescription
+            model.errorMessage = error.userFacingMessage
         }
     }
 }
@@ -490,9 +499,10 @@ private struct SetupChoresStep: View {
 
     @discardableResult
     private func add(title: String, daily: Bool, weekday: Int) async -> Bool {
-        model.isWorking = true
+        let addKey = key(title)
+        guard !model.added.contains(addKey), model.begin(addKey) else { return false }
         model.errorMessage = nil
-        defer { model.isWorking = false }
+        defer { model.end(addKey) }
         do {
             let rule = daily ? ChoreRepeatRule.daily : ChoreRepeatRule(unit: .week)
             _ = try await appState.api.addChore(ChoreHelpers.input(
@@ -508,7 +518,7 @@ private struct SetupChoresStep: View {
             await appState.refreshDashboard()
             return true
         } catch {
-            model.errorMessage = error.localizedDescription
+            model.errorMessage = error.userFacingMessage
             return false
         }
     }
@@ -563,10 +573,10 @@ private struct SetupFoodStep: View {
 
     private func addDinner(_ text: String) async {
         let title = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !title.isEmpty else { return }
-        model.isWorking = true
+        let key = "dinner|\(title)"
+        guard !title.isEmpty, !model.added.contains(key), model.begin(key) else { return }
         model.errorMessage = nil
-        defer { model.isWorking = false }
+        defer { model.end(key) }
         do {
             try await appState.api.saveMeal(SaveMealRequest(
                 localDate: DateHelpers.localDateIn(timezone: timezone),
@@ -580,16 +590,16 @@ private struct SetupFoodStep: View {
             appState.completeSetupStep(.food)
             await appState.refreshDashboard()
         } catch {
-            model.errorMessage = error.localizedDescription
+            model.errorMessage = error.userFacingMessage
         }
     }
 
     private func addGrocery(_ text: String) async {
         let title = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !title.isEmpty else { return }
-        model.isWorking = true
+        let key = "grocery|\(title)"
+        guard !title.isEmpty, !model.added.contains(key), model.begin(key) else { return }
         model.errorMessage = nil
-        defer { model.isWorking = false }
+        defer { model.end(key) }
         do {
             // The same choice the Groceries page makes: the device's Reminders list when it can be used.
             appState.nativeReminders.refreshAccessStatus()
@@ -604,7 +614,7 @@ private struct SetupFoodStep: View {
             appState.completeSetupStep(.food)
             await appState.refreshDashboard()
         } catch {
-            model.errorMessage = error.localizedDescription
+            model.errorMessage = error.userFacingMessage
         }
     }
 }

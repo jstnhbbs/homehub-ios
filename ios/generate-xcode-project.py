@@ -12,7 +12,7 @@ DEVELOPMENT_TEAM = "25TTL3SG99"
 # up with every upload to App Store Connect. Both targets read these, and both Info.plists point at
 # them, so this is the only place to change.
 MARKETING_VERSION = "2026.10.1"
-BUILD_NUMBER = "26"
+BUILD_NUMBER = "27"
 EXTENSION = "TugboatLiveActivity"
 EXTENSION_BUNDLE_ID = f"{BUNDLE_ID}.liveactivity"
 # Compiled into both the app and the extension.
@@ -101,6 +101,7 @@ swatches_ext_build = uid("swatches_ext_build")
 assets_build = uid("assets_build")
 privacy_manifest_ref = uid("privacy_manifest_ref")
 privacy_manifest_build = uid("privacy_manifest_build")
+privacy_manifest_ext_build = uid("privacy_manifest_ext_build")
 icon_refs = {name: uid(f"icon_ref:{name}") for name in ICON_COMPOSER_NAMES}
 icon_builds = {name: uid(f"icon_build:{name}") for name in ICON_COMPOSER_NAMES}
 
@@ -167,6 +168,9 @@ lines.append(
 lines.append(
     f'\t\t{privacy_manifest_build} /* PrivacyInfo.xcprivacy in Resources */ = {{isa = PBXBuildFile; fileRef = {privacy_manifest_ref} /* PrivacyInfo.xcprivacy */; }};'
 )
+lines.append(
+    f'\t\t{privacy_manifest_ext_build} /* PrivacyInfo.xcprivacy in Resources */ = {{isa = PBXBuildFile; fileRef = {privacy_manifest_ref} /* PrivacyInfo.xcprivacy */; }};'
+)
 for name in ICON_COMPOSER_NAMES:
     lines.append(
         f'\t\t{icon_builds[name]} /* {name}.icon in Resources */ = {{isa = PBXBuildFile; fileRef = {icon_refs[name]} /* {name}.icon */; }};'
@@ -198,7 +202,7 @@ lines.extend(
         f'\t\t{resources_phase} /* Resources */ = {{isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = ({assets_build} /* Assets.xcassets in Resources */, {swatches_app_build} /* WidgetSwatches.xcassets in Resources */, {privacy_manifest_build} /* PrivacyInfo.xcprivacy in Resources */, {icon_build_list}); runOnlyForDeploymentPostprocessing = 0; }};',
         f'\t\t{ext_frameworks_phase} /* Frameworks */ = {{isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; }};',
         f'\t\t{ext_sources_phase} /* Sources */ = {{isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = ({ext_build_ref_list}); runOnlyForDeploymentPostprocessing = 0; }};',
-        f'\t\t{ext_resources_phase} /* Resources */ = {{isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = ({swatches_ext_build} /* WidgetSwatches.xcassets in Resources */); runOnlyForDeploymentPostprocessing = 0; }};',
+        f'\t\t{ext_resources_phase} /* Resources */ = {{isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = ({swatches_ext_build} /* WidgetSwatches.xcassets in Resources */, {privacy_manifest_ext_build} /* PrivacyInfo.xcprivacy in Resources */); runOnlyForDeploymentPostprocessing = 0; }};',
         f'\t\t{embed_phase} /* Embed Foundation Extensions */ = {{isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = ({embed_build} /* {EXTENSION}.appex in Embed Foundation Extensions */); name = "Embed Foundation Extensions"; runOnlyForDeploymentPostprocessing = 0; }};',
         f'\t\t{ext_proxy} /* PBXContainerItemProxy */ = {{isa = PBXContainerItemProxy; containerPortal = {project_uid} /* Project object */; proxyType = 1; remoteGlobalIDString = {ext_target_uid}; remoteInfo = {EXTENSION}; }};',
         f'\t\t{ext_dependency} /* PBXTargetDependency */ = {{isa = PBXTargetDependency; target = {ext_target_uid} /* {EXTENSION} */; targetProxy = {ext_proxy} /* PBXContainerItemProxy */; }};',

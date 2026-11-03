@@ -9,16 +9,21 @@ struct WeatherDetailsPanel: View {
     var refreshError: String? = nil
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            summary
-            details
-            Divider()
-            footer
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                summary
+                details
+                Divider()
+                footer
+            }
+            .padding(18)
         }
-        .padding(18)
+        .scrollBounceBehavior(.basedOnSize)
         .frame(width: 290, alignment: .leading)
+        .frame(idealHeight: dynamicTypeSize.isAccessibilitySize ? 500 : 420, maxHeight: 500)
     }
 
     private var summary: some View {
@@ -62,10 +67,13 @@ struct WeatherDetailsPanel: View {
     }
 
     private func row(_ title: String, _ value: String) -> some View {
-        HStack {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+            : AnyLayout(HStackLayout())
+        return layout {
             Text(title)
                 .foregroundStyle(HubTheme.muted)
-            Spacer(minLength: 16)
+            if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 16) }
             Text(value)
                 .fontWeight(.semibold)
                 .monospacedDigit()
@@ -91,22 +99,28 @@ struct WeatherDetailsPanel: View {
                     .font(.caption)
                     .foregroundStyle(HubTheme.muted)
             } else if let attribution {
-                HStack(alignment: .center) {
+                let layout = dynamicTypeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                    : AnyLayout(HStackLayout(alignment: .center))
+                layout {
                     // The mark must be shown whole, so it is fitted rather than filled.
-                    AsyncImage(url: colorScheme == .dark ? attribution.darkMarkURL : attribution.lightMarkURL) { image in
-                        image.resizable().scaledToFit()
-                    } placeholder: {
-                        Text(attribution.serviceName)
-                            .font(.caption.weight(.semibold))
+                    AsyncImage(url: colorScheme == .dark ? attribution.darkMarkURL : attribution.lightMarkURL) { phase in
+                        if let image = phase.image {
+                            image.resizable().scaledToFit().frame(height: 14)
+                        } else {
+                            Text(attribution.serviceName)
+                                .font(.caption.weight(.semibold))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
-                    .frame(height: 14)
                     .accessibilityLabel(attribution.serviceName)
 
-                    Spacer(minLength: 8)
+                    if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
 
                     Link("Other Data Sources", destination: attribution.legalPageURL)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(HubTheme.accentText)
+                        .frame(minHeight: 44, alignment: .leading)
                 }
             }
         }

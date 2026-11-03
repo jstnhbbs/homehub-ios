@@ -119,6 +119,9 @@ sh ios/checks/routines-refresh/run.sh
 sh ios/checks/remote-image-state/run.sh
 sh ios/checks/hub-modules-patch/run.sh
 sh ios/checks/view-model-races/run.sh
+sh ios/checks/groceries-races/run.sh
+sh ios/checks/widget-sync/run.sh
+sh ios/checks/notification-actions/run.sh
 sh ios/checks/local-store/run.sh
 ios/checks/notification-diff/run.sh
 ```
@@ -135,3 +138,22 @@ waiting for saves, and sign-out while waiting. Backend layout races and current-
 ownership guards are covered by `hub-modules-store.test.ts` and `household-members.test.ts`.
 
 iOS (after opening in Xcode): **Product → Build** (⌘B), then run on iPhone and iPad simulators. Landscape remains recommended for a dedicated shared iPad display.
+
+The grocery race checks compile the real view model against controlled EventKit/HTTP services. They cover a late
+response from a different list or session, edits invalidating earlier reads, all three roles with each grocery
+source, and a committed native write surviving a cancelled reconciliation. Widget sync checks exercise the real
+queue and API client against URLProtocol, including the overall network deadline, retryable failures, and a late
+response after an account switch. Queue checks also keep daily completions separate across midnight.
+
+At accessibility text sizes iPad uses the full-width tab navigation rather than clamping sidebar/header text.
+Sign-in scrolls with the keyboard and large text. Photo cropping exposes directional and Reset actions, and
+photo decoding/rendering/JPEG preparation runs away from MainActor.
+
+Notification buttons carry the original user and household. Before writing, the background runner verifies
+both using a fixed Keychain credential snapshot, with a 15-second deadline covering verification and the
+write. Wake Up sends the tap time as `endedAt`. Older reminders without a recipient ask the person to open
+the app; the next reminder sync replaces them. The notification-action checks cover mismatches, account
+switches, sign-out, cancellation, and deadlines during both verification and the write.
+
+Calendar & Reminders refreshes its permission and list state when the app returns to the foreground.
+The initial permissions screen preserves Restricted as a separate state from Denied.

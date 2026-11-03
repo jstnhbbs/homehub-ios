@@ -20,7 +20,7 @@ struct GroceriesView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         header
                         remindersAccessCard
-                        addItemCard
+                        if viewModel.canManage { addItemCard }
                         if let error = viewModel.errorMessage {
                             Text(error).font(.footnote).foregroundStyle(.red)
                         }
@@ -41,7 +41,7 @@ struct GroceriesView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     header
                     remindersAccessCard
-                    addItemCard
+                    if viewModel.canManage { addItemCard }
                     if let error = viewModel.errorMessage {
                         Text(error).font(.footnote).foregroundStyle(.red)
                     }
@@ -68,7 +68,7 @@ struct GroceriesView: View {
                     .foregroundStyle(HubTheme.muted)
             }
             Spacer()
-            if !viewModel.checkedItems.isEmpty {
+            if viewModel.canManage, !viewModel.checkedItems.isEmpty {
                 Button {
                     Task { await viewModel.clearChecked() }
                 } label: {
@@ -125,6 +125,7 @@ struct GroceriesView: View {
                             }
                         }
                         .pickerStyle(.menu)
+                        .disabled(viewModel.isWorking)
                     } else {
                         Text(selectedReminderListTitle ?? "Owner selects list")
                             .font(.subheadline.weight(.semibold))
@@ -175,7 +176,7 @@ struct GroceriesView: View {
                                 .foregroundStyle(HubTheme.muted)
                             VStack(spacing: 8) {
                                 ForEach(group.items) { item in
-                                    GroceryItemRow(item: item) {
+                                    GroceryItemRow(item: item, canManage: viewModel.canManage) {
                                         await viewModel.toggle(item)
                                     } onDelete: {
                                         await viewModel.delete(item)
@@ -205,7 +206,7 @@ struct GroceriesView: View {
                 } else {
                     VStack(spacing: 8) {
                         ForEach(viewModel.checkedItems.prefix(10)) { item in
-                            GroceryItemRow(item: item, compact: true) {
+                            GroceryItemRow(item: item, compact: true, canManage: viewModel.canManage) {
                                 await viewModel.toggle(item)
                             } onDelete: {
                                 await viewModel.delete(item)
@@ -229,14 +230,17 @@ struct GroceriesView: View {
 private struct GroceryItemRow: View {
     let item: GroceryItem
     var compact = false
+    var canManage = true
     let onToggle: () async -> Void
     let onDelete: () async -> Void
 
     @State private var isWorking = false
 
     private func toggle() {
+        guard canManage, !isWorking else { return }
+        Haptics.toggled(on: !item.checked)
         Task {
-            guard !isWorking else { return }
+            guard canManage, !isWorking else { return }
             isWorking = true
             await onToggle()
             isWorking = false
@@ -278,14 +282,16 @@ private struct GroceryItemRow: View {
         .opacity(isWorking ? 0.6 : 1)
         .accessibilityElement(children: .combine)
         .accessibilityValue(item.checked ? "Checked off" : "Not checked off")
-        .accessibilityAddTraits([.isButton, .isToggle])
+        .accessibilityAddTraits(canManage ? [.isButton, .isToggle] : [])
         .accessibilityAction { toggle() }
-        .rowSwipe(trailing: [.delete { Task { await onDelete() } }], onTap: toggle, cornerRadius: 18)
+        .rowSwipe(trailing: [.delete { Task { await onDelete() } }], onTap: toggle, isEnabled: canManage, cornerRadius: 18)
         .contextMenu {
-            Button(role: .destructive) {
-                Task { await onDelete() }
-            } label: {
-                Label("Delete", systemImage: "trash")
+            if canManage {
+                Button(role: .destructive) {
+                    Task { await onDelete() }
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
             }
         }
     }

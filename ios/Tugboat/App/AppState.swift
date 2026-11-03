@@ -80,6 +80,7 @@ final class AppState: ObservableObject {
     /// Shows the failure as a banner for a few seconds. A cancelled request says nothing.
     func report(_ error: Error) {
         guard let message = error.userFacingMessage else { return }
+        Haptics.warning()
         showNotice(message)
     }
 
@@ -128,6 +129,7 @@ final class AppState: ObservableObject {
     private var widgetRecipeTask: Task<Void, Never>?
     private var widgetRecipeId: String?
     private var widgetRecipeFetchedAt: Date?
+    private var groceryRequestVersion = 0
     private var lastDeviceRefreshAt: Date?
     private var hubModulesSaveVersion = 0
     private var acknowledgedHubModulesVersion = 0
@@ -418,9 +420,10 @@ final class AppState: ObservableObject {
                 await refreshNativeWeather(force: forcingDeviceRefresh)
             }
             guard isCurrentSession(session, userId: userId), request == dashboardRequestVersion else { return }
-            if let dashboard {
+            if let dashboard, let userId {
                 await nativeNotifications.scheduleDashboardReminders(
                     from: dashboard,
+                    userId: userId,
                     birthdaysModuleEnabled: hubModules.isEnabled(.birthdays)
                 )
             }
@@ -463,9 +466,10 @@ final class AppState: ObservableObject {
     }
 
     func rescheduleNativeNotifications() async {
-        guard let dashboard else { return }
+        guard let dashboard, let userId = currentUser?.id else { return }
         await nativeNotifications.scheduleDashboardReminders(
             from: dashboard,
+            userId: userId,
             birthdaysModuleEnabled: hubModules.isEnabled(.birthdays)
         )
     }
@@ -500,6 +504,10 @@ final class AppState: ObservableObject {
         guard auth.isSignedIn else { return }
         let session = auth.sessionVersion
         let userId = currentUser?.id
+        groceryRequestVersion += 1
+        let request = groceryRequestVersion
+        let listId = nativeReminders.selectedListId
+        let remindersRevision = nativeReminders.revision
         nativeReminders.refreshAccessStatus()
         guard groceriesUseNativeReminders else {
             nativeGroceryItems = []
@@ -508,10 +516,12 @@ final class AppState: ObservableObject {
 
         do {
             let items = try await nativeReminders.loadItems()
-            guard isCurrentSession(session, userId: userId) else { return }
+            guard isCurrentSession(session, userId: userId), request == groceryRequestVersion,
+                  listId == nativeReminders.selectedListId, remindersRevision == nativeReminders.revision, groceriesUseNativeReminders else { return }
             nativeGroceryItems = items
         } catch {
-            guard isCurrentSession(session, userId: userId) else { return }
+            guard isCurrentSession(session, userId: userId), request == groceryRequestVersion,
+                  listId == nativeReminders.selectedListId, remindersRevision == nativeReminders.revision, groceriesUseNativeReminders else { return }
             errorMessage = error.localizedDescription
             nativeGroceryItems = []
         }
@@ -562,6 +572,7 @@ final class AppState: ObservableObject {
     /// Routes to Reminders or the API depending on the household's grocery source. This
     /// branch was previously copy-pasted at three call sites.
     func setGroceryItemChecked(id: String, checked: Bool) async throws {
+        guard canManageHousehold else { return }
         if groceriesUseNativeReminders {
             try nativeReminders.setCompleted(itemId: id, completed: checked)
             await refreshNativeGroceryItems()
