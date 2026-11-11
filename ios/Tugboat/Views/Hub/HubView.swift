@@ -302,7 +302,12 @@ struct HubView: View {
     /// A page under More that a card (or anything but the More menu) opened waits a beat for the tab to be on screen.
     private func settleMorePage(for destination: HubDestination) {
         settleMoreTask?.cancel()
-        guard compactOverflowDestinations.contains(destination), settledMoreDestination != destination else { return }
+        // Leaving the page forgets its go-ahead, so opening it again waits for the tab just like the first time.
+        guard compactOverflowDestinations.contains(destination) else {
+            settledMoreDestination = nil
+            return
+        }
+        guard settledMoreDestination != destination else { return }
         settleMoreTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled, appState.selectedDestination == destination else { return }
