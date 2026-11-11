@@ -15,6 +15,13 @@ struct HubView: View {
     @State private var moreSnapshot: UIImage?
     /// The tab bar's hook already handled this tap, so the binding's setter must not handle it a second time.
     @State private var moreTapHandled = false
+    /// The page under More that has been given the go-ahead to be made. A page opened from somewhere other than the More
+    /// menu (a Today card) waits a beat, so it is made once the More tab is on screen, as it is when opened from the
+    /// menu. One made while the tab was still being selected (iOS 27.3 beta) never ran its loading or took the
+    /// section a card asked for. It is compared with the selection in the view itself, so the very first render
+    /// after the selection changes already holds the page back.
+    @State private var settledMoreDestination: HubDestination?
+    @State private var settleMoreTask: Task<Void, Never>?
     /// On a phone Settings opens over whatever page is showing, as a sheet, instead of replacing it.
     @State private var destinationBeforeSettings: HubDestination = .dashboard
     @State private var lastPrimaryDestination: HubDestination = .dashboard
@@ -65,6 +72,9 @@ struct HubView: View {
                         focusedMoreDestination = nil
                         moreSnapshot = nil
                     }
+                }
+                .onChange(of: appState.selectedDestination) { _, destination in
+                    settleMorePage(for: destination)
                 }
                 .onAppear {
                     if compactPrimaryDestinations.contains(appState.selectedDestination) {
@@ -281,8 +291,22 @@ struct HubView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .ignoresSafeArea()
             .accessibilityHidden(true)
+        } else if compactOverflowDestinations.contains(appState.selectedDestination),
+                  settledMoreDestination != appState.selectedDestination {
+            Color.clear
         } else {
             compactMoreTab
+        }
+    }
+
+    /// A page under More that a card (or anything but the More menu) opened waits a beat for the tab to be on screen.
+    private func settleMorePage(for destination: HubDestination) {
+        settleMoreTask?.cancel()
+        guard compactOverflowDestinations.contains(destination), settledMoreDestination != destination else { return }
+        settleMoreTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled, appState.selectedDestination == destination else { return }
+            settledMoreDestination = destination
         }
     }
 
@@ -329,6 +353,8 @@ struct HubView: View {
         VStack(spacing: 0) {
             ForEach(Array(compactOverflowDestinations.reversed().enumerated()), id: \.element.id) { index, destination in
                 Button {
+                    // The tab is already on screen (the menu is over it), so the page can be made at once.
+                    settledMoreDestination = destination
                     appState.selectedDestination = destination
                     showMoreMenu = false
                 } label: {
