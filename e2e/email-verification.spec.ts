@@ -35,6 +35,8 @@ test("someone who has not confirmed their email is reminded, can ask for another
 test("the page a confirmation link ends on says what happened", async ({ page }) => {
   await page.goto("/email-verified");
   await expect(page.getByRole("heading", { name: "Email confirmed" })).toBeVisible();
+  // On a phone the page opens the app by itself; the button is the way in when that is dismissed.
+  await expect(page.getByRole("link", { name: "Open Tugboat", exact: true })).toHaveAttribute("href", "tugboat://widget/dashboard");
 
   await page.goto("/email-verified?error=invalid_token");
   await expect(page.getByRole("heading", { name: "That link didn’t work" })).toBeVisible();
