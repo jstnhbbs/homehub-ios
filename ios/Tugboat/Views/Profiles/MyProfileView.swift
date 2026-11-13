@@ -79,6 +79,18 @@ struct MyProfileView: View {
         }
         .task { await viewModel.load() }
         .onChange(of: viewModel.account?.user.id) { _, _ in populateFields() }
+        .onChange(of: viewModel.account?.user.email) { _, _ in populateFields() }
+        // The address was changed (or confirmed) by following the emailed link while this page was open: the session
+        // is read again when the app comes back to the front, and this page then catches up with it instead of
+        // still saying the change is waiting for the link.
+        .onChange(of: appState.currentUser?.email) { _, email in
+            guard let email, email != viewModel.account?.user.email else { return }
+            viewModel.successMessage = nil
+            Task { await viewModel.load() }
+        }
+        .onChange(of: appState.currentUser?.emailVerified) { _, _ in
+            Task { await viewModel.load() }
+        }
         .refreshable { await viewModel.load() }
     }
 

@@ -126,8 +126,9 @@ struct RootView: View {
                 await appState.flushPendingWidgetActions()
                 await appState.refreshForWidgetWrites()
                 await appState.refreshHousehold()
-                // Someone who went to their mail app to confirm their address comes back here.
-                if appState.needsEmailVerification { await appState.refreshSession() }
+                // Someone who went to their mail app to confirm their address, or to follow the link that changes it,
+                // comes back here, so the session (the address and whether it is confirmed) is read again each time.
+                await appState.refreshSession()
             }
         }
         .task(id: appState.auth.isSignedIn) {
