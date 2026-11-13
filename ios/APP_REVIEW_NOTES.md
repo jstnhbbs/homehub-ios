@@ -48,4 +48,4 @@ activity (naps, check-offs, notes) but cannot edit or delete shared data, and do
 household, so deleting it works and removes its household. (If you delete it, we recreate it.)
 
 **Other.** No in-app purchases, no ads, no tracking, no third-party sign-in. Photos are chosen with the system
-photo picker. Privacy policy: https://hobbshomehub.vercel.app/privacy
+photo picker. Privacy policy: https://tugboat.justinhobbs.net/privacy
