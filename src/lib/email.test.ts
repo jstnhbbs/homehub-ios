@@ -104,6 +104,12 @@ describe("verification email", () => {
     vi.unstubAllEnvs();
   });
 
+  it("takes a bare host in PUBLIC_SITE_URL as https", () => {
+    vi.stubEnv("PUBLIC_SITE_URL", "tugboat.example.com");
+    expect(new URL(verificationLink(raw)).origin).toBe("https://tugboat.example.com");
+    vi.unstubAllEnvs();
+  });
+
   it("ignores a PUBLIC_SITE_URL that is not a web address", () => {
     vi.stubEnv("PUBLIC_SITE_URL", "not a url");
     expect(new URL(verificationLink(raw)).origin).toBe("https://hobbshomehub.vercel.app");

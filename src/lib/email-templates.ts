@@ -30,12 +30,15 @@ export function verificationLink(url: string) {
   return link.toString();
 }
 
-/** `PUBLIC_SITE_URL` (for example https://tugboat.example.com), or null when it is unset or not a web address. */
+/**
+ * `PUBLIC_SITE_URL` (for example https://tugboat.example.com, or just the host, which is taken as https), or
+ * null when it is unset or not a web address.
+ */
 function publicSiteUrl(): URL | null {
   const value = process.env.PUBLIC_SITE_URL?.trim();
   if (!value) return null;
   try {
-    const url = new URL(value);
+    const url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : `https://${value}`);
     return url.protocol === "https:" || url.protocol === "http:" ? url : null;
   } catch {
     return null;
