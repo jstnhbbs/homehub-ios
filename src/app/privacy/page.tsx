@@ -11,7 +11,7 @@ const strong = "text-[var(--foreground)]";
 
 export default function PrivacyPolicyPage() {
   return (
-    <LegalPage title="Privacy Policy" updated="October 8, 2026">
+    <LegalPage title="Privacy Policy" updated="November 13, 2026">
       <p>
         {APP_NAME} is a family dashboard for routines, chores, meals, recipes,
         groceries, notes, sleep logs, birthdays, and the day&apos;s schedule and
@@ -85,6 +85,17 @@ export default function PrivacyPolicyPage() {
           {" "}{APP_NAME} does not use a push notification server.
         </p>
         <p>
+          <strong className={strong}>Widgets and the Lock Screen:</strong> Home
+          Screen widgets and the nap timer on the Lock Screen and in the Dynamic
+          Island read a small copy of household information (such as a
+          child&apos;s name, today&apos;s chores and routines, and a running nap)
+          that {APP_NAME} keeps on your device. It is not sent anywhere else, but
+          because widgets and the timer can appear on a locked screen, anyone who
+          can see your device may see them. You can change that in iOS under
+          Settings, in Face ID &amp; Passcode (Allow Access When Locked) and in each
+          widget&apos;s options.
+        </p>
+        <p>
           <strong className={strong}>A saved copy:</strong> so the app opens
           without a connection, it keeps a protected copy of your household
           information on the device. It is left out of device backups.
@@ -111,8 +122,10 @@ export default function PrivacyPolicyPage() {
         <p>
           We use a few providers to run the service, and each handles only what
           its job needs: Vercel hosts the app and stores photos, Turso hosts the
-          database, Resend delivers the confirmation emails, and Apple provides
-          weather. We do not sell personal information, do not show advertising,
+          database, Resend delivers the confirmation emails (it receives your
+          email address and the message), Cloudflare provides the website
+          address and forwards mail sent to our support address, and Apple
+          provides weather. We do not sell personal information, do not show advertising,
           and do not track you across other apps or websites. There are no
           analytics or advertising tools in {APP_NAME}.
         </p>

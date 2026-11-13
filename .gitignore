@@ -60,3 +60,9 @@ ios/.derivedData/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local only: marketing exports, demo renders, exported chat history (never meant for the public repo)
+/marketing/
+/demo/*.mov
+/session-export/
+/session-export.zip
