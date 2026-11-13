@@ -94,6 +94,22 @@ describe("verification email", () => {
     expect(link.searchParams.get("callbackURL")).toBe(EMAIL_VERIFIED_PATH);
   });
 
+  it("shows the public site's host in the link when PUBLIC_SITE_URL is set, and leaves the rest alone", () => {
+    vi.stubEnv("PUBLIC_SITE_URL", "https://tugboat.example.com/");
+    const link = new URL(verificationLink(raw));
+    expect(link.origin).toBe("https://tugboat.example.com");
+    expect(link.pathname).toBe("/api/auth/verify-email");
+    expect(link.searchParams.get("token")).toBe("abc.def");
+    expect(link.searchParams.get("callbackURL")).toBe(EMAIL_VERIFIED_PATH);
+    vi.unstubAllEnvs();
+  });
+
+  it("ignores a PUBLIC_SITE_URL that is not a web address", () => {
+    vi.stubEnv("PUBLIC_SITE_URL", "not a url");
+    expect(new URL(verificationLink(raw)).origin).toBe("https://hobbshomehub.vercel.app");
+    vi.unstubAllEnvs();
+  });
+
   it("is addressed to the person, with the link in both the text and the html", () => {
     const email = verificationEmail({ to: "pat@example.com", name: "Pat", url: raw });
     expect(email.to).toBe("pat@example.com");

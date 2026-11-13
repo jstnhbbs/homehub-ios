@@ -20,7 +20,26 @@ export const EMAIL_VERIFIED_PATH = "/email-verified";
 export function verificationLink(url: string) {
   const link = new URL(url);
   link.searchParams.set("callbackURL", EMAIL_VERIFIED_PATH);
+  const site = publicSiteUrl();
+  if (site) {
+    // Better Auth builds the link from `BETTER_AUTH_URL`, which has to stay what the phone app signs in to (its
+    // session is tied to that host), so the host people see in the email comes from its own setting.
+    link.protocol = site.protocol;
+    link.host = site.host;
+  }
   return link.toString();
+}
+
+/** `PUBLIC_SITE_URL` (for example https://tugboat.example.com), or null when it is unset or not a web address. */
+function publicSiteUrl(): URL | null {
+  const value = process.env.PUBLIC_SITE_URL?.trim();
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:" ? url : null;
+  } catch {
+    return null;
+  }
 }
 
 export function verificationEmail(input: { to: string; name: string; url: string }): Email {
