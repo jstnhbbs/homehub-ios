@@ -5,6 +5,7 @@ import UIKit
 struct DashboardView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.hubUsesTabBar) private var usesTabBar
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     private static let gridMinimumWidth: CGFloat = 520
     /// Rearranging the cards on the page itself (edit mode); see DashboardEditing.swift.
@@ -30,6 +31,12 @@ struct DashboardView: View {
                     .hubFullBleed()
                     .hubPageBackground()
             } else {
+                VStack(spacing: 0) {
+                    // Without the iPad's sidebar layout nothing above the cards supplies the date, weather and clock.
+                    if usesTabBar {
+                        HubHeaderView()
+                            .padding(.top, HubScreen.topInset)
+                    }
                 GeometryReader { proxy in
                     // Under this width the page is a single column of fixed-height cards; above it, the real
                     // grid. 520 lets an iPad mini in portrait (about 550pt of page beside the sidebar) have two
@@ -58,7 +65,11 @@ struct DashboardView: View {
                         }
                 }
                 // The accessibility tab layout has no sidebar to supply the page's outer margin.
-                .padding(.horizontal, dynamicTypeSize.isAccessibilitySize ? 24 : 0)
+                .padding(.horizontal, usesTabBar ? 16 : (dynamicTypeSize.isAccessibilitySize ? 24 : 0))
+                // Cards end above the floating tab bar.
+                .padding(.bottom, usesTabBar ? HubScreen.tabBarClearance : 0)
+                }
+                .modifier(WideTabBarPage(isActive: usesTabBar))
             }
         }
         // Both layouts open a card's page through `openDestination`, which ignores the tap that ends a
@@ -1386,6 +1397,20 @@ extension View {
                 guard !Task.isCancelled else { return }
                 action()
             }
+        }
+    }
+}
+
+/// A wide page inside the system tab bar (a foldable phone opened up) runs under the status bar and the floating bar like
+/// the phone's pages do; the iPad's sidebar layout leaves the page alone.
+private struct WideTabBarPage: ViewModifier {
+    let isActive: Bool
+
+    func body(content: Content) -> some View {
+        if isActive {
+            content.hubFullBleed()
+        } else {
+            content
         }
     }
 }

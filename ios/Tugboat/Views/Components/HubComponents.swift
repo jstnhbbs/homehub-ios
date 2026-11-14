@@ -296,7 +296,14 @@ enum HubWash { case theme, neutral }
 private struct HubWashKey: EnvironmentKey { static let defaultValue: HubWash = .theme }
 private struct HubBackdropProvidedKey: EnvironmentKey { static let defaultValue = false }
 private struct HubSolidBackdropKey: EnvironmentKey { static let defaultValue = false }
+private struct HubUsesTabBarKey: EnvironmentKey { static let defaultValue = false }
 extension EnvironmentValues {
+    /// True when the hub is showing the system's floating Liquid Glass tab bar (every phone, including a wide one such
+    /// as a foldable in landscape, whose size class is regular), so pages leave room for it and supply their own header.
+    var hubUsesTabBar: Bool {
+        get { self[HubUsesTabBarKey.self] }
+        set { self[HubUsesTabBarKey.self] = newValue }
+    }
     var hubWash: HubWash {
         get { self[HubWashKey.self] }
         set { self[HubWashKey.self] = newValue }

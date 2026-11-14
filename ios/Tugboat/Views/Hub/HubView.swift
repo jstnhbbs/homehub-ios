@@ -27,10 +27,19 @@ struct HubView: View {
     @State private var lastPrimaryDestination: HubDestination = .dashboard
     @State private var compactMealsPath = NavigationPath()
 
+    /// The system's Liquid Glass tab bar is the navigation on every phone, including a wide one (a foldable opened up, or
+    /// a Max in landscape) whose size class is regular. Only an iPad keeps the sidebar, and not at accessibility sizes.
+    private var usesTabBar: Bool {
+        horizontalSizeClass == .compact
+            || dynamicTypeSize.isAccessibilitySize
+            || UIDevice.current.userInterfaceIdiom == .phone
+    }
+
     var body: some View {
         Group {
-            if horizontalSizeClass == .compact || dynamicTypeSize.isAccessibilitySize {
+            if usesTabBar {
                 compactTabs
+                .environment(\.hubUsesTabBar, true)
                 .id(compactTabLayoutID)
                 .tint(HubTheme.accentText)
                 .hubSurfaceBackground()
