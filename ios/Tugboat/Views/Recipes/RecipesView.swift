@@ -339,7 +339,9 @@ private struct RecipeCard: View {
                     }
                     HStack(spacing: 8) {
                         if let servings = recipe.servings {
-                            Text(servings).font(.caption2.weight(.bold)).foregroundStyle(HubTheme.muted)
+                            // A bare "4" says nothing on its own, so a plain number gets a label.
+                            Text(Int(servings.trimmingCharacters(in: .whitespaces)) != nil ? "Serves \(servings)" : servings)
+                                .font(.caption2.weight(.bold)).foregroundStyle(HubTheme.muted)
                         }
                         if let totalTime = recipe.totalTime {
                             Text(totalTime).font(.caption2.weight(.bold)).foregroundStyle(HubTheme.muted)

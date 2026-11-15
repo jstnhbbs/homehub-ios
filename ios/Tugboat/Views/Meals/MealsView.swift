@@ -393,6 +393,9 @@ struct MealsView: View {
                 guard !loading, scrolledWeekOffset != viewModel.weekOffset else { return }
                 scrolledWeekOffset = viewModel.weekOffset
                 let target = viewModel.isCurrentWeek ? viewModel.todayString : viewModel.weekStart
+                // The week's first day is already at the top, and scrolling it to the top would hide the week
+                // arrows and More button above it, so only jump when today is further down.
+                guard target != viewModel.weekStart else { return }
                 withAnimation { proxy.scrollTo("day-\(target)", anchor: .top) }
             }
         }

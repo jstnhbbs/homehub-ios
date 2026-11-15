@@ -1,5 +1,22 @@
 import SwiftUI
 
+/// On a phone a list's rows run under a side tab bar (the iPhone Duo), so the list takes the safe area's side insets as
+/// margins plus the page's 16 pt, which equals the list's own margin when the insets are zero. The iPad keeps its own.
+private struct WidePhoneListInsets: ViewModifier {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    let insets: EdgeInsets
+
+    func body(content: Content) -> some View {
+        if horizontalSizeClass == .compact {
+            content
+                .contentMargins(.leading, 16 + insets.leading, for: .scrollContent)
+                .contentMargins(.trailing, 16 + insets.trailing, for: .scrollContent)
+        } else {
+            content
+        }
+    }
+}
+
 struct SnacksView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -37,6 +54,9 @@ struct SnacksView: View {
                 .listStyle(.insetGrouped)
                 .listAlignedWithPage()
                 .scrollContentBackground(.hidden)
+                // A list lays its rows out across the whole window under the safe area, which beside a side tab
+                // bar (the iPhone Duo) put the cards under the bar, so it takes the side insets as margins.
+                .modifier(WidePhoneListInsets(insets: proxy.safeAreaInsets))
             }
         }
         .hubSurfaceBackground()
