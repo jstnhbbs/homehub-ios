@@ -35,7 +35,6 @@ struct DashboardView: View {
                     // Without the iPad's sidebar layout nothing above the cards supplies the date, weather and clock.
                     if usesTabBar {
                         HubHeaderView()
-                            .padding(.top, HubScreen.topInset)
                     }
                 GeometryReader { proxy in
                     // Under this width the page is a single column of fixed-height cards; above it, the real
@@ -53,15 +52,10 @@ struct DashboardView: View {
                     )
                     let contentMaxWidth: CGFloat? = isRunningAsIPadAppOnMac ? nil : 1_500
                     dashboardContent(cards: cards, layout: layout, isCompact: isCompact)
-                        // Inside the system tab bar the cards fill the page and scroll under the bar; their last row rests
-                        // above it when the bar is along the bottom (a tall screen) and just above the edge when it
-                        // is down the side (a wide one). Padding the whole page instead shrank the scroll view, which
-                        // cut the cards off in a hard line with an empty strip below.
-                        .contentMargins(
-                            .bottom,
-                            usesTabBar ? (proxy.size.height > proxy.size.width ? HubScreen.tabBarClearance + 12 : 24) : 0,
-                            for: .scrollContent
-                        )
+                        // Inside the system tab bar the page stays within the safe areas the system reports for its bars
+                        // (along the bottom or down the side, by pose), and the scroll view reaches the edge, so the
+                        // cards scroll under the bar. Nothing is measured from the screen or window.
+                        .contentMargins(.bottom, usesTabBar ? 12 : 0, for: .scrollContent)
                         .frame(maxWidth: contentMaxWidth, maxHeight: .infinity, alignment: .topLeading)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         .overlay(alignment: .bottomTrailing) {
@@ -76,7 +70,6 @@ struct DashboardView: View {
                 // The accessibility tab layout has no sidebar to supply the page's outer margin.
                 .padding(.horizontal, usesTabBar ? 16 : (dynamicTypeSize.isAccessibilitySize ? 24 : 0))
                 }
-                .modifier(WideTabBarPage(isActive: usesTabBar))
             }
         }
         // Both layouts open a card's page through `openDestination`, which ignores the tap that ends a
@@ -1404,20 +1397,6 @@ extension View {
                 guard !Task.isCancelled else { return }
                 action()
             }
-        }
-    }
-}
-
-/// A wide page inside the system tab bar (a foldable phone opened up) runs under the status bar and the floating bar like
-/// the phone's pages do; the iPad's sidebar layout leaves the page alone.
-private struct WideTabBarPage: ViewModifier {
-    let isActive: Bool
-
-    func body(content: Content) -> some View {
-        if isActive {
-            content.hubFullBleed()
-        } else {
-            content
         }
     }
 }

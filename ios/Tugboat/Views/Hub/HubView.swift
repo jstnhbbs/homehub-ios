@@ -29,6 +29,8 @@ struct HubView: View {
 
     /// The system's Liquid Glass tab bar is the navigation on every phone, including a wide one (a foldable opened up, or
     /// a Max in landscape) whose size class is regular. Only an iPad keeps the sidebar, and not at accessibility sizes.
+    /// The idiom is used only to choose the navigation container (a phone gets the system tab bar, an iPad the sidebar);
+    /// every layout inside is driven by size classes and safe areas, as Apple's iPhone Duo guidance asks.
     private var usesTabBar: Bool {
         horizontalSizeClass == .compact
             || dynamicTypeSize.isAccessibilitySize

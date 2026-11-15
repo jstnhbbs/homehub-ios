@@ -248,17 +248,14 @@ extension View {
             .hubSurfaceBackground()
     }
 
-    /// How an iPad-style page looks on a wide phone (a foldable opened up): inside the top and side safe areas, with
-    /// the iPad's 24 pt margins, running to the bottom edge. The system's vertical tab bar floats at the trailing edge
-    /// in the safe area, so nothing needs clearing at the bottom.
+    /// How an iPad-style page looks on a wide phone (an iPhone Duo's inner display, or any regular-width phone). The
+    /// system owns the bars (a floating tab bar along the bottom or down the side, depending on the pose) and reports
+    /// them as safe areas, so the page only adds its own margins to the safe area: scroll views still reach the screen's
+    /// edges and scroll under the bars, and nothing is measured from the screen or the window.
     func hubWidePhonePage() -> some View {
         frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .contentMargins(.trailing, 24, for: .scrollContent)
-            .contentMargins(.bottom, 24, for: .scrollContent)
-            .padding(.top, HubScreen.topInset + 14)
-            .padding(.leading, 24)
-            .hubFullBleed()
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .safeAreaPadding(.horizontal, 24)
+            .safeAreaPadding(.top, 12)
             .hubSurfaceBackground()
     }
 
