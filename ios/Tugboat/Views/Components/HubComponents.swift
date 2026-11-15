@@ -255,13 +255,9 @@ extension View {
         frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .contentMargins(.trailing, 24, for: .scrollContent)
             .contentMargins(.bottom, 24, for: .scrollContent)
-            .scrollClipDisabled()
-            .mask {
-                Rectangle().padding(.leading, -20).padding(.trailing, -20).padding(.bottom, -20)
-            }
-            .padding(.top, 12)
+            .padding(.top, HubScreen.topInset + 14)
             .padding(.leading, 24)
-            .ignoresSafeArea(edges: .bottom)
+            .hubFullBleed()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .hubSurfaceBackground()
     }
