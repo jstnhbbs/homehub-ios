@@ -3,6 +3,7 @@ import SwiftUI
 struct NotesView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.hubWidePhone) private var widePhone
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @StateObject private var composer = NoteComposer()
@@ -48,7 +49,7 @@ struct NotesView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            if horizontalSizeClass != .compact {
+            if horizontalSizeClass != .compact && !widePhone {
                 Text("Notes")
                     .font(HubTheme.pageTitle)
                     .accessibilityAddTraits(.isHeader)

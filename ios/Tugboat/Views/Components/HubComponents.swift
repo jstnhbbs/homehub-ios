@@ -190,7 +190,77 @@ extension EnvironmentValues {
     }
 }
 
+private struct HubWidePhoneKey: EnvironmentKey { static let defaultValue = false }
+
+extension EnvironmentValues {
+    /// True for a page shown on a wide phone (an iPhone Duo's inner display, or any regular-width phone) inside the
+    /// system tab bar. There the system puts bars along the side or bottom by pose, so a page's title and primary
+    /// action belong in the navigation bar (`navigationTitle`, `hubBarAction`) instead of in its own header.
+    var hubWidePhone: Bool {
+        get { self[HubWidePhoneKey.self] }
+        set { self[HubWidePhoneKey.self] = newValue }
+    }
+}
+
+private struct HubBarAction: ViewModifier {
+    @Environment(\.hubWidePhone) private var widePhone
+    let title: String
+    let systemImage: String
+    let isVisible: Bool
+    let role: ButtonRole?
+    let action: () -> Void
+
+    func body(content: Content) -> some View {
+        if widePhone && isVisible {
+            content.toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(role: role, action: action) { Label(title, systemImage: systemImage) }
+                }
+            }
+        } else {
+            content
+        }
+    }
+}
+
+private struct HubBarMenu<MenuContent: View>: ViewModifier {
+    @Environment(\.hubWidePhone) private var widePhone
+    let title: String
+    let systemImage: String
+    let isVisible: Bool
+    @ViewBuilder let items: () -> MenuContent
+
+    func body(content: Content) -> some View {
+        if widePhone && isVisible {
+            content.toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu { items() } label: { Label(title, systemImage: systemImage) }
+                }
+            }
+        } else {
+            content
+        }
+    }
+}
+
 extension View {
+    /// On a wide phone, the page's primary action goes in the system bar (an icon with a title, so the system can show
+    /// it vertically, horizontally or in the overflow menu); elsewhere it does nothing and the page keeps its own button.
+    func hubBarAction(
+        _ title: String, systemImage: String, isVisible: Bool = true, role: ButtonRole? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
+        modifier(HubBarAction(title: title, systemImage: systemImage, isVisible: isVisible, role: role, action: action))
+    }
+
+    /// The same for an action that opens a menu.
+    func hubBarMenu<MenuContent: View>(
+        _ title: String, systemImage: String, isVisible: Bool = true,
+        @ViewBuilder items: @escaping () -> MenuContent
+    ) -> some View {
+        modifier(HubBarMenu(title: title, systemImage: systemImage, isVisible: isVisible, items: items))
+    }
+
     /// Paints the app's page color behind a whole screen. The tab bar and navigation stacks fill
     /// themselves with the system background, which is true black in dark mode, so every screen
     /// that sits directly in one asks for the page color itself.
@@ -254,8 +324,8 @@ extension View {
     /// edges and scroll under the bars, and nothing is measured from the screen or the window.
     func hubWidePhonePage() -> some View {
         frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .safeAreaPadding(.horizontal, 24)
-            .safeAreaPadding(.top, 12)
+            .safeAreaPadding(.horizontal, 16)
+            .safeAreaPadding(.top, 4)
             .hubSurfaceBackground()
     }
 

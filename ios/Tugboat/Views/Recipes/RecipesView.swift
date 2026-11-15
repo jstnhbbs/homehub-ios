@@ -3,6 +3,7 @@ import SwiftUI
 struct RecipesView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.hubWidePhone) private var widePhone
     @StateObject private var viewModel = RecipesViewModel()
     @State private var activeRecipeSheet: RecipeSheetPresentation?
     /// A recipe opened from the list when the page is too narrow for the detail panel beside it.
@@ -242,7 +243,11 @@ struct RecipesView: View {
 
     @ViewBuilder
     private var header: some View {
-        if horizontalSizeClass != .compact || viewModel.canManage {
+        if widePhone {
+            // The page's title and its Add Recipe menu are in the system bar.
+            Color.clear.frame(width: 0, height: 0)
+                .hubBarMenu("Add Recipe", systemImage: "plus", isVisible: viewModel.canManage) { addRecipeItems }
+        } else if horizontalSizeClass != .compact || viewModel.canManage {
             HStack(alignment: .bottom) {
                 if horizontalSizeClass != .compact {
                     Text("Recipes")
@@ -252,27 +257,32 @@ struct RecipesView: View {
                 Spacer()
                 if viewModel.canManage {
                     Menu {
-                        Button {
-                            activeRecipeSheet = .add(UUID())
-                        } label: {
-                            Label("Add Manually", systemImage: "plus")
-                        }
-                        Button {
-                            activeRecipeSheet = .importRecipe(UUID())
-                        } label: {
-                            Label("Import from URL", systemImage: "arrow.down.circle")
-                        }
-                        Button {
-                            activeRecipeSheet = .importCrouton(UUID())
-                        } label: {
-                            Label("Import from Crouton", systemImage: "square.and.arrow.down.on.square")
-                        }
+                        addRecipeItems
                     } label: {
                         Label("Add Recipe", systemImage: "plus")
                     }
                     .buttonStyle(HubButtonStyle(emphasis: .primary))
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var addRecipeItems: some View {
+        Button {
+            activeRecipeSheet = .add(UUID())
+        } label: {
+            Label("Add Manually", systemImage: "plus")
+        }
+        Button {
+            activeRecipeSheet = .importRecipe(UUID())
+        } label: {
+            Label("Import from URL", systemImage: "arrow.down.circle")
+        }
+        Button {
+            activeRecipeSheet = .importCrouton(UUID())
+        } label: {
+            Label("Import from Crouton", systemImage: "square.and.arrow.down.on.square")
         }
     }
 }

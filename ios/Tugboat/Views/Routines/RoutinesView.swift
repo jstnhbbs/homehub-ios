@@ -4,6 +4,7 @@ import UIKit
 struct RoutinesView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.hubWidePhone) private var widePhone
     @StateObject private var viewModel = RoutinesViewModel()
     @State private var activeRoutineEditor: RoutineEditorPresentation?
 
@@ -92,13 +93,13 @@ struct RoutinesView: View {
 
     private var header: some View {
         HStack(alignment: .bottom) {
-            if horizontalSizeClass != .compact {
+            if horizontalSizeClass != .compact && !widePhone {
                 Text("Routines")
                     .font(HubTheme.pageTitle)
                     .accessibilityAddTraits(.isHeader)
             }
             Spacer()
-            if viewModel.canManage {
+            if viewModel.canManage && !widePhone {
                 Button {
                     activeRoutineEditor = .add(UUID())
                 } label: {
@@ -106,6 +107,9 @@ struct RoutinesView: View {
                 }
                 .buttonStyle(HubButtonStyle(emphasis: .primary))
             }
+        }
+        .hubBarAction("Add Routine", systemImage: "plus", isVisible: viewModel.canManage) {
+            activeRoutineEditor = .add(UUID())
         }
     }
 }

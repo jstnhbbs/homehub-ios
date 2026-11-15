@@ -3,6 +3,7 @@ import SwiftUI
 struct GroceriesView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.hubWidePhone) private var widePhone
     @StateObject private var viewModel = GroceriesViewModel()
 
     /// The checked-off panel sits beside the list only when the page is wide enough to leave the list
@@ -58,7 +59,7 @@ struct GroceriesView: View {
     private var header: some View {
         HStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: 4) {
-                if horizontalSizeClass != .compact {
+                if horizontalSizeClass != .compact && !widePhone {
                     Text("Groceries")
                         .font(HubTheme.pageTitle)
                         .accessibilityAddTraits(.isHeader)
@@ -68,7 +69,7 @@ struct GroceriesView: View {
                     .foregroundStyle(HubTheme.muted)
             }
             Spacer()
-            if viewModel.canManage, !viewModel.checkedItems.isEmpty {
+            if viewModel.canManage, !viewModel.checkedItems.isEmpty, !widePhone {
                 Button {
                     Task { await viewModel.clearChecked() }
                 } label: {
@@ -77,6 +78,12 @@ struct GroceriesView: View {
                 .buttonStyle(HubButtonStyle(emphasis: .secondaryDestructive))
                 .disabled(viewModel.isWorking)
             }
+        }
+        .hubBarAction(
+            "Clear Checked", systemImage: "trash",
+            isVisible: viewModel.canManage && !viewModel.checkedItems.isEmpty, role: .destructive
+        ) {
+            Task { await viewModel.clearChecked() }
         }
     }
 

@@ -190,7 +190,7 @@ struct HubView: View {
             }
         } else if destination == .meals {
             NavigationStack(path: $compactMealsPath) {
-                compactPage(for: destination)
+                compactPage(for: destination, stacked: false)
                     .hubPageBackground()
             }
         } else {
@@ -422,14 +422,29 @@ struct HubView: View {
     }
 
     @ViewBuilder
-    private func compactPage(for destination: HubDestination) -> some View {
+    private func compactPage(for destination: HubDestination, stacked: Bool = true) -> some View {
         if horizontalSizeClass == .regular {
-            // A wide phone's pages are the iPad's (columns, side panels, their own headers), so they sit in the
-            // safe area with the iPad's margins instead of getting the portrait phone's full-bleed treatment.
-            content(for: destination).hubWidePhonePage()
+            // A wide phone's pages are the iPad's (columns, side panels), laid out inside the safe areas, with the
+            // title in a navigation bar and the page's main action as a bar item: the system puts both along the
+            // side or bottom by pose, like other iPhone Duo apps.
+            if stacked {
+                NavigationStack {
+                    widePage(for: destination)
+                }
+            } else {
+                widePage(for: destination)
+            }
         } else {
             content(for: destination).hubPhonePage()
         }
+    }
+
+    private func widePage(for destination: HubDestination) -> some View {
+        content(for: destination)
+            .hubWidePhonePage()
+            .navigationTitle(destination.label)
+            .navigationBarTitleDisplayMode(.inline)
+            .environment(\.hubWidePhone, true)
     }
 
     @ViewBuilder

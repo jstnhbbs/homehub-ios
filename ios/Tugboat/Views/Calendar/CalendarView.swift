@@ -5,6 +5,7 @@ import SwiftUI
 struct CalendarView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.hubWidePhone) private var widePhone
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var viewModel = CalendarViewModel()
     @State private var showCalendarSettings = false
@@ -119,30 +120,35 @@ struct CalendarView: View {
         }
     }
 
+    @ViewBuilder
     private var headerTitle: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Family Calendar")
-                .font(HubTheme.pageTitle)
-                .accessibilityAddTraits(.isHeader)
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
+        if !widePhone {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Family Calendar")
+                    .font(HubTheme.pageTitle)
+                    .accessibilityAddTraits(.isHeader)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+            }
         }
     }
 
     private var calendarSourceAndActions: some View {
         HStack(spacing: 8) {
-            Button {
-                showCalendarSettings = true
-            } label: {
-                Image(systemName: "gearshape")
-                    .font(.title2.weight(.semibold))
-                    .frame(width: 52, height: 52)
-                    .background(HubTheme.sageSoft, in: Circle())
+            if !widePhone {
+                Button {
+                    showCalendarSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.title2.weight(.semibold))
+                        .frame(width: 52, height: 52)
+                        .background(HubTheme.sageSoft, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(HubTheme.accentText)
+                .accessibilityLabel("Calendar Settings")
+                .help("Calendar Settings")
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(HubTheme.accentText)
-            .accessibilityLabel("Calendar Settings")
-            .help("Calendar Settings")
 
             if viewModel.needsNativeCalendarPermission {
                 Button {
@@ -152,6 +158,9 @@ struct CalendarView: View {
                 }
                 .buttonStyle(HubButtonStyle(emphasis: .primary))
             }
+        }
+        .hubBarAction("Calendar Settings", systemImage: "gearshape") {
+            showCalendarSettings = true
         }
     }
 

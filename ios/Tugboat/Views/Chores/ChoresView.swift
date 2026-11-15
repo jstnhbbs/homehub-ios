@@ -3,6 +3,7 @@ import SwiftUI
 struct ChoresView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.hubWidePhone) private var widePhone
     @StateObject private var viewModel = ChoresViewModel()
     @State private var activeChoreEditor: ChoreEditorPresentation?
 
@@ -71,13 +72,13 @@ struct ChoresView: View {
 
     private var header: some View {
         HStack(alignment: .bottom) {
-            if horizontalSizeClass != .compact {
+            if horizontalSizeClass != .compact && !widePhone {
                 Text("Chore Chart")
                     .font(HubTheme.pageTitle)
                     .accessibilityAddTraits(.isHeader)
             }
             Spacer()
-            if viewModel.canManage {
+            if viewModel.canManage && !widePhone {
                 Button {
                     activeChoreEditor = .add(UUID())
                 } label: {
@@ -85,6 +86,9 @@ struct ChoresView: View {
                 }
                 .buttonStyle(HubButtonStyle(emphasis: .primary))
             }
+        }
+        .hubBarAction("Add Chore", systemImage: "plus", isVisible: viewModel.canManage) {
+            activeChoreEditor = .add(UUID())
         }
     }
 }

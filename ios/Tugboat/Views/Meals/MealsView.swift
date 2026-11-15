@@ -3,6 +3,7 @@ import SwiftUI
 struct MealsView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.hubWidePhone) private var widePhone
     @StateObject private var viewModel = MealsViewModel()
     @State private var section: FoodHubSection
 
@@ -206,7 +207,7 @@ struct MealsView: View {
 
     @ViewBuilder
     private var mealHeaderTitle: some View {
-        if horizontalSizeClass != .compact {
+        if horizontalSizeClass != .compact && !widePhone {
             Text("Weekly Plan")
                 .font(HubTheme.pageTitle)
                 .accessibilityAddTraits(.isHeader)
@@ -218,29 +219,40 @@ struct MealsView: View {
     @ViewBuilder
     private var mealActions: some View {
         if viewModel.canManage {
-            Menu {
-                Button {
-                    Task { await viewModel.prepareGroceryPreview() }
+            if widePhone {
+                // The menu lives in the system bar; this carries it without drawing anything.
+                Color.clear.frame(width: 0, height: 0)
+                    .hubBarMenu("More", systemImage: "ellipsis.circle") { mealMenuItems }
+            } else {
+                Menu {
+                    mealMenuItems
                 } label: {
-                    Label("Add Week to Groceries", systemImage: "cart.badge.plus")
+                    Label("More", systemImage: "ellipsis.circle")
                 }
-
-                Button {
-                    Task { await viewModel.copyPreviousWeek() }
-                } label: {
-                    Label("Copy Last Week", systemImage: "doc.on.doc")
-                }
-
-                Button(role: .destructive) {
-                    confirmClearWeek = true
-                } label: {
-                    Label("Clear Week", systemImage: "trash")
-                }
-            } label: {
-                Label("More", systemImage: "ellipsis.circle")
+                .buttonStyle(HubButtonStyle(emphasis: .secondary))
+                .disabled(viewModel.isWorking)
             }
-            .buttonStyle(HubButtonStyle(emphasis: .secondary))
-            .disabled(viewModel.isWorking)
+        }
+    }
+
+    @ViewBuilder
+    private var mealMenuItems: some View {
+        Button {
+            Task { await viewModel.prepareGroceryPreview() }
+        } label: {
+            Label("Add Week to Groceries", systemImage: "cart.badge.plus")
+        }
+
+        Button {
+            Task { await viewModel.copyPreviousWeek() }
+        } label: {
+            Label("Copy Last Week", systemImage: "doc.on.doc")
+        }
+
+        Button(role: .destructive) {
+            confirmClearWeek = true
+        } label: {
+            Label("Clear Week", systemImage: "trash")
         }
     }
 

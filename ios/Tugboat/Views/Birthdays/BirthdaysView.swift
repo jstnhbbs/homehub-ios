@@ -15,6 +15,7 @@ private enum BirthdayEditor: Identifiable {
 struct BirthdaysView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.hubWidePhone) private var widePhone
     @StateObject private var viewModel = BirthdaysViewModel()
     @State private var editor: BirthdayEditor?
     /// The person picked on the ring or in the list, shown in the ring's centre.
@@ -61,7 +62,9 @@ struct BirthdaysView: View {
 
     private var header: some View {
         HStack(alignment: .bottom) {
-            if horizontalSizeClass != .compact {
+            if widePhone {
+                EmptyView()
+            } else if horizontalSizeClass != .compact {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(CelebrationNaming.current)
                         .font(HubTheme.pageTitle)
@@ -73,7 +76,7 @@ struct BirthdaysView: View {
                     .foregroundStyle(HubTheme.muted)
             }
             Spacer()
-            if viewModel.canManage {
+            if viewModel.canManage && !widePhone {
                 Button {
                     editor = .add
                 } label: {
@@ -83,6 +86,9 @@ struct BirthdaysView: View {
                 }
                 .buttonStyle(HubButtonStyle(emphasis: .primary))
             }
+        }
+        .hubBarAction("Add \(CelebrationNaming.currentSingular)", systemImage: "plus", isVisible: viewModel.canManage) {
+            editor = .add
         }
     }
 

@@ -7,6 +7,7 @@ struct NapsView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.hubWidePhone) private var widePhone
     @State private var payload: NapsPayload?
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -120,18 +121,23 @@ struct NapsView: View {
 
     private var header: some View {
         HStack(alignment: .bottom) {
-            if embeddedInHub && horizontalSizeClass != .compact {
+            if embeddedInHub && horizontalSizeClass != .compact && !widePhone {
                 Text("Sleep")
                     .font(HubTheme.pageTitle)
                     .accessibilityAddTraits(.isHeader)
             }
             Spacer()
-            Button {
-                showingAddSheet = true
-            } label: {
-                Label("Add Past Sleep", systemImage: "plus")
+            if !widePhone {
+                Button {
+                    showingAddSheet = true
+                } label: {
+                    Label("Add Past Sleep", systemImage: "plus")
+                }
+                .buttonStyle(HubButtonStyle(emphasis: .secondary))
             }
-            .buttonStyle(HubButtonStyle(emphasis: .secondary))
+        }
+        .hubBarAction("Add Past Sleep", systemImage: "plus") {
+            showingAddSheet = true
         }
     }
 
