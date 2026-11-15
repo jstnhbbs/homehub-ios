@@ -248,6 +248,24 @@ extension View {
             .hubSurfaceBackground()
     }
 
+    /// How an iPad-style page looks on a wide phone (a foldable opened up): inside the top and side safe areas, with
+    /// the iPad's 24 pt margins, running to the bottom edge. The system's vertical tab bar floats at the trailing edge
+    /// in the safe area, so nothing needs clearing at the bottom.
+    func hubWidePhonePage() -> some View {
+        frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .contentMargins(.trailing, 24, for: .scrollContent)
+            .contentMargins(.bottom, 24, for: .scrollContent)
+            .scrollClipDisabled()
+            .mask {
+                Rectangle().padding(.leading, -20).padding(.trailing, -20).padding(.bottom, -20)
+            }
+            .padding(.top, 12)
+            .padding(.leading, 24)
+            .ignoresSafeArea(edges: .bottom)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .hubSurfaceBackground()
+    }
+
     /// Lets a phone page's scroll view fill the screen and inset its own content for the bars, so content scrolls
     /// under the status bar and the tab bar instead of stopping at a clip line.
     func hubFullBleed() -> some View {

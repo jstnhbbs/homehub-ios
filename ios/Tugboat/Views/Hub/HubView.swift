@@ -419,8 +419,15 @@ struct HubView: View {
         return (menuWidth, trailingInset, max(10, tabBarHeight - 4), tabBarHeight)
     }
 
+    @ViewBuilder
     private func compactPage(for destination: HubDestination) -> some View {
-        content(for: destination).hubPhonePage()
+        if horizontalSizeClass == .regular {
+            // A wide phone's pages are the iPad's (columns, side panels, their own headers), so they sit in the
+            // safe area with the iPad's margins instead of getting the portrait phone's full-bleed treatment.
+            content(for: destination).hubWidePhonePage()
+        } else {
+            content(for: destination).hubPhonePage()
+        }
     }
 
     @ViewBuilder

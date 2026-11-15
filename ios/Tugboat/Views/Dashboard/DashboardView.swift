@@ -53,6 +53,15 @@ struct DashboardView: View {
                     )
                     let contentMaxWidth: CGFloat? = isRunningAsIPadAppOnMac ? nil : 1_500
                     dashboardContent(cards: cards, layout: layout, isCompact: isCompact)
+                        // Inside the system tab bar the cards fill the page and scroll under the bar; their last row rests
+                        // above it when the bar is along the bottom (a tall screen) and just above the edge when it
+                        // is down the side (a wide one). Padding the whole page instead shrank the scroll view, which
+                        // cut the cards off in a hard line with an empty strip below.
+                        .contentMargins(
+                            .bottom,
+                            usesTabBar ? (proxy.size.height > proxy.size.width ? HubScreen.tabBarClearance + 12 : 24) : 0,
+                            for: .scrollContent
+                        )
                         .frame(maxWidth: contentMaxWidth, maxHeight: .infinity, alignment: .topLeading)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         .overlay(alignment: .bottomTrailing) {
@@ -66,8 +75,6 @@ struct DashboardView: View {
                 }
                 // The accessibility tab layout has no sidebar to supply the page's outer margin.
                 .padding(.horizontal, usesTabBar ? 16 : (dynamicTypeSize.isAccessibilitySize ? 24 : 0))
-                // Cards end above the floating tab bar.
-                .padding(.bottom, usesTabBar ? HubScreen.tabBarClearance : 0)
                 }
                 .modifier(WideTabBarPage(isActive: usesTabBar))
             }
