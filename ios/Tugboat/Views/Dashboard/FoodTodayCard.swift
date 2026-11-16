@@ -101,6 +101,10 @@ struct FoodTodayCard: View {
 
     // MARK: Pieces
 
+    private func opensRecipe(_ meal: Meal?) -> Bool {
+        meal?.recipeId != nil && appState.canOpenRecipes
+    }
+
     /// Only whole meal tiles are shown; one that does not fit becomes "+N more".
     private func meals(maxColumns: Int, byRelevance: Bool) -> some View {
         WholeRowsGrid(
@@ -108,10 +112,12 @@ struct FoodTodayCard: View {
             minimumColumnWidth: DashboardMetrics.scaled(125),
             // One column at the largest text sizes, where a slot's label and dish no longer fit side by side.
             maxColumns: dynamicTypeSize.isAccessibilitySize ? 1 : maxColumns,
-            itemHeight: { tile, columnWidth in MealSlotRow.height(for: tile.meal, columnWidth: columnWidth) },
+            itemHeight: { tile, columnWidth in
+                MealSlotRow.height(for: tile.meal, columnWidth: columnWidth, hasRecipe: opensRecipe(tile.meal))
+            },
             onMore: { openHubDestination(.meals) }
         ) { tile, _ in
-            if let id = tile.meal?.recipeId, appState.canOpenRecipes {
+            if let id = tile.meal?.recipeId, opensRecipe(tile.meal) {
                 Button { appState.openRecipe(id) } label: {
                     MealSlotRow(slot: tile.slot, meal: tile.meal, hasRecipe: true)
                 }

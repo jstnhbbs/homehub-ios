@@ -969,15 +969,17 @@ struct MealSlotRow: View {
     var hasRecipe = false
 
     private static let maxLines = 3
+    /// Room kept at the end of the text for the recipe's book icon.
+    private static let recipeIconInset: CGFloat = 20
 
     /// Height a slot needs: padding, the slot label, then up to three lines. The first line
     /// (the dish name) may wrap to two, the rest stay on one.
-    static func height(for meal: Meal?, columnWidth: CGFloat) -> CGFloat {
+    static func height(for meal: Meal?, columnWidth: CGFloat, hasRecipe: Bool = false) -> CGFloat {
         let lines = Array(DashboardHelpers.mealLines(meal?.title ?? "").prefix(maxLines))
         let count = max(1, lines.count)
         let firstLineCount = DashboardRowHelpers.estimatedLineCount(
             characterCount: lines.first?.count ?? 0,
-            availableWidth: columnWidth - 24,
+            availableWidth: columnWidth - 24 - (hasRecipe ? recipeIconInset : 0),
             averageCharacterWidth: DashboardMetrics.scaled(9),
             maxLines: 2
         )
@@ -1004,6 +1006,7 @@ struct MealSlotRow: View {
                 }
             }
         }
+        .padding(.trailing, hasRecipe ? Self.recipeIconInset : 0)
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(HubTheme.tileQuiet)
@@ -1013,7 +1016,7 @@ struct MealSlotRow: View {
                 Image(systemName: "book.closed")
                     .font(.caption)
                     .foregroundStyle(HubTheme.accentText)
-                    .padding(10)
+                    .padding(12)
                     .accessibilityHidden(true)
             }
         }

@@ -3,7 +3,7 @@ import SwiftUI
 /// The Snacks card at all three sizes.
 ///
 /// Small is how many of today's snacks have been had. Medium lists them to tick off (with a circle for
-/// each child when snacks are tracked per child). Large fills the card with snacks: what is left beside what has been eaten, or
+/// each child when snacks are tracked per child). Large has no count; it fills the card with snacks: what is left beside what has been eaten, or
 /// for per-child households as many tiles across as fit.
 struct SnacksTodayCard: View {
     @EnvironmentObject private var appState: AppState
@@ -70,7 +70,7 @@ struct SnacksTodayCard: View {
     private var medium: some View {
         VStack(alignment: .leading, spacing: 8) {
             // A per-child tile (a name line and 36 pt circles) needs most of a one-cell card, so at Medium the
-            // summary line gives way to the tiles; the count is on the Small and Large cards.
+            // summary line gives way to the tiles; the count is on the Small card.
             if !perChild || total == 0 {
                 TodayCardSummaryLine(text: line)
             }

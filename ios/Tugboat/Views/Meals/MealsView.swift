@@ -178,6 +178,12 @@ struct MealsView: View {
                 }
             }
         }
+        // On a wide phone the Edit button and More menu are bar items, attached once here rather than inside the
+        // header's ViewThatFits, which builds both of its layouts.
+        .hubBarAction(isEditing ? "Done" : "Edit", systemImage: isEditing ? "checkmark" : "pencil", isVisible: viewModel.canManage) {
+            isEditing.toggle()
+        }
+        .hubBarMenu("More", systemImage: "ellipsis.circle", isVisible: viewModel.canManage) { mealMenuItems }
         .onAppear { viewModel.bind(to: appState) }
         .task {
             viewModel.bind(to: appState)
@@ -231,30 +237,22 @@ struct MealsView: View {
 
     @ViewBuilder
     private var mealActions: some View {
-        if viewModel.canManage {
-            if widePhone {
-                // The buttons live in the system bar; this carries them without drawing anything.
-                Color.clear.frame(width: 0, height: 0)
-                    .hubBarAction(isEditing ? "Done" : "Edit", systemImage: isEditing ? "checkmark" : "pencil") {
-                        isEditing.toggle()
-                    }
-                    .hubBarMenu("More", systemImage: "ellipsis.circle") { mealMenuItems }
-            } else {
-                HStack(spacing: 10) {
-                    Button {
-                        isEditing.toggle()
-                    } label: {
-                        Label(isEditing ? "Done" : "Edit", systemImage: isEditing ? "checkmark" : "pencil")
-                    }
-                    .buttonStyle(HubButtonStyle(emphasis: isEditing ? .primary : .secondary))
-                    Menu {
-                        mealMenuItems
-                    } label: {
-                        Label("More", systemImage: "ellipsis.circle")
-                    }
-                    .buttonStyle(HubButtonStyle(emphasis: .secondary))
-                    .disabled(viewModel.isWorking)
+        // On a wide phone these are bar items (see `weekContent`), so nothing is drawn here.
+        if viewModel.canManage && !widePhone {
+            HStack(spacing: 10) {
+                Button {
+                    isEditing.toggle()
+                } label: {
+                    Label(isEditing ? "Done" : "Edit", systemImage: isEditing ? "checkmark" : "pencil")
                 }
+                .buttonStyle(HubButtonStyle(emphasis: isEditing ? .primary : .secondary))
+                Menu {
+                    mealMenuItems
+                } label: {
+                    Label("More", systemImage: "ellipsis.circle")
+                }
+                .buttonStyle(HubButtonStyle(emphasis: .secondary))
+                .disabled(viewModel.isWorking)
             }
         }
     }
@@ -545,19 +543,11 @@ struct MealsView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        if viewModel.canManage && isEditing {
-                            pickerTarget = ref
-                        } else {
-                            openMeal(meal)
-                        }
+                        tapMeal(meal, ref: ref)
                     }
                     .accessibilityElement(children: .combine)
-                    .accessibilityAddTraits(isEditing || canOpen(meal) ? .isButton : [])
-                    .accessibilityHint(
-                        viewModel.canManage && isEditing
-                            ? (meal == nil ? "Add a meal" : "Change this meal")
-                            : (canOpen(meal) ? "Open recipe" : "")
-                    )
+                    .accessibilityAddTraits(tapAction(meal) == .nothing ? [] : .isButton)
+                    .accessibilityHint(tapHint(meal))
                 }
             }
         }
@@ -738,17 +728,26 @@ struct MealsView: View {
 
     // MARK: - Shared slot behavior
 
-    private func canOpen(_ meal: Meal?) -> Bool {
-        meal?.recipeId != nil && appState.canOpenRecipes
+    private func tapAction(_ meal: Meal?) -> MealTapAction {
+        MealTapAction.resolve(meal: meal, isEditing: isEditing, canManage: viewModel.canManage, canOpenRecipes: appState.canOpenRecipes)
     }
 
-    /// Outside edit mode a tap opens the meal's saved recipe, or shows its notes when it has no recipe.
-    private func openMeal(_ meal: Meal?) {
-        guard let meal else { return }
-        if let recipeId = meal.recipeId, appState.canOpenRecipes {
-            appState.openRecipe(recipeId)
-        } else if let notes = meal.notes, !notes.isEmpty {
-            notesMeal = meal
+    private func tapHint(_ meal: Meal?) -> String {
+        switch tapAction(meal) {
+        case .edit: meal == nil ? "Add a meal" : "Change this meal"
+        case .openRecipe: "Open recipe"
+        case .showNotes: "Show notes"
+        case .nothing: ""
+        }
+    }
+
+    /// Edit mode changes a meal; otherwise a tap opens the saved recipe, or shows the notes when there is no recipe.
+    private func tapMeal(_ meal: Meal?, ref: MealSlotRef) {
+        switch tapAction(meal) {
+        case .edit: pickerTarget = ref
+        case .openRecipe(let id): appState.openRecipe(id, from: section)
+        case .showNotes: notesMeal = meal
+        case .nothing: break
         }
     }
 
@@ -758,7 +757,7 @@ struct MealsView: View {
             meal: meal,
             canManage: viewModel.canManage && isEditing,
             dropTarget: $dropTarget,
-            onOpen: canOpen(meal) || (meal?.notes?.isEmpty == false) ? { openMeal(meal) } : nil,
+            onOpen: tapAction(meal) == .nothing ? nil : { tapMeal(meal, ref: ref) },
             onEdit: { pickerTarget = ref },
             onDrop: { token in
                 Task { await viewModel.moveMeal(fromToken: token, to: ref) }

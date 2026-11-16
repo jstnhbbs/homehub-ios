@@ -671,12 +671,35 @@ final class AppState: ObservableObject {
     /// True when a meal's saved recipe can be opened (the Recipes section is on for this household).
     var canOpenRecipes: Bool { FoodHubSection.recipes.isVisible(in: hubModules) }
 
-    /// Opens a saved recipe in Food > Recipes, the same way the Dinner widget does.
-    func openRecipe(_ id: String) {
+    /// Where a person was when a meal opened a recipe, so closing the recipe puts them back there instead of
+    /// leaving them in Food > Recipes. Not published: nothing draws it.
+    struct RecipeReturn {
+        let destination: HubDestination
+        let section: FoodHubSection
+    }
+    var recipeReturn: RecipeReturn?
+
+    /// Queues a saved recipe to open in Food > Recipes. Both the widget link and a meal use it; the caller opens the page.
+    func queueRecipe(_ id: String) {
         guard canOpenRecipes else { return }
         pendingFoodSection = .recipes
         pendingWidgetRecipeId = id
+    }
+
+    /// Opens a meal's saved recipe, and remembers where to return to when it is closed (`section` is the Food section
+    /// the meal was tapped in, nil from another page).
+    func openRecipe(_ id: String, from section: FoodHubSection? = nil) {
+        guard canOpenRecipes else { return }
+        recipeReturn = RecipeReturn(destination: selectedDestination, section: section ?? .week)
+        queueRecipe(id)
         selectedDestination = .meals
+    }
+
+    /// Puts the person back where they opened a recipe from; a recipe opened some other way has nowhere to go back to.
+    func returnFromRecipe(_ target: RecipeReturn?) {
+        guard let target else { return }
+        pendingFoodSection = target.section
+        if selectedDestination != target.destination { selectedDestination = target.destination }
     }
 
     private func normalizeNavigation() {
@@ -754,6 +777,7 @@ final class AppState: ObservableObject {
         pendingProfileEditId = nil
         pendingFoodSection = nil
         pendingWidgetRecipeId = nil
+        recipeReturn = nil
         selectedDestination = .dashboard
         return Task {
             await notificationCleanup.value

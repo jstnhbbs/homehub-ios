@@ -112,9 +112,9 @@ struct RootView: View {
         .onOpenURL { url in
             guard let destination = WidgetRoute.destination(from: url) else { return }
             appState.pendingWidgetRecipeId = nil
-            if let recipeId = WidgetRoute.recipeId(from: url), FoodHubSection.recipes.isVisible(in: appState.hubModules) {
-                appState.pendingFoodSection = .recipes
-                appState.pendingWidgetRecipeId = recipeId
+            appState.recipeReturn = nil
+            if let recipeId = WidgetRoute.recipeId(from: url) {
+                appState.queueRecipe(recipeId)
             }
             NotificationResponder.requestOpen(destination)
             appState.openPendingNotificationDestination()

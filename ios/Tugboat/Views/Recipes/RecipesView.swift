@@ -8,6 +8,8 @@ struct RecipesView: View {
     @State private var activeRecipeSheet: RecipeSheetPresentation?
     /// A recipe opened from the list when the page is too narrow for the detail panel beside it.
     @State private var narrowDetailId: String?
+    /// Where a meal opened this recipe from; closing the recipe goes back there.
+    @State private var returnAfterClose: AppState.RecipeReturn?
 
     /// The detail panel sits beside the list only when the page is wide enough to leave the list about
     /// 300pt. Size class alone isn't enough: an iPad mini in portrait is "regular" but only about 590pt
@@ -22,37 +24,53 @@ struct RecipesView: View {
             RecipeManagementSheet(sheet: sheet, recipes: viewModel.recipes, viewModel: viewModel)
         }
         .sheet(isPresented: Binding(get: { narrowDetailId != nil }, set: { if !$0 { narrowDetailId = nil } })) {
-            if let id = narrowDetailId, let recipe = viewModel.recipes.first(where: { $0.id == id }) {
-                RecipeDetailPanel(recipe: recipe, viewModel: viewModel) {
-                    // One sheet at a time: close this one, then open the editor.
-                    narrowDetailId = nil
-                    activeRecipeSheet = .edit(recipe.id)
-                }
-                .padding(.top, 8)
-                // A full-height sheet has no bar of its own, and on a phone with a side tab bar a drag is the only
-                // other way out, so it carries a close button.
-                .overlay(alignment: .topTrailing) {
-                    Button {
-                        narrowDetailId = nil
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(HubTheme.muted)
-                            .minimumTapTarget()
-                    }
-                    .accessibilityLabel("Close")
-                    .padding(.top, 4)
-                    .padding(.trailing, 8)
-                }
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-            }
+            // Closed by the button, a drag or a tap on Edit: a recipe opened from a meal goes back to the meal's page,
+            // unless it is being edited, which keeps the person here.
+            sheetContent
+        }
+        .onChange(of: narrowDetailId) { _, id in
+            guard id == nil, let target = returnAfterClose else { return }
+            returnAfterClose = nil
+            appState.returnFromRecipe(target)
         }
         .onAppear { viewModel.bind(to: appState) }
         .task { await viewModel.load(); openPendingWidgetRecipe(afterLoad: true) }
         .refreshable { await viewModel.load(); openPendingWidgetRecipe(afterLoad: true) }
         .onChange(of: appState.pendingWidgetRecipeId) { _, _ in openPendingWidgetRecipe() }
+    }
+
+    @ViewBuilder
+    private var sheetContent: some View {
+        if let id = narrowDetailId, let recipe = viewModel.recipes.first(where: { $0.id == id }) {
+            RecipeDetailPanel(recipe: recipe, viewModel: viewModel) {
+                // One sheet at a time: close this one, then open the editor.
+                returnAfterClose = nil
+                narrowDetailId = nil
+                activeRecipeSheet = .edit(recipe.id)
+            }
+            .padding(.top, 8)
+            // A full-height sheet has no bar of its own, and on a phone with a side tab bar a drag is the only
+            // other way out, so it carries a close button.
+            .overlay(alignment: .topTrailing) {
+                Button {
+                    narrowDetailId = nil
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2)
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(HubTheme.muted)
+                        .minimumTapTarget()
+                }
+                .accessibilityLabel("Close")
+                .padding(.top, 4)
+                .padding(.trailing, 8)
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        } else {
+            // The recipe is gone (deleted, or not loaded): a blank sheet has nothing to close it with.
+            Color.clear.onAppear { narrowDetailId = nil }
+        }
     }
 
     private func openPendingWidgetRecipe(afterLoad: Bool = false) {
@@ -65,6 +83,8 @@ struct RecipesView: View {
             return
         }
         viewModel.selectedRecipeId = id
+        returnAfterClose = appState.recipeReturn
+        appState.recipeReturn = nil
         narrowDetailId = id
         appState.pendingWidgetRecipeId = nil
     }

@@ -106,6 +106,7 @@ Ingredient parsing and merging (used by "Add Week to Groceries") has standalone 
 ```bash
 ios/checks/ingredient-merge/run.sh
 ios/checks/meal-plan/run.sh
+ios/checks/meal-tap/run.sh
 ios/checks/streak-helpers/run.sh
 ios/checks/completion-helpers/run.sh
 ios/checks/recipe-tags/run.sh
