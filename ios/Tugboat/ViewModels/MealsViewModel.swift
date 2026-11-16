@@ -51,16 +51,31 @@ final class MealsViewModel: ObservableObject {
         DateHelpers.localDateIn(timezone: timezone)
     }
 
-    var weekDates: [Date] {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = timezone
-        let anchor = calendar.date(byAdding: .day, value: weekOffset * 7, to: .now) ?? .now
-        return DateHelpers.weekDates(from: anchor, timezone: timezone, weekStartsOn: weekStartsOn)
+    /// The week's days. Views ask for them many times a render (every row, the counts, the cards), so they are worked
+    /// out once per week, zone, first day and minute rather than on each read.
+    private struct WeekDays {
+        let key: String
+        let dates: [Date]
+        let strings: [String]
     }
 
-    var weekDateStrings: [String] {
-        weekDates.map { DateHelpers.localDateIn(timezone: timezone, date: $0) }
+    private var weekDaysCache: WeekDays?
+
+    private var currentWeek: WeekDays {
+        let minute = Int(Date.now.timeIntervalSinceReferenceDate / 60)
+        let key = "\(weekOffset)|\(timezone.identifier)|\(weekStartsOn)|\(minute)"
+        if let cached = weekDaysCache, cached.key == key { return cached }
+        let calendar = DateHelpers.gregorian(in: timezone)
+        let anchor = calendar.date(byAdding: .day, value: weekOffset * 7, to: .now) ?? .now
+        let dates = DateHelpers.weekDates(from: anchor, timezone: timezone, weekStartsOn: weekStartsOn)
+        let week = WeekDays(key: key, dates: dates, strings: dates.map { DateHelpers.localDateIn(timezone: timezone, date: $0) })
+        weekDaysCache = week
+        return week
     }
+
+    var weekDates: [Date] { currentWeek.dates }
+
+    var weekDateStrings: [String] { currentWeek.strings }
 
     var weekStart: String {
         weekDateStrings.first ?? todayString

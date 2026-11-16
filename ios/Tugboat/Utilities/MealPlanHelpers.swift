@@ -75,11 +75,7 @@ enum MealPlanHelpers {
             || calendar.component(.year, from: end) != currentYear
 
         func format(_ date: Date, _ pattern: String) -> String {
-            let formatter = DateFormatter()
-            formatter.locale = .autoupdatingCurrent
-            formatter.timeZone = timezone
-            formatter.setLocalizedDateFormatFromTemplate(pattern)
-            return formatter.string(from: date)
+            DateHelpers.patternFormatter(pattern, timezone: timezone, locale: .autoupdatingCurrent).string(from: date)
         }
 
         let left = format(start, "MMMd")

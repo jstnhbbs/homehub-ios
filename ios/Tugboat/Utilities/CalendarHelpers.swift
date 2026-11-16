@@ -25,11 +25,7 @@ enum CalendarHelpers {
     }
 
     private static func formatter(_ template: String, timezone: TimeZone, locale: Locale) -> DateFormatter {
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.timeZone = timezone
-        formatter.setLocalizedDateFormatFromTemplate(template)
-        return formatter
+        DateHelpers.patternFormatter(template, timezone: timezone, locale: locale)
     }
 
     static func monthTitle(_ date: Date, timezone: TimeZone, locale: Locale = .autoupdatingCurrent) -> String {

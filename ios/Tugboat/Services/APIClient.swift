@@ -356,7 +356,7 @@ extension JSONDecoder {
             let container = try decoder.singleValueContainer()
             let value = try container.decode(String.self)
             if let date = ISO8601DateFormatter.fractional.date(from: value)
-                ?? ISO8601DateFormatter().date(from: value) {
+                ?? ISO8601DateFormatter.plain.date(from: value) {
                 return date
             }
             throw DecodingError.dataCorruptedError(
@@ -369,6 +369,9 @@ extension JSONDecoder {
 }
 
 private extension ISO8601DateFormatter {
+    /// Shared: building one per date made decoding a long list allocate a formatter for every row.
+    static let plain = ISO8601DateFormatter()
+
     static let fractional: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]

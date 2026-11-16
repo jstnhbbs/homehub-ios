@@ -39,7 +39,7 @@ enum DateHelpers {
     /// means weekday, month and day) and the person's region decides the wording, order and
     /// punctuation. A US household sees exactly what the pattern spells out ("Mon, Oct 5"); a UK one sees
     /// "Mon, 5 Oct". The literal punctuation in the pattern is ignored for that reason.
-    private static func patternFormatter(_ pattern: String, timezone: TimeZone, locale: Locale) -> DateFormatter {
+    static func patternFormatter(_ pattern: String, timezone: TimeZone, locale: Locale) -> DateFormatter {
         cache.formatter(key: "\(timezone.identifier)|\(locale.identifier)|\(pattern)") {
             let formatter = DateFormatter()
             formatter.locale = locale
@@ -55,7 +55,13 @@ enum DateHelpers {
         guard let year = components.year, let month = components.month, let day = components.day else {
             return ISO8601DateFormatter().string(from: date).prefix(10).description
         }
-        return String(format: "%04d-%02d-%02d", year, month, day)
+        // Not `String(format:)`, which is slow and runs for every row of every week.
+        return "\(zeroPadded(year, to: 4))-\(zeroPadded(month, to: 2))-\(zeroPadded(day, to: 2))"
+    }
+
+    private static func zeroPadded(_ number: Int, to width: Int) -> String {
+        let digits = String(number)
+        return digits.count >= width ? digits : String(repeating: "0", count: width - digits.count) + digits
     }
 
     static func weekDates(
@@ -63,8 +69,7 @@ enum DateHelpers {
         timezone: TimeZone = .current,
         weekStartsOn: Int = WeekStart.defaultWeekStartsOn
     ) -> [Date] {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = timezone
+        var calendar = gregorian(in: timezone)
         calendar.firstWeekday = weekStartsOn == 0 ? 1 : weekStartsOn + 1
         let start = calendar.dateInterval(of: .weekOfYear, for: date)?.start ?? date
         return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
