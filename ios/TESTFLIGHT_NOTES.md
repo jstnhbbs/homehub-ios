@@ -1,7 +1,38 @@
 # TestFlight notes
 
 Paste the text under "What to Test" into App Store Connect (TestFlight > the build > What to Test). It stays under
-TestFlight's 4,000-character limit. It covers everything since build 33; builds 34 to 37 were not sent to testers.
+TestFlight's 4,000-character limit. Build 38 notes cover everything since build 33; builds 34 to 37 were not sent to testers.
+
+## Build 39 (version 2026.11)
+
+Build 38 (2026.10.1) already went to external testers, so these notes cover what changed since it.
+
+### What to Test
+
+Thanks for testing Tugboat! This build fixes things found after build 38 and makes some screens a little quicker.
+
+WEEKLY PLAN AND RECIPES
+- Close a recipe you opened from a meal and you now go back to where you were: the Weekly Plan or Today, not the Recipes list.
+- The book icon on Today's Food card no longer covers long dish names.
+- A recipe that is no longer available closes itself instead of leaving a blank sheet.
+- On a wide phone, Edit and More in the Weekly Plan's bar should each appear once.
+
+SPEED
+- Date labels in the Weekly Plan, Calendar and week headers should draw a little faster, and loading lists of items does less work.
+
+Please try:
+1. Food > Weekly Plan > tap a meal with a book icon, then close it. You should land back on the plan.
+2. Do the same from Today's Food card. You should land back on Today.
+3. Tap Edit, change a meal, tap Done.
+
+Please tell us about anything that sticks, overlaps or can't be closed, and which device and orientation you used.
+
+### Changes in build 39 (for the developer)
+
+- Closing a recipe returns to the page it was opened from (`AppState.recipeReturn`).
+- Blank recipe sheet dismisses itself; recipe icon no longer overlaps meal names; Edit and More bar items attach once.
+- Meal tap rules have a check (`ios/checks/meal-tap`).
+- Speed: week days cached, shared date formatters and calendars, no `String(format:)` in local dates, one shared ISO formatter when decoding.
 
 ## Build 38 (version 2026.10.1)
 
