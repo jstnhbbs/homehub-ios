@@ -93,7 +93,7 @@ struct SnacksTodayCard: View {
             } else if perChild {
                 // The whole card is snack tiles, as many across as fit; each child's circle on a tile shows
                 // who has had it, so a separate progress column would only take room from the snacks.
-                snackGrid(sorted, maxColumns: 3)
+                snackGrid(sorted, maxColumns: 3, tightens: true)
             } else {
                 HStack(alignment: .top, spacing: 12) {
                     TodayCardSection(title: "To eat") {
@@ -126,7 +126,7 @@ struct SnacksTodayCard: View {
         .buttonStyle(.plain)
     }
 
-    private func snackGrid(_ items: [SnackListItem], maxColumns: Int, compact: Bool = false) -> some View {
+    private func snackGrid(_ items: [SnackListItem], maxColumns: Int, compact: Bool = false, tightens: Bool = false) -> some View {
         WholeRowsGrid(
             items: items,
             minimumColumnWidth: compact && perChild ? DashboardCheckTile.compactTileMinimumWidth : DashboardRow<EmptyView, EmptyView>.minimumWidth,
@@ -137,10 +137,15 @@ struct SnacksTodayCard: View {
                     : DashboardRow<EmptyView, EmptyView>.height
             },
             onMore: openSnacks,
-            allowsCompactRows: !perChild
+            allowsCompactRows: !perChild || tightens,
+            compactItemHeight: perChild
+                ? { item, columnWidth in
+                    DashboardCheckTile.snackChildHeight(title: item.label, childCount: children.count, columnWidth: columnWidth, compact: true)
+                }
+                : nil
         ) { item, _ in
             if perChild {
-                SnackChildTile(
+                TightenableSnackTile(
                     snack: item.label,
                     children: children,
                     records: dashboard.snackCompletions,
@@ -156,5 +161,20 @@ struct SnacksTodayCard: View {
                 )
             }
         }
+    }
+}
+
+/// A child snack tile that goes compact when the grid tightens its rows to fit another one.
+private struct TightenableSnackTile: View {
+    @Environment(\.dashboardRowIsCompact) private var rowsAreTight
+    let snack: String
+    let children: [Profile]
+    let records: [SnackEatenRecord]
+    let isDone: Bool
+    let localDate: String
+    let compact: Bool
+
+    var body: some View {
+        SnackChildTile(snack: snack, children: children, records: records, isDone: isDone, localDate: localDate, compact: compact || rowsAreTight)
     }
 }

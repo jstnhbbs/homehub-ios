@@ -190,6 +190,8 @@ struct WholeRowsGrid<Item: Identifiable, Tile: View>: View {
     /// Let the rows tighten to `DashboardRow.compactHeight` when that shows more of them. Only for
     /// cards whose tiles are `DashboardRow`s.
     var allowsCompactRows = false
+    /// The height of a tile when the rows tighten, for tiles that are not `DashboardRow`s. Nil uses the row's.
+    var compactItemHeight: ((Item, CGFloat) -> CGFloat)? = nil
     @ViewBuilder let tile: (Item, CGFloat) -> Tile
 
     var body: some View {
@@ -203,7 +205,7 @@ struct WholeRowsGrid<Item: Identifiable, Tile: View>: View {
             let columnWidth = (geo.size.width - CGFloat(columns - 1) * spacing) / CGFloat(columns)
             let comfortableHeights = items.map { itemHeight($0, columnWidth) }
             let comfortableFit = fit(comfortableHeights, columns: columns, height: geo.size.height)
-            let compactHeights = items.map { _ in DashboardRow<EmptyView, EmptyView>.compactHeight }
+            let compactHeights = items.map { compactItemHeight?($0, columnWidth) ?? DashboardRow<EmptyView, EmptyView>.compactHeight }
             let compactFit = fit(compactHeights, columns: columns, height: geo.size.height)
             // Use the tighter rows when they reveal another one, or when not even one comfortable row fits (a row
             // is always shown, so it would run past the card's padding) and the tight one does.

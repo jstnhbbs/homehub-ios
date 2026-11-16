@@ -295,12 +295,16 @@ enum HubScreen {
 /// A soft frosted fade over the status bar, so content that scrolls up under it stays out of the clock's way.
 struct HubTopFade: View {
     var body: some View {
-        Rectangle()
-            .fill(.ultraThinMaterial)
-            .mask(LinearGradient(colors: [.black, .black, .clear], startPoint: .top, endPoint: .bottom))
-            .frame(height: HubScreen.topInset + 14)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+        // With nothing along the top edge (an iPhone Duo's inner display keeps its status items in a column at the
+        // side) there is no clock to keep clear, and the fade would only draw a visible band with a hard end.
+        if HubScreen.topInset > 0 {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .mask(LinearGradient(colors: [.black, .black, .clear], startPoint: .top, endPoint: .bottom))
+                .frame(height: HubScreen.topInset + 14)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
     }
 }
 
