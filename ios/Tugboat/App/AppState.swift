@@ -668,6 +668,17 @@ final class AppState: ObservableObject {
         return try await request.value.get()
     }
 
+    /// True when a meal's saved recipe can be opened (the Recipes section is on for this household).
+    var canOpenRecipes: Bool { FoodHubSection.recipes.isVisible(in: hubModules) }
+
+    /// Opens a saved recipe in Food > Recipes, the same way the Dinner widget does.
+    func openRecipe(_ id: String) {
+        guard canOpenRecipes else { return }
+        pendingFoodSection = .recipes
+        pendingWidgetRecipeId = id
+        selectedDestination = .meals
+    }
+
     private func normalizeNavigation() {
         if !selectedDestination.isVisible(in: hubModules) {
             selectedDestination = .dashboard

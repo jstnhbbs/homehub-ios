@@ -965,6 +965,8 @@ struct MealTile: Identifiable {
 struct MealSlotRow: View {
     let slot: MealSlot
     let meal: Meal?
+    /// The meal has a saved recipe the tile opens.
+    var hasRecipe = false
 
     private static let maxLines = 3
 
@@ -1006,6 +1008,15 @@ struct MealSlotRow: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(HubTheme.tileQuiet)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(alignment: .topTrailing) {
+            if hasRecipe {
+                Image(systemName: "book.closed")
+                    .font(.caption)
+                    .foregroundStyle(HubTheme.accentText)
+                    .padding(10)
+                    .accessibilityHidden(true)
+            }
+        }
     }
 }
 

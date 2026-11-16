@@ -3,8 +3,8 @@ import SwiftUI
 /// The Snacks card at all three sizes.
 ///
 /// Small is how many of today's snacks have been had. Medium lists them to tick off (with a circle for
-/// each child when snacks are tracked per child). Large splits what is left from what has been eaten, or
-/// for per-child households shows each child's progress beside the list.
+/// each child when snacks are tracked per child). Large fills the card with snacks: what is left beside what has been eaten, or
+/// for per-child households as many tiles across as fit.
 struct SnacksTodayCard: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.openHubDestination) private var openHubDestination
@@ -88,24 +88,12 @@ struct SnacksTodayCard: View {
     @ViewBuilder
     private var large: some View {
         VStack(alignment: .leading, spacing: 8) {
-            TodayCardSummaryLine(text: line)
             if total == 0 {
                 emptyNote
             } else if perChild {
-                HStack(alignment: .top, spacing: 12) {
-                    TodayCardSection(title: "Snacks") { snackGrid(sorted, maxColumns: 1) }
-                    TodayCardSection(title: "Had so far") {
-                        SnackChildProgress(
-                            children: children,
-                            counts: SnackHelpers.eatenCounts(
-                                options: dashboard.snackOptions,
-                                childIds: children.map(\.id),
-                                in: dashboard.snackCompletions
-                            ),
-                            total: total
-                        )
-                    }
-                }
+                // The whole card is snack tiles, as many across as fit; each child's circle on a tile shows
+                // who has had it, so a separate progress column would only take room from the snacks.
+                snackGrid(sorted, maxColumns: 3)
             } else {
                 HStack(alignment: .top, spacing: 12) {
                     TodayCardSection(title: "To eat") {

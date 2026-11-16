@@ -29,7 +29,24 @@ struct RecipesView: View {
                     activeRecipeSheet = .edit(recipe.id)
                 }
                 .padding(.top, 8)
+                // A full-height sheet has no bar of its own, and on a phone with a side tab bar a drag is the only
+                // other way out, so it carries a close button.
+                .overlay(alignment: .topTrailing) {
+                    Button {
+                        narrowDetailId = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(HubTheme.muted)
+                            .minimumTapTarget()
+                    }
+                    .accessibilityLabel("Close")
+                    .padding(.top, 4)
+                    .padding(.trailing, 8)
+                }
                 .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
             }
         }
         .onAppear { viewModel.bind(to: appState) }

@@ -5,6 +5,7 @@ import SwiftUI
 /// Small is tonight's dinner. Medium is today's three meals. Large is today's meals beside the dinners
 /// for the rest of the week. The wording and the days come from `FoodCardSummary`.
 struct FoodTodayCard: View {
+    @EnvironmentObject private var appState: AppState
     @Environment(\.openHubDestination) private var openHubDestination
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -46,7 +47,9 @@ struct FoodTodayCard: View {
 
     private var small: some View {
         let summary = summary
-        return TodayCardSmallBody(card: .meals) {
+        // Tonight's dinner opens its saved recipe when it has one; otherwise the card opens Food.
+        let recipeId = appState.canOpenRecipes ? summary.dinner?.recipeId : nil
+        return TodayCardSmallBody(card: .meals, action: recipeId.map { id in { appState.openRecipe(id) } }) {
             VStack(alignment: .leading, spacing: 8) {
                 TodayCardHeadline(
                     headline: summary.headline,
@@ -108,7 +111,15 @@ struct FoodTodayCard: View {
             itemHeight: { tile, columnWidth in MealSlotRow.height(for: tile.meal, columnWidth: columnWidth) },
             onMore: { openHubDestination(.meals) }
         ) { tile, _ in
-            MealSlotRow(slot: tile.slot, meal: tile.meal)
+            if let id = tile.meal?.recipeId, appState.canOpenRecipes {
+                Button { appState.openRecipe(id) } label: {
+                    MealSlotRow(slot: tile.slot, meal: tile.meal, hasRecipe: true)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Open recipe")
+            } else {
+                MealSlotRow(slot: tile.slot, meal: tile.meal)
+            }
         }
     }
 }

@@ -15,6 +15,10 @@ struct MealsView: View {
     @State private var pickerTarget: MealSlotRef?
     @State private var dropTarget: MealSlotRef?
     @State private var confirmClearWeek = false
+    /// The plan reads as a plan until Edit is tapped; then slots open the picker, and swipes and drags work.
+    @State private var isEditing = false
+    /// A meal with notes but no recipe shows them when tapped outside edit mode.
+    @State private var notesMeal: Meal?
     @State private var scrolledWeekOffset: Int?
     /// Only a Food page that is on screen acts on a request to open one of its sections. Another live copy (a
     /// tab's page that is not showing) used to take the request first, so the page being opened found it gone and
@@ -28,7 +32,11 @@ struct MealsView: View {
                 normalizeSection()
                 applyPendingFoodSection()
             }
-            .onDisappear { isOnScreen = false }
+            .onDisappear {
+                isOnScreen = false
+                isEditing = false
+            }
+            .onChange(of: section) { _, _ in isEditing = false }
             .onChange(of: appState.pendingFoodSection) { _, pending in
                 // A page already showing switches section; it leaves the request for the page about to open (which
                 // clears it as it appears), and drops it itself a moment later if no page opens.
@@ -183,6 +191,11 @@ struct MealsView: View {
         .sheet(item: $pickerTarget) { ref in
             MealPickerSheet(viewModel: viewModel, ref: ref)
         }
+        .alert(notesMeal?.title ?? "", isPresented: Binding(get: { notesMeal != nil }, set: { if !$0 { notesMeal = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(notesMeal?.notes ?? "")
+        }
         .confirmationDialog("Clear every meal this week?", isPresented: $confirmClearWeek, titleVisibility: .visible) {
             Button("Clear Week", role: .destructive) {
                 Task { await viewModel.clearWeek() }
@@ -220,17 +233,28 @@ struct MealsView: View {
     private var mealActions: some View {
         if viewModel.canManage {
             if widePhone {
-                // The menu lives in the system bar; this carries it without drawing anything.
+                // The buttons live in the system bar; this carries them without drawing anything.
                 Color.clear.frame(width: 0, height: 0)
+                    .hubBarAction(isEditing ? "Done" : "Edit", systemImage: isEditing ? "checkmark" : "pencil") {
+                        isEditing.toggle()
+                    }
                     .hubBarMenu("More", systemImage: "ellipsis.circle") { mealMenuItems }
             } else {
-                Menu {
-                    mealMenuItems
-                } label: {
-                    Label("More", systemImage: "ellipsis.circle")
+                HStack(spacing: 10) {
+                    Button {
+                        isEditing.toggle()
+                    } label: {
+                        Label(isEditing ? "Done" : "Edit", systemImage: isEditing ? "checkmark" : "pencil")
+                    }
+                    .buttonStyle(HubButtonStyle(emphasis: isEditing ? .primary : .secondary))
+                    Menu {
+                        mealMenuItems
+                    } label: {
+                        Label("More", systemImage: "ellipsis.circle")
+                    }
+                    .buttonStyle(HubButtonStyle(emphasis: .secondary))
+                    .disabled(viewModel.isWorking)
                 }
-                .buttonStyle(HubButtonStyle(emphasis: .secondary))
-                .disabled(viewModel.isWorking)
             }
         }
     }
@@ -243,16 +267,18 @@ struct MealsView: View {
             Label("Add Week to Groceries", systemImage: "cart.badge.plus")
         }
 
-        Button {
-            Task { await viewModel.copyPreviousWeek() }
-        } label: {
-            Label("Copy Last Week", systemImage: "doc.on.doc")
-        }
+        if isEditing {
+            Button {
+                Task { await viewModel.copyPreviousWeek() }
+            } label: {
+                Label("Copy Last Week", systemImage: "doc.on.doc")
+            }
 
-        Button(role: .destructive) {
-            confirmClearWeek = true
-        } label: {
-            Label("Clear Week", systemImage: "trash")
+            Button(role: .destructive) {
+                confirmClearWeek = true
+            } label: {
+                Label("Clear Week", systemImage: "trash")
+            }
         }
     }
 
@@ -378,7 +404,7 @@ struct MealsView: View {
                         }
                     }
 
-                    if viewModel.canManage {
+                    if viewModel.canManage && isEditing {
                         Text("Tap a meal to change it. Swipe to clear or copy to tomorrow, or press and hold to drag it to another slot.")
                             .font(.footnote)
                             .foregroundStyle(HubTheme.muted)
@@ -410,9 +436,9 @@ struct MealsView: View {
                 .foregroundStyle(HubTheme.muted)
                 .frame(width: 78, alignment: .leading)
                 .padding(.top, 3)
-            MealTitleLabel(meal: meal, canManage: viewModel.canManage)
+            MealTitleLabel(meal: meal, canManage: viewModel.canManage && isEditing)
             Spacer(minLength: 0)
-            if meal?.recipeId != nil {
+            if meal?.recipeId != nil && appState.canOpenRecipes {
                 Image(systemName: "book.closed")
                     .font(.caption)
                     .foregroundStyle(HubTheme.accentText)
@@ -431,7 +457,7 @@ struct MealsView: View {
             leading: [SwipeButton(title: "Tomorrow", systemImage: "arrow.turn.down.right", tint: HubTheme.accent, foreground: HubTheme.onAccent) {
                 Task { await viewModel.copyMeal(from: ref, daysAhead: 1) }
             }],
-            isEnabled: viewModel.canManage && meal != nil,
+            isEnabled: viewModel.canManage && isEditing && meal != nil,
             cornerRadius: 12
         )
     }
@@ -481,7 +507,7 @@ struct MealsView: View {
                     todayCard
                 }
                 if viewModel.canManage {
-                    stillToPlanCard
+                    if isEditing { stillToPlanCard }
                     weekActionsCard
                 }
             }
@@ -508,7 +534,7 @@ struct MealsView: View {
                                 .font(.headline.weight(.semibold))
                                 .multilineTextAlignment(.leading)
                         } else {
-                            Text(viewModel.canManage ? "Nothing planned. Tap to add." : "Not planned")
+                            Text(viewModel.canManage && isEditing ? "Nothing planned. Tap to add." : "Not planned")
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(HubTheme.muted)
                         }
@@ -519,11 +545,19 @@ struct MealsView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        if viewModel.canManage { pickerTarget = ref }
+                        if viewModel.canManage && isEditing {
+                            pickerTarget = ref
+                        } else {
+                            openMeal(meal)
+                        }
                     }
                     .accessibilityElement(children: .combine)
-                    .accessibilityAddTraits(viewModel.canManage ? .isButton : [])
-                    .accessibilityHint(viewModel.canManage ? (meal == nil ? "Add a meal" : "Change this meal") : "")
+                    .accessibilityAddTraits(isEditing || canOpen(meal) ? .isButton : [])
+                    .accessibilityHint(
+                        viewModel.canManage && isEditing
+                            ? (meal == nil ? "Add a meal" : "Change this meal")
+                            : (canOpen(meal) ? "Open recipe" : "")
+                    )
                 }
             }
         }
@@ -590,13 +624,15 @@ struct MealsView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(HubButtonStyle(emphasis: .primary))
-                Button {
-                    Task { await viewModel.copyPreviousWeek() }
-                } label: {
-                    Label("Copy Last Week", systemImage: "doc.on.doc")
-                        .frame(maxWidth: .infinity)
+                if isEditing {
+                    Button {
+                        Task { await viewModel.copyPreviousWeek() }
+                    } label: {
+                        Label("Copy Last Week", systemImage: "doc.on.doc")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(HubButtonStyle(emphasis: .secondary))
                 }
-                .buttonStyle(HubButtonStyle(emphasis: .secondary))
             }
             .disabled(viewModel.isWorking)
         }
@@ -625,7 +661,7 @@ struct MealsView: View {
                         }
                     }
 
-                    if viewModel.canManage {
+                    if viewModel.canManage && isEditing {
                         Text("Tap a meal to change it, press and hold to drag it to another slot, or use the context menu to copy it.")
                             .font(.footnote)
                             .foregroundStyle(HubTheme.muted)
@@ -643,9 +679,9 @@ struct MealsView: View {
         let ref = MealSlotRef(localDate: localDate, slot: slot)
         let meal = viewModel.meal(ref)
         return HStack(alignment: .top, spacing: 6) {
-            MealTitleLabel(meal: meal, canManage: viewModel.canManage)
+            MealTitleLabel(meal: meal, canManage: viewModel.canManage && isEditing)
             Spacer(minLength: 0)
-            if meal?.recipeId != nil {
+            if meal?.recipeId != nil && appState.canOpenRecipes {
                 Image(systemName: "book.closed")
                     .font(.caption)
                     .foregroundStyle(HubTheme.accentText)
@@ -702,12 +738,27 @@ struct MealsView: View {
 
     // MARK: - Shared slot behavior
 
+    private func canOpen(_ meal: Meal?) -> Bool {
+        meal?.recipeId != nil && appState.canOpenRecipes
+    }
+
+    /// Outside edit mode a tap opens the meal's saved recipe, or shows its notes when it has no recipe.
+    private func openMeal(_ meal: Meal?) {
+        guard let meal else { return }
+        if let recipeId = meal.recipeId, appState.canOpenRecipes {
+            appState.openRecipe(recipeId)
+        } else if let notes = meal.notes, !notes.isEmpty {
+            notesMeal = meal
+        }
+    }
+
     private func interactions(ref: MealSlotRef, meal: Meal?) -> MealSlotInteractions {
         MealSlotInteractions(
             ref: ref,
             meal: meal,
-            canManage: viewModel.canManage,
+            canManage: viewModel.canManage && isEditing,
             dropTarget: $dropTarget,
+            onOpen: canOpen(meal) || (meal?.notes?.isEmpty == false) ? { openMeal(meal) } : nil,
             onEdit: { pickerTarget = ref },
             onDrop: { token in
                 Task { await viewModel.moveMeal(fromToken: token, to: ref) }
@@ -752,6 +803,8 @@ private struct MealSlotInteractions: ViewModifier {
     let meal: Meal?
     let canManage: Bool
     @Binding var dropTarget: MealSlotRef?
+    /// What a tap does outside edit mode (open the recipe or show the notes); nil when there is nothing to open.
+    let onOpen: (() -> Void)?
     let onEdit: () -> Void
     let onDrop: (String) -> Void
     let onClear: () -> Void
@@ -804,6 +857,11 @@ private struct MealSlotInteractions: ViewModifier {
             } else {
                 interactive
             }
+        } else if let onOpen {
+            content
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onOpen)
+                .accessibilityAddTraits(.isButton)
         } else {
             content
         }
