@@ -3,7 +3,7 @@
 Paste the text under "What to Test" into App Store Connect (TestFlight > the build > What to Test). It stays under
 TestFlight's 4,000-character limit. Build 38 notes cover everything since build 33; builds 34 to 37 were not sent to testers.
 
-## Build 39 (version 2026.11)
+## Build 40 (version 2026.11.0)
 
 Build 38 (2026.10.1) already went to external testers, so these notes cover what changed since it.
 
@@ -27,8 +27,9 @@ Please try:
 
 Please tell us about anything that sticks, overlaps or can't be closed, and which device and orientation you used.
 
-### Changes in build 39 (for the developer)
+### Changes since build 38 (for the developer)
 
+- 40: same as 39, but the version is written 2026.11.0.
 - Closing a recipe returns to the page it was opened from (`AppState.recipeReturn`).
 - Blank recipe sheet dismisses itself; recipe icon no longer overlaps meal names; Edit and More bar items attach once.
 - Meal tap rules have a check (`ios/checks/meal-tap`).
