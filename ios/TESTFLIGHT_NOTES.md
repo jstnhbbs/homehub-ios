@@ -3,6 +3,21 @@
 Paste the text under "What to Test" into App Store Connect (TestFlight > the build > What to Test). It stays under
 TestFlight's 4,000-character limit. Build 38 notes cover everything since build 33; builds 34 to 37 were not sent to testers.
 
+## Build 41 (version 2026.11.0)
+
+### What to Test
+
+Thanks for testing Tugboat! This build tidies Today on the iPhone Duo's inner screen and fits more snacks on the Large Snacks card.
+
+- The faint band along the top of Today on the iPhone Duo's inner screen should be gone.
+- The Large Snacks card (tracked per child) can now show a third row of snacks when the tighter tiles fit.
+
+Please tell us about anything that looks cut off or crowded, and which device and orientation you used.
+
+### Changes since build 40 (for the developer)
+
+- 41: `HubTopFade` draws only when the window has a top inset; Large per-child Snacks tiles tighten to the compact height when that fits another row (`WholeRowsGrid.compactItemHeight`).
+
 ## Build 40 (version 2026.11.0)
 
 Build 38 (2026.10.1) already went to external testers, so these notes cover what changed since it.
